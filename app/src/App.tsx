@@ -1,0 +1,3937 @@
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import ExcelJS from 'exceljs'
+import * as XLSX from 'xlsx'
+import ExpensePage, { EXPENSE_PAGE_STORAGE_KEY } from './ExpensePage'
+import MemoPage, { MEMO_PAGE_STORAGE_KEY } from './MemoPage'
+import GreenBeanOrderPage, { GREEN_BEAN_ORDER_STORAGE_KEY } from './GreenBeanOrderPage'
+import StaffPayrollPage, { STAFF_PAYROLL_STORAGE_KEY } from './StaffPayrollPage.tsx'
+import InventoryStatusPage from './InventoryStatusPage'
+import {
+  INVENTORY_AUTO_STOCK_MODE_KEY,
+  INVENTORY_STATUS_BASELINE_STORAGE_KEY,
+  INVENTORY_STATUS_STORAGE_KEY,
+  INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY,
+  INVENTORY_STATUS_TEMPLATE_STORAGE_KEY,
+} from './InventoryStatusPage'
+import MonthlyMeetingPage, {
+  MONTHLY_MEETING_DATA_KEY,
+  STATEMENT_RECORDS_SAVED_EVENT,
+  STATEMENT_RECORDS_STORAGE_KEY,
+} from './MonthlyMeetingPage'
+import { ADMIN_FOUR_DIGIT_PIN } from './adminPin.ts'
+import PageSaveStatus from './components/PageSaveStatus'
+import {
+  buildStyledStatementInputListBuffer,
+  buildStyledStatementMonthlySummaryBuffer,
+  statementInputListDefaultColumnWidths,
+} from './statementExcelStyledExport.ts'
+import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
+import { useDocumentSaveUi } from './lib/documentSaveUi'
+import { useAppRuntime } from './providers/AppRuntimeProvider.tsx'
+import './App.css'
+
+const STORAGE_KEY = STATEMENT_RECORDS_STORAGE_KEY
+const PRICING_RULES_STORAGE_KEY = 'pricing-rules-v1'
+const ACTIVE_PAGE_STORAGE_KEY = 'active-page-v1'
+const STATEMENT_TEMPLATE_STORAGE_KEY = 'statement-template-base64-v1'
+const STATEMENT_TEMPLATE_NAME_STORAGE_KEY = 'statement-template-name-v1'
+const STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY = 'statement-template-updated-at-v1'
+const STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY = 'statement-template-settings-v1'
+const CURRENT_YEAR = new Date().getFullYear()
+const MONTH_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}월`)
+
+type AppActivePage =
+  | 'statements'
+  | 'meeting'
+  | 'inventory'
+  | 'expense'
+  | 'staffPayroll'
+  | 'greenBeanOrder'
+  | 'memo'
+  | 'dailyMeeting'
+
+type PageCategoryId = 'trade' | 'closing' | 'supply' | 'org'
+
+const PAGE_CATEGORY_GROUPS: {
+  id: PageCategoryId
+  label: string
+  pages: { page: AppActivePage; label: string }[]
+}[] = [
+  { id: 'trade', label: '거래·명세', pages: [{ page: 'statements', label: '거래명세 관리' }] },
+  {
+    id: 'closing',
+    label: '마감·지출',
+    pages: [
+      { page: 'expense', label: '지출표' },
+      { page: 'meeting', label: '월 마감회의' },
+    ],
+  },
+  {
+    id: 'supply',
+    label: '재고·생두',
+    pages: [
+      { page: 'inventory', label: '입출고 현황' },
+      { page: 'greenBeanOrder', label: '생두 주문' },
+    ],
+  },
+  {
+    id: 'org',
+    label: '직원·메모',
+    pages: [
+      { page: 'dailyMeeting', label: '일일회의' },
+      { page: 'staffPayroll', label: '직원·급여' },
+    ],
+  },
+]
+
+const PAGE_HEADER_META: Record<AppActivePage, { title: string; description: string }> = {
+  statements: {
+    title: '거래명세 관리',
+    description: '거래명세 입력, 단가 관리, 월별 납품현황을 한 화면에서 이어서 관리합니다.',
+  },
+  meeting: {
+    title: '월 마감회의',
+    description: '월 요약, 비용 현황, 생산과 판매 지표를 한 번에 정리하는 회의 화면입니다.',
+  },
+  inventory: {
+    title: '입출고 현황',
+    description: '입고·생산·출고 흐름과 재고 기준일을 같은 맥락으로 확인합니다.',
+  },
+  expense: {
+    title: '지출표',
+    description: '월별 지출 내역과 결제 상태, 비용 합계를 빠르게 정리합니다.',
+  },
+  staffPayroll: {
+    title: '직원·급여',
+    description: '직원 정보와 월 지급액, 수정 잠금 상태를 함께 관리합니다.',
+  },
+  greenBeanOrder: {
+    title: '생두 주문',
+    description: '생두 주문, 가격 비교, 재고 연동 정보를 한곳에서 확인합니다.',
+  },
+  memo: {
+    title: '메모',
+    description: '업무 메모와 링크 메모를 한곳에서 관리합니다.',
+  },
+  dailyMeeting: {
+    title: '일일회의',
+    description: '당일 메모와 회의 정리를 빠르게 남기고 이어서 확인합니다.',
+  },
+}
+
+function categoryIdForPage(page: AppActivePage): PageCategoryId {
+  for (const g of PAGE_CATEGORY_GROUPS) {
+    if (g.pages.some((p) => p.page === page)) {
+      return g.id
+    }
+  }
+  return 'trade'
+}
+const currencyFormatter = new Intl.NumberFormat('ko-KR')
+const CUSTOM_CLIENT_OPTION = '__custom_client__'
+const CUSTOM_ITEM_OPTION = '__custom__'
+const DEFAULT_ITEM_OPTIONS = [
+  '에티오피아 코케허니 예가체프 G1',
+  '에티오피아 예가체프 G2',
+  '에티오피아 모모라 워시드 구지 G1',
+  '케냐 AA FAQ',
+  '인도네시아 아체가요 G1',
+  '인도네시아 만델링 G1',
+  '과테말라 안티구아 SHB',
+  '디카페인 (안티구아+세하도 50:50)',
+  '브라질 세하도',
+  '콜롬비아 다리오 수프리모',
+  '블렌딩 다크로스나',
+  '블렌딩 라이트',
+  '과테말라 안티구아 디카페인',
+  '브라질 슈가케인 디카페인',
+  '에티오피아 시다모 G4',
+] as const
+const DEFAULT_SPEC_OPTIONS = ['1/KG', '200/G'] as const
+const NOTE_OPTIONS = ['부가세 별도', '부가세 없음'] as const
+const STATEMENT_PREVIEW_LABEL = '공급받는자용'
+const QUICK_SPEC_OPTIONS = [
+  { label: '1kg', value: '1/KG' },
+  { label: '200g', value: '200/G' },
+] as const
+const QUICK_SPEC_VALUES = new Set<string>(QUICK_SPEC_OPTIONS.map((option) => option.value))
+
+type StatementRecord = {
+  id: string
+  deliveryDate: string
+  issueDate: string
+  paymentDate: string
+  deliveryCount: string
+  clientName: string
+  itemName: string
+  specUnit: string
+  quantity: number
+  unitPrice: number
+  note: string
+  supplyAmount: number
+  taxAmount: number
+  totalAmount: number
+}
+
+type FormState = {
+  deliveryDate: string
+  deliveryCount: string
+  clientName: string
+  itemName: string
+  specUnit: string
+  quantity: string
+  unitPrice: string
+  note: string
+}
+
+type MonthlySummaryRow = {
+  clientName: string
+  totalAmount: number
+  share: number
+  months: {
+    amount: number
+    issueDate: string
+    paymentDate: string
+  }[]
+}
+
+type PricingRule = {
+  id: string
+  clientName: string
+  itemName: string
+  specUnit: string
+  unitPrice: number
+}
+
+type StatementSheetGroup = {
+  key: string
+  deliveryDate: string
+  issueDate: string
+  clientName: string
+  deliveryCount: string
+  records: StatementRecord[]
+  supplyAmount: number
+  taxAmount: number
+  totalAmount: number
+}
+
+type AppBackupPayload = {
+  version: 2
+  savedAt: string
+  records: StatementRecord[]
+  pricingRules: PricingRule[]
+  activePage?:
+    | 'statements'
+    | 'meeting'
+    | 'inventory'
+    | 'expense'
+    | 'staffPayroll'
+    | 'greenBeanOrder'
+    | 'memo'
+    | 'dailyMeeting'
+  monthlyMeetingState?: string
+  inventoryState?: string
+  inventoryBaselineState?: string
+  inventoryTemplateBase64?: string
+  inventoryTemplateFileName?: string
+  inventoryAutoStockMode?: boolean
+  expenseState?: string
+  staffPayrollState?: string
+  greenBeanOrderState?: string
+  memoState?: string
+  statementTemplateBase64?: string
+  statementTemplateFileName?: string
+  statementTemplateUpdatedAt?: string
+  statementTemplateSettings?: string
+}
+
+type StatementTemplateSettings = {
+  businessNumber: string
+  companyName: string
+  ownerName: string
+  address: string
+  businessType: string
+  businessItem: string
+  phone: string
+  account: string
+}
+
+type StatementPageDocument = {
+  records: StatementRecord[]
+  pricingRules: PricingRule[]
+  statementTemplateBase64: string | null
+  statementTemplateFileName: string
+  statementTemplateUpdatedAt: string
+  statementTemplateSettings: StatementTemplateSettings
+}
+
+const DEFAULT_STATEMENT_TEMPLATE_SETTINGS: StatementTemplateSettings = {
+  businessNumber: '560.17.02264',
+  companyName: '이오도',
+  ownerName: '유성덕',
+  address: '부산시 남구 용소로34번길 24-6',
+  businessType: '제조업',
+  businessItem: '커피차',
+  phone: '051.621.9771',
+  account: '부산은행 101.2087.7763.06 / 이오도 유성덕',
+}
+
+const today = new Date().toISOString().slice(0, 10)
+const pricingHeaderAliases = {
+  clientName: ['거래처명', '업체명', '거래처', '업체', '매장명'],
+  itemName: ['품목', '상품명', '제품명', '메뉴명', '원두명'],
+  specUnit: ['규격/단위', '규격', '단위'],
+  unitPrice: ['단가', '판매단가', '공급단가', '원가단가', '금액'],
+} as const
+const statementHeaderAliases = {
+  deliveryDate: ['날짜', '납품일', '거래일자', '일자'],
+  clientName: ['거래처명', '업체명', '거래처', '업체', '매장명'],
+  itemName: ['품목', '상품명', '제품명', '메뉴명', '원두명'],
+  specUnit: ['규격/단위', '규격', '단위'],
+  quantity: ['수량', '개수'],
+  unitPrice: ['단가', '판매단가', '공급단가', '원가단가', '금액'],
+  issueDate: ['발행일자', '작성일자', '청구일'],
+  paymentDate: ['입금일자', '수금일', '입금일'],
+  deliveryCount: ['횟수', '회차'],
+  note: ['비고', '과세구분', '부가세'],
+} as const
+
+const defaultFormState = (): FormState => ({
+  deliveryDate: today,
+  deliveryCount: '1',
+  clientName: '',
+  itemName: '',
+  specUnit: '',
+  quantity: '',
+  unitPrice: '',
+  note: '부가세 별도',
+})
+
+const parseNumber = (value: string) => {
+  const normalized = value.replaceAll(',', '').trim()
+  return normalized ? Number(normalized) : 0
+}
+
+/** 엑셀에 넣을 `Date`. 자정(로컬)만 쓰면 ExcelJS가 UTC로 바꿀 때 전날로 떨어져 하루 적게 찍히는 경우가 있어 정오(로컬)로 고정합니다. */
+const parseIsoDateToDate = (value: string) => {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, (month || 1) - 1, day || 1, 12, 0, 0, 0)
+}
+
+const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+  const bytes = new Uint8Array(buffer)
+  const chunkSize = 0x8000
+  let binary = ''
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize))
+  }
+
+  return window.btoa(binary)
+}
+
+const base64ToUint8Array = (value: string) => {
+  const binary = window.atob(value)
+  const bytes = new Uint8Array(binary.length)
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+
+  return bytes
+}
+
+const toArrayBuffer = (value: ArrayBuffer | Uint8Array) => {
+  if (value instanceof ArrayBuffer) {
+    return value
+  }
+
+  return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength) as ArrayBuffer
+}
+
+const downloadExcelBuffer = (buffer: ArrayBuffer | Uint8Array, filename: string) => {
+  const blob = new Blob([toArrayBuffer(buffer)], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  window.URL.revokeObjectURL(url)
+}
+
+const normalizeStatementTemplateSettings = (value: unknown): StatementTemplateSettings => {
+  if (!value || typeof value !== 'object') {
+    return { ...DEFAULT_STATEMENT_TEMPLATE_SETTINGS }
+  }
+
+  const source = value as Partial<StatementTemplateSettings>
+  return {
+    businessNumber: String(source.businessNumber ?? DEFAULT_STATEMENT_TEMPLATE_SETTINGS.businessNumber),
+    companyName: String(source.companyName ?? DEFAULT_STATEMENT_TEMPLATE_SETTINGS.companyName),
+    ownerName: String(source.ownerName ?? DEFAULT_STATEMENT_TEMPLATE_SETTINGS.ownerName),
+    address: String(source.address ?? DEFAULT_STATEMENT_TEMPLATE_SETTINGS.address),
+    businessType: String(source.businessType ?? DEFAULT_STATEMENT_TEMPLATE_SETTINGS.businessType),
+    businessItem: String(source.businessItem ?? DEFAULT_STATEMENT_TEMPLATE_SETTINGS.businessItem),
+    phone: String(source.phone ?? DEFAULT_STATEMENT_TEMPLATE_SETTINGS.phone),
+    account: String(source.account ?? DEFAULT_STATEMENT_TEMPLATE_SETTINGS.account),
+  }
+}
+
+const readStatementPageLocalState = (): StatementPageDocument => {
+  let records: StatementRecord[] = []
+  const savedRecords = window.localStorage.getItem(STORAGE_KEY)
+  if (savedRecords) {
+    try {
+      records = normalizeLoadedRecords(JSON.parse(savedRecords) as Array<StatementRecord & { note?: string }>)
+    } catch (error) {
+      console.error('저장된 거래명세 데이터를 읽지 못했습니다.', error)
+    }
+  }
+
+  let pricingRules: PricingRule[] = []
+  const savedPricingRules = window.localStorage.getItem(PRICING_RULES_STORAGE_KEY)
+  if (savedPricingRules) {
+    try {
+      pricingRules = JSON.parse(savedPricingRules) as PricingRule[]
+    } catch (error) {
+      console.error('저장된 단가표를 읽지 못했습니다.', error)
+    }
+  }
+
+  let statementTemplateSettings = { ...DEFAULT_STATEMENT_TEMPLATE_SETTINGS }
+  const savedStatementTemplateSettings = window.localStorage.getItem(STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY)
+  if (savedStatementTemplateSettings) {
+    try {
+      statementTemplateSettings = normalizeStatementTemplateSettings(JSON.parse(savedStatementTemplateSettings))
+    } catch {
+      statementTemplateSettings = { ...DEFAULT_STATEMENT_TEMPLATE_SETTINGS }
+    }
+  }
+
+  return {
+    records,
+    pricingRules,
+    statementTemplateBase64: window.localStorage.getItem(STATEMENT_TEMPLATE_STORAGE_KEY),
+    statementTemplateFileName: window.localStorage.getItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY) ?? '',
+    statementTemplateUpdatedAt: window.localStorage.getItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY) ?? '',
+    statementTemplateSettings,
+  }
+}
+
+const normalizeStatementPageDocument = (value: unknown): StatementPageDocument => {
+  if (!value || typeof value !== 'object') {
+    return {
+      records: [],
+      pricingRules: [],
+      statementTemplateBase64: null,
+      statementTemplateFileName: '',
+      statementTemplateUpdatedAt: '',
+      statementTemplateSettings: { ...DEFAULT_STATEMENT_TEMPLATE_SETTINGS },
+    }
+  }
+
+  const source = value as Partial<StatementPageDocument>
+  return {
+    records: Array.isArray(source.records)
+      ? normalizeLoadedRecords(source.records as Array<StatementRecord & { note?: string }>)
+      : [],
+    pricingRules: Array.isArray(source.pricingRules) ? (source.pricingRules as PricingRule[]) : [],
+    statementTemplateBase64:
+      typeof source.statementTemplateBase64 === 'string' && source.statementTemplateBase64.length > 0
+        ? source.statementTemplateBase64
+        : null,
+    statementTemplateFileName:
+      typeof source.statementTemplateFileName === 'string' ? source.statementTemplateFileName : '',
+    statementTemplateUpdatedAt:
+      typeof source.statementTemplateUpdatedAt === 'string' ? source.statementTemplateUpdatedAt : '',
+    statementTemplateSettings: normalizeStatementTemplateSettings(source.statementTemplateSettings),
+  }
+}
+
+const createWorksheetCopy = (
+  workbook: ExcelJS.Workbook,
+  source: ExcelJS.Worksheet,
+  sheetName: string,
+) => {
+  const target = workbook.addWorksheet(sheetName)
+  target.properties = { ...source.properties }
+  target.pageSetup = { ...source.pageSetup }
+  target.headerFooter = { ...source.headerFooter }
+  target.state = source.state
+  target.views = source.views.map((view) => ({ ...view }))
+
+  source.columns.forEach((column, index) => {
+    const targetColumn = target.getColumn(index + 1)
+    targetColumn.width = column.width
+    targetColumn.hidden = Boolean(column.hidden)
+    targetColumn.style = JSON.parse(JSON.stringify(column.style ?? {}))
+  })
+
+  for (let rowNumber = 1; rowNumber <= source.rowCount; rowNumber += 1) {
+    const sourceRow = source.getRow(rowNumber)
+    const targetRow = target.getRow(rowNumber)
+    targetRow.height = sourceRow.height
+    targetRow.hidden = sourceRow.hidden
+
+    sourceRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      const targetCell = targetRow.getCell(colNumber)
+      targetCell.value = cell.value as ExcelJS.CellValue
+      targetCell.style = JSON.parse(JSON.stringify(cell.style ?? {}))
+    })
+  }
+
+  ;(source.model.merges ?? []).forEach((merge) => {
+    target.mergeCells(merge)
+  })
+
+  return target
+}
+
+type WorksheetLayoutSnapshot = {
+  columns: Array<{
+    min: number
+    max: number
+    width?: number
+    hidden?: boolean
+    outlineLevel?: number
+    collapsed?: boolean
+  }>
+  rows: Array<{
+    number: number
+    height?: number
+    hidden?: boolean
+    outlineLevel?: number
+    collapsed?: boolean
+  }>
+  defaultColWidth?: number
+  defaultRowHeight?: number
+}
+
+const captureWorksheetLayout = (worksheet: ExcelJS.Worksheet): WorksheetLayoutSnapshot => {
+  const sheetModel = worksheet.model as {
+    cols?: Array<{
+      min?: number
+      max?: number
+      width?: number
+      hidden?: boolean
+      outlineLevel?: number
+      collapsed?: boolean
+    }>
+    rows?: Array<{
+      number?: number
+      height?: number
+      hidden?: boolean
+      outlineLevel?: number
+      collapsed?: boolean
+    }>
+  }
+
+  const modelColumns = (sheetModel.cols ?? []).map((col) => ({
+    min: Number(col.min),
+    max: Number(col.max),
+    width: typeof col.width === 'number' ? col.width : undefined,
+    hidden: Boolean(col.hidden),
+    outlineLevel: typeof col.outlineLevel === 'number' ? col.outlineLevel : undefined,
+    collapsed: typeof col.collapsed === 'boolean' ? col.collapsed : undefined,
+  }))
+
+  const modelRows = (sheetModel.rows ?? []).map((row) => ({
+    number: Number(row.number),
+    height: typeof row.height === 'number' ? row.height : undefined,
+    hidden: Boolean(row.hidden),
+    outlineLevel: typeof row.outlineLevel === 'number' ? row.outlineLevel : undefined,
+    collapsed: typeof row.collapsed === 'boolean' ? row.collapsed : undefined,
+  }))
+
+  return {
+    columns: modelColumns,
+    rows: modelRows,
+    defaultColWidth:
+      typeof worksheet.properties.defaultColWidth === 'number'
+        ? worksheet.properties.defaultColWidth
+        : undefined,
+    defaultRowHeight:
+      typeof worksheet.properties.defaultRowHeight === 'number'
+        ? worksheet.properties.defaultRowHeight
+        : undefined,
+  }
+}
+
+const applyWorksheetLayout = (worksheet: ExcelJS.Worksheet, snapshot: WorksheetLayoutSnapshot) => {
+  if (typeof snapshot.defaultColWidth === 'number') {
+    worksheet.properties.defaultColWidth = snapshot.defaultColWidth
+  }
+  if (typeof snapshot.defaultRowHeight === 'number') {
+    worksheet.properties.defaultRowHeight = snapshot.defaultRowHeight
+  }
+
+  snapshot.columns.forEach((entry) => {
+    const start = Math.max(1, entry.min)
+    const end = Math.max(start, entry.max)
+    for (let colNumber = start; colNumber <= end; colNumber += 1) {
+      const col = worksheet.getColumn(colNumber)
+      if (typeof entry.width === 'number') {
+        col.width = entry.width
+      }
+      if (typeof entry.hidden === 'boolean') {
+        col.hidden = entry.hidden
+      }
+      if (typeof entry.outlineLevel === 'number') {
+        col.outlineLevel = entry.outlineLevel
+      }
+    }
+  })
+
+  snapshot.rows.forEach((entry) => {
+    if (!Number.isFinite(entry.number) || entry.number <= 0) {
+      return
+    }
+    const row = worksheet.getRow(entry.number)
+    if (typeof entry.height === 'number') {
+      row.height = entry.height
+    }
+    if (typeof entry.hidden === 'boolean') {
+      row.hidden = entry.hidden
+    }
+    if (typeof entry.outlineLevel === 'number') {
+      row.outlineLevel = entry.outlineLevel
+    }
+  })
+}
+
+const statementCellTextHasHangul = (value: string) => /[\uAC00-\uD7A3]/.test(value)
+
+/** 양식에 남은 숫자·날짜 서식 때문에 한글·혼합 문자열이 깨지지 않게 합니다. */
+const setStatementTemplateCellText = (worksheet: ExcelJS.Worksheet, address: string, text: string) => {
+  const cell = worksheet.getCell(address)
+  cell.numFmt = '@'
+  if (text === '') {
+    cell.value = ''
+    return
+  }
+  if (statementCellTextHasHangul(text)) {
+    cell.value = { richText: [{ text }] } as ExcelJS.CellRichTextValue
+    return
+  }
+  cell.value = text
+}
+
+/**
+ * 납품일 월·일 표시 칸: 값은 숫자, 표시는 양식과 같이 `4권` `13호` 형태(Excel 사용자 지정 `0"권"` / `0"호"`).
+ * 숫자만 넣으면 서식이 빠져 `4`·`13`만 보이는 문제를 막습니다.
+ */
+const setStatementDeliveryBadgeCells = (
+  worksheet: ExcelJS.Worksheet,
+  monthAddress: string,
+  dayAddress: string,
+  deliveryDate: string,
+) => {
+  const month = Number(deliveryDate.slice(5, 7))
+  const day = Number(deliveryDate.slice(8, 10))
+  const monthCell = worksheet.getCell(monthAddress)
+  const dayCell = worksheet.getCell(dayAddress)
+  monthCell.value = month
+  dayCell.value = day
+  monthCell.numFmt = '0"권"'
+  dayCell.numFmt = '0"호"'
+}
+
+const fillStatementTemplateWorksheet = (
+  worksheet: ExcelJS.Worksheet,
+  statementSheet: StatementSheetGroup,
+  settings: StatementTemplateSettings,
+  recordOffset: number,
+  pageSize: number,
+) => {
+  const applyFontSize = (address: string, size: number) => {
+    const cell = worksheet.getCell(address)
+    cell.font = {
+      ...(cell.font ?? {}),
+      size,
+    }
+  }
+
+  setStatementDeliveryBadgeCells(worksheet, 'A1', 'C1', statementSheet.deliveryDate)
+  worksheet.getCell('D2').value = parseIsoDateToDate(statementSheet.issueDate || today)
+  setStatementTemplateCellText(worksheet, 'D3', statementSheet.clientName)
+  setStatementTemplateCellText(worksheet, 'L3', settings.companyName)
+  setStatementTemplateCellText(worksheet, 'N2', settings.businessNumber)
+  setStatementTemplateCellText(worksheet, 'Q3', settings.ownerName)
+  setStatementTemplateCellText(worksheet, 'L4', settings.address)
+  setStatementTemplateCellText(worksheet, 'L5', settings.businessType)
+  setStatementTemplateCellText(worksheet, 'P5', settings.businessItem)
+  setStatementTemplateCellText(worksheet, 'M6', settings.phone)
+  setStatementTemplateCellText(worksheet, 'C26', settings.account)
+  setStatementDeliveryBadgeCells(worksheet, 'T1', 'V1', statementSheet.deliveryDate)
+  worksheet.getCell('W2').value = parseIsoDateToDate(statementSheet.issueDate || today)
+  setStatementTemplateCellText(worksheet, 'W3', statementSheet.clientName)
+  setStatementTemplateCellText(worksheet, 'AE3', settings.companyName)
+  setStatementTemplateCellText(worksheet, 'AG2', settings.businessNumber)
+  setStatementTemplateCellText(worksheet, 'AJ3', settings.ownerName)
+  setStatementTemplateCellText(worksheet, 'AE4', settings.address)
+  setStatementTemplateCellText(worksheet, 'AE5', settings.businessType)
+  setStatementTemplateCellText(worksheet, 'AI5', settings.businessItem)
+  setStatementTemplateCellText(worksheet, 'AF6', settings.phone)
+  setStatementTemplateCellText(worksheet, 'V26', settings.account)
+
+  applyFontSize('L3', 9)
+  applyFontSize('L4', 9)
+  applyFontSize('AE3', 9)
+  applyFontSize('AE4', 9)
+
+  Array.from({ length: pageSize }, (_, index) => index + 10).forEach((rowNumber) => {
+    const row = statementSheet.records[recordOffset + rowNumber - 10]
+    worksheet.getCell(`A${rowNumber}`).value = row ? rowNumber - 9 : ''
+    setStatementTemplateCellText(worksheet, `B${rowNumber}`, row?.itemName ?? '')
+    setStatementTemplateCellText(worksheet, `F${rowNumber}`, row?.specUnit ?? '')
+    worksheet.getCell(`I${rowNumber}`).value = row?.quantity ?? ''
+    worksheet.getCell(`J${rowNumber}`).value = row?.unitPrice ?? ''
+    worksheet.getCell(`M${rowNumber}`).value = row?.supplyAmount ?? ''
+    worksheet.getCell(`P${rowNumber}`).value = row?.taxAmount ?? ''
+    worksheet.getCell(`T${rowNumber}`).value = row ? rowNumber - 9 : ''
+    setStatementTemplateCellText(worksheet, `U${rowNumber}`, row?.itemName ?? '')
+    setStatementTemplateCellText(worksheet, `Y${rowNumber}`, row?.specUnit ?? '')
+    worksheet.getCell(`AB${rowNumber}`).value = row?.quantity ?? ''
+    worksheet.getCell(`AC${rowNumber}`).value = row?.unitPrice ?? ''
+    worksheet.getCell(`AF${rowNumber}`).value = row?.supplyAmount ?? ''
+    worksheet.getCell(`AI${rowNumber}`).value = row?.taxAmount ?? ''
+  })
+}
+
+const formatIsoDate = (year: number, month: number, day: number) =>
+  `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+
+const formatLocalDate = (value: Date) =>
+  formatIsoDate(value.getFullYear(), value.getMonth() + 1, value.getDate())
+
+const parseSpreadsheetDate = (value: unknown) => {
+  if (value === null || value === undefined || value === '') {
+    return ''
+  }
+
+  if (typeof value === 'number') {
+    const parsed = XLSX.SSF.parse_date_code(value)
+    if (parsed) {
+      return formatIsoDate(parsed.y, parsed.m, parsed.d)
+    }
+  }
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return formatLocalDate(value)
+  }
+
+  const text = String(value).trim()
+  if (!text) {
+    return ''
+  }
+
+  if (text.toUpperCase() === '=TODAY()') {
+    return today
+  }
+
+  const normalized = text
+    .replace(/[년.]/g, '-')
+    .replace(/[월/]/g, '-')
+    .replace(/일/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const directMatch = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\D.*)?$/)
+  if (directMatch) {
+    return formatIsoDate(
+      Number(directMatch[1]),
+      Number(directMatch[2]),
+      Number(directMatch[3]),
+    )
+  }
+
+  const monthFirstMatch = normalized.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})(?:\D.*)?$/)
+  if (monthFirstMatch) {
+    const year =
+      monthFirstMatch[3].length === 2 ? 2000 + Number(monthFirstMatch[3]) : Number(monthFirstMatch[3])
+
+    return formatIsoDate(year, Number(monthFirstMatch[1]), Number(monthFirstMatch[2]))
+  }
+
+  const isoLikeMatch = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})T/)
+  if (isoLikeMatch) {
+    return formatIsoDate(
+      Number(isoLikeMatch[1]),
+      Number(isoLikeMatch[2]),
+      Number(isoLikeMatch[3]),
+    )
+  }
+
+  const parsedTimestamp = Date.parse(text)
+  if (!Number.isNaN(parsedTimestamp)) {
+    const parsedDate = new Date(parsedTimestamp)
+    return formatLocalDate(parsedDate)
+  }
+
+  return ''
+}
+
+const normalizeHeader = (value: unknown) =>
+  String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/\r?\n/g, '')
+
+const normalizeName = (value: string) => value.trim().replace(/\s+/g, ' ')
+
+const buildEditFormStateFromRecord = (
+  record: StatementRecord,
+  pricingRules: PricingRule[],
+  records: StatementRecord[],
+): { form: FormState; isCustomClient: boolean; isCustomItem: boolean; isCustomSpec: boolean } => {
+  const mergedClients = new Set<string>()
+  pricingRules.forEach((rule) => mergedClients.add(rule.clientName))
+  records.forEach((r) => {
+    if (r.clientName.trim()) {
+      mergedClients.add(r.clientName.trim())
+    }
+  })
+  const trimmedClient = record.clientName.trim()
+  const isCustomClient = !Array.from(mergedClients).some((c) => c === trimmedClient)
+
+  const nextClientRules = pricingRules.filter(
+    (rule) => normalizeName(rule.clientName) === normalizeName(trimmedClient),
+  )
+
+  const allItems = new Set<string>([...DEFAULT_ITEM_OPTIONS])
+  pricingRules.forEach((rule) => {
+    if (rule.itemName.trim()) {
+      allItems.add(rule.itemName.trim())
+    }
+  })
+  records.forEach((r) => {
+    if (r.itemName.trim()) {
+      allItems.add(r.itemName.trim())
+    }
+  })
+  const itemsForClient =
+    nextClientRules.length === 0
+      ? Array.from(allItems)
+      : Array.from(new Set(nextClientRules.map((r) => r.itemName.trim()).filter(Boolean)))
+
+  const trimmedItem = record.itemName.trim()
+  const isCustomItem = !itemsForClient.some(
+    (name) => normalizeName(name) === normalizeName(trimmedItem),
+  )
+
+  const matchedSpecs = nextClientRules
+    .filter((rule) => normalizeName(rule.itemName) === normalizeName(trimmedItem))
+    .map((rule) => rule.specUnit)
+    .filter(Boolean)
+
+  const mergedSpecs = new Set<string>([...DEFAULT_SPEC_OPTIONS])
+  pricingRules.forEach((rule) => {
+    if (rule.specUnit.trim()) {
+      mergedSpecs.add(rule.specUnit.trim())
+    }
+  })
+  records.forEach((r) => {
+    if (r.specUnit.trim()) {
+      mergedSpecs.add(r.specUnit.trim())
+    }
+  })
+  const specChoices =
+    matchedSpecs.length > 0 ? Array.from(new Set(matchedSpecs)) : Array.from(mergedSpecs)
+
+  const trimmedSpec = record.specUnit.trim()
+  const specInChoices = specChoices.some((choice) => choice === trimmedSpec)
+  const isCustomSpec =
+    trimmedSpec !== '' && !specInChoices && !QUICK_SPEC_VALUES.has(trimmedSpec)
+
+  return {
+    form: {
+      deliveryDate: record.deliveryDate,
+      deliveryCount: record.deliveryCount,
+      clientName: trimmedClient,
+      itemName: trimmedItem,
+      specUnit: trimmedSpec,
+      quantity: String(record.quantity),
+      unitPrice: String(record.unitPrice),
+      note: record.note,
+    },
+    isCustomClient,
+    isCustomItem,
+    isCustomSpec,
+  }
+}
+
+const formatCurrency = (value: number) => currencyFormatter.format(value)
+
+const formatDateLabel = (value: string) => (value ? value.replaceAll('-', '.') : '-')
+
+const formatLongDateLabel = (value: string) => {
+  if (!value) {
+    return '-'
+  }
+  const [year, month, day] = value.split('-')
+  return `${year}년 ${Number(month)}월 ${Number(day)}일`
+}
+
+const formatStatementAmountText = (value: number) => `일금 ${formatCurrency(value)}원정`
+
+const isTaxFreeNote = (note: string) => normalizeName(note) === '부가세 없음'
+
+const normalizeLoadedRecords = (records: Array<StatementRecord & { note?: string }>) =>
+  records.map((record) => ({
+    ...record,
+    note: record.note ?? (record.taxAmount === 0 ? '부가세 없음' : '부가세 별도'),
+  }))
+
+const FILE_HANDLE_DB_NAME = 'statement-file-handle-db'
+const FILE_HANDLE_STORE_NAME = 'handles'
+const FILE_HANDLE_KEY = 'primary-backup-file'
+const EXCEL_EXPORT_DIRECTORY_KEY = 'excel-export-directory'
+type FileHandleWithPermission = FileSystemFileHandle & {
+  queryPermission?: (descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>
+}
+
+const openFileHandleDb = () =>
+  new Promise<IDBDatabase>((resolve, reject) => {
+    const request = window.indexedDB.open(FILE_HANDLE_DB_NAME, 1)
+
+    request.onupgradeneeded = () => {
+      const database = request.result
+      if (!database.objectStoreNames.contains(FILE_HANDLE_STORE_NAME)) {
+        database.createObjectStore(FILE_HANDLE_STORE_NAME)
+      }
+    }
+
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+
+const loadStoredFileHandle = async (): Promise<FileSystemFileHandle | null> => {
+  const database = await openFileHandleDb()
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(FILE_HANDLE_STORE_NAME, 'readonly')
+    const store = transaction.objectStore(FILE_HANDLE_STORE_NAME)
+    const request = store.get(FILE_HANDLE_KEY)
+
+    request.onsuccess = () => {
+      resolve((request.result as FileSystemFileHandle | undefined) ?? null)
+      database.close()
+    }
+    request.onerror = () => {
+      reject(request.error)
+      database.close()
+    }
+  })
+}
+
+const saveStoredFileHandle = async (fileHandle: FileSystemFileHandle) => {
+  const database = await openFileHandleDb()
+
+  return new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(FILE_HANDLE_STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(FILE_HANDLE_STORE_NAME)
+    const request = store.put(fileHandle, FILE_HANDLE_KEY)
+
+    request.onsuccess = () => {
+      resolve()
+      database.close()
+    }
+    request.onerror = () => {
+      reject(request.error)
+      database.close()
+    }
+  })
+}
+
+const clearStoredFileHandle = async () => {
+  const database = await openFileHandleDb()
+
+  return new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(FILE_HANDLE_STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(FILE_HANDLE_STORE_NAME)
+    const request = store.delete(FILE_HANDLE_KEY)
+
+    request.onsuccess = () => {
+      resolve()
+      database.close()
+    }
+    request.onerror = () => {
+      reject(request.error)
+      database.close()
+    }
+  })
+}
+
+const loadStoredExportDirectoryHandle = async (): Promise<FileSystemDirectoryHandle | null> => {
+  const database = await openFileHandleDb()
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(FILE_HANDLE_STORE_NAME, 'readonly')
+    const store = transaction.objectStore(FILE_HANDLE_STORE_NAME)
+    const request = store.get(EXCEL_EXPORT_DIRECTORY_KEY)
+
+    request.onsuccess = () => {
+      resolve((request.result as FileSystemDirectoryHandle | undefined) ?? null)
+      database.close()
+    }
+    request.onerror = () => {
+      reject(request.error)
+      database.close()
+    }
+  })
+}
+
+const saveStoredExportDirectoryHandle = async (directoryHandle: FileSystemDirectoryHandle) => {
+  const database = await openFileHandleDb()
+
+  return new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(FILE_HANDLE_STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(FILE_HANDLE_STORE_NAME)
+    const request = store.put(directoryHandle, EXCEL_EXPORT_DIRECTORY_KEY)
+
+    request.onsuccess = () => {
+      resolve()
+      database.close()
+    }
+    request.onerror = () => {
+      reject(request.error)
+      database.close()
+    }
+  })
+}
+
+const clearStoredExportDirectoryHandle = async () => {
+  const database = await openFileHandleDb()
+
+  return new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(FILE_HANDLE_STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(FILE_HANDLE_STORE_NAME)
+    const request = store.delete(EXCEL_EXPORT_DIRECTORY_KEY)
+
+    request.onsuccess = () => {
+      resolve()
+      database.close()
+    }
+    request.onerror = () => {
+      reject(request.error)
+      database.close()
+    }
+  })
+}
+
+type DirectoryHandleWithPermission = FileSystemDirectoryHandle & {
+  queryPermission?: (descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>
+  requestPermission?: (descriptor?: { mode?: 'read' | 'readwrite' }) => Promise<PermissionState>
+}
+
+const writeBufferToDirectory = async (
+  directoryHandle: FileSystemDirectoryHandle,
+  filename: string,
+  buffer: ArrayBuffer | Uint8Array,
+) => {
+  const fileHandle = await directoryHandle.getFileHandle(filename, { create: true })
+  const writable = await fileHandle.createWritable()
+  await writable.write(toArrayBuffer(buffer))
+  await writable.close()
+}
+
+const getBackupPayload = (
+  records: StatementRecord[],
+  pricingRules: PricingRule[],
+): AppBackupPayload => ({
+  version: 2,
+  savedAt: new Date().toISOString(),
+  records,
+  pricingRules,
+  activePage:
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'meeting' ||
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'inventory' ||
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'statements' ||
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'expense' ||
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'staffPayroll' ||
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'greenBeanOrder' ||
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'memo' ||
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'dailyMeeting'
+      ? (window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) as
+          | 'statements'
+          | 'meeting'
+          | 'inventory'
+          | 'expense'
+          | 'staffPayroll'
+          | 'greenBeanOrder'
+          | 'memo'
+          | 'dailyMeeting')
+      : undefined,
+  monthlyMeetingState: window.localStorage.getItem(MONTHLY_MEETING_DATA_KEY) ?? '',
+  inventoryState: window.localStorage.getItem(INVENTORY_STATUS_STORAGE_KEY) ?? '',
+  inventoryBaselineState: window.localStorage.getItem(INVENTORY_STATUS_BASELINE_STORAGE_KEY) ?? '',
+  inventoryTemplateBase64: window.localStorage.getItem(INVENTORY_STATUS_TEMPLATE_STORAGE_KEY) ?? '',
+  inventoryTemplateFileName: window.localStorage.getItem(INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY) ?? '',
+  inventoryAutoStockMode: true,
+  expenseState: window.localStorage.getItem(EXPENSE_PAGE_STORAGE_KEY) ?? '',
+  staffPayrollState: window.localStorage.getItem(STAFF_PAYROLL_STORAGE_KEY) ?? '',
+  greenBeanOrderState: window.localStorage.getItem(GREEN_BEAN_ORDER_STORAGE_KEY) ?? '',
+  memoState: window.localStorage.getItem(MEMO_PAGE_STORAGE_KEY) ?? '',
+  statementTemplateBase64: window.localStorage.getItem(STATEMENT_TEMPLATE_STORAGE_KEY) ?? '',
+  statementTemplateFileName: window.localStorage.getItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY) ?? '',
+  statementTemplateUpdatedAt:
+    window.localStorage.getItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY) ?? '',
+  statementTemplateSettings: window.localStorage.getItem(STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY) ?? '',
+})
+
+const getBackupSnapshot = (records: StatementRecord[], pricingRules: PricingRule[]) =>
+  JSON.stringify({
+    ...getBackupPayload(records, pricingRules),
+    savedAt: '',
+  })
+
+const writeBackupFile = async (
+  fileHandle: FileSystemFileHandle,
+  records: StatementRecord[],
+  pricingRules: PricingRule[],
+) => {
+  const writable = await fileHandle.createWritable()
+  await writable.write(JSON.stringify(getBackupPayload(records, pricingRules), null, 2))
+  await writable.close()
+}
+
+const readBackupFile = async (fileHandle: FileSystemFileHandle): Promise<AppBackupPayload | null> => {
+  const file = await fileHandle.getFile()
+  const text = await file.text()
+
+  if (!text.trim()) {
+    return null
+  }
+
+  const parsed = JSON.parse(text) as Partial<AppBackupPayload>
+  return {
+    version: 2,
+    savedAt: String(parsed.savedAt ?? ''),
+    records: normalizeLoadedRecords(
+      Array.isArray(parsed.records)
+        ? (parsed.records as Array<StatementRecord & { note?: string }>)
+        : [],
+    ),
+    pricingRules: Array.isArray(parsed.pricingRules) ? (parsed.pricingRules as PricingRule[]) : [],
+    activePage:
+      parsed.activePage === 'meeting' ||
+      parsed.activePage === 'inventory' ||
+      parsed.activePage === 'statements' ||
+      parsed.activePage === 'expense' ||
+      parsed.activePage === 'staffPayroll' ||
+      parsed.activePage === 'greenBeanOrder' ||
+      parsed.activePage === 'memo' ||
+      parsed.activePage === 'dailyMeeting'
+        ? parsed.activePage
+        : undefined,
+    monthlyMeetingState: String(parsed.monthlyMeetingState ?? ''),
+    inventoryState: String(parsed.inventoryState ?? ''),
+    inventoryBaselineState: String(parsed.inventoryBaselineState ?? ''),
+    inventoryTemplateBase64: String(parsed.inventoryTemplateBase64 ?? ''),
+    inventoryTemplateFileName: String(parsed.inventoryTemplateFileName ?? ''),
+    inventoryAutoStockMode: parsed.inventoryAutoStockMode === true,
+    expenseState: String(parsed.expenseState ?? ''),
+    staffPayrollState: String(parsed.staffPayrollState ?? ''),
+    // 생두 주문은 이전 백업값을 자동 복원하지 않음(기본 초기 상태 유지)
+    greenBeanOrderState: '',
+    statementTemplateBase64: String(parsed.statementTemplateBase64 ?? ''),
+    statementTemplateFileName: String(parsed.statementTemplateFileName ?? ''),
+    statementTemplateUpdatedAt: String(parsed.statementTemplateUpdatedAt ?? ''),
+    statementTemplateSettings: String(parsed.statementTemplateSettings ?? ''),
+    memoState: String(parsed.memoState ?? ''),
+  }
+}
+
+const syncBackupStorageValue = (key: string, value: string) => {
+  if (value) {
+    window.localStorage.setItem(key, value)
+  } else {
+    window.localStorage.removeItem(key)
+  }
+}
+
+const pickLatestDate = (dates: string[]) => {
+  const filtered = dates.filter(Boolean).sort()
+  return filtered.at(-1) ?? ''
+}
+
+const parsePricingSheet = (workbook: XLSX.WorkBook): PricingRule[] => {
+  const firstSheetName = workbook.SheetNames[0]
+
+  if (!firstSheetName) {
+    return []
+  }
+
+  const sheet = workbook.Sheets[firstSheetName]
+  const rows = XLSX.utils.sheet_to_json<(string | number)[]>(sheet, {
+    header: 1,
+    defval: '',
+    raw: false,
+  })
+
+  const headerRowIndex = rows.findIndex((row) => {
+    const normalizedCells = row.map(normalizeHeader)
+    return (
+      normalizedCells.some((cell) => pricingHeaderAliases.clientName.map(normalizeHeader).includes(cell)) &&
+      normalizedCells.some((cell) => pricingHeaderAliases.itemName.map(normalizeHeader).includes(cell)) &&
+      normalizedCells.some((cell) => pricingHeaderAliases.unitPrice.map(normalizeHeader).includes(cell))
+    )
+  })
+
+  if (headerRowIndex === -1) {
+    throw new Error('엑셀에서 거래처명, 품목, 단가 컬럼을 찾지 못했습니다.')
+  }
+
+  const headers = rows[headerRowIndex].map(normalizeHeader)
+  const findHeaderIndex = (aliases: readonly string[]) =>
+    headers.findIndex((cell) => aliases.map(normalizeHeader).includes(cell))
+
+  const clientIndex = findHeaderIndex(pricingHeaderAliases.clientName)
+  const itemIndex = findHeaderIndex(pricingHeaderAliases.itemName)
+  const specIndex = findHeaderIndex(pricingHeaderAliases.specUnit)
+  const unitPriceIndex = findHeaderIndex(pricingHeaderAliases.unitPrice)
+
+  if (clientIndex === -1 || itemIndex === -1 || unitPriceIndex === -1) {
+    throw new Error('단가표 필수 컬럼이 부족합니다.')
+  }
+
+  const parsedRules: PricingRule[] = rows
+    .slice(headerRowIndex + 1)
+    .flatMap((row) => {
+      const clientName = normalizeName(String(row[clientIndex] ?? ''))
+      const itemName = normalizeName(String(row[itemIndex] ?? ''))
+      const specUnit = specIndex === -1 ? '' : normalizeName(String(row[specIndex] ?? ''))
+      const unitPrice = parseNumber(String(row[unitPriceIndex] ?? ''))
+
+      if (!clientName || !itemName || unitPrice <= 0) {
+        return []
+      }
+
+      return [
+        {
+          id: crypto.randomUUID(),
+          clientName,
+          itemName,
+          specUnit,
+          unitPrice,
+        },
+      ]
+    })
+
+  const deduped = new Map<string, PricingRule>()
+  parsedRules.forEach((rule) => {
+    deduped.set([rule.clientName, rule.itemName, rule.specUnit].join('__'), rule)
+  })
+
+  return Array.from(deduped.values()).sort((a, b) =>
+    `${a.clientName}-${a.itemName}`.localeCompare(`${b.clientName}-${b.itemName}`, 'ko'),
+  )
+}
+
+const parseStatementSheet = (
+  workbook: XLSX.WorkBook,
+  pricingRules: PricingRule[],
+): StatementRecord[] => {
+  const firstSheetName = workbook.SheetNames[0]
+
+  if (!firstSheetName) {
+    return []
+  }
+
+  const sheet = workbook.Sheets[firstSheetName]
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    defval: '',
+    raw: false,
+    dateNF: 'yyyy-mm-dd',
+  })
+
+  const headerRowIndex = rows.findIndex((row) => {
+    const normalizedCells = row.map(normalizeHeader)
+    return (
+      normalizedCells.some((cell) =>
+        statementHeaderAliases.deliveryDate.map(normalizeHeader).includes(cell),
+      ) &&
+      normalizedCells.some((cell) =>
+        statementHeaderAliases.clientName.map(normalizeHeader).includes(cell),
+      ) &&
+      normalizedCells.some((cell) =>
+        statementHeaderAliases.itemName.map(normalizeHeader).includes(cell),
+      ) &&
+      normalizedCells.some((cell) =>
+        statementHeaderAliases.quantity.map(normalizeHeader).includes(cell),
+      )
+    )
+  })
+
+  if (headerRowIndex === -1) {
+    throw new Error('거래 엑셀에서 날짜, 거래처명, 품목, 수량 컬럼을 찾지 못했습니다.')
+  }
+
+  const headers = rows[headerRowIndex].map(normalizeHeader)
+  const findHeaderIndex = (aliases: readonly string[]) =>
+    headers.findIndex((cell) => aliases.map(normalizeHeader).includes(cell))
+
+  const deliveryDateIndex = findHeaderIndex(statementHeaderAliases.deliveryDate)
+  const clientIndex = findHeaderIndex(statementHeaderAliases.clientName)
+  const itemIndex = findHeaderIndex(statementHeaderAliases.itemName)
+  const specIndex = findHeaderIndex(statementHeaderAliases.specUnit)
+  const quantityIndex = findHeaderIndex(statementHeaderAliases.quantity)
+  const unitPriceIndex = findHeaderIndex(statementHeaderAliases.unitPrice)
+  const issueDateIndex = findHeaderIndex(statementHeaderAliases.issueDate)
+  const paymentDateIndex = findHeaderIndex(statementHeaderAliases.paymentDate)
+  const deliveryCountIndex = findHeaderIndex(statementHeaderAliases.deliveryCount)
+  const noteIndex = findHeaderIndex(statementHeaderAliases.note)
+
+  const parsedRecords: StatementRecord[] = rows
+    .slice(headerRowIndex + 1)
+    .flatMap((row) => {
+      const deliveryDate = parseSpreadsheetDate(row[deliveryDateIndex])
+      const clientName = normalizeName(String(row[clientIndex] ?? ''))
+      const itemName = normalizeName(String(row[itemIndex] ?? ''))
+      const quantity =
+        quantityIndex === -1 ? 0 : parseNumber(String(row[quantityIndex] ?? ''))
+      const directUnitPrice =
+        unitPriceIndex === -1 ? 0 : parseNumber(String(row[unitPriceIndex] ?? ''))
+      const matchedRule =
+        pricingRules.find(
+          (rule) =>
+            normalizeName(rule.clientName) === clientName &&
+            normalizeName(rule.itemName) === itemName,
+        ) ?? null
+      const specUnit =
+        specIndex === -1
+          ? matchedRule?.specUnit ?? ''
+          : normalizeName(String(row[specIndex] ?? '')) || matchedRule?.specUnit || ''
+      const unitPrice = directUnitPrice > 0 ? directUnitPrice : matchedRule?.unitPrice ?? 0
+      const note =
+        noteIndex === -1 ? '부가세 별도' : normalizeName(String(row[noteIndex] ?? '')) || '부가세 별도'
+
+      if (!deliveryDate || !clientName || !itemName || quantity <= 0 || unitPrice <= 0) {
+        return []
+      }
+
+      const supplyAmount = quantity * unitPrice
+      const taxAmount = isTaxFreeNote(note) ? 0 : Math.round(supplyAmount * 0.1)
+      const issueDate =
+        issueDateIndex === -1 ? deliveryDate : parseSpreadsheetDate(row[issueDateIndex]) || deliveryDate
+      const paymentDate =
+        paymentDateIndex === -1 ? '' : parseSpreadsheetDate(row[paymentDateIndex])
+      const deliveryCount =
+        deliveryCountIndex === -1
+          ? '1'
+          : String(row[deliveryCountIndex] ?? '').trim() || '1'
+
+      return [
+        {
+          id: crypto.randomUUID(),
+          deliveryDate,
+          issueDate,
+          paymentDate,
+          deliveryCount,
+          clientName,
+          itemName,
+          specUnit,
+          quantity,
+          unitPrice,
+          note,
+          supplyAmount,
+          taxAmount,
+          totalAmount: supplyAmount + taxAmount,
+        },
+      ]
+    })
+
+  return parsedRecords.sort(compareStatementRecordsNewestFirst)
+}
+
+/** id 제외 동일 거래(엑셀/업로드 이중 반영·같은 행 중복 파싱 방지). */
+const statementRecordImportSignature = (r: StatementRecord) =>
+  [
+    r.deliveryDate,
+    r.clientName,
+    r.itemName,
+    r.specUnit,
+    String(r.quantity),
+    String(r.unitPrice),
+    r.note,
+    r.deliveryCount,
+    r.issueDate,
+    r.paymentDate,
+  ].join('\u001f')
+
+const dedupeStatementRecordsByImportSignature = (records: StatementRecord[]): StatementRecord[] => {
+  const seen = new Set<string>()
+  const out: StatementRecord[] = []
+  for (const r of records) {
+    const sig = statementRecordImportSignature(r)
+    if (seen.has(sig)) {
+      continue
+    }
+    seen.add(sig)
+    out.push(r)
+  }
+  return out
+}
+
+/** 납품일 연·월(YYYY-MM)이 같은 건끼리, 납품일·거래처·id 순으로 월 내 몇 번째인지(1부터). */
+const statementRecordDeliveryMonthSeqById = (records: StatementRecord[]): Map<string, number> => {
+  const byMonth = new Map<string, StatementRecord[]>()
+  for (const r of records) {
+    const ym = r.deliveryDate.length >= 7 ? r.deliveryDate.slice(0, 7) : ''
+    if (!ym) {
+      continue
+    }
+    const list = byMonth.get(ym)
+    if (list) {
+      list.push(r)
+    } else {
+      byMonth.set(ym, [r])
+    }
+  }
+  const idToSeq = new Map<string, number>()
+  for (const list of byMonth.values()) {
+    const sorted = [...list].sort((a, b) => {
+      const d = a.deliveryDate.localeCompare(b.deliveryDate)
+      if (d !== 0) {
+        return d
+      }
+      const c = a.clientName.localeCompare(b.clientName, 'ko')
+      if (c !== 0) {
+        return c
+      }
+      return a.id.localeCompare(b.id)
+    })
+    sorted.forEach((rec, i) => idToSeq.set(rec.id, i + 1))
+  }
+  return idToSeq
+}
+
+/** 목록·저장 배열: 납품일 최신순. 같은 날짜는 거래처·id 역순(월 내 번호가 큰 쪽이 위). */
+const compareStatementRecordsNewestFirst = (a: StatementRecord, b: StatementRecord) => {
+  const dateCompare = b.deliveryDate.localeCompare(a.deliveryDate)
+  if (dateCompare !== 0) {
+    return dateCompare
+  }
+  const clientCompare = b.clientName.localeCompare(a.clientName, 'ko')
+  if (clientCompare !== 0) {
+    return clientCompare
+  }
+  return b.id.localeCompare(a.id)
+}
+
+function App() {
+  const { mode, activeCompany, activeCompanyId, user, signOut } = useAppRuntime()
+  const [form, setForm] = useState<FormState>(() => defaultFormState())
+  const [records, setRecords] = useState<StatementRecord[]>([])
+  const [pricingRules, setPricingRules] = useState<PricingRule[]>([])
+  const [activePage, setActivePage] = useState<AppActivePage>(() => {
+    const savedPage = window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY)
+    if (
+      savedPage === 'meeting' ||
+      savedPage === 'inventory' ||
+      savedPage === 'statements' ||
+      savedPage === 'expense' ||
+      savedPage === 'staffPayroll' ||
+      savedPage === 'greenBeanOrder' ||
+      savedPage === 'dailyMeeting'
+    ) {
+      return savedPage
+    }
+    if (savedPage === 'memo') {
+      return 'dailyMeeting'
+    }
+
+    return 'statements'
+  })
+
+  const activeCategoryId = useMemo(() => categoryIdForPage(activePage), [activePage])
+  const activeCategoryLabel = useMemo(
+    () => PAGE_CATEGORY_GROUPS.find((g) => g.id === activeCategoryId)?.label ?? '업무',
+    [activeCategoryId],
+  )
+  const activePageMeta = useMemo(() => PAGE_HEADER_META[activePage], [activePage])
+  const activeCategoryGroup = useMemo(
+    () => PAGE_CATEGORY_GROUPS.find((g) => g.id === activeCategoryId) ?? PAGE_CATEGORY_GROUPS[0],
+    [activeCategoryId],
+  )
+  const totalWorkspacePages = useMemo(
+    () => PAGE_CATEGORY_GROUPS.reduce((sum, group) => sum + group.pages.length, 0),
+    [],
+  )
+
+  const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR))
+  const [activeView, setActiveView] = useState<'records' | 'summary'>('records')
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
+  const [isCustomClient, setIsCustomClient] = useState(false)
+  const [isCustomItem, setIsCustomItem] = useState(false)
+  const [isCustomSpec, setIsCustomSpec] = useState(false)
+  const [selectedSheetKey, setSelectedSheetKey] = useState('')
+  const [isAdminOpen, setIsAdminOpen] = useState(false)
+  const [isAdminUnlockDialogOpen, setIsAdminUnlockDialogOpen] = useState(false)
+  const [adminUnlockPin, setAdminUnlockPin] = useState('')
+  const [adminUnlockError, setAdminUnlockError] = useState('')
+  const [pricingUploadMessage, setPricingUploadMessage] = useState('')
+  const [statementUploadMessage, setStatementUploadMessage] = useState('')
+  const [statementTemplateBase64, setStatementTemplateBase64] = useState<string | null>(() =>
+    window.localStorage.getItem(STATEMENT_TEMPLATE_STORAGE_KEY),
+  )
+  const [statementTemplateFileName, setStatementTemplateFileName] = useState(() =>
+    window.localStorage.getItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY) ?? '',
+  )
+  const [statementTemplateUpdatedAt, setStatementTemplateUpdatedAt] = useState(() =>
+    window.localStorage.getItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY) ?? '',
+  )
+  const [statementTemplateSettings, setStatementTemplateSettings] = useState<StatementTemplateSettings>(() => {
+    const saved = window.localStorage.getItem(STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY)
+    if (!saved) {
+      return { ...DEFAULT_STATEMENT_TEMPLATE_SETTINGS }
+    }
+
+    try {
+      return normalizeStatementTemplateSettings(JSON.parse(saved))
+    } catch {
+      return { ...DEFAULT_STATEMENT_TEMPLATE_SETTINGS }
+    }
+  })
+  const [isStatementTemplateEditMode, setIsStatementTemplateEditMode] = useState(false)
+  const [statementTemplateMessage, setStatementTemplateMessage] = useState('')
+  const [isStatementPreviewOpen, setIsStatementPreviewOpen] = useState(true)
+  const [backupFileHandle, setBackupFileHandle] = useState<FileSystemFileHandle | null>(null)
+  const [excelExportDirHandle, setExcelExportDirHandle] = useState<FileSystemDirectoryHandle | null>(null)
+  const [excelExportFolderMessage, setExcelExportFolderMessage] = useState('')
+  const [backupStatusMessage, setBackupStatusMessage] = useState('')
+  const [isBackupReady, setIsBackupReady] = useState(false)
+  const lastBackupSnapshotRef = useRef('')
+  const [isRecordsStorageReady, setIsRecordsStorageReady] = useState(false)
+  const [isPricingStorageReady, setIsPricingStorageReady] = useState(false)
+  const [isStatementCloudReady, setIsStatementCloudReady] = useState(mode === 'local')
+  const {
+    lastSavedAt: statementLastSavedAt,
+    markDocumentDirty: markStatementDirty,
+    markDocumentError: markStatementError,
+    markDocumentSaved: markStatementSaved,
+    markDocumentSaving: markStatementSaving,
+    resetDocumentSaveUi: resetStatementSaveUi,
+    saveState: statementSaveState,
+    skipInitialDocumentSave: skipInitialStatementSave,
+  } = useDocumentSaveUi(mode)
+
+  const statementMainTableScrollRef = useRef<HTMLDivElement | null>(null)
+  const statementStickyHScrollRef = useRef<HTMLDivElement | null>(null)
+  const statementStickyHScrollInnerRef = useRef<HTMLDivElement | null>(null)
+  const statementHScrollSyncingRef = useRef(false)
+  const [statementStickyHScrollVisible, setStatementStickyHScrollVisible] = useState(false)
+  const statementFileUploadInFlightRef = useRef(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    setIsRecordsStorageReady(false)
+    setIsPricingStorageReady(false)
+    setIsStatementCloudReady(mode === 'local')
+    resetStatementSaveUi()
+
+    const applyState = (next: StatementPageDocument) => {
+      if (cancelled) {
+        return
+      }
+      setRecords(next.records)
+      setPricingRules(next.pricingRules)
+      setStatementTemplateBase64(next.statementTemplateBase64)
+      setStatementTemplateFileName(next.statementTemplateFileName)
+      setStatementTemplateUpdatedAt(next.statementTemplateUpdatedAt)
+      setStatementTemplateSettings(next.statementTemplateSettings)
+      setIsRecordsStorageReady(true)
+      setIsPricingStorageReady(true)
+      setIsStatementCloudReady(true)
+    }
+
+    const loadStatementState = async () => {
+      const localState = readStatementPageLocalState()
+      if (mode !== 'cloud' || !activeCompanyId) {
+        applyState(localState)
+        return
+      }
+
+      try {
+        const remoteState = await loadCompanyDocument<StatementPageDocument>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.statementPage,
+        )
+        applyState(remoteState ? normalizeStatementPageDocument(remoteState) : localState)
+      } catch (error) {
+        console.error('거래명세 클라우드 문서를 읽지 못했습니다.', error)
+        applyState(localState)
+      }
+    }
+
+    void loadStatementState()
+    return () => {
+      cancelled = true
+    }
+  }, [activeCompanyId, mode, resetStatementSaveUi])
+
+  useEffect(() => {
+    window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage)
+  }, [activePage])
+
+  useEffect(() => {
+    if (!isRecordsStorageReady) {
+      return
+    }
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+    window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
+  }, [isRecordsStorageReady, records])
+
+  useEffect(() => {
+    if (!isPricingStorageReady) {
+      return
+    }
+
+    window.localStorage.setItem(PRICING_RULES_STORAGE_KEY, JSON.stringify(pricingRules))
+  }, [isPricingStorageReady, pricingRules])
+
+  useEffect(() => {
+    if (statementTemplateBase64) {
+      window.localStorage.setItem(STATEMENT_TEMPLATE_STORAGE_KEY, statementTemplateBase64)
+    } else {
+      window.localStorage.removeItem(STATEMENT_TEMPLATE_STORAGE_KEY)
+    }
+
+    if (statementTemplateFileName) {
+      window.localStorage.setItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY, statementTemplateFileName)
+    } else {
+      window.localStorage.removeItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY)
+    }
+
+    if (statementTemplateUpdatedAt) {
+      window.localStorage.setItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY, statementTemplateUpdatedAt)
+    } else {
+      window.localStorage.removeItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY)
+    }
+  }, [statementTemplateBase64, statementTemplateFileName, statementTemplateUpdatedAt])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY,
+      JSON.stringify(statementTemplateSettings),
+    )
+  }, [statementTemplateSettings])
+
+  useEffect(() => {
+    if (!isRecordsStorageReady || !isPricingStorageReady || !isStatementCloudReady) {
+      return
+    }
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+    if (skipInitialStatementSave()) {
+      return
+    }
+
+    markStatementDirty()
+
+    const timeoutId = window.setTimeout(() => {
+      markStatementSaving()
+      void saveCompanyDocument(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.statementPage,
+        {
+          records,
+          pricingRules,
+          statementTemplateBase64,
+          statementTemplateFileName,
+          statementTemplateUpdatedAt,
+          statementTemplateSettings,
+        },
+        user?.id,
+      )
+        .then(() => {
+          markStatementSaved()
+        })
+        .catch((error) => {
+          console.error('거래명세 클라우드 저장에 실패했습니다.', error)
+          markStatementError()
+        })
+    }, 600)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [
+    activeCompanyId,
+    isPricingStorageReady,
+    isRecordsStorageReady,
+    isStatementCloudReady,
+    mode,
+    pricingRules,
+    records,
+    statementTemplateBase64,
+    statementTemplateFileName,
+    statementTemplateSettings,
+    statementTemplateUpdatedAt,
+    user?.id,
+    markStatementDirty,
+    markStatementError,
+    markStatementSaved,
+    markStatementSaving,
+    skipInitialStatementSave,
+  ])
+
+  useEffect(() => {
+    let isMounted = true
+
+    if (mode === 'cloud') {
+      setIsBackupReady(true)
+      setBackupStatusMessage('클라우드 모드에서는 로컬 저장 파일 자동 복원을 건너뜁니다.')
+      return () => {
+        isMounted = false
+      }
+    }
+
+    const restoreBackupFile = async () => {
+      try {
+        const storedHandle = await loadStoredFileHandle()
+
+        if (!storedHandle) {
+          if (isMounted) {
+            setIsBackupReady(true)
+          }
+          return
+        }
+
+        const permission =
+          (await (storedHandle as FileHandleWithPermission).queryPermission?.({
+            mode: 'readwrite',
+          })) ?? 'granted'
+
+        if (permission !== 'granted') {
+          if (isMounted) {
+            setBackupStatusMessage('로컬 저장 파일 권한을 다시 연결해주세요.')
+            setIsBackupReady(true)
+          }
+          return
+        }
+
+        const backupPayload = await readBackupFile(storedHandle)
+
+        if (!isMounted) {
+          return
+        }
+
+        setBackupFileHandle(storedHandle)
+        if (backupPayload) {
+          lastBackupSnapshotRef.current = JSON.stringify({
+            ...backupPayload,
+            savedAt: '',
+          })
+          setRecords(backupPayload.records)
+          setPricingRules(backupPayload.pricingRules)
+          if (backupPayload.activePage) {
+            setActivePage(backupPayload.activePage)
+            window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, backupPayload.activePage)
+          }
+          syncBackupStorageValue(MONTHLY_MEETING_DATA_KEY, backupPayload.monthlyMeetingState ?? '')
+          syncBackupStorageValue(INVENTORY_STATUS_STORAGE_KEY, backupPayload.inventoryState ?? '')
+          syncBackupStorageValue(
+            INVENTORY_STATUS_BASELINE_STORAGE_KEY,
+            backupPayload.inventoryBaselineState ?? '',
+          )
+          syncBackupStorageValue(
+            INVENTORY_STATUS_TEMPLATE_STORAGE_KEY,
+            backupPayload.inventoryTemplateBase64 ?? '',
+          )
+          syncBackupStorageValue(
+            INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY,
+            backupPayload.inventoryTemplateFileName ?? '',
+          )
+          window.localStorage.setItem(INVENTORY_AUTO_STOCK_MODE_KEY, 'true')
+          syncBackupStorageValue(EXPENSE_PAGE_STORAGE_KEY, backupPayload.expenseState ?? '')
+          syncBackupStorageValue(STAFF_PAYROLL_STORAGE_KEY, backupPayload.staffPayrollState ?? '')
+          syncBackupStorageValue(GREEN_BEAN_ORDER_STORAGE_KEY, backupPayload.greenBeanOrderState ?? '')
+          syncBackupStorageValue(MEMO_PAGE_STORAGE_KEY, backupPayload.memoState ?? '')
+          syncBackupStorageValue(STATEMENT_TEMPLATE_STORAGE_KEY, backupPayload.statementTemplateBase64 ?? '')
+          syncBackupStorageValue(
+            STATEMENT_TEMPLATE_NAME_STORAGE_KEY,
+            backupPayload.statementTemplateFileName ?? '',
+          )
+          syncBackupStorageValue(
+            STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY,
+            backupPayload.statementTemplateUpdatedAt ?? '',
+          )
+          syncBackupStorageValue(
+            STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY,
+            backupPayload.statementTemplateSettings ?? '',
+          )
+          setStatementTemplateBase64(backupPayload.statementTemplateBase64 || null)
+          setStatementTemplateFileName(backupPayload.statementTemplateFileName ?? '')
+          setStatementTemplateUpdatedAt(backupPayload.statementTemplateUpdatedAt ?? '')
+          try {
+            setStatementTemplateSettings(
+              normalizeStatementTemplateSettings(
+                backupPayload.statementTemplateSettings
+                  ? JSON.parse(backupPayload.statementTemplateSettings)
+                  : null,
+              ),
+            )
+          } catch {
+            setStatementTemplateSettings({ ...DEFAULT_STATEMENT_TEMPLATE_SETTINGS })
+          }
+          setBackupStatusMessage(
+            backupPayload.savedAt
+              ? `로컬 파일 불러옴: ${new Date(backupPayload.savedAt).toLocaleString('ko-KR')}`
+              : '로컬 파일과 연결되었습니다.',
+          )
+        } else {
+          setBackupStatusMessage('로컬 저장 파일과 연결되었습니다.')
+        }
+      } catch (error) {
+        console.error('로컬 저장 파일을 복원하지 못했습니다.', error)
+        if (isMounted) {
+          setBackupStatusMessage('로컬 저장 파일 복원에 실패했습니다.')
+        }
+      } finally {
+        if (isMounted) {
+          setIsBackupReady(true)
+        }
+      }
+    }
+
+    void restoreBackupFile()
+
+    return () => {
+      isMounted = false
+    }
+  }, [mode])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const restoreExcelExportDir = async () => {
+      try {
+        const dir = await loadStoredExportDirectoryHandle()
+        if (!dir || !isMounted) {
+          return
+        }
+
+        const perm =
+          (await (dir as DirectoryHandleWithPermission).queryPermission?.({
+            mode: 'readwrite',
+          })) ?? 'granted'
+
+        if (perm !== 'granted') {
+          if (isMounted) {
+            setExcelExportFolderMessage(
+              '저장 폴더 권한이 없습니다.「저장 폴더」를 다시 눌러주세요.',
+            )
+          }
+          return
+        }
+
+        if (isMounted) {
+          setExcelExportDirHandle(dir)
+          setExcelExportFolderMessage('')
+        }
+      } catch (error) {
+        console.error('저장된 엑셀 폴더를 불러오지 못했습니다.', error)
+      }
+    }
+
+    void restoreExcelExportDir()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!backupFileHandle || !isBackupReady) {
+      return
+    }
+
+    const saveBackup = async () => {
+      try {
+        const snapshot = getBackupSnapshot(records, pricingRules)
+        if (snapshot === lastBackupSnapshotRef.current) {
+          return
+        }
+
+        await writeBackupFile(backupFileHandle, records, pricingRules)
+        lastBackupSnapshotRef.current = snapshot
+        setBackupStatusMessage(`자동 저장 완료: ${new Date().toLocaleTimeString('ko-KR')}`)
+      } catch (error) {
+        console.error('로컬 저장 파일에 쓰지 못했습니다.', error)
+        setBackupStatusMessage('자동 저장에 실패했습니다. 저장 파일을 다시 연결해주세요.')
+      }
+    }
+
+    void saveBackup()
+  }, [backupFileHandle, isBackupReady, pricingRules, records])
+
+  useEffect(() => {
+    if (!backupFileHandle || !isBackupReady) {
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      void (async () => {
+        try {
+          const snapshot = getBackupSnapshot(records, pricingRules)
+          if (snapshot === lastBackupSnapshotRef.current) {
+            return
+          }
+
+          await writeBackupFile(backupFileHandle, records, pricingRules)
+          lastBackupSnapshotRef.current = snapshot
+          setBackupStatusMessage(`전체 자동 저장 완료: ${new Date().toLocaleTimeString('ko-KR')}`)
+        } catch (error) {
+          console.error('전체 백업 자동 저장에 실패했습니다.', error)
+        }
+      })()
+    }, 3000)
+
+    return () => window.clearInterval(interval)
+  }, [backupFileHandle, isBackupReady, pricingRules, records])
+
+  const calculatedAmounts = useMemo(() => {
+    const quantity = parseNumber(form.quantity)
+    const unitPrice = parseNumber(form.unitPrice)
+    const supplyAmount = quantity * unitPrice
+    const taxAmount = isTaxFreeNote(form.note) ? 0 : Math.round(supplyAmount * 0.1)
+    const totalAmount = supplyAmount + taxAmount
+
+    return { quantity, unitPrice, supplyAmount, taxAmount, totalAmount }
+  }, [form.note, form.quantity, form.unitPrice])
+
+  const grandTotal = useMemo(
+    () => records.reduce((sum, record) => sum + record.totalAmount, 0),
+    [records],
+  )
+
+  const availableYears = useMemo(() => {
+    const years = new Set([String(CURRENT_YEAR)])
+    records.forEach((record) => years.add(record.deliveryDate.slice(0, 4)))
+    return Array.from(years).sort((a, b) => Number(b) - Number(a))
+  }, [records])
+
+  const clientOptions = useMemo(() => {
+    const merged = new Set<string>()
+    pricingRules.forEach((rule) => merged.add(rule.clientName))
+    records.forEach((record) => {
+      if (record.clientName.trim()) {
+        merged.add(record.clientName.trim())
+      }
+    })
+    return Array.from(merged).sort((a, b) => a.localeCompare(b, 'ko'))
+  }, [pricingRules, records])
+
+  const selectedClientPricingRules = useMemo(
+    () =>
+      pricingRules.filter(
+        (rule) => normalizeName(rule.clientName) === normalizeName(form.clientName),
+      ),
+    [form.clientName, pricingRules],
+  )
+
+  const hasPricingForSelectedClient = selectedClientPricingRules.length > 0
+
+  const allItemOptions = useMemo(() => {
+    const merged = new Set<string>(DEFAULT_ITEM_OPTIONS)
+    pricingRules.forEach((rule) => {
+      if (rule.itemName.trim()) {
+        merged.add(rule.itemName.trim())
+      }
+    })
+    records.forEach((record) => {
+      if (record.itemName.trim()) {
+        merged.add(record.itemName.trim())
+      }
+    })
+    return Array.from(merged)
+  }, [pricingRules, records])
+
+  const itemOptions = useMemo(() => {
+    const clientItems = selectedClientPricingRules.map((rule) => rule.itemName)
+
+    if (clientItems.length === 0) {
+      return allItemOptions
+    }
+
+    return Array.from(new Set(clientItems)).sort((a, b) => a.localeCompare(b, 'ko'))
+  }, [allItemOptions, selectedClientPricingRules])
+
+  const matchingPricingRule = useMemo(
+    () =>
+      selectedClientPricingRules.find(
+        (rule) =>
+          normalizeName(rule.itemName) === normalizeName(form.itemName),
+      ) ?? null,
+    [form.itemName, selectedClientPricingRules],
+  )
+
+  const showSpecOtherInput = useMemo(() => {
+    const specTrim = form.specUnit.trim()
+    return (
+      (specTrim !== '' && !QUICK_SPEC_VALUES.has(specTrim)) ||
+      (isCustomSpec && specTrim === '')
+    )
+  }, [form.specUnit, isCustomSpec])
+
+  const filteredRecords = useMemo(
+    () => records.filter((record) => record.deliveryDate.startsWith(selectedYear)),
+    [records, selectedYear],
+  )
+
+  const statementPreviewRecords = useMemo(
+    () => [...records].sort(compareStatementRecordsNewestFirst),
+    [records],
+  )
+
+  const statementDeliveryMonthSeqById = useMemo(
+    () => statementRecordDeliveryMonthSeqById(records),
+    [records],
+  )
+
+  const totalSupplyAmount = useMemo(
+    () => statementPreviewRecords.reduce((sum, record) => sum + record.supplyAmount, 0),
+    [statementPreviewRecords],
+  )
+
+  const yearlyTotal = useMemo(
+    () => filteredRecords.reduce((sum, row) => sum + row.totalAmount, 0),
+    [filteredRecords],
+  )
+
+  const monthlyTotals = useMemo(
+    () =>
+      MONTH_LABELS.map((_, index) =>
+        filteredRecords.reduce((sum, record) => {
+          const monthIndex = Number(record.deliveryDate.slice(5, 7)) - 1
+          return monthIndex === index ? sum + record.totalAmount : sum
+        }, 0),
+      ),
+    [filteredRecords],
+  )
+
+  const statementSheetGroups = useMemo(() => {
+    const grouped = new Map<string, StatementSheetGroup>()
+
+    statementPreviewRecords.forEach((record) => {
+      const key = `${record.deliveryDate}__${record.clientName}__${record.deliveryCount}`
+      const existing =
+        grouped.get(key) ??
+        ({
+          key,
+          deliveryDate: record.deliveryDate,
+          issueDate: record.issueDate,
+          clientName: record.clientName,
+          deliveryCount: record.deliveryCount,
+          records: [],
+          supplyAmount: 0,
+          taxAmount: 0,
+          totalAmount: 0,
+        } satisfies StatementSheetGroup)
+
+      existing.records.push(record)
+      existing.supplyAmount += record.supplyAmount
+      existing.taxAmount += record.taxAmount
+      existing.totalAmount += record.totalAmount
+
+      grouped.set(key, existing)
+    })
+
+    return Array.from(grouped.values())
+  }, [statementPreviewRecords])
+
+  const selectedSheet = useMemo(() => {
+    if (statementSheetGroups.length === 0) {
+      return null
+    }
+
+    return (
+      statementSheetGroups.find((group) => group.key === selectedSheetKey) ?? statementSheetGroups[0]
+    )
+  }, [selectedSheetKey, statementSheetGroups])
+
+  useEffect(() => {
+    if (statementSheetGroups.length === 0) {
+      if (selectedSheetKey) {
+        setSelectedSheetKey('')
+      }
+      return
+    }
+
+    const hasSelected = statementSheetGroups.some((group) => group.key === selectedSheetKey)
+
+    if (!hasSelected) {
+      setSelectedSheetKey(statementSheetGroups[0].key)
+    }
+  }, [selectedSheetKey, statementSheetGroups])
+
+  useEffect(() => {
+    if (!matchingPricingRule) {
+      if (hasPricingForSelectedClient && form.itemName) {
+        setForm((current) => ({
+          ...current,
+          unitPrice: '',
+          specUnit: isCustomSpec ? current.specUnit : '',
+        }))
+      }
+      return
+    }
+
+    setForm((current) => ({
+      ...current,
+      specUnit: matchingPricingRule.specUnit || current.specUnit,
+      unitPrice: String(matchingPricingRule.unitPrice),
+    }))
+
+    if (matchingPricingRule.specUnit) {
+      setIsCustomSpec(false)
+    }
+  }, [form.itemName, hasPricingForSelectedClient, isCustomSpec, matchingPricingRule])
+
+  const summaryRows = useMemo(() => {
+    const grouped = new Map<string, MonthlySummaryRow>()
+
+    filteredRecords.forEach((record) => {
+      const monthIndex = Number(record.deliveryDate.slice(5, 7)) - 1
+      const existing =
+        grouped.get(record.clientName) ??
+        ({
+          clientName: record.clientName,
+          totalAmount: 0,
+          share: 0,
+          months: Array.from({ length: 12 }, () => ({
+            amount: 0,
+            issueDate: '',
+            paymentDate: '',
+          })),
+        } satisfies MonthlySummaryRow)
+
+      const currentMonth = existing.months[monthIndex]
+
+      existing.totalAmount += record.totalAmount
+      currentMonth.amount += record.totalAmount
+      currentMonth.issueDate = pickLatestDate([currentMonth.issueDate, record.issueDate])
+      currentMonth.paymentDate = pickLatestDate([currentMonth.paymentDate, record.paymentDate])
+
+      grouped.set(record.clientName, existing)
+    })
+
+    return Array.from(grouped.values())
+      .map((row) => ({
+        ...row,
+        share: yearlyTotal ? (row.totalAmount / yearlyTotal) * 100 : 0,
+      }))
+      .sort((a, b) => b.totalAmount - a.totalAmount)
+  }, [filteredRecords])
+
+  useLayoutEffect(() => {
+    if (activePage !== 'statements') {
+      setStatementStickyHScrollVisible(false)
+      return
+    }
+
+    const tableHost = statementMainTableScrollRef.current
+    const sticky = statementStickyHScrollRef.current
+    const inner = statementStickyHScrollInnerRef.current
+    if (!tableHost || !sticky || !inner) {
+      return
+    }
+
+    const table = tableHost.querySelector('table')
+
+    const measureAndSync = () => {
+      const scrollW = tableHost.scrollWidth
+      const clientW = tableHost.clientWidth
+      const needBar = scrollW > clientW + 1
+      setStatementStickyHScrollVisible(needBar)
+      inner.style.width = `${scrollW}px`
+      if (needBar) {
+        sticky.scrollLeft = tableHost.scrollLeft
+      }
+    }
+
+    const onTableScroll = () => {
+      if (statementHScrollSyncingRef.current) {
+        return
+      }
+      statementHScrollSyncingRef.current = true
+      sticky.scrollLeft = tableHost.scrollLeft
+      statementHScrollSyncingRef.current = false
+    }
+
+    const onStickyScroll = () => {
+      if (statementHScrollSyncingRef.current) {
+        return
+      }
+      statementHScrollSyncingRef.current = true
+      tableHost.scrollLeft = sticky.scrollLeft
+      statementHScrollSyncingRef.current = false
+    }
+
+    tableHost.addEventListener('scroll', onTableScroll, { passive: true })
+    sticky.addEventListener('scroll', onStickyScroll, { passive: true })
+
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(measureAndSync)
+    })
+    ro.observe(tableHost)
+    if (table) {
+      ro.observe(table)
+    }
+
+    window.addEventListener('resize', measureAndSync)
+
+    measureAndSync()
+
+    return () => {
+      tableHost.removeEventListener('scroll', onTableScroll)
+      sticky.removeEventListener('scroll', onStickyScroll)
+      ro.disconnect()
+      window.removeEventListener('resize', measureAndSync)
+    }
+  }, [activePage, activeView, records, filteredRecords, summaryRows, selectedYear])
+
+  const handleFieldChange = (field: keyof FormState, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }))
+  }
+
+  const applyPricingRuleToForm = (clientName: string, itemName: string) => {
+    const rule = pricingRules.find(
+      (entry) =>
+        normalizeName(entry.clientName) === normalizeName(clientName) &&
+        normalizeName(entry.itemName) === normalizeName(itemName),
+    )
+
+    if (!rule) {
+      return
+    }
+
+    setForm((current) => ({
+      ...current,
+      clientName,
+      itemName,
+      specUnit: rule.specUnit || current.specUnit,
+      unitPrice: String(rule.unitPrice),
+    }))
+
+    if (rule.specUnit) {
+      setIsCustomSpec(false)
+    }
+  }
+
+  const handleClientSelectionChange = (value: string) => {
+    if (value === CUSTOM_CLIENT_OPTION) {
+      setIsCustomClient(true)
+      setForm((current) => ({ ...current, clientName: '', itemName: '', specUnit: '', unitPrice: '' }))
+      setIsCustomItem(false)
+      setIsCustomSpec(false)
+      return
+    }
+
+    setIsCustomClient(false)
+    const nextClientRules = pricingRules.filter(
+      (rule) => normalizeName(rule.clientName) === normalizeName(value),
+    )
+
+    setForm((current) => ({
+      ...current,
+      clientName: value,
+      itemName:
+        nextClientRules.some(
+          (rule) => normalizeName(rule.itemName) === normalizeName(current.itemName),
+        ) || nextClientRules.length === 0
+          ? current.itemName
+          : '',
+      specUnit:
+        nextClientRules.some(
+          (rule) => normalizeName(rule.itemName) === normalizeName(current.itemName),
+        ) || nextClientRules.length === 0
+          ? current.specUnit
+          : '',
+      unitPrice:
+        nextClientRules.some(
+          (rule) => normalizeName(rule.itemName) === normalizeName(current.itemName),
+        ) || nextClientRules.length === 0
+          ? current.unitPrice
+          : '',
+    }))
+
+    if (nextClientRules.length > 0) {
+      setIsCustomItem(false)
+      setIsCustomSpec(false)
+    }
+
+    applyPricingRuleToForm(value, form.itemName)
+  }
+
+  const handleItemSelectionChange = (value: string) => {
+    if (value === CUSTOM_ITEM_OPTION) {
+      setIsCustomItem(true)
+      setForm((current) => ({ ...current, itemName: '' }))
+      return
+    }
+
+    setIsCustomItem(false)
+    setForm((current) => ({ ...current, itemName: value }))
+    applyPricingRuleToForm(form.clientName, value)
+  }
+
+  const handleSpecSelectionChange = (value: string) => {
+    setIsCustomSpec(false)
+    setForm((current) => ({ ...current, specUnit: value }))
+  }
+
+  const handleSpecOtherInputChange = (value: string) => {
+    handleFieldChange('specUnit', value)
+    setIsCustomSpec(value.trim() !== '' && !QUICK_SPEC_VALUES.has(value.trim()))
+  }
+
+  const handlePickBackupFile = async () => {
+    const pickerApi = (
+      window as Window & {
+        showSaveFilePicker?: (options?: {
+          suggestedName?: string
+          types?: Array<{ description?: string; accept: Record<string, string[]> }>
+        }) => Promise<FileSystemFileHandle>
+      }
+    ).showSaveFilePicker
+
+    if (!pickerApi) {
+      setBackupStatusMessage('현재 브라우저는 로컬 파일 자동 저장을 지원하지 않습니다.')
+      return
+    }
+
+    try {
+      const fileHandle = await pickerApi({
+        suggestedName: '거래명세서_로컬백업.json',
+        types: [
+          {
+            description: 'JSON files',
+            accept: { 'application/json': ['.json'] },
+          },
+        ],
+      })
+
+      await saveStoredFileHandle(fileHandle)
+      await writeBackupFile(fileHandle, records, pricingRules)
+      lastBackupSnapshotRef.current = getBackupSnapshot(records, pricingRules)
+      setBackupFileHandle(fileHandle)
+      setIsBackupReady(true)
+      setBackupStatusMessage('로컬 저장 파일이 연결되었습니다. 이후 변경분은 자동 저장됩니다.')
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+
+      console.error('로컬 저장 파일 연결에 실패했습니다.', error)
+      setBackupStatusMessage('로컬 저장 파일 연결에 실패했습니다.')
+    }
+  }
+
+  const handleDisconnectBackupFile = async () => {
+    try {
+      await clearStoredFileHandle()
+      setBackupFileHandle(null)
+      setBackupStatusMessage('로컬 저장 파일 연결을 해제했습니다.')
+    } catch (error) {
+      console.error('로컬 저장 파일 연결 해제에 실패했습니다.', error)
+      setBackupStatusMessage('로컬 저장 파일 연결 해제에 실패했습니다.')
+    }
+  }
+
+  const saveExcelToPreferredFolder = async (
+    buffer: ArrayBuffer | Uint8Array,
+    filename: string,
+  ): Promise<boolean> => {
+    const dir = excelExportDirHandle
+    if (!dir) {
+      downloadExcelBuffer(buffer, filename)
+      return true
+    }
+
+    try {
+      let perm =
+        (await (dir as DirectoryHandleWithPermission).queryPermission?.({
+          mode: 'readwrite',
+        })) ?? 'granted'
+
+      if (perm !== 'granted') {
+        const requested = await (dir as DirectoryHandleWithPermission).requestPermission?.({
+          mode: 'readwrite',
+        })
+        perm = requested ?? 'denied'
+      }
+
+      if (perm !== 'granted') {
+        setExcelExportFolderMessage('폴더 쓰기 권한이 없어 다운로드로 저장했습니다.')
+        downloadExcelBuffer(buffer, filename)
+        return true
+      }
+
+      const showSaveFilePicker = (
+        window as Window & {
+          showSaveFilePicker?: (options?: {
+            suggestedName?: string
+            startIn?: FileSystemHandle
+            types?: Array<{ description: string; accept: Record<string, string[]> }>
+          }) => Promise<FileSystemFileHandle>
+        }
+      ).showSaveFilePicker
+
+      if (showSaveFilePicker) {
+        try {
+          const fileHandle = await showSaveFilePicker({
+            suggestedName: filename,
+            startIn: dir,
+            types: [
+              {
+                description: 'Excel 통합문서',
+                accept: {
+                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                },
+              },
+            ],
+          })
+          const writable = await fileHandle.createWritable()
+          await writable.write(toArrayBuffer(buffer))
+          await writable.close()
+          setExcelExportFolderMessage(`저장했습니다. (${filename})`)
+          return true
+        } catch (pickerError) {
+          if (pickerError instanceof DOMException && pickerError.name === 'AbortError') {
+            setExcelExportFolderMessage('저장 창에서 취소했습니다. 파일은 저장되지 않았습니다.')
+            return false
+          }
+          console.error('저장 창으로 저장 실패, 지정 폴더에 바로 씁니다:', pickerError)
+        }
+      }
+
+      await writeBufferToDirectory(dir, filename, buffer)
+      setExcelExportFolderMessage(`저장함: ${dir.name} / ${filename}`)
+      return true
+    } catch (error) {
+      console.error('엑셀 폴더 저장 실패:', error)
+      setExcelExportFolderMessage('지정 폴더에 저장하지 못해 다운로드로 저장했습니다.')
+      downloadExcelBuffer(buffer, filename)
+      return true
+    }
+  }
+
+  const handlePickExcelExportFolder = async () => {
+    const picker = (
+      window as Window & { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> }
+    ).showDirectoryPicker
+
+    if (!picker) {
+      setExcelExportFolderMessage('이 브라우저는 폴더 지정을 지원하지 않습니다. (Chrome·Edge 권장)')
+      return
+    }
+
+    try {
+      const dir = await picker()
+      await saveStoredExportDirectoryHandle(dir)
+      setExcelExportDirHandle(dir)
+      setExcelExportFolderMessage('')
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+
+      console.error('엑셀 저장 폴더 선택 실패:', error)
+      setExcelExportFolderMessage(
+        error instanceof Error ? error.message : '폴더를 선택하지 못했습니다.',
+      )
+    }
+  }
+
+  const handleClearExcelExportFolder = async () => {
+    try {
+      await clearStoredExportDirectoryHandle()
+      setExcelExportDirHandle(null)
+      setExcelExportFolderMessage('저장 폴더 지정을 해제했습니다. 이후는 기본 다운로드로 저장됩니다.')
+    } catch (error) {
+      console.error('엑셀 저장 폴더 해제 실패:', error)
+      setExcelExportFolderMessage('폴더 해제에 실패했습니다.')
+    }
+  }
+
+  const handlePricingFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'array' })
+      const parsedRules = parsePricingSheet(workbook)
+
+      setPricingRules(parsedRules)
+      setPricingUploadMessage(`${parsedRules.length}개의 단가 마스터를 불러왔습니다.`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '단가표 업로드에 실패했습니다.'
+      setPricingUploadMessage(message)
+    } finally {
+      event.target.value = ''
+    }
+  }
+
+  const handleResetPricingRules = () => {
+    setPricingRules([])
+    setPricingUploadMessage('단가 마스터를 초기화했습니다.')
+  }
+
+  const handleStatementFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+
+    if (!file) {
+      return
+    }
+
+    if (statementFileUploadInFlightRef.current) {
+      event.target.value = ''
+      return
+    }
+
+    statementFileUploadInFlightRef.current = true
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
+      const parsedRecords = parseStatementSheet(workbook, pricingRules)
+
+      const uniqueIncoming = dedupeStatementRecordsByImportSignature(parsedRecords)
+      const droppedInFile = parsedRecords.length - uniqueIncoming.length
+
+      if (uniqueIncoming.length === 0) {
+        throw new Error('입력 목록으로 옮길 수 있는 거래 데이터가 없습니다.')
+      }
+
+      setRecords((current) =>
+        dedupeStatementRecordsByImportSignature([...uniqueIncoming, ...current]).sort(
+          compareStatementRecordsNewestFirst,
+        ),
+      )
+      setActiveView('records')
+      const baseMsg = `${uniqueIncoming.length}건을 입력 목록에 반영했습니다.`
+      setStatementUploadMessage(
+        droppedInFile > 0
+          ? `${baseMsg} (엑셀 안에서 동일한 거래로 보이는 ${droppedInFile}건은 중복 제거했습니다.)`
+          : `${baseMsg}`,
+      )
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '거래 엑셀 업로드에 실패했습니다.'
+      setStatementUploadMessage(message)
+    } finally {
+      statementFileUploadInFlightRef.current = false
+      event.target.value = ''
+    }
+  }
+
+  const resetStatementFormAfterSave = () => {
+    setForm((current) => ({
+      ...defaultFormState(),
+      clientName: current.clientName,
+      deliveryDate: current.deliveryDate,
+    }))
+    setIsCustomClient(false)
+    setIsCustomItem(false)
+    setIsCustomSpec(false)
+    setEditingRecordId(null)
+  }
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!form.deliveryDate || !form.clientName.trim() || !form.itemName.trim()) {
+      window.alert('납품일, 거래처명, 품목은 꼭 입력해주세요.')
+      return
+    }
+
+    if (calculatedAmounts.quantity <= 0 || calculatedAmounts.unitPrice <= 0) {
+      window.alert('수량과 단가는 0보다 커야 합니다.')
+      return
+    }
+
+    const nextRecord: StatementRecord = {
+      id: editingRecordId ?? crypto.randomUUID(),
+      deliveryDate: form.deliveryDate,
+      issueDate: form.deliveryDate,
+      paymentDate: '',
+      deliveryCount: form.deliveryCount,
+      clientName: form.clientName.trim(),
+      itemName: form.itemName.trim(),
+      specUnit: form.specUnit.trim(),
+      quantity: calculatedAmounts.quantity,
+      unitPrice: calculatedAmounts.unitPrice,
+      note: form.note,
+      supplyAmount: calculatedAmounts.supplyAmount,
+      taxAmount: calculatedAmounts.taxAmount,
+      totalAmount: calculatedAmounts.totalAmount,
+    }
+
+    if (editingRecordId) {
+      setRecords((current) =>
+        current
+          .map((row) => (row.id === editingRecordId ? nextRecord : row))
+          .sort(compareStatementRecordsNewestFirst),
+      )
+    } else {
+      setRecords((current) =>
+        [nextRecord, ...current].sort(compareStatementRecordsNewestFirst),
+      )
+    }
+
+    resetStatementFormAfterSave()
+  }
+
+  const handleCancelStatementEdit = () => {
+    resetStatementFormAfterSave()
+  }
+
+  const handleStartEditStatementRecord = (record: StatementRecord) => {
+    const { form: nextForm, isCustomClient: nextCustomClient, isCustomItem: nextCustomItem, isCustomSpec: nextCustomSpec } =
+      buildEditFormStateFromRecord(record, pricingRules, records)
+    setForm(nextForm)
+    setIsCustomClient(nextCustomClient)
+    setIsCustomItem(nextCustomItem)
+    setIsCustomSpec(nextCustomSpec)
+    setEditingRecordId(record.id)
+    setActiveView('records')
+    const formPanel = document.querySelector('.statements-form-compact')
+    formPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  const handleDelete = (id: string) => {
+    if (editingRecordId === id) {
+      resetStatementFormAfterSave()
+    }
+    setRecords((current) => current.filter((record) => record.id !== id))
+  }
+
+  const handleStatementTemplateUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = new ExcelJS.Workbook()
+      await workbook.xlsx.load(buffer)
+      const worksheet = workbook.getWorksheet('거래명세서양식')
+
+      if (!worksheet) {
+        setStatementTemplateMessage('`거래명세서양식` 시트를 찾지 못했습니다.')
+        return
+      }
+
+      setStatementTemplateBase64(arrayBufferToBase64(buffer))
+      setStatementTemplateFileName(file.name)
+      setStatementTemplateUpdatedAt(new Date().toISOString())
+      setStatementTemplateMessage(`양식 교체 완료: ${file.name}`)
+    } catch (error) {
+      setStatementTemplateMessage(
+        error instanceof Error ? error.message : '거래명세서 양식 파일을 읽지 못했습니다.',
+      )
+    } finally {
+      event.target.value = ''
+    }
+  }
+
+  const exportSelectedStatementSheetToTemplate = async () => {
+    if (!selectedSheet) {
+      setStatementTemplateMessage('채울 거래명세표가 없습니다.')
+      return
+    }
+
+    if (!statementTemplateBase64) {
+      setStatementTemplateMessage('먼저 거래명세서 양식 엑셀을 업로드해주세요.')
+      return
+    }
+
+    try {
+      const workbook = new ExcelJS.Workbook()
+      await workbook.xlsx.load(toArrayBuffer(base64ToUint8Array(statementTemplateBase64)))
+      workbook.calcProperties.fullCalcOnLoad = true
+      const worksheet = workbook.getWorksheet('거래명세서양식')
+
+      if (!worksheet) {
+        setStatementTemplateMessage('업로드한 양식에서 `거래명세서양식` 시트를 찾지 못했습니다.')
+        return
+      }
+      const layoutSnapshot = captureWorksheetLayout(worksheet)
+
+      const safeClientName = selectedSheet.clientName.replace(/[\\/:*?"<>|]/g, '_')
+      const pageSize = 15
+      const pageCount = Math.max(1, Math.ceil(selectedSheet.records.length / pageSize))
+
+      const sheetsToExport: ExcelJS.Worksheet[] = []
+
+      worksheet.name = pageCount === 1 ? `${safeClientName}` : `${safeClientName}_1`
+      fillStatementTemplateWorksheet(worksheet, selectedSheet, statementTemplateSettings, 0, pageSize)
+      applyWorksheetLayout(worksheet, layoutSnapshot)
+      sheetsToExport.push(worksheet)
+
+      for (let pageIndex = 1; pageIndex < pageCount; pageIndex += 1) {
+        const copiedSheet = createWorksheetCopy(workbook, worksheet, `${safeClientName}_${pageIndex + 1}`)
+        fillStatementTemplateWorksheet(
+          copiedSheet,
+          selectedSheet,
+          statementTemplateSettings,
+          pageIndex * pageSize,
+          pageSize,
+        )
+        applyWorksheetLayout(copiedSheet, layoutSnapshot)
+        sheetsToExport.push(copiedSheet)
+      }
+
+      const keepIds = new Set(sheetsToExport.map((s) => s.id))
+      const removeIds: number[] = []
+      workbook.eachSheet((sheet) => {
+        if (!keepIds.has(sheet.id)) {
+          removeIds.push(sheet.id)
+        }
+      })
+      removeIds.forEach((id) => workbook.removeWorksheet(id))
+
+      const exportFileName = `거래명세서_${safeClientName}_${selectedSheet.deliveryDate}.xlsx`
+      const buffer = await workbook.xlsx.writeBuffer()
+      const saved = await saveExcelToPreferredFolder(buffer as ArrayBuffer, exportFileName)
+      if (saved) {
+        setStatementTemplateMessage(
+          pageCount > 1
+            ? `양식에 거래명세표를 ${pageCount}장으로 나눠 저장했습니다.`
+            : '양식에 거래명세표를 채워 저장했습니다.',
+        )
+      }
+    } catch (error) {
+      setStatementTemplateMessage(
+        error instanceof Error ? error.message : '거래명세서 양식 저장 중 오류가 발생했습니다.',
+      )
+    }
+  }
+
+  const updateStatementTemplateSetting = (
+    field: keyof StatementTemplateSettings,
+    value: string,
+  ) => {
+    setStatementTemplateSettings((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }
+
+  const handleClearStatementTemplate = () => {
+    setStatementTemplateBase64(null)
+    setStatementTemplateFileName('')
+    setStatementTemplateUpdatedAt('')
+    setStatementTemplateMessage('연결된 거래명세서 양식을 제거했습니다.')
+  }
+
+  const exportStatementsToExcel = async () => {
+    const totalTaxAmount = statementPreviewRecords.reduce((sum, record) => sum + record.taxAmount, 0)
+    const totalColumnCount = 12
+    const seqById = statementRecordDeliveryMonthSeqById(records)
+
+    const sheetData: (string | number)[][] = [
+      ['[거래명세서]', ...Array.from({ length: totalColumnCount - 1 }, () => '')],
+      ['출력일', formatDateLabel(today), '저장 건수', records.length, '', '', '', '', '', '', '', ''],
+      ['번호', '납품일', '횟수', '거래처명', '품목', '규격/단위', '수량', '단가', '과세구분', '공급가액', '세액', '계'],
+      ...statementPreviewRecords.map((record) => [
+        seqById.get(record.id) ?? '',
+        record.deliveryDate.slice(5).replace('-', '/'),
+        record.deliveryCount,
+        record.clientName,
+        record.itemName,
+        record.specUnit,
+        record.quantity,
+        record.unitPrice,
+        record.note,
+        record.supplyAmount,
+        record.taxAmount,
+        record.totalAmount,
+      ]),
+      ['', '', '', '', '', '', '', '', '합계', totalSupplyAmount, totalTaxAmount, grandTotal],
+    ]
+
+    try {
+      const outBuffer = await buildStyledStatementInputListBuffer(
+        sheetData,
+        statementInputListDefaultColumnWidths(),
+      )
+      await saveExcelToPreferredFolder(outBuffer, `거래명세서_입력목록_${today}.xlsx`)
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const exportSummaryToExcel = async () => {
+    const totalColumnCount = 4 + MONTH_LABELS.length * 3
+
+    const sheetData: (string | number)[][] = [
+      [`[${selectedYear} 납품 월별 거래내역]`, ...Array.from({ length: totalColumnCount - 1 }, () => '')],
+      Array.from({ length: totalColumnCount }, () => ''),
+      ['NO', '거래처명', '합계(부가세포함)', '', ...MONTH_LABELS.flatMap((label) => [label, '', ''])],
+      [
+        '',
+        '',
+        '판매대금',
+        '점유율',
+        ...MONTH_LABELS.flatMap(() => ['금액', '발행일자', '입금일자']),
+      ],
+      ...summaryRows.map((row, index) => [
+        index + 1,
+        row.clientName,
+        row.totalAmount,
+        `${row.share.toFixed(1)}%`,
+        ...row.months.flatMap((month) => [
+          month.amount || '',
+          month.issueDate ? formatDateLabel(month.issueDate) : '',
+          month.paymentDate ? formatDateLabel(month.paymentDate) : '',
+        ]),
+      ]),
+      [
+        '',
+        '합계',
+        yearlyTotal,
+        '100%',
+        ...monthlyTotals.flatMap((amount) => [amount || '', '', '']),
+      ],
+    ]
+
+    const summaryMerges = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: totalColumnCount - 1 } },
+      { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } },
+      { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } },
+      { s: { r: 2, c: 2 }, e: { r: 2, c: 3 } },
+      ...MONTH_LABELS.map((_, index) => {
+        const startColumn = 4 + index * 3
+        return {
+          s: { r: 2, c: startColumn },
+          e: { r: 2, c: startColumn + 2 },
+        }
+      }),
+    ]
+
+    const summaryColumnWidths = [
+      6,
+      24,
+      14,
+      10,
+      ...MONTH_LABELS.flatMap(() => [12, 12, 12]),
+    ]
+
+    try {
+      const outBuffer = await buildStyledStatementMonthlySummaryBuffer(
+        sheetData,
+        summaryMerges,
+        summaryColumnWidths,
+        `${selectedYear} 월별현황`,
+      )
+      await saveExcelToPreferredFolder(outBuffer, `월별납품현황_${selectedYear}.xlsx`)
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const closeAdminUnlockDialog = useCallback(() => {
+    setIsAdminUnlockDialogOpen(false)
+    setAdminUnlockPin('')
+    setAdminUnlockError('')
+  }, [])
+
+  const handleAdminModeButtonClick = () => {
+    if (isAdminOpen) {
+      setIsAdminOpen(false)
+      return
+    }
+    setAdminUnlockError('')
+    setAdminUnlockPin('')
+    setIsAdminUnlockDialogOpen(true)
+  }
+
+  const handleAdminUnlockConfirm = () => {
+    if (adminUnlockPin !== ADMIN_FOUR_DIGIT_PIN) {
+      setAdminUnlockError('비밀번호가 올바르지 않습니다.')
+      return
+    }
+    closeAdminUnlockDialog()
+    setIsAdminOpen(true)
+  }
+
+  useEffect(() => {
+    if (!isAdminUnlockDialogOpen) {
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeAdminUnlockDialog()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isAdminUnlockDialogOpen, closeAdminUnlockDialog])
+
+  useEffect(() => {
+    if (activePage !== 'statements' && isAdminUnlockDialogOpen) {
+      closeAdminUnlockDialog()
+    }
+  }, [activePage, isAdminUnlockDialogOpen, closeAdminUnlockDialog])
+
+  return (
+    <div
+      className={`app-shell${activePage === 'statements' && statementStickyHScrollVisible ? ' app-shell--sticky-hscroll-pad' : ''}`}
+    >
+      <header className="app-home-shell no-print" aria-label="워크스페이스 홈">
+        <aside className="app-home-rail">
+          <div className="app-home-rail-brand">
+            <span className="app-home-rail-eyebrow">The Symbol Edit</span>
+            <strong>{mode === 'cloud' ? activeCompany?.companyName ?? 'Cloud workspace' : 'Local workspace'}</strong>
+            <p>{mode === 'cloud' ? '팀이 함께 보는 업무 허브' : '이 브라우저에서 사용하는 개인 업무 허브'}</p>
+          </div>
+
+          <nav className="app-home-rail-nav" aria-label="상위 구역">
+            {PAGE_CATEGORY_GROUPS.map((group) => {
+              const isActiveGroup = group.id === activeCategoryId
+              return (
+                <button
+                  key={group.id}
+                  type="button"
+                  className={`app-home-rail-link${isActiveGroup ? ' active' : ''}`}
+                  onClick={() => {
+                    if (group.pages[0]) {
+                      setActivePage(group.pages[0].page)
+                    }
+                  }}
+                >
+                  <span>{group.label}</span>
+                  <strong>{group.pages[0]?.label ?? group.label}</strong>
+                </button>
+              )
+            })}
+          </nav>
+
+          <div className="app-home-rail-subnav" aria-label="현재 구역 화면">
+            <span className="app-home-rail-subnav-label">현재 구역</span>
+            {activeCategoryGroup.pages.map((p) => (
+              <button
+                key={p.page}
+                type="button"
+                className={`app-home-rail-subnav-link${activePage === p.page ? ' active' : ''}`}
+                onClick={() => setActivePage(p.page)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {mode === 'cloud' && activeCompany ? (
+            <div className="app-home-rail-session">
+              <div className="page-nav-session-meta">
+                <strong>{activeCompany.companyName}</strong>
+                <span>{user?.email ?? ''}</span>
+              </div>
+              <div className="app-home-rail-session-footer">
+                <button
+                  type="button"
+                  className="app-home-rail-signout-button"
+                  onClick={() => void signOut()}
+                >
+                  로그아웃
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </aside>
+
+        <section className="app-home-stage">
+          <div className="app-home-stage-hero">
+            <div className="app-home-stage-copy">
+              <span className="app-home-stage-eyebrow">{activeCategoryLabel}</span>
+              <h2>{activePageMeta.title}</h2>
+              <p>{activePageMeta.description}</p>
+            </div>
+            <div className="app-home-stage-pills" aria-label="현재 작업 정보">
+              <span className="workspace-showcase-pill">{mode === 'cloud' ? '클라우드 동기화' : '브라우저 저장'}</span>
+              <span className="workspace-showcase-pill">{totalWorkspacePages}개 업무 화면</span>
+              <span className="workspace-showcase-pill">{activeCategoryGroup.pages.length}개 현재 구역 화면</span>
+            </div>
+          </div>
+
+          <div className="app-home-stage-grid">
+            <section className="workspace-overview-card" aria-label="워크스페이스 요약">
+              <div className="workspace-overview-header">
+                <span className="workspace-showcase-eyebrow">Workspace overview</span>
+                <h3>{mode === 'cloud' ? `${activeCompany?.companyName ?? '클라우드'} 워크스페이스` : '로컬 워크스페이스'}</h3>
+              </div>
+              <p className="workspace-overview-copy">
+                현재 <strong>{activePageMeta.title}</strong> 화면을 보고 있습니다. 같은 구역의 화면을 빠르게 넘기거나,
+                다른 업무 구역으로 바로 이동할 수 있습니다.
+              </p>
+              <div className="workspace-overview-pills">
+                <span className="workspace-showcase-pill">{activeCategoryLabel}</span>
+                <span className="workspace-showcase-pill">
+                  {mode === 'cloud' ? activeCompany?.companyName ?? '팀 워크스페이스' : '개인 워크스페이스'}
+                </span>
+                <span className="workspace-showcase-pill">{mode === 'cloud' ? '팀 공유 모드' : '개인 브라우저 모드'}</span>
+              </div>
+            </section>
+
+            <div className="workspace-showcase-stats">
+              <article className="workspace-stat-card">
+                <span>현재 화면</span>
+                <strong>{activePageMeta.title}</strong>
+              </article>
+              <article className="workspace-stat-card">
+                <span>현재 구역</span>
+                <strong>{activeCategoryLabel}</strong>
+              </article>
+              <article className="workspace-stat-card">
+                <span>명세 데이터</span>
+                <strong>{records.length}건</strong>
+              </article>
+              <article className="workspace-stat-card">
+                <span>하위 메뉴</span>
+                <strong>{activeCategoryGroup.pages.length}개</strong>
+              </article>
+            </div>
+          </div>
+
+        </section>
+      </header>
+
+      {activePage === 'statements' ? (
+        <>
+      <div className="statements-page">
+      <header className="hero-panel statements-hero-compact">
+        <div>
+          <p className="eyebrow">
+            {mode === 'cloud' ? activeCompany?.companyName ?? '클라우드 워크스페이스' : '로컬 워크스페이스'}
+          </p>
+          <h1>거래명세서 입력 및 월별 납품현황 관리</h1>
+          <p className="hero-copy">
+            {mode === 'cloud'
+              ? '거래명세, 단가표, 템플릿 설정이 같은 회사 문서로 함께 동기화됩니다. 입력 내용은 다른 기기에서도 이어서 확인할 수 있습니다.'
+              : '거래명세서를 먼저 입력하고, 같은 데이터를 기반으로 월별 납품현황을 자동 집계할 수 있게 만든 화면입니다. 저장 데이터는 현재 브라우저에만 보관됩니다.'}
+          </p>
+          <div className="hero-meta-row no-print">
+            <span className="page-hero-pill">{mode === 'cloud' ? '회사 공용 문서' : '개인 브라우저 문서'}</span>
+            <PageSaveStatus mode={mode} saveState={statementSaveState} lastSavedAt={statementLastSavedAt} />
+          </div>
+        </div>
+        <div className="hero-metrics">
+          <div className="metric-card">
+            <span>저장 건수</span>
+            <strong>{records.length}건</strong>
+          </div>
+          <div className="metric-card">
+            <span>전체 총액</span>
+            <strong>{formatCurrency(grandTotal)}원</strong>
+          </div>
+          <div className="metric-card">
+            <span>{selectedYear} 집계 거래처</span>
+            <strong>{summaryRows.length}곳</strong>
+          </div>
+        </div>
+      </header>
+
+      <main className="statements-main">
+        <section className="panel form-panel statements-form-compact">
+          <div className="panel-header">
+            <div>
+              <h2>거래명세서 입력</h2>
+              <p>입력하면 아래 목록과 월별 납품현황에 바로 반영됩니다.</p>
+            </div>
+            <div className="form-panel-actions">
+              <button
+                type="button"
+                className="ghost-button statement-header-admin"
+                onClick={handleAdminModeButtonClick}
+              >
+                {isAdminOpen ? '관리자 모드 닫기' : '관리자 모드'}
+              </button>
+              <button
+                type="submit"
+                form="statement-entry-form"
+                className="primary-button statement-header-save"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+
+          {isAdminOpen ? (
+            <div className="admin-panel">
+              <div className="local-save-panel local-save-panel--in-admin">
+                <div>
+                  <strong>로컬 자동 저장</strong>
+                  <p>
+                    JSON 파일을 한 번 연결하면 거래내역과 단가표가 변경될 때마다 해당 파일에 자동으로
+                    저장됩니다.
+                  </p>
+                </div>
+                <div className="local-save-actions">
+                  <button type="button" className="ghost-button" onClick={handlePickBackupFile}>
+                    {backupFileHandle ? '저장 파일 다시 선택' : '저장 파일 연결'}
+                  </button>
+                  {backupFileHandle ? (
+                    <button type="button" className="ghost-button" onClick={handleDisconnectBackupFile}>
+                      연결 해제
+                    </button>
+                  ) : null}
+                </div>
+                <p className="local-save-status">
+                  {backupStatusMessage || '아직 연결된 로컬 저장 파일이 없습니다.'}
+                </p>
+              </div>
+
+              <div className="admin-panel-header">
+                <div>
+                  <strong>단가 마스터 관리</strong>
+                  <p>거래처별 단가표 엑셀을 올리면 입력 화면에서 자동 적용됩니다.</p>
+                </div>
+                <span>{pricingRules.length}개 단가 규칙</span>
+              </div>
+
+              <div className="admin-actions">
+                <label className="upload-button">
+                  단가표 엑셀 업로드
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handlePricingFileUpload}
+                  />
+                </label>
+                <label className="upload-button secondary">
+                  거래 엑셀 업로드
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleStatementFileUpload}
+                  />
+                </label>
+                <button type="button" className="ghost-button" onClick={handleResetPricingRules}>
+                  단가표 초기화
+                </button>
+              </div>
+
+              <p className="admin-hint">
+                엑셀 컬럼 예시: `거래처명`, `품목`, `규격/단위`, `단가`, `비고(부가세 없음)`
+              </p>
+
+              {pricingUploadMessage ? <p className="admin-status">{pricingUploadMessage}</p> : null}
+              {statementUploadMessage ? <p className="admin-status">{statementUploadMessage}</p> : null}
+
+              <div className="table-wrapper admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>거래처명</th>
+                      <th>품목</th>
+                      <th>규격/단위</th>
+                      <th>단가</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pricingRules.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="empty-state">
+                          아직 업로드된 단가표가 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      pricingRules.slice(0, 12).map((rule) => (
+                        <tr key={rule.id}>
+                          <td>{rule.clientName}</td>
+                          <td>{rule.itemName}</td>
+                          <td>{rule.specUnit || '-'}</td>
+                          <td>{formatCurrency(rule.unitPrice)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
+          <form id="statement-entry-form" className="statement-form" onSubmit={handleSubmit}>
+            {editingRecordId ? (
+              <p className="statement-edit-hint">
+                입력 목록에서 선택한 건을 수정 중입니다. 반영하려면 위의 「저장」, 취소하려면 「수정 취소」를
+                눌러주세요.
+              </p>
+            ) : null}
+            <div className="statement-form-primary-row">
+              <label className="statement-form-field statement-form-field--date">
+                납품일
+                <input
+                  type="date"
+                  value={form.deliveryDate}
+                  onChange={(event) => handleFieldChange('deliveryDate', event.target.value)}
+                />
+              </label>
+              <label className="statement-form-field statement-form-field--count">
+                횟수
+                <input
+                  type="text"
+                  value={form.deliveryCount}
+                  onChange={(event) => handleFieldChange('deliveryCount', event.target.value)}
+                  placeholder="예: 1"
+                />
+              </label>
+              <label className="statement-form-field statement-form-field--client">
+                거래처명
+                <select
+                  value={isCustomClient ? CUSTOM_CLIENT_OPTION : form.clientName}
+                  onChange={(event) => handleClientSelectionChange(event.target.value)}
+                >
+                  <option value="">거래처를 선택하세요</option>
+                  {clientOptions.map((client) => (
+                    <option key={client} value={client}>
+                      {client}
+                    </option>
+                  ))}
+                  <option value={CUSTOM_CLIENT_OPTION}>직접 입력</option>
+                </select>
+                {isCustomClient ? (
+                  <input
+                    type="text"
+                    value={form.clientName}
+                    onChange={(event) => handleFieldChange('clientName', event.target.value)}
+                    placeholder="예: 길 인천점"
+                  />
+                ) : null}
+              </label>
+              <label className="statement-form-field statement-form-field--item">
+                품목
+                <select
+                  value={isCustomItem ? CUSTOM_ITEM_OPTION : form.itemName}
+                  onChange={(event) => handleItemSelectionChange(event.target.value)}
+                >
+                  <option value="">품목을 선택하세요</option>
+                  {itemOptions.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                  <option value={CUSTOM_ITEM_OPTION}>직접 입력</option>
+                </select>
+                {isCustomItem ? (
+                  <input
+                    type="text"
+                    value={form.itemName}
+                    onChange={(event) => handleFieldChange('itemName', event.target.value)}
+                    placeholder="목록에 없는 품목 직접 입력"
+                  />
+                ) : null}
+                {matchingPricingRule ? (
+                  <span className="field-help">
+                    마스터 기준 단가 {formatCurrency(matchingPricingRule.unitPrice)}원 자동 적용
+                  </span>
+                ) : hasPricingForSelectedClient && form.itemName ? (
+                  <span className="field-help warning">
+                    선택한 거래처 단가표에 없는 품목입니다. 거래처용 품목을 다시 선택해주세요.
+                  </span>
+                ) : null}
+              </label>
+            </div>
+            <div className="statement-form-secondary-row">
+              <label className="statement-form-field statement-form-field--spec">
+                규격/단위
+                <div className="quick-option-row">
+                  {QUICK_SPEC_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={form.specUnit === option.value ? 'quick-option active' : 'quick-option'}
+                      onClick={() => handleSpecSelectionChange(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                {showSpecOtherInput ? (
+                  <input
+                    type="text"
+                    value={form.specUnit}
+                    onChange={(event) => handleSpecOtherInputChange(event.target.value)}
+                    placeholder="예: 500/G"
+                  />
+                ) : null}
+              </label>
+              <label className="statement-form-field statement-form-field--qty">
+                수량
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.quantity}
+                  onChange={(event) => handleFieldChange('quantity', event.target.value)}
+                  placeholder="예: 10"
+                />
+              </label>
+              <label className="statement-form-field statement-form-field--price">
+                단가
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.unitPrice}
+                  onChange={(event) => handleFieldChange('unitPrice', event.target.value)}
+                  placeholder="예: 33000"
+                />
+              </label>
+              <label className="statement-form-field statement-form-field--tax">
+                과세구분
+                <select
+                  value={form.note}
+                  onChange={(event) => handleFieldChange('note', event.target.value)}
+                >
+                  {NOTE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="calculation-card span-2">
+              <div>
+                <span>공급가액</span>
+                <strong>{formatCurrency(calculatedAmounts.supplyAmount)}원</strong>
+              </div>
+              <div>
+                <span>세액</span>
+                <strong>{formatCurrency(calculatedAmounts.taxAmount)}원</strong>
+              </div>
+              <div>
+                <span>계</span>
+                <strong>{formatCurrency(calculatedAmounts.totalAmount)}원</strong>
+              </div>
+            </div>
+
+            {editingRecordId ? (
+              <div className="statement-form-submit-row span-2">
+                <button type="button" className="ghost-button" onClick={handleCancelStatementEdit}>
+                  수정 취소
+                </button>
+              </div>
+            ) : null}
+          </form>
+        </section>
+
+        <section className="panel statements-records-panel">
+          <div className="panel-header controls statements-records-panel-toolbar">
+            <div className="segmented statements-records-view-toggle">
+              <button
+                type="button"
+                className={activeView === 'records' ? 'active' : ''}
+                onClick={() => setActiveView('records')}
+              >
+                입력 목록
+              </button>
+              <button
+                type="button"
+                className={activeView === 'summary' ? 'active' : ''}
+                onClick={() => setActiveView('summary')}
+              >
+                월별 납품현황
+              </button>
+            </div>
+
+            <div className="toolbar statements-records-toolbar-actions">
+              <select
+                className="statements-records-year-select"
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(event.target.value)}
+              >
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}년
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="ghost-button statements-records-excel-btn"
+                onClick={exportStatementsToExcel}
+              >
+                입력목록 엑셀 저장
+              </button>
+              <button
+                type="button"
+                className="ghost-button statements-records-excel-btn"
+                onClick={exportSummaryToExcel}
+              >
+                월별현황 엑셀 저장
+              </button>
+            </div>
+          </div>
+
+          {statementTemplateMessage ? <p className="admin-status">{statementTemplateMessage}</p> : null}
+          {statementTemplateFileName ? (
+            <p className="local-save-status">
+              일반 저장은 `입력목록 엑셀 저장`, 양식 반영 저장은 아래 거래명세표의 `선택 문서 양식 저장`을 사용하세요.
+            </p>
+          ) : null}
+
+          <div className="statements-table-viewport">
+          {activeView === 'records' ? (
+            <div className="table-wrapper statements-main-table-hscroll" ref={statementMainTableScrollRef}>
+              <table>
+                <thead>
+                  <tr>
+                    <th title="납품일이 속한 달에서, 납품일·거래처 순으로 몇 번째 건인지">번호</th>
+                    <th>납품일</th>
+                    <th>횟수</th>
+                    <th>거래처명</th>
+                    <th>품목</th>
+                    <th>규격/단위</th>
+                    <th>수량</th>
+                    <th>단가</th>
+                    <th>과세구분</th>
+                    <th>공급가액</th>
+                    <th>세액</th>
+                    <th>계</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.length === 0 ? (
+                    <tr>
+                      <td colSpan={13} className="empty-state">
+                        아직 저장된 거래명세서가 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    statementPreviewRecords.map((record) => (
+                      <tr
+                        key={record.id}
+                        className={editingRecordId === record.id ? 'statement-row-editing' : undefined}
+                      >
+                        <td>{statementDeliveryMonthSeqById.get(record.id) ?? '—'}</td>
+                        <td>{formatDateLabel(record.deliveryDate)}</td>
+                        <td>{record.deliveryCount}</td>
+                        <td>{record.clientName}</td>
+                        <td>{record.itemName}</td>
+                        <td>{record.specUnit || '-'}</td>
+                        <td>{record.quantity}</td>
+                        <td>{formatCurrency(record.unitPrice)}</td>
+                        <td>{record.note}</td>
+                        <td>{formatCurrency(record.supplyAmount)}</td>
+                        <td>{formatCurrency(record.taxAmount)}</td>
+                        <td>{formatCurrency(record.totalAmount)}</td>
+                        <td className="statement-record-actions">
+                          <button
+                            type="button"
+                            className="table-action"
+                            onClick={() => handleStartEditStatementRecord(record)}
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            className="table-action"
+                            onClick={() => handleDelete(record.id)}
+                          >
+                            삭제
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="table-wrapper statements-main-table-hscroll" ref={statementMainTableScrollRef}>
+              <table className="summary-table">
+                <thead>
+                  <tr>
+                    <th rowSpan={2}>NO</th>
+                    <th rowSpan={2}>거래처명</th>
+                    <th rowSpan={2}>합계(부가세포함)</th>
+                    <th rowSpan={2}>점유율</th>
+                    {MONTH_LABELS.map((label) => (
+                      <th key={label} colSpan={3}>
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                  <tr>
+                    {MONTH_LABELS.flatMap((label) => [
+                      <th key={`${label}-amount`}>금액</th>,
+                      <th key={`${label}-issue`}>발행일자</th>,
+                      <th key={`${label}-payment`}>입금일자</th>,
+                    ])}
+                  </tr>
+                </thead>
+                <tbody>
+                  {summaryRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={40} className="empty-state">
+                        {selectedYear}년에 해당하는 데이터가 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    summaryRows.map((row, index) => (
+                      <tr key={row.clientName}>
+                        <td>{index + 1}</td>
+                        <td>{row.clientName}</td>
+                        <td>{formatCurrency(row.totalAmount)}</td>
+                        <td>{row.share.toFixed(1)}%</td>
+                        {row.months.flatMap((month, monthIndex) => [
+                          <td key={`${row.clientName}-${monthIndex}-amount`}>
+                            {month.amount ? formatCurrency(month.amount) : ''}
+                          </td>,
+                          <td key={`${row.clientName}-${monthIndex}-issue`}>
+                            {month.issueDate ? formatDateLabel(month.issueDate) : ''}
+                          </td>,
+                          <td key={`${row.clientName}-${monthIndex}-payment`}>
+                            {month.paymentDate ? formatDateLabel(month.paymentDate) : ''}
+                          </td>,
+                        ])}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={2}>합계</td>
+                    <td>{formatCurrency(filteredRecords.reduce((sum, row) => sum + row.totalAmount, 0))}</td>
+                    <td>100%</td>
+                    <td colSpan={36}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+          </div>
+        </section>
+      </main>
+
+      <section className="panel preview-panel statements-preview-panel">
+        <div className="panel-header statement-sheet-panel-header">
+          <h2>거래명세표</h2>
+        </div>
+
+        <div className="preview-stack">
+          <article className="excel-preview-card statement-print-root">
+            <div className="statement-sheet-toolbar-row no-print">
+              <button
+                type="button"
+                className="statement-preview-toggle"
+                onClick={() => setIsStatementPreviewOpen((open) => !open)}
+                aria-expanded={isStatementPreviewOpen}
+              >
+                [거래명세표 미리보기] {isStatementPreviewOpen ? '▾' : '▸'}
+              </button>
+              {statementSheetGroups.length > 0 ? (
+                <div className="sheet-toolbar sheet-toolbar--compact sheet-toolbar-inline">
+                  <select
+                    className="sheet-select"
+                    value={selectedSheet?.key ?? ''}
+                    onChange={(event) => setSelectedSheetKey(event.target.value)}
+                  >
+                    {statementSheetGroups.map((group) => (
+                      <option key={group.key} value={group.key}>
+                        {formatDateLabel(group.deliveryDate)} / {group.clientName} / {group.deliveryCount}회
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() => setIsStatementTemplateEditMode((current) => !current)}
+                  >
+                    {isStatementTemplateEditMode ? '완료' : '수정'}
+                  </button>
+                  {isStatementTemplateEditMode ? (
+                    <>
+                      <label className="upload-button secondary">
+                        {statementTemplateFileName ? '양식 다시 업로드' : '양식 업로드'}
+                        <input type="file" accept=".xlsx" onChange={handleStatementTemplateUpload} />
+                      </label>
+                      {statementTemplateFileName ? (
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={handleClearStatementTemplate}
+                        >
+                          양식 제거
+                        </button>
+                      ) : null}
+                    </>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="primary-button sheet-toolbar-save-button"
+                    onClick={exportSelectedStatementSheetToTemplate}
+                  >
+                    저장
+                  </button>
+                </div>
+              ) : (
+                <span className="statement-sheet-empty-hint">미리볼 문서 없음</span>
+              )}
+              <div className="statement-excel-folder-controls">
+                <button
+                  type="button"
+                  className="ghost-button statement-excel-folder-pick"
+                  onClick={() => void handlePickExcelExportFolder()}
+                  title={
+                    excelExportDirHandle
+                      ? '엑셀 저장 시 이 폴더를 연 채로 저장 창이 뜹니다. 다른 폴더로 바꾸려면 클릭 (Chrome·Edge 등)'
+                      : '엑셀 저장 시 사용할 폴더입니다. 지정 후 저장하면 해당 폴더가 열린 저장 창이 뜹니다. 입력목록·월별현황에도 같이 적용됩니다.'
+                  }
+                >
+                  {excelExportDirHandle ? excelExportDirHandle.name : '저장 폴더'}
+                </button>
+                {excelExportDirHandle ? (
+                  <button
+                    type="button"
+                    className="ghost-button statement-excel-folder-clear"
+                    onClick={() => void handleClearExcelExportFolder()}
+                    aria-label="저장 폴더 지정 해제"
+                  >
+                    해제
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            {excelExportFolderMessage ? (
+              <p className="statement-excel-folder-status no-print">{excelExportFolderMessage}</p>
+            ) : null}
+
+            <div
+              className={
+                isStatementPreviewOpen
+                  ? 'statement-preview-collapse is-open'
+                  : 'statement-preview-collapse'
+              }
+            >
+              {isStatementTemplateEditMode && statementTemplateFileName ? (
+                <p className="local-save-status no-print statement-linked-template-line">
+                  현재 연결 양식: {statementTemplateFileName}
+                  {statementTemplateUpdatedAt
+                    ? ` (최근 교체: ${new Date(statementTemplateUpdatedAt).toLocaleTimeString('ko-KR')})`
+                    : ''}
+                </p>
+              ) : null}
+
+              {isStatementTemplateEditMode ? (
+                <div className="statement-template-settings no-print">
+                <div className="statement-template-settings-header">
+                  <strong>거래명세표 양식 정보</strong>
+                  <span>자주 바뀔 수 있는 사업자 정보만 수정할 수 있습니다.</span>
+                </div>
+                <div className="statement-template-settings-grid">
+                  <label>
+                    사업자번호
+                    <input
+                      type="text"
+                      value={statementTemplateSettings.businessNumber}
+                      onChange={(event) =>
+                        updateStatementTemplateSetting('businessNumber', event.target.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    상호명
+                    <input
+                      type="text"
+                      value={statementTemplateSettings.companyName}
+                      onChange={(event) =>
+                        updateStatementTemplateSetting('companyName', event.target.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    성명
+                    <input
+                      type="text"
+                      value={statementTemplateSettings.ownerName}
+                      onChange={(event) => updateStatementTemplateSetting('ownerName', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    전화번호
+                    <input
+                      type="text"
+                      value={statementTemplateSettings.phone}
+                      onChange={(event) => updateStatementTemplateSetting('phone', event.target.value)}
+                    />
+                  </label>
+                  <label className="span-2">
+                    주소
+                    <input
+                      type="text"
+                      value={statementTemplateSettings.address}
+                      onChange={(event) => updateStatementTemplateSetting('address', event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    업태
+                    <input
+                      type="text"
+                      value={statementTemplateSettings.businessType}
+                      onChange={(event) =>
+                        updateStatementTemplateSetting('businessType', event.target.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    종목
+                    <input
+                      type="text"
+                      value={statementTemplateSettings.businessItem}
+                      onChange={(event) =>
+                        updateStatementTemplateSetting('businessItem', event.target.value)
+                      }
+                    />
+                  </label>
+                  <label className="span-2">
+                    입금계좌
+                    <input
+                      type="text"
+                      value={statementTemplateSettings.account}
+                      onChange={(event) => updateStatementTemplateSetting('account', event.target.value)}
+                    />
+                  </label>
+                </div>
+                </div>
+              ) : null}
+
+              {selectedSheet ? (
+                <div className="statement-sheet-pair statement-sheet-pair--single">
+                  <div className="statement-sheet">
+                  <div className="statement-copy-label">{STATEMENT_PREVIEW_LABEL}</div>
+
+                  <div className="statement-sheet-header">
+                    <div className="statement-doc-date-line">
+                      납품일 {formatDateLabel(selectedSheet.deliveryDate)}
+                    </div>
+                    <h3>거래명세표</h3>
+                    <div className="statement-header-spacer"></div>
+                  </div>
+
+                  <table className="statement-meta-table">
+                    <colgroup>
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '18%' }} />
+                      <col style={{ width: '4%' }} />
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '17.33%' }} />
+                      <col style={{ width: '17.33%' }} />
+                      <col style={{ width: '17.34%' }} />
+                    </colgroup>
+                    <tbody>
+                      <tr>
+                        <th className="sheet-left-label">작성일자</th>
+                        <td className="sheet-left-value">{formatLongDateLabel(selectedSheet.issueDate)}</td>
+                        <th className="provider-mark" rowSpan={4}>
+                          공
+                          <br />
+                          급
+                        </th>
+                        <th>사업자번호</th>
+                        <td colSpan={3}>{statementTemplateSettings.businessNumber}</td>
+                      </tr>
+                      <tr>
+                        <th className="sheet-left-label" rowSpan={3}>
+                          공급받는자
+                        </th>
+                        <td className="sheet-left-value" rowSpan={3}>
+                          {selectedSheet.clientName}
+                        </td>
+                        <th>상호명</th>
+                        <td>{statementTemplateSettings.companyName}</td>
+                        <th>성명</th>
+                        <td>{statementTemplateSettings.ownerName}</td>
+                      </tr>
+                      <tr>
+                        <th>주소</th>
+                        <td colSpan={3}>{statementTemplateSettings.address}</td>
+                      </tr>
+                      <tr>
+                        <th>업태</th>
+                        <td>{statementTemplateSettings.businessType}</td>
+                        <th>종목</th>
+                        <td>{statementTemplateSettings.businessItem}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <table className="statement-amount-table">
+                    <colgroup>
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '18%' }} />
+                      <col style={{ width: '4%' }} />
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '17.33%' }} />
+                      <col style={{ width: '17.33%' }} />
+                      <col style={{ width: '17.34%' }} />
+                    </colgroup>
+                    <tbody>
+                      <tr>
+                        <th className="sheet-left-label">아래와 같이 계산합니다.</th>
+                        <td className="sheet-left-value">{formatStatementAmountText(selectedSheet.totalAmount)}</td>
+                        <th className="provider-mark">자</th>
+                        <th>전화번호</th>
+                        <td colSpan={3}>{statementTemplateSettings.phone}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div className="table-wrapper statement-sheet-table-wrapper">
+                    <table className="statement-sheet-table">
+                      <thead>
+                        <tr>
+                          <th>NO</th>
+                          <th>품목</th>
+                          <th>규격/단위</th>
+                          <th>수량</th>
+                          <th>단가</th>
+                          <th>공급가액</th>
+                          <th>세액</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({ length: 15 }).map((_, index) => {
+                          const record = selectedSheet.records[index]
+                          return (
+                            <tr key={`statement-sheet-row-${index}`}>
+                              <td>{record ? index + 1 : ''}</td>
+                              <td>{record?.itemName ?? ''}</td>
+                              <td>{record?.specUnit ?? ''}</td>
+                              <td>{record ? record.quantity : ''}</td>
+                              <td>{record ? formatCurrency(record.unitPrice) : ''}</td>
+                              <td>{record ? formatCurrency(record.supplyAmount) : ''}</td>
+                              <td>{record ? formatCurrency(record.taxAmount) : ''}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <td colSpan={5}>계</td>
+                          <td>{formatCurrency(selectedSheet.supplyAmount)}</td>
+                          <td>{formatCurrency(selectedSheet.taxAmount)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  <table className="statement-sign-table">
+                    <tbody>
+                      <tr>
+                        <th>입금계좌</th>
+                        <td>{statementTemplateSettings.account}</td>
+                        <th>인수자</th>
+                        <td></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                </div>
+              ) : (
+                <div className="statement-sheet-empty">거래명세표로 묶을 데이터가 없습니다.</div>
+              )}
+            </div>
+          </article>
+        </div>
+      </section>
+      </div>
+
+      {isAdminUnlockDialogOpen ? (
+        <div
+          className="inventory-reset-dialog-backdrop"
+          role="presentation"
+          onClick={closeAdminUnlockDialog}
+        >
+          <div
+            className="inventory-reset-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="statement-admin-unlock-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="statement-admin-unlock-title" className="inventory-reset-dialog-title">
+              관리자 모드
+            </h2>
+            <p className="inventory-reset-dialog-body">
+              입출고 현황의 「전체 초기화」와 동일한 4자리 비밀번호를 입력한 뒤 확인을 누르세요.
+            </p>
+            <label className="inventory-reset-dialog-field">
+              <span className="inventory-reset-dialog-label">비밀번호 (4자리)</span>
+              <input
+                className="inventory-reset-dialog-pin"
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={4}
+                placeholder="0000"
+                aria-invalid={adminUnlockError ? true : undefined}
+                autoFocus
+                value={adminUnlockPin}
+                onChange={(event) => {
+                  setAdminUnlockError('')
+                  const next = event.target.value.replace(/\D/g, '').slice(0, 4)
+                  setAdminUnlockPin(next)
+                }}
+              />
+            </label>
+            {adminUnlockError ? (
+              <p className="inventory-reset-dialog-error" role="alert">
+                {adminUnlockError}
+              </p>
+            ) : null}
+            <div className="inventory-reset-dialog-actions">
+              <button type="button" className="ghost-button" onClick={closeAdminUnlockDialog}>
+                취소
+              </button>
+              <button type="button" className="primary-button" onClick={handleAdminUnlockConfirm}>
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+        </>
+      ) : activePage === 'meeting' ? (
+        <MonthlyMeetingPage />
+      ) : activePage === 'expense' ? (
+        <ExpensePage />
+      ) : activePage === 'staffPayroll' ? (
+        <StaffPayrollPage />
+      ) : activePage === 'greenBeanOrder' ? (
+        <GreenBeanOrderPage />
+      ) : activePage === 'dailyMeeting' ? (
+        <MemoPage mode="dailyOnly" />
+      ) : (
+        <InventoryStatusPage />
+      )}
+      {activePage === 'statements' ? (
+        <div
+          ref={statementStickyHScrollRef}
+          className={`statements-sticky-hscroll${statementStickyHScrollVisible ? ' is-visible' : ''}`}
+          aria-hidden={!statementStickyHScrollVisible}
+        >
+          <div ref={statementStickyHScrollInnerRef} className="statements-sticky-hscroll-inner" />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+export default App
