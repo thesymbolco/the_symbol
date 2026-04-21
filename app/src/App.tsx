@@ -4550,6 +4550,13 @@ function App() {
                                 {entry.records.length > 3 ? (
                                   <li className="statements-calendar-more">
                                     +{entry.records.length - 3}건
+                                    <div className="statements-calendar-more-tooltip" role="tooltip">
+                                      {entry.records.slice(3).map((record) => (
+                                        <div key={`more-${record.id}`}>
+                                          {record.clientName} · {record.itemName}
+                                        </div>
+                                      ))}
+                                    </div>
                                   </li>
                                 ) : null}
                               </ul>

@@ -1,12 +1,12 @@
 {
   "source": "almacielo-member",
   "sourceUrl": "https://www.almacielo.com/content/content.php?cont=my_price",
-  "fetchedAt": "2026-04-20T01:37:39.579Z",
-  "itemCount": 95,
+  "fetchedAt": "2026-04-21T08:55:26.858Z",
+  "itemCount": 96,
   "items": [
     {
       "itemName": "[20UP] 인도 카피로얄 로부스타 AB *20kg이상주문부터",
-      "price": 11100,
+      "price": 10600,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=BE53EE61104935234B174E62A07E53CF&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "계절한정"
     },
@@ -35,13 +35,13 @@
       "supplyNote": "일시결품"
     },
     {
-      "itemName": "과테말라 안티구아 카보닉 디카페인 SHB",
+      "itemName": "과테말라 안티구아 디카페인 SHB",
       "price": 26600,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=A8F15EDA80C50ADB0E71943ADC8015CF&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "★지속판매"
     },
     {
-      "itemName": "과테말라 안티구아 SHB",
+      "itemName": "과테말라 안티구아 SHB ※소포장 22일(수)15시 입고",
       "price": 15100,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=0F28B5D49B3020AFEECD95B4009ADF4C&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "★지속판매"
@@ -74,7 +74,7 @@
       "itemName": "과테말라 엠버 코반 SHB",
       "price": 15200,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=17E23E50BEDC63B4095E3D8204CE063B&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
-      "supplyNote": "종료임박"
+      "supplyNote": "판매종료"
     },
     {
       "itemName": "과테말라 이스칸 후에후에테낭고 SHB",
@@ -84,7 +84,7 @@
     },
     {
       "itemName": "과테말라 카보닉 디카페인 SHB EP",
-      "price": 25500,
+      "price": 25200,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=076023EDC9187CF1AC1F1163470E479A&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "NEW / 계절한정"
     },
@@ -96,7 +96,7 @@
     },
     {
       "itemName": "베트남 로부스타 G1",
-      "price": 9500,
+      "price": 9200,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=F457C545A9DED88F18ECEE47145A72C0&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "★지속판매"
     },
@@ -120,19 +120,19 @@
     },
     {
       "itemName": "브라질 문도노보 메이플 에어로빅 내추럴",
-      "price": 32300,
+      "price": 31300,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=87EC2F451208DF97228105657EDB717F&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
     {
       "itemName": "브라질 비뉴 호쇼 파젠다 카포에이라 무산소 내추럴 15UP",
-      "price": 16300,
+      "price": 15800,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=D1A69640D53A32A9FB13E93D1C8F3104&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
     {
       "itemName": "브라질 산토스 슈가케인 디카페인 NY2 FC",
-      "price": 22300,
+      "price": 22100,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=4E4E53AA080247BC31D0EB4E7AEB07A0&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "계절한정"
     },
@@ -149,8 +149,8 @@
       "supplyNote": "계절한정"
     },
     {
-      "itemName": "브라질 세라도 카보닉 디카페인 NY2 FC",
-      "price": 25000,
+      "itemName": "브라질 세라도 디카페인 NY2 FC",
+      "price": 24800,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=735B90B4568125ED6C3F678819B6E058&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "★지속판매"
     },
@@ -174,7 +174,7 @@
     },
     {
       "itemName": "브라질 옐로우 플라워 내추럴",
-      "price": 28300,
+      "price": 27800,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=83E8EF518174E1EB6BE4A0778D050C9D&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
@@ -204,7 +204,7 @@
     },
     {
       "itemName": "브라질 카보닉 디카페인 NY2 17/18 FC",
-      "price": 24100,
+      "price": 23900,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=88A199611AC2B85BD3F76E8EE7E55650&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "NEW / 계절한정"
     },
@@ -230,7 +230,7 @@
       "itemName": "에티오피아 모모라 워시드 구지 G1",
       "price": 23000,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=25B2822C2F5A3230ABFADD476E8B04C9&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
-      "supplyNote": "결품임박"
+      "supplyNote": "일시결품"
     },
     {
       "itemName": "에티오피아 시다모 G2",
@@ -254,7 +254,7 @@
       "itemName": "에티오피아 아리차 워시드 예가체프 G1",
       "price": 23500,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=42998CF32D552343BC8E460416382DCA&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
-      "supplyNote": "결품임박"
+      "supplyNote": "일시결품"
     },
     {
       "itemName": "에티오피아 예가체프 G2",
@@ -270,7 +270,7 @@
     },
     {
       "itemName": "에티오피아 카보닉 디카페인 시다모 G4",
-      "price": 25000,
+      "price": 24600,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=BCB41CCDC4363C6848A1D760F26C28A0&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "NEW / 계절한정"
     },
@@ -278,7 +278,7 @@
       "itemName": "에티오피아 코케 내추럴 예가체프 G1",
       "price": 20500,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=42D6C7D61481D1C21BD1635F59EDAE05&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
-      "supplyNote": "종료임박"
+      "supplyNote": "일시결품"
     },
     {
       "itemName": "에티오피아 코케 허니 예가체프 G1",
@@ -299,26 +299,32 @@
       "supplyNote": "계절한정"
     },
     {
+      "itemName": "온두라스 산타 바바라 SHG EP",
+      "price": 18300,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=D1DC3A8270A6F9394F88847D7F0050CF&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "계절한정"
+    },
+    {
       "itemName": "인도 카피로얄 로부스타 AA",
-      "price": 11600,
+      "price": 11300,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=CD758E8F59DFDF06A852ADAD277986CA&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "★지속판매"
     },
     {
       "itemName": "인도 카피로얄 로부스타 AB",
-      "price": 11000,
+      "price": 10800,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=89AE0FE22C47D374BC9350EF99E01685&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "계절한정"
     },
     {
       "itemName": "인도네시아 만델링G1 TP",
-      "price": 18100,
+      "price": 17900,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=9A1158154DFA42CADDBD0694A4E9BDC8&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "★지속판매"
     },
     {
       "itemName": "인도네시아 아체가요 G1 TP",
-      "price": 18800,
+      "price": 18600,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=2838023A778DFAECDC212708F721B788&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "NEW / 계절한정"
     },
@@ -390,13 +396,13 @@
     },
     {
       "itemName": "콜롬비아 갈레라스 워시드",
-      "price": 18200,
+      "price": 17800,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=3A20F62A0AF1AA152670BAB3C602FEED&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
     {
       "itemName": "콜롬비아 나리노 라 유니온 워시드",
-      "price": 16800,
+      "price": 16400,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=ED4227734ED75D343320B6A5FD16CE57&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "계절한정"
     },
@@ -408,13 +414,13 @@
     },
     {
       "itemName": "콜롬비아 나리노 하이랜드 크래프트",
-      "price": 17000,
+      "price": 16800,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=277281AADA22045C03945DCB2CA6F2EC&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "계절한정"
     },
     {
       "itemName": "콜롬비아 라 팔메라 워시드 수프리모",
-      "price": 17600,
+      "price": 17200,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=1415DB70FE9DDB119E23E9B2808CDE38&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
@@ -426,7 +432,7 @@
     },
     {
       "itemName": "콜롬비아 보니야 워시드 수프리모",
-      "price": 15800,
+      "price": 15400,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=CFA5301358B9FCBE7AA45B1CEEA088C6&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
@@ -437,68 +443,68 @@
       "supplyNote": "계절한정"
     },
     {
-      "itemName": "콜롬비아 안티오키아 카보닉 디카페인 수프리모",
-      "price": 25600,
+      "itemName": "콜롬비아 안티오키아 디카페인 수프리모",
+      "price": 25400,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=42A0E188F5033BC65BF8D78622277C4E&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "★지속판매"
     },
     {
       "itemName": "콜롬비아 알타몬타나 워시드",
-      "price": 20400,
+      "price": 20000,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=AFF0A6A4521232970B2C1CF539AD0A19&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
     {
       "itemName": "콜롬비아 엘 모뉴멘토",
-      "price": 16800,
+      "price": 16400,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=DC5C768B5DC76A084531934B34601977&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "NEW / 계절한정"
     },
     {
       "itemName": "콜롬비아 엘 보스케 워시드",
-      "price": 19700,
+      "price": 19300,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=C88D8D0A6097754525E02C2246D8D27F&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
     {
       "itemName": "콜롬비아 엘 타보르 워시드",
-      "price": 19700,
+      "price": 19300,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=35464C848F410E55A13BB9D78E7FDDD0&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
     {
       "itemName": "콜롬비아 엘 탐보 워시드",
-      "price": 17000,
+      "price": 16600,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=B132ECC1609BFCF302615847C1CAA69A&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
     {
       "itemName": "콜롬비아 엘 탐보 플러스",
-      "price": 20500,
+      "price": 20000,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=452BF208BF901322968557227B8F6EFE&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "NEW / 마이크로랏"
     },
     {
       "itemName": "콜롬비아 카보닉 디카페인 수프리모",
-      "price": 24800,
+      "price": 24500,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=B710915795B9E9C02CF10D6D2BDB688C&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "NEW / 계절한정"
     },
     {
       "itemName": "콜롬비아 카우카 수프리모",
-      "price": 15500,
+      "price": 15200,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=C8FFE9A587B126F152ED3D89A146B445&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "★지속판매"
     },
     {
       "itemName": "콜롬비아 톨리마 수프리모",
-      "price": 15200,
+      "price": 15000,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=3DEF184AD8F4755FF269862EA77393DD&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "★지속판매"
     },
     {
       "itemName": "콜롬비아 핀카 프리오 워시드 수프리모",
-      "price": 17600,
+      "price": 17400,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=55C567FD4395ECEF6D936CF77B8D5B2B&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
@@ -516,7 +522,7 @@
     },
     {
       "itemName": "콜롬비아 후일라 슈가케인 디카페인 수프리모",
-      "price": 23800,
+      "price": 23500,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=298923C8190045E91288B430794814C4&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "NEW / 계절한정"
     },
@@ -534,7 +540,7 @@
     },
     {
       "itemName": "탄자니아 마랑구 PB TOP 킬리만자로",
-      "price": 19500,
+      "price": 19300,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=49AF6C4E558A7569D80EEE2E035E2BD7&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "NEW / 마이크로랏"
     },
@@ -552,7 +558,7 @@
     },
     {
       "itemName": "탄자니아 므위카 AA 노스",
-      "price": 16600,
+      "price": 15600,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=0EBCC77DC72360D0EB8E9504C78D38BD&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "NEW / 계절한정"
     },
