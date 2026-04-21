@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs'
 import * as XLSX from 'xlsx'
 import ExpensePage, { EXPENSE_PAGE_STORAGE_KEY } from './ExpensePage'
 import MemoPage, { MEMO_PAGE_STORAGE_KEY } from './MemoPage'
+import TeamManagementPage from './TeamManagementPage'
 import GreenBeanOrderPage, { GREEN_BEAN_ORDER_STORAGE_KEY } from './GreenBeanOrderPage'
 import StaffPayrollPage, { STAFF_PAYROLL_STORAGE_KEY } from './StaffPayrollPage.tsx'
 import InventoryStatusPage from './InventoryStatusPage'
@@ -49,6 +50,7 @@ type AppActivePage =
   | 'greenBeanOrder'
   | 'memo'
   | 'dailyMeeting'
+  | 'team'
 
 type PageCategoryId = 'trade' | 'closing' | 'supply' | 'org'
 
@@ -80,6 +82,7 @@ const PAGE_CATEGORY_GROUPS: {
     pages: [
       { page: 'dailyMeeting', label: '일일회의' },
       { page: 'staffPayroll', label: '직원·급여' },
+      { page: 'team', label: '팀 관리' },
     ],
   },
 ]
@@ -116,6 +119,10 @@ const PAGE_HEADER_META: Record<AppActivePage, { title: string; description: stri
   dailyMeeting: {
     title: '일일회의',
     description: '당일 메모와 회의 정리를 빠르게 남기고 이어서 확인합니다.',
+  },
+  team: {
+    title: '팀 관리',
+    description: '회사 구성원 계정을 만들고 역할과 연락처를 관리합니다.',
   },
 }
 
@@ -220,15 +227,7 @@ type AppBackupPayload = {
   savedAt: string
   records: StatementRecord[]
   pricingRules: PricingRule[]
-  activePage?:
-    | 'statements'
-    | 'meeting'
-    | 'inventory'
-    | 'expense'
-    | 'staffPayroll'
-    | 'greenBeanOrder'
-    | 'memo'
-    | 'dailyMeeting'
+  activePage?: AppActivePage
   monthlyMeetingState?: string
   inventoryState?: string
   inventoryBaselineState?: string
@@ -1054,16 +1053,9 @@ const getBackupPayload = (
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'staffPayroll' ||
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'greenBeanOrder' ||
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'memo' ||
-    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'dailyMeeting'
-      ? (window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) as
-          | 'statements'
-          | 'meeting'
-          | 'inventory'
-          | 'expense'
-          | 'staffPayroll'
-          | 'greenBeanOrder'
-          | 'memo'
-          | 'dailyMeeting')
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'dailyMeeting' ||
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'team'
+      ? (window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) as AppActivePage)
       : undefined,
   monthlyMeetingState: window.localStorage.getItem(MONTHLY_MEETING_DATA_KEY) ?? '',
   inventoryState: window.localStorage.getItem(INVENTORY_STATUS_STORAGE_KEY) ?? '',
@@ -1124,7 +1116,8 @@ const readBackupFile = async (fileHandle: FileSystemFileHandle): Promise<AppBack
       parsed.activePage === 'staffPayroll' ||
       parsed.activePage === 'greenBeanOrder' ||
       parsed.activePage === 'memo' ||
-      parsed.activePage === 'dailyMeeting'
+      parsed.activePage === 'dailyMeeting' ||
+      parsed.activePage === 'team'
         ? parsed.activePage
         : undefined,
     monthlyMeetingState: String(parsed.monthlyMeetingState ?? ''),
@@ -1437,7 +1430,8 @@ function App() {
       savedPage === 'expense' ||
       savedPage === 'staffPayroll' ||
       savedPage === 'greenBeanOrder' ||
-      savedPage === 'dailyMeeting'
+      savedPage === 'dailyMeeting' ||
+      savedPage === 'team'
     ) {
       return savedPage
     }
@@ -3918,6 +3912,8 @@ function App() {
         <GreenBeanOrderPage />
       ) : activePage === 'dailyMeeting' ? (
         <MemoPage mode="dailyOnly" />
+      ) : activePage === 'team' ? (
+        <TeamManagementPage />
       ) : (
         <InventoryStatusPage />
       )}

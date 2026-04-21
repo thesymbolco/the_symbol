@@ -15,6 +15,20 @@ export type InventoryRoastingRow = {
   values: number[]
 }
 
+export type BlendingRecipeComponent = {
+  beanName: string
+  rawPerCycle: number
+}
+
+export type BlendingRecipe = {
+  components: BlendingRecipeComponent[]
+  roastedPerCycle: number
+}
+
+/** 하위호환 별칭 */
+export type BlendingDarkRecipeComponent = BlendingRecipeComponent
+export type BlendingDarkRecipe = BlendingRecipe
+
 export type InventoryStatusState = {
   referenceDate: string
   /** 실사 반영일(해당 일자 재고는 수동·실사값 유지, 그 다음 일부터만 자동 연쇄) */
@@ -28,6 +42,27 @@ export type InventoryStatusState = {
   beanRows: InventoryBeanRow[]
   roastingColumns: string[]
   roastingRows: InventoryRoastingRow[]
+  /** 일자별 Blending-Dark 로스팅 사이클 횟수 (days와 같은 길이) */
+  blendingDarkCycles: number[]
+  /** 레시피: 이 값만 바꾸면 자동으로 사이클 1회 분량을 재계산한다 */
+  blendingDarkRecipe: BlendingRecipe
+  /** 일자별 Blending-Light 로스팅 사이클 횟수 */
+  blendingLightCycles: number[]
+  blendingLightRecipe: BlendingRecipe
+}
+
+export const DEFAULT_BLENDING_DARK_RECIPE: BlendingRecipe = {
+  components: [
+    { beanName: 'Brazil', rawPerCycle: 12 },
+    { beanName: 'Sidamo G4', rawPerCycle: 4 },
+    { beanName: 'Narino', rawPerCycle: 4 },
+  ],
+  roastedPerCycle: 16,
+}
+
+export const DEFAULT_BLENDING_LIGHT_RECIPE: BlendingRecipe = {
+  components: [],
+  roastedPerCycle: 0,
 }
 
 /**
@@ -157,6 +192,30 @@ const cloneState = (state: InventoryStatusState): InventoryStatusState => ({
     day: row.day,
     values: [...row.values],
   })),
+  blendingDarkCycles: state.blendingDarkCycles
+    ? [...state.blendingDarkCycles]
+    : Array.from({ length: state.days.length }, () => 0),
+  blendingDarkRecipe: state.blendingDarkRecipe
+    ? {
+        components: state.blendingDarkRecipe.components.map((c) => ({ ...c })),
+        roastedPerCycle: state.blendingDarkRecipe.roastedPerCycle,
+      }
+    : {
+        components: DEFAULT_BLENDING_DARK_RECIPE.components.map((c) => ({ ...c })),
+        roastedPerCycle: DEFAULT_BLENDING_DARK_RECIPE.roastedPerCycle,
+      },
+  blendingLightCycles: state.blendingLightCycles
+    ? [...state.blendingLightCycles]
+    : Array.from({ length: state.days.length }, () => 0),
+  blendingLightRecipe: state.blendingLightRecipe
+    ? {
+        components: state.blendingLightRecipe.components.map((c) => ({ ...c })),
+        roastedPerCycle: state.blendingLightRecipe.roastedPerCycle,
+      }
+    : {
+        components: DEFAULT_BLENDING_LIGHT_RECIPE.components.map((c) => ({ ...c })),
+        roastedPerCycle: DEFAULT_BLENDING_LIGHT_RECIPE.roastedPerCycle,
+      },
 })
 
 const ensureExpectedBeanRows = (beanRows: InventoryBeanRow[]) => {
@@ -196,6 +255,8 @@ export const createZeroedInventoryStatusFrom = (current: InventoryStatusState): 
       ...row,
       values: row.values.map(() => 0),
     })),
+    blendingDarkCycles: base.blendingDarkCycles.map(() => 0),
+    blendingLightCycles: base.blendingLightCycles.map(() => 0),
   }
 }
 
@@ -221,7 +282,45 @@ export const createDefaultInventoryStatusState = (): InventoryStatusState => {
       day: row.day,
       values: [...row.values],
     })),
+    blendingDarkCycles: Array.from({ length: inventoryStatusData.days.length }, () => 0),
+    blendingDarkRecipe: {
+      components: DEFAULT_BLENDING_DARK_RECIPE.components.map((c) => ({ ...c })),
+      roastedPerCycle: DEFAULT_BLENDING_DARK_RECIPE.roastedPerCycle,
+    },
+    blendingLightCycles: Array.from({ length: inventoryStatusData.days.length }, () => 0),
+    blendingLightRecipe: {
+      components: DEFAULT_BLENDING_LIGHT_RECIPE.components.map((c) => ({ ...c })),
+      roastedPerCycle: DEFAULT_BLENDING_LIGHT_RECIPE.roastedPerCycle,
+    },
   })
+}
+
+const normalizeCyclesArray = (raw: unknown, days: unknown): number[] => {
+  if (Array.isArray(raw)) {
+    return raw.map((v) => Math.max(0, Math.round(toNumber(v))))
+  }
+  const length = Array.isArray(days) ? days.length : 0
+  return Array.from({ length }, () => 0)
+}
+
+const normalizeRecipe = (raw: unknown, fallback: BlendingRecipe): BlendingRecipe => {
+  const src = raw as Partial<BlendingRecipe> | undefined
+  if (!src || !Array.isArray(src.components)) {
+    return {
+      components: fallback.components.map((c) => ({ ...c })),
+      roastedPerCycle: fallback.roastedPerCycle,
+    }
+  }
+  return {
+    components: (src.components as unknown[]).map((c) => {
+      const comp = c as Partial<BlendingRecipeComponent>
+      return {
+        beanName: String(comp?.beanName ?? ''),
+        rawPerCycle: Math.max(0, toNumber(comp?.rawPerCycle)),
+      }
+    }),
+    roastedPerCycle: Math.max(0, toNumber(src.roastedPerCycle)),
+  }
 }
 
 export const normalizeInventoryStatusState = (value: unknown): InventoryStatusState | null => {
@@ -278,6 +377,22 @@ export const normalizeInventoryStatusState = (value: unknown): InventoryStatusSt
         day: row.day === '계' ? '계' : toNumber(row.day),
         values: Array.isArray(row.values) ? row.values.map(toNumber) : [],
       })),
+      blendingDarkCycles: normalizeCyclesArray(
+        (source as Partial<InventoryStatusState>).blendingDarkCycles,
+        source.days,
+      ),
+      blendingDarkRecipe: normalizeRecipe(
+        (source as Partial<InventoryStatusState>).blendingDarkRecipe,
+        DEFAULT_BLENDING_DARK_RECIPE,
+      ),
+      blendingLightCycles: normalizeCyclesArray(
+        (source as Partial<InventoryStatusState>).blendingLightCycles,
+        source.days,
+      ),
+      blendingLightRecipe: normalizeRecipe(
+        (source as Partial<InventoryStatusState>).blendingLightRecipe,
+        DEFAULT_BLENDING_LIGHT_RECIPE,
+      ),
     }
   } catch {
     return null
@@ -415,5 +530,15 @@ export const parseInventoryWorkbook = (workbook: XLSX.WorkBook): InventoryStatus
     beanRows: beanRows.length > 0 ? beanRows : defaultState.beanRows,
     roastingColumns: roastingColumns.length > 0 ? roastingColumns : defaultState.roastingColumns,
     roastingRows: roastingRows.length > 0 ? roastingRows : defaultState.roastingRows,
+    blendingDarkCycles: Array.from({ length: defaultState.days.length }, () => 0),
+    blendingDarkRecipe: {
+      components: DEFAULT_BLENDING_DARK_RECIPE.components.map((c) => ({ ...c })),
+      roastedPerCycle: DEFAULT_BLENDING_DARK_RECIPE.roastedPerCycle,
+    },
+    blendingLightCycles: Array.from({ length: defaultState.days.length }, () => 0),
+    blendingLightRecipe: {
+      components: DEFAULT_BLENDING_LIGHT_RECIPE.components.map((c) => ({ ...c })),
+      roastedPerCycle: DEFAULT_BLENDING_LIGHT_RECIPE.roastedPerCycle,
+    },
   }
 }

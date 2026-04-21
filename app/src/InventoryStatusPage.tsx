@@ -12,6 +12,7 @@ import * as XLSX from 'xlsx'
 import PageSaveStatus from './components/PageSaveStatus'
 import {
   BLENDING_DARK_BEAN_NAME,
+  BLENDING_LIGHT_BEAN_NAME,
   isBlendingDarkBeanRow,
   isBlendingLightBeanRow,
   isBlendingOutboundAdjustsStockRow,
@@ -24,9 +25,13 @@ import {
   normalizeInventoryStatusState,
   parseInventoryWorkbook,
   todayLocalIsoDateString,
+  type BlendingRecipe,
+  type BlendingRecipeComponent,
   type InventoryBeanRow,
   type InventoryStatusState,
 } from './inventoryStatusUtils'
+
+type BlendTarget = 'dark' | 'light'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
@@ -57,10 +62,6 @@ const DEFAULT_FULL_RESET_OPTIONS: FullResetOptions = {
 }
 
 const numberFormatter = new Intl.NumberFormat('ko-KR')
-const SHEET_OPTIONS = [
-  { id: 'beans', label: '생두전체현황' },
-  { id: 'roasting', label: '로스팅현황' },
-] as const
 const DEFAULT_ROAST_YIELD = 0.8
 
 const formatNumber = (value: number) => numberFormatter.format(value)
@@ -403,21 +404,60 @@ const syncRoastingRowsFromBeanProduction = (state: InventoryStatusState): Invent
     (row): row is InventoryStatusState['roastingRows'][number] & { day: '계' } => row.day === '계',
   )
 
+  const blends = [
+    {
+      beanKey: normalizeNameKey(BLENDING_DARK_BEAN_NAME),
+      recipe: state.blendingDarkRecipe,
+      cycles: state.blendingDarkCycles ?? [],
+    },
+    {
+      beanKey: normalizeNameKey(BLENDING_LIGHT_BEAN_NAME),
+      recipe: state.blendingLightRecipe,
+      cycles: state.blendingLightCycles ?? [],
+    },
+  ]
+
+  // 각 블렌드별 구성 원두(bean key → 사이클 1회당 raw 합)
+  const blendRawByBeanKey = blends.map((blend) => {
+    const m = new Map<string, number>()
+    if (blend.recipe) {
+      for (const comp of blend.recipe.components) {
+        const key = normalizeNameKey(comp.beanName)
+        if (key && key !== blend.beanKey) {
+          m.set(key, (m.get(key) ?? 0) + comp.rawPerCycle)
+        }
+      }
+    }
+    return m
+  })
+
   const nextDailyRows = dailyRows.map((row) => {
     const dayIndex = state.days.findIndex((d) => d === row.day)
     if (dayIndex < 0) {
       return row
     }
+    const dayCyclesByBlend = blends.map((blend) => blend.cycles[dayIndex] ?? 0)
+
     const nextValues = state.roastingColumns.map((colName) => {
       const normalized = normalizeNameKey(colName)
       if (!normalized) {
         return 0
       }
+      // 모든 컬럼: 매칭되는 bean.production에서, 그 원두가 쓰이는 모든 블렌드의
+      // 생두 기여분만큼을 뺀 '단독 로스팅분'에만 yield를 적용한다.
+      // Blending-Dark/Light 원두 자체는 어느 블렌드의 구성원이 아니므로 차감이 0이고,
+      // bean.production에 이미 사이클 × rawTotal이 누적돼 있어 자연스럽게 반영된다.
       return state.beanRows.reduce((sum, bean) => {
-        if (normalizeNameKey(bean.name) !== normalized) {
+        const beanKey = normalizeNameKey(bean.name)
+        if (beanKey !== normalized) {
           return sum
         }
-        return sum + convertRawInputToRoastedOutput(bean.production[dayIndex] ?? 0)
+        const blendingRaw = blends.reduce((s, _blend, i) => {
+          const perCycleRaw = blendRawByBeanKey[i].get(beanKey) ?? 0
+          return s + perCycleRaw * dayCyclesByBlend[i]
+        }, 0)
+        const standaloneRaw = Math.max(0, (bean.production[dayIndex] ?? 0) - blendingRaw)
+        return sum + convertRawInputToRoastedOutput(standaloneRaw)
       }, 0)
     })
     return { ...row, values: nextValues }
@@ -476,7 +516,6 @@ const isStockColumnEditable = (
   return state.surveyMarkedDays.includes(day)
 }
 
-type SheetKey = (typeof SHEET_OPTIONS)[number]['id']
 type RoastingViewMode = 'daily' | 'weekly'
 type InventoryHistoryNote = {
   id: string
@@ -740,6 +779,741 @@ const applyStateToTemplateWorkbook = (workbook: ExcelJS.Workbook, inventoryState
   return true
 }
 
+type DailyRoastingJournalProps = {
+  days: number[]
+  columnIndices: number[]
+  columnNames: string[]
+  columnDisplayNo: Map<number, number | null>
+  dailyRows: Array<{ day: number | '계'; values: number[] }>
+  columnTotals: number[]
+  grandTotal: number
+  latestActiveDay: number
+  peakDay: { day: number; total: number }
+  daysWithRoasting: number
+  referenceDate: string
+  onChangeCell: (day: number, columnIndex: number, nextValue: string) => void
+  blendingDarkCycles: number[]
+  blendingDarkRecipe: BlendingRecipe
+  blendingLightCycles: number[]
+  blendingLightRecipe: BlendingRecipe
+  beanNameOptions: string[]
+  onChangeBlendingCycles: (target: BlendTarget, day: number, nextCycles: number) => void
+  onChangeRecipeComponent: (
+    target: BlendTarget,
+    index: number,
+    patch: Partial<BlendingRecipeComponent>,
+  ) => void
+  onChangeRoastedPerCycle: (target: BlendTarget, value: number) => void
+  onAddRecipeComponent: (target: BlendTarget) => void
+  onRemoveRecipeComponent: (target: BlendTarget, index: number) => void
+}
+
+const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토']
+
+function DailyRoastingJournal({
+  days,
+  columnIndices,
+  columnNames,
+  columnDisplayNo,
+  dailyRows,
+  columnTotals,
+  grandTotal,
+  latestActiveDay,
+  peakDay,
+  daysWithRoasting,
+  referenceDate,
+  onChangeCell,
+  blendingDarkCycles,
+  blendingDarkRecipe,
+  blendingLightCycles,
+  blendingLightRecipe,
+  beanNameOptions,
+  onChangeBlendingCycles,
+  onChangeRecipeComponent,
+  onChangeRoastedPerCycle,
+  onAddRecipeComponent,
+  onRemoveRecipeComponent,
+}: DailyRoastingJournalProps) {
+  const [showEmptyDays, setShowEmptyDays] = useState(false)
+  const [quickDay, setQuickDay] = useState<number | ''>('')
+  const [quickColumnIndex, setQuickColumnIndex] = useState<number | ''>('')
+  const [quickKg, setQuickKg] = useState('')
+  const [addingOnDay, setAddingOnDay] = useState<number | null>(null)
+  const [addDraftColumn, setAddDraftColumn] = useState<number | ''>('')
+  const [addDraftKg, setAddDraftKg] = useState('')
+  const [editingChip, setEditingChip] = useState<{ day: number; columnIndex: number } | null>(null)
+  const [editDraftKg, setEditDraftKg] = useState('')
+  const [recipeOpen, setRecipeOpen] = useState(false)
+  const [cycleQuickDay, setCycleQuickDay] = useState<number | ''>('')
+  const [cycleQuickCount, setCycleQuickCount] = useState<string>('1')
+  const [cycleQuickTarget, setCycleQuickTarget] = useState<BlendTarget>('dark')
+  const totalDarkRawPerCycle = useMemo(
+    () => blendingDarkRecipe.components.reduce((sum, c) => sum + c.rawPerCycle, 0),
+    [blendingDarkRecipe],
+  )
+  const totalLightRawPerCycle = useMemo(
+    () => blendingLightRecipe.components.reduce((sum, c) => sum + c.rawPerCycle, 0),
+    [blendingLightRecipe],
+  )
+  const totalMonthDarkCycles = useMemo(
+    () => blendingDarkCycles.reduce((sum, v) => sum + (v || 0), 0),
+    [blendingDarkCycles],
+  )
+  const totalMonthLightCycles = useMemo(
+    () => blendingLightCycles.reduce((sum, v) => sum + (v || 0), 0),
+    [blendingLightCycles],
+  )
+
+  const year = referenceDate.slice(0, 4)
+  const month = referenceDate.slice(5, 7)
+
+  const weekdayFor = useCallback(
+    (day: number) => {
+      if (!year || !month) return ''
+      const d = new Date(`${year}-${month}-${String(day).padStart(2, '0')}T00:00:00`)
+      if (Number.isNaN(d.getTime())) return ''
+      return WEEKDAY_KO[d.getDay()] ?? ''
+    },
+    [year, month],
+  )
+
+  const dayEntries = useMemo(() => {
+    const entries = days.map((day, dayIndex) => {
+      const row = dailyRows.find((r) => r.day === day)
+      const values = row?.values ?? []
+      const items = columnIndices
+        .map((columnIndex) => ({
+          columnIndex,
+          name: columnNames[columnIndex] ?? '',
+          no: columnDisplayNo.get(columnIndex) ?? null,
+          kg: values[columnIndex] ?? 0,
+        }))
+        .filter((item) => item.kg > 0)
+        .sort((a, b) => b.kg - a.kg)
+      const total = items.reduce((sum, item) => sum + item.kg, 0)
+      const darkCycles = blendingDarkCycles[dayIndex] ?? 0
+      const lightCycles = blendingLightCycles[dayIndex] ?? 0
+      return { day, total, items, darkCycles, lightCycles }
+    })
+    return entries
+  }, [
+    days,
+    dailyRows,
+    columnIndices,
+    columnNames,
+    columnDisplayNo,
+    blendingDarkCycles,
+    blendingLightCycles,
+  ])
+
+  const visibleEntries = useMemo(() => {
+    const filtered = showEmptyDays
+      ? dayEntries
+      : dayEntries.filter(
+          (entry) => entry.total > 0 || entry.darkCycles > 0 || entry.lightCycles > 0,
+        )
+    return [...filtered].sort((a, b) => b.day - a.day)
+  }, [dayEntries, showEmptyDays])
+
+  const topBeans = useMemo(() => {
+    return columnIndices
+      .map((columnIndex) => ({
+        columnIndex,
+        name: columnNames[columnIndex] ?? '',
+        no: columnDisplayNo.get(columnIndex) ?? null,
+        total: columnTotals[columnIndex] ?? 0,
+      }))
+      .filter((item) => item.total > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 3)
+  }, [columnIndices, columnNames, columnDisplayNo, columnTotals])
+
+  const emptyDaysCount = dayEntries.length - dayEntries.filter((e) => e.total > 0).length
+
+  const parseKgInput = (raw: string) => {
+    const trimmed = raw.trim()
+    if (!trimmed) return null
+    const num = Number(trimmed)
+    if (!Number.isFinite(num) || num < 0) return null
+    return num
+  }
+
+  const commitQuickAdd = () => {
+    const day = typeof quickDay === 'number' ? quickDay : null
+    const columnIndex = typeof quickColumnIndex === 'number' ? quickColumnIndex : null
+    const kg = parseKgInput(quickKg)
+    if (day === null || columnIndex === null || kg === null) return
+    onChangeCell(day, columnIndex, String(kg))
+    setQuickKg('')
+  }
+
+  const commitRowAdd = (day: number) => {
+    const columnIndex = typeof addDraftColumn === 'number' ? addDraftColumn : null
+    const kg = parseKgInput(addDraftKg)
+    if (columnIndex === null || kg === null || kg <= 0) {
+      setAddingOnDay(null)
+      setAddDraftColumn('')
+      setAddDraftKg('')
+      return
+    }
+    onChangeCell(day, columnIndex, String(kg))
+    setAddingOnDay(null)
+    setAddDraftColumn('')
+    setAddDraftKg('')
+  }
+
+  const commitChipEdit = () => {
+    if (!editingChip) return
+    const kg = parseKgInput(editDraftKg)
+    if (kg === null) {
+      setEditingChip(null)
+      return
+    }
+    onChangeCell(editingChip.day, editingChip.columnIndex, String(kg))
+    setEditingChip(null)
+  }
+
+  const commitCycleQuickAdd = () => {
+    const day = typeof cycleQuickDay === 'number' ? cycleQuickDay : null
+    const additional = Math.max(0, Math.round(Number(cycleQuickCount) || 0))
+    if (day === null || additional <= 0) return
+    const dayIndex = days.findIndex((d) => d === day)
+    if (dayIndex < 0) return
+    const existing =
+      cycleQuickTarget === 'dark'
+        ? blendingDarkCycles[dayIndex] ?? 0
+        : blendingLightCycles[dayIndex] ?? 0
+    onChangeBlendingCycles(cycleQuickTarget, day, existing + additional)
+    setCycleQuickCount('1')
+  }
+
+  if (columnIndices.length === 0) {
+    return (
+      <div className="inventory-daily-journal-empty">
+        왼쪽 생두 전체현황에 품목을 먼저 추가하면 여기에 기록할 수 있어요.
+      </div>
+    )
+  }
+
+  return (
+    <div className="inventory-daily-journal">
+      <div className="inventory-daily-journal-summary">
+        <div className="inventory-daily-journal-metric">
+          <span className="inventory-daily-journal-metric-label">월 합계</span>
+          <strong className="inventory-daily-journal-metric-value">
+            {formatTwoDecimals(grandTotal)}
+            <em>kg</em>
+          </strong>
+        </div>
+        <div className="inventory-daily-journal-metric">
+          <span className="inventory-daily-journal-metric-label">로스팅한 날</span>
+          <strong className="inventory-daily-journal-metric-value">
+            {daysWithRoasting}
+            <em>일</em>
+          </strong>
+        </div>
+        <div className="inventory-daily-journal-metric">
+          <span className="inventory-daily-journal-metric-label">최다 로스팅일</span>
+          <strong className="inventory-daily-journal-metric-value">
+            {peakDay.day > 0 ? `${peakDay.day}일` : '-'}
+            {peakDay.total > 0 ? (
+              <em>{` · ${formatTwoDecimals(peakDay.total)}kg`}</em>
+            ) : null}
+          </strong>
+        </div>
+        <div className="inventory-daily-journal-metric">
+          <span className="inventory-daily-journal-metric-label">최근 기록</span>
+          <strong className="inventory-daily-journal-metric-value">
+            {latestActiveDay > 0 ? `${latestActiveDay}일` : '-'}
+          </strong>
+        </div>
+        <div className="inventory-daily-journal-metric inventory-daily-journal-metric-blend">
+          <span className="inventory-daily-journal-metric-label">
+            블렌딩
+            <button
+              type="button"
+              className="inventory-daily-journal-recipe-toggle"
+              onClick={() => setRecipeOpen((v) => !v)}
+              title="레시피 설정"
+            >
+              {recipeOpen ? '레시피 ▴' : '레시피 ▾'}
+            </button>
+          </span>
+          <strong className="inventory-daily-journal-metric-value">
+            <span className="inventory-daily-journal-metric-dark">
+              다크 {totalMonthDarkCycles}회
+              <em>
+                {' · '}
+                {formatTwoDecimals(totalMonthDarkCycles * blendingDarkRecipe.roastedPerCycle)}kg
+              </em>
+            </span>
+            <span className="inventory-daily-journal-metric-light">
+              라이트 {totalMonthLightCycles}회
+              <em>
+                {' · '}
+                {formatTwoDecimals(
+                  totalMonthLightCycles * blendingLightRecipe.roastedPerCycle,
+                )}kg
+              </em>
+            </span>
+          </strong>
+        </div>
+        {topBeans.length > 0 ? (
+          <div className="inventory-daily-journal-topbeans">
+            {topBeans.map((bean, idx) => (
+              <span key={bean.columnIndex} className="inventory-daily-journal-topbean">
+                <span className="inventory-daily-journal-topbean-rank">{`#${idx + 1}`}</span>
+                <span className="inventory-daily-journal-topbean-name">
+                  {bean.no != null ? `${bean.no}. ` : ''}
+                  {bean.name}
+                </span>
+                <span className="inventory-daily-journal-topbean-kg">
+                  {formatTwoDecimals(bean.total)}kg
+                </span>
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      {recipeOpen ? (
+        <div className="inventory-daily-journal-recipes">
+          {([
+            {
+              target: 'dark' as BlendTarget,
+              label: '블렌딩-다크',
+              recipe: blendingDarkRecipe,
+              rawTotal: totalDarkRawPerCycle,
+              className: 'is-dark',
+            },
+            {
+              target: 'light' as BlendTarget,
+              label: '블렌딩-라이트',
+              recipe: blendingLightRecipe,
+              rawTotal: totalLightRawPerCycle,
+              className: 'is-light',
+            },
+          ]).map(({ target, label, recipe, rawTotal, className }) => (
+            <div
+              key={`recipe-panel-${target}`}
+              className={`inventory-daily-journal-recipe ${className}`}
+            >
+              <div className="inventory-daily-journal-recipe-head">
+                <strong>{label} 레시피</strong>
+                <span>
+                  사이클 1회 = 생두 {formatTwoDecimals(rawTotal)}kg → 로스팅{' '}
+                  {formatTwoDecimals(recipe.roastedPerCycle)}kg
+                </span>
+              </div>
+              <div className="inventory-daily-journal-recipe-rows">
+                {recipe.components.length === 0 ? (
+                  <div className="inventory-daily-journal-recipe-empty">
+                    아직 재료가 없어요. 아래 「+ 재료 추가」로 시작하세요.
+                  </div>
+                ) : null}
+                {recipe.components.map((comp, idx) => (
+                  <div
+                    key={`recipe-${target}-${idx}`}
+                    className="inventory-daily-journal-recipe-row"
+                  >
+                    <select
+                      className="inventory-daily-journal-select"
+                      value={comp.beanName}
+                      onChange={(event) =>
+                        onChangeRecipeComponent(target, idx, {
+                          beanName: event.target.value,
+                        })
+                      }
+                    >
+                      <option value="">생두 선택</option>
+                      {beanNameOptions.map((name) => (
+                        <option key={`recipe-bean-${target}-${idx}-${name}`} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      className="inventory-daily-journal-kg"
+                      value={comp.rawPerCycle}
+                      onChange={(event) =>
+                        onChangeRecipeComponent(target, idx, {
+                          rawPerCycle: Number(event.target.value) || 0,
+                        })
+                      }
+                    />
+                    <span className="inventory-daily-journal-recipe-unit">kg</span>
+                    <button
+                      type="button"
+                      className="inventory-daily-journal-recipe-remove"
+                      onClick={() => onRemoveRecipeComponent(target, idx)}
+                      aria-label={`${label} 재료 ${idx + 1} 삭제`}
+                      title="삭제"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="inventory-daily-journal-recipe-add"
+                  onClick={() => onAddRecipeComponent(target)}
+                >
+                  + 재료 추가
+                </button>
+                <div className="inventory-daily-journal-recipe-row inventory-daily-journal-recipe-output">
+                  <span>사이클당 {label} 생산</span>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    className="inventory-daily-journal-kg"
+                    value={recipe.roastedPerCycle}
+                    onChange={(event) =>
+                      onChangeRoastedPerCycle(target, Number(event.target.value) || 0)
+                    }
+                  />
+                  <span className="inventory-daily-journal-recipe-unit">kg</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="inventory-daily-journal-quickadd">
+        <span className="inventory-daily-journal-quickadd-label">빠른 기록</span>
+        <select
+          className="inventory-daily-journal-select"
+          value={quickDay}
+          onChange={(event) => {
+            const raw = event.target.value
+            setQuickDay(raw === '' ? '' : Number(raw))
+          }}
+          aria-label="일자 선택"
+        >
+          <option value="">일자</option>
+          {days.map((day) => (
+            <option key={`qa-day-${day}`} value={day}>
+              {`${day}일 ${weekdayFor(day) ? `(${weekdayFor(day)})` : ''}`}
+            </option>
+          ))}
+        </select>
+        <select
+          className="inventory-daily-journal-select"
+          value={quickColumnIndex}
+          onChange={(event) => {
+            const raw = event.target.value
+            setQuickColumnIndex(raw === '' ? '' : Number(raw))
+          }}
+          aria-label="품목 선택"
+        >
+          <option value="">품목</option>
+          {columnIndices.map((idx) => {
+            const no = columnDisplayNo.get(idx) ?? null
+            return (
+              <option key={`qa-col-${idx}`} value={idx}>
+                {no != null ? `${no}. ` : ''}
+                {columnNames[idx] ?? ''}
+              </option>
+            )
+          })}
+        </select>
+        <input
+          type="number"
+          step="0.01"
+          inputMode="decimal"
+          className="inventory-daily-journal-kg"
+          placeholder="kg"
+          value={quickKg}
+          onChange={(event) => setQuickKg(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') commitQuickAdd()
+          }}
+        />
+        <button
+          type="button"
+          className="primary-button inventory-daily-journal-commit"
+          onClick={commitQuickAdd}
+          disabled={quickDay === '' || quickColumnIndex === '' || parseKgInput(quickKg) === null}
+        >
+          기록
+        </button>
+        <label className="inventory-daily-journal-toggle">
+          <input
+            type="checkbox"
+            checked={showEmptyDays}
+            onChange={(event) => setShowEmptyDays(event.target.checked)}
+          />
+          로스팅 없는 날도 보기
+          {emptyDaysCount > 0 ? (
+            <span className="inventory-daily-journal-toggle-count">({emptyDaysCount})</span>
+          ) : null}
+        </label>
+        <div className="inventory-daily-journal-quickadd-cycle">
+          <span className="inventory-daily-journal-quickadd-label inventory-daily-journal-quickadd-label-cycle">
+            블렌딩 사이클
+          </span>
+          <div className="inventory-daily-journal-target-toggle" role="group">
+            <button
+              type="button"
+              className={cycleQuickTarget === 'dark' ? 'is-active is-dark' : 'is-dark'}
+              onClick={() => setCycleQuickTarget('dark')}
+            >
+              다크
+            </button>
+            <button
+              type="button"
+              className={cycleQuickTarget === 'light' ? 'is-active is-light' : 'is-light'}
+              onClick={() => setCycleQuickTarget('light')}
+            >
+              라이트
+            </button>
+          </div>
+          <select
+            className="inventory-daily-journal-select"
+            value={cycleQuickDay}
+            onChange={(event) => {
+              const raw = event.target.value
+              setCycleQuickDay(raw === '' ? '' : Number(raw))
+            }}
+            aria-label="사이클 기록 일자"
+          >
+            <option value="">일자</option>
+            {days.map((day) => (
+              <option key={`cy-day-${day}`} value={day}>
+                {`${day}일 ${weekdayFor(day) ? `(${weekdayFor(day)})` : ''}`}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            className="inventory-daily-journal-kg"
+            placeholder="사이클"
+            value={cycleQuickCount}
+            onChange={(event) => setCycleQuickCount(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') commitCycleQuickAdd()
+            }}
+          />
+          <button
+            type="button"
+            className={`primary-button inventory-daily-journal-commit inventory-daily-journal-commit-cycle ${
+              cycleQuickTarget === 'light' ? 'is-light' : ''
+            }`}
+            onClick={commitCycleQuickAdd}
+            disabled={
+              cycleQuickDay === '' || Math.round(Number(cycleQuickCount) || 0) <= 0
+            }
+            title={`+${formatTwoDecimals(
+              Math.max(0, Math.round(Number(cycleQuickCount) || 0)) *
+                (cycleQuickTarget === 'dark'
+                  ? blendingDarkRecipe.roastedPerCycle
+                  : blendingLightRecipe.roastedPerCycle),
+            )}kg`}
+          >
+            사이클 추가
+          </button>
+          <span className="inventory-daily-journal-quickadd-hint">
+            {typeof cycleQuickDay === 'number'
+              ? `현재 ${
+                  (cycleQuickTarget === 'dark'
+                    ? blendingDarkCycles
+                    : blendingLightCycles)[days.findIndex((d) => d === cycleQuickDay)] ?? 0
+                }회`
+              : '일자를 먼저 고르세요'}
+          </span>
+        </div>
+      </div>
+
+      <div className="inventory-daily-journal-list">
+        {visibleEntries.length === 0 ? (
+          <div className="inventory-daily-journal-empty-list">
+            아직 기록이 없어요. 위쪽「빠른 기록」으로 시작하세요.
+          </div>
+        ) : (
+          visibleEntries.map((entry) => {
+            const wd = weekdayFor(entry.day)
+            const isEmpty = entry.items.length === 0
+            const isSundayLike = wd === '일'
+            return (
+              <article
+                key={`journal-${entry.day}`}
+                className={`inventory-daily-journal-card ${
+                  isEmpty ? 'is-empty' : ''
+                } ${isSundayLike ? 'is-sunday' : ''}`}
+              >
+                <header className="inventory-daily-journal-card-head">
+                  <div className="inventory-daily-journal-card-date">
+                    <span className="inventory-daily-journal-card-day">{entry.day}</span>
+                    <span className="inventory-daily-journal-card-wd">
+                      {wd ? `(${wd})` : ''}
+                    </span>
+                  </div>
+                  {(entry.darkCycles > 0 || entry.lightCycles > 0) ? (
+                    <div className="inventory-daily-journal-card-cycles is-readonly">
+                      {entry.darkCycles > 0 ? (
+                        <span className="inventory-daily-journal-card-cycle-badge is-dark">
+                          다크 {entry.darkCycles}c
+                        </span>
+                      ) : null}
+                      {entry.lightCycles > 0 ? (
+                        <span className="inventory-daily-journal-card-cycle-badge is-light">
+                          라이트 {entry.lightCycles}c
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <div className="inventory-daily-journal-card-total">
+                    {entry.total > 0 ? `${formatTwoDecimals(entry.total)}kg` : '기록 없음'}
+                  </div>
+                </header>
+                <div className="inventory-daily-journal-card-body">
+                  {entry.items.map((item) => {
+                    const isEditing =
+                      editingChip?.day === entry.day &&
+                      editingChip?.columnIndex === item.columnIndex
+                    return (
+                      <span
+                        key={`chip-${entry.day}-${item.columnIndex}`}
+                        className="inventory-daily-journal-chip"
+                      >
+                        <span className="inventory-daily-journal-chip-name">
+                          {item.no != null ? (
+                            <span className="inventory-daily-journal-chip-no">{item.no}.</span>
+                          ) : null}
+                          {item.name}
+                        </span>
+                        {isEditing ? (
+                          <input
+                            autoFocus
+                            type="number"
+                            step="0.01"
+                            inputMode="decimal"
+                            className="inventory-daily-journal-chip-input"
+                            value={editDraftKg}
+                            onChange={(event) => setEditDraftKg(event.target.value)}
+                            onBlur={commitChipEdit}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter')
+                                (event.target as HTMLInputElement).blur()
+                              if (event.key === 'Escape') setEditingChip(null)
+                            }}
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            className="inventory-daily-journal-chip-kg"
+                            onClick={() => {
+                              setEditingChip({ day: entry.day, columnIndex: item.columnIndex })
+                              setEditDraftKg(String(item.kg))
+                            }}
+                            title="클릭해서 kg 수정"
+                          >
+                            {formatTwoDecimals(item.kg)}
+                            <em>kg</em>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="inventory-daily-journal-chip-remove"
+                          onClick={() => onChangeCell(entry.day, item.columnIndex, '0')}
+                          aria-label={`${item.name} 기록 삭제`}
+                          title="삭제"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    )
+                  })}
+                  {addingOnDay === entry.day ? (
+                    <span className="inventory-daily-journal-chip is-new">
+                      <select
+                        autoFocus
+                        className="inventory-daily-journal-chip-select"
+                        value={addDraftColumn}
+                        onChange={(event) => {
+                          const raw = event.target.value
+                          setAddDraftColumn(raw === '' ? '' : Number(raw))
+                        }}
+                      >
+                        <option value="">품목 선택</option>
+                        {columnIndices.map((idx) => {
+                          const no = columnDisplayNo.get(idx) ?? null
+                          return (
+                            <option key={`add-col-${idx}`} value={idx}>
+                              {no != null ? `${no}. ` : ''}
+                              {columnNames[idx] ?? ''}
+                            </option>
+                          )
+                        })}
+                      </select>
+                      <input
+                        type="number"
+                        step="0.01"
+                        inputMode="decimal"
+                        className="inventory-daily-journal-chip-input"
+                        placeholder="kg"
+                        value={addDraftKg}
+                        onChange={(event) => setAddDraftKg(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') commitRowAdd(entry.day)
+                          if (event.key === 'Escape') {
+                            setAddingOnDay(null)
+                            setAddDraftColumn('')
+                            setAddDraftKg('')
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="inventory-daily-journal-chip-confirm"
+                        onClick={() => commitRowAdd(entry.day)}
+                        aria-label="추가"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        type="button"
+                        className="inventory-daily-journal-chip-remove"
+                        onClick={() => {
+                          setAddingOnDay(null)
+                          setAddDraftColumn('')
+                          setAddDraftKg('')
+                        }}
+                        aria-label="취소"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="inventory-daily-journal-add-chip"
+                      onClick={() => {
+                        setAddingOnDay(entry.day)
+                        setAddDraftColumn('')
+                        setAddDraftKg('')
+                      }}
+                    >
+                      + 품목 추가
+                    </button>
+                  )}
+                </div>
+              </article>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
 function InventoryStatusPage() {
   const { mode, activeCompanyId, user } = useAppRuntime()
   const [inventoryState, setInventoryState] = useState<InventoryStatusState>(() =>
@@ -750,9 +1524,8 @@ function InventoryStatusPage() {
   )
   const [templateBase64, setTemplateBase64] = useState<string | null>(null)
   const [templateFileName, setTemplateFileName] = useState<string>('')
-  const [activeSheet, setActiveSheet] = useState<SheetKey>('beans')
   const [roastingViewMode, setRoastingViewMode] = useState<RoastingViewMode>('daily')
-  const [hideZeroRoastingItems, setHideZeroRoastingItems] = useState(true)
+  const [hideZeroRoastingItems, setHideZeroRoastingItems] = useState(false)
   const [selectedBeanName, setSelectedBeanName] = useState<string>('')
   const [beanDetailViewMode, setBeanDetailViewMode] = useState<BeanDetailViewMode>('daily')
   const beanDetailSectionRef = useRef<HTMLDivElement>(null)
@@ -777,8 +1550,6 @@ function InventoryStatusPage() {
     skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
   const initialRoastingSyncDoneRef = useRef(false)
-  /** 로스팅 열 품목명 수정 시작 시 해당 열의 원래 문자열(생두 행과 동기화에 사용) */
-  const roastingColumnRenameOriginRef = useRef<Map<number, string>>(new Map())
   const [fullResetDialogOpen, setFullResetDialogOpen] = useState(false)
   const [fullResetPin, setFullResetPin] = useState('')
   const [fullResetDialogError, setFullResetDialogError] = useState('')
@@ -885,11 +1656,38 @@ function InventoryStatusPage() {
     window.localStorage.setItem(INVENTORY_STATUS_STORAGE_KEY, JSON.stringify(inventoryState))
   }, [inventoryState, isStorageReady])
 
+  // 생두전체현황(beanRows)을 마스터로 삼아 로스팅 열을 자동 동기화한다.
+  // - 이름 변경: 같은 위치(position)에서 이름만 갱신, 일별 값 보존
+  // - 추가/삭제/재정렬: 이름(name) 매칭으로 기존 값 최대한 보존, 새 열은 0으로 채움
   useEffect(() => {
-    if (!inventoryNameEditMode) {
-      roastingColumnRenameOriginRef.current.clear()
-    }
-  }, [inventoryNameEditMode])
+    setInventoryState((current) => {
+      const nextColumns = current.beanRows.map((bean) => bean.name)
+      const sameLength = current.roastingColumns.length === nextColumns.length
+      if (sameLength && current.roastingColumns.every((c, i) => c === nextColumns[i])) {
+        return current
+      }
+      const oldColumns = current.roastingColumns
+      const sourceIndexForNew = nextColumns.map((newName, i) => {
+        const byName = oldColumns.findIndex(
+          (col) => normalizeNameKey(col) === normalizeNameKey(newName),
+        )
+        if (byName >= 0) {
+          return byName
+        }
+        if (sameLength) {
+          return i
+        }
+        return -1
+      })
+      const roastingRows = current.roastingRows.map((row) => ({
+        ...row,
+        values: sourceIndexForNew.map((sourceIdx) =>
+          sourceIdx >= 0 ? row.values[sourceIdx] ?? 0 : 0,
+        ),
+      }))
+      return { ...current, roastingColumns: nextColumns, roastingRows }
+    })
+  }, [inventoryState.beanRows])
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -1068,19 +1866,33 @@ function InventoryStatusPage() {
     return [...rows].sort((a, b) => (Number(a.no) || 0) - (Number(b.no) || 0))
   }, [displayedBeanRows, filteredBeanNames])
 
-  /** 로스팅 열 인덱스 → 입출고 생두 NO (이름 일치 시) */
-  const roastingColumnIndexToBeanNo = useMemo(() => {
-    const m = new Map<number, number>()
-    for (const bean of inventoryState.beanRows) {
-      const idx = inventoryState.roastingColumns.findIndex(
-        (col) => normalizeNameKey(col) === normalizeNameKey(bean.name),
-      )
-      if (idx >= 0) {
-        m.set(idx, bean.no)
-      }
-    }
-    return m
+  /** 로스팅 열을 화면에서 보여줄 연속 번호 기준으로 정렬 */
+  const roastingColumnOrder = useMemo(() => {
+    const nameToNo = new Map(inventoryState.beanRows.map((bean) => [normalizeNameKey(bean.name), bean.no]))
+    return inventoryState.roastingColumns
+      .map((column, index) => ({
+        index,
+        beanNo: nameToNo.get(normalizeNameKey(column)) ?? null,
+        name: column,
+      }))
+      .sort((left, right) => {
+        const ln = left.beanNo ?? 9999
+        const rn = right.beanNo ?? 9999
+        if (ln !== rn) {
+          return ln - rn
+        }
+        return normalizeNameKey(left.name).localeCompare(normalizeNameKey(right.name), 'ko')
+      })
   }, [inventoryState.beanRows, inventoryState.roastingColumns])
+
+  /** 로스팅 열 인덱스 → 표시 번호. 생두 행과 이름이 매칭되면 생두의 no를 그대로 쓴다. */
+  const roastingColumnIndexToDisplayNo = useMemo(() => {
+    const m = new Map<number, number | null>()
+    roastingColumnOrder.forEach((column) => {
+      m.set(column.index, column.beanNo)
+    })
+    return m
+  }, [roastingColumnOrder])
 
   const selectedBean =
     filteredDisplayedBeanRows.find((bean) => bean.name === selectedBeanName) ?? filteredDisplayedBeanRows[0] ?? null
@@ -1188,15 +2000,14 @@ function InventoryStatusPage() {
       const roastedTotal = computedRoastingTotals[index] ?? 0
       return column.trim() === BLENDING_DARK_BEAN_NAME ? sum : sum + roastedTotal
     }, 0)
-    const nameToNo = new Map(inventoryState.beanRows.map((b) => [normalizeNameKey(b.name), b.no]))
     const rows = inventoryState.roastingColumns.map((column, index) => {
       const roastedTotal = computedRoastingTotals[index] ?? 0
       const isBlendingDark = column.trim() === BLENDING_DARK_BEAN_NAME
-      const beanNo = nameToNo.get(normalizeNameKey(column)) ?? null
+      const displayNo = roastingColumnIndexToDisplayNo.get(index) ?? null
       return {
         name: column,
         columnIndex: index,
-        beanNo,
+        displayNo,
         roastedTotal,
         rawUsageTotal: isBlendingDark ? null : convertRoastedOutputToRawInput(roastedTotal),
         share: isBlendingDark ? null : totalForShare > 0 ? roastedTotal / totalForShare : null,
@@ -1205,28 +2016,21 @@ function InventoryStatusPage() {
     })
 
     return rows.sort((left, right) => {
-      const ln = left.beanNo ?? 9999
-      const rn = right.beanNo ?? 9999
+      const ln = left.displayNo ?? 9999
+      const rn = right.displayNo ?? 9999
       if (ln !== rn) {
         return ln - rn
       }
       return normalizeNameKey(left.name).localeCompare(normalizeNameKey(right.name), 'ko')
     })
-  }, [computedRoastingTotals, inventoryState.beanRows, inventoryState.roastingColumns])
+  }, [computedRoastingTotals, inventoryState.roastingColumns, roastingColumnIndexToDisplayNo])
 
   const visibleRoastingColumnIndices = useMemo(() => {
-    const indices = inventoryState.roastingColumns
-      .map((_, index) => index)
+    const indices = roastingColumnOrder
+      .map((column) => column.index)
       .filter((index) => !hideZeroRoastingItems || (computedRoastingTotals[index] ?? 0) > 0)
-    return [...indices].sort((i, j) => {
-      const ni = roastingColumnIndexToBeanNo.get(i) ?? 9999
-      const nj = roastingColumnIndexToBeanNo.get(j) ?? 9999
-      if (ni !== nj) {
-        return ni - nj
-      }
-      return i - j
-    })
-  }, [computedRoastingTotals, hideZeroRoastingItems, inventoryState.roastingColumns, roastingColumnIndexToBeanNo])
+    return indices
+  }, [computedRoastingTotals, hideZeroRoastingItems, roastingColumnOrder])
 
   const visibleRoastingSummaryRows = useMemo(
     () => roastingSummaryRows.filter((row) => !hideZeroRoastingItems || row.roastedTotal > 0),
@@ -1241,19 +2045,6 @@ function InventoryStatusPage() {
       row.roastedTotal > best.roastedTotal ? row : best,
     )
   }, [visibleRoastingSummaryRows])
-  const maxRoastingCellValue = useMemo(
-    () =>
-      roastingDailyRows.reduce(
-        (maxValue, row) =>
-          Math.max(
-            maxValue,
-            ...visibleRoastingColumnIndices.map((index) => row.values[index] ?? 0),
-          ),
-        0,
-      ),
-    [roastingDailyRows, visibleRoastingColumnIndices],
-  )
-
   const roastingWeeklyRows = useMemo(() => {
     const weeks = [
       { key: 'week-1', label: '1-7일', start: 1, end: 7 },
@@ -1547,66 +2338,6 @@ function InventoryStatusPage() {
     })
   }
 
-  const updateRoastingColumnName = (columnIndex: number, nextName: string) => {
-    if (!inventoryNameEditMode) {
-      return
-    }
-    setInventoryState((current) => {
-      if (columnIndex < 0 || columnIndex >= current.roastingColumns.length) {
-        return current
-      }
-      const origin = roastingColumnRenameOriginRef.current.get(columnIndex) ?? current.roastingColumns[columnIndex] ?? ''
-      const originKey = normalizeNameKey(origin)
-      const trimmed = nextName.trim()
-      const keyForDup = trimmed.length > 0 ? normalizeNameKey(trimmed) : originKey
-      const duplicate =
-        keyForDup !== originKey &&
-        current.beanRows.some((b) => normalizeNameKey(b.name) === keyForDup && normalizeNameKey(b.name) !== originKey)
-      if (duplicate) {
-        setStatusMessage('이미 같은 이름의 품목이 있어 그 이름으로는 바꿀 수 없습니다.')
-        return current
-      }
-      const roastingColumns = [...current.roastingColumns]
-      roastingColumns[columnIndex] = nextName
-      const beanLabel = trimmed.length > 0 ? trimmed : null
-      const beanRows = current.beanRows.map((bean) => {
-        if (normalizeNameKey(bean.name) !== originKey) {
-          return bean
-        }
-        if (beanLabel) {
-          return { ...bean, name: beanLabel }
-        }
-        return bean
-      })
-      return { ...current, roastingColumns, beanRows }
-    })
-  }
-
-  const finalizeRoastingColumnName = (columnIndex: number) => {
-    const origin = roastingColumnRenameOriginRef.current.get(columnIndex)
-    roastingColumnRenameOriginRef.current.delete(columnIndex)
-    if (origin === undefined) {
-      return
-    }
-    const prevKey = normalizeNameKey(origin.trim())
-    let resolvedForSelect = origin.trim()
-    setInventoryState((current) => {
-      if (columnIndex < 0 || columnIndex >= current.roastingColumns.length) {
-        return current
-      }
-      const raw = (current.roastingColumns[columnIndex] ?? '').trim()
-      const resolved = raw.length > 0 ? raw : origin.trim()
-      resolvedForSelect = resolved
-      const roastingColumns = [...current.roastingColumns]
-      roastingColumns[columnIndex] = resolved
-      const beanRows = current.beanRows.map((bean) =>
-        normalizeNameKey(bean.name) === prevKey ? { ...bean, name: resolved } : bean,
-      )
-      return { ...current, roastingColumns, beanRows }
-    })
-    setSelectedBeanName((sel) => (normalizeNameKey(sel) === prevKey ? resolvedForSelect : sel))
-  }
-
   const commitInventoryProductRenameFromSummary = (previousDisplayName: string, nextRaw: string) => {
     if (!inventoryNameEditMode) {
       return
@@ -1647,6 +2378,23 @@ function InventoryStatusPage() {
       (row): row is InventoryStatusState['roastingRows'][number] & { day: number } => typeof row.day === 'number',
     )
 
+    // 블렌딩 기여분(raw)은 로스팅 컬럼값에서 빠져 있으므로, production으로 역변환할 때 다시 더해준다.
+    const blendRawByBeanKey = new Map<string, number[]>()
+    const addBlendContribution = (recipe: typeof current.blendingDarkRecipe, cycles: number[]) => {
+      if (!recipe) return
+      recipe.components.forEach((comp) => {
+        const key = normalizeNameKey(comp.beanName)
+        if (!key) return
+        const arr = blendRawByBeanKey.get(key) ?? new Array(current.days.length).fill(0)
+        for (let i = 0; i < current.days.length; i += 1) {
+          arr[i] = (arr[i] ?? 0) + comp.rawPerCycle * (cycles[i] ?? 0)
+        }
+        blendRawByBeanKey.set(key, arr)
+      })
+    }
+    addBlendContribution(current.blendingDarkRecipe, current.blendingDarkCycles ?? [])
+    addBlendContribution(current.blendingLightRecipe, current.blendingLightCycles ?? [])
+
     roastingDailyRows.forEach((row) => {
       const dayIndex = current.days.findIndex((d) => d === row.day)
       if (dayIndex < 0) {
@@ -1657,7 +2405,9 @@ function InventoryStatusPage() {
         if (!colName) {
           return
         }
-        const rawValue = convertRoastedOutputToRawInput(roastedValue ?? 0)
+        const colKey = normalizeNameKey(colName)
+        const blendingRaw = blendRawByBeanKey.get(colKey)?.[dayIndex] ?? 0
+        const rawValue = convertRoastedOutputToRawInput(roastedValue ?? 0) + blendingRaw
         nextBeanRows.forEach((bean) => {
           if (bean.name.trim() !== colName) {
             return
@@ -1712,12 +2462,31 @@ function InventoryStatusPage() {
       const previousRawByRow = current.beanRows.map((b) => [...b.production])
       const nextRaw = convertRoastedOutputToRawInput(parsedRoasted)
 
+      // 사이클이 돌아간 날에는 구성 원두 production에 이미 블렌딩 기여분(raw)이 누적돼 있다.
+      // 단독 로스팅만 수정하는 편집이므로, 블렌딩 기여분은 그대로 두고 단독 부분만 덮어쓴다.
+      const computeBlendingRaw = (beanKey: string): number => {
+        const blends = [
+          { recipe: current.blendingDarkRecipe, cycles: current.blendingDarkCycles },
+          { recipe: current.blendingLightRecipe, cycles: current.blendingLightCycles },
+        ]
+        return blends.reduce((sum, b) => {
+          if (!b.recipe) return sum
+          const perCycleRaw = b.recipe.components.reduce(
+            (s, comp) => (normalizeNameKey(comp.beanName) === beanKey ? s + comp.rawPerCycle : s),
+            0,
+          )
+          return sum + perCycleRaw * (b.cycles[dayIndex] ?? 0)
+        }, 0)
+      }
+
       const nextBeanRows = current.beanRows.map((bean) => {
-        if (!targetColumnName || normalizeNameKey(bean.name) !== targetColumnName) {
+        const beanKey = normalizeNameKey(bean.name)
+        if (!targetColumnName || beanKey !== targetColumnName) {
           return bean
         }
         const nextProduction = [...bean.production]
-        nextProduction[dayIndex] = nextRaw
+        const blendingRaw = computeBlendingRaw(beanKey)
+        nextProduction[dayIndex] = nextRaw + blendingRaw
         return { ...bean, production: nextProduction }
       })
 
@@ -1742,6 +2511,166 @@ function InventoryStatusPage() {
         })),
         roastingRows: nextRoastingRows,
       }
+    })
+  }
+
+  /**
+   * Blending(-Dark|-Light) 로스팅 사이클을 하루 단위로 설정한다.
+   * - 증감분(Δ)만 구성 원두의 production(raw)에 반영한다.
+   * - 블렌딩 행의 production은 `사이클 × 레시피 raw합`으로 갱신한다.
+   * - 로스팅 현황/재고 자동 연쇄까지 한 번에 재동기화한다.
+   */
+  const updateBlendingCyclesForDay = (
+    target: BlendTarget,
+    day: number,
+    nextCyclesValue: number,
+  ) => {
+    const newCycles = Math.max(0, Math.round(nextCyclesValue))
+    setInventoryState((current) => {
+      const dayIndex = current.days.findIndex((d) => d === day)
+      if (dayIndex < 0) {
+        return current
+      }
+      const cyclesKey: 'blendingDarkCycles' | 'blendingLightCycles' =
+        target === 'dark' ? 'blendingDarkCycles' : 'blendingLightCycles'
+      const recipe =
+        target === 'dark' ? current.blendingDarkRecipe : current.blendingLightRecipe
+      const blendBeanKey = normalizeNameKey(
+        target === 'dark' ? BLENDING_DARK_BEAN_NAME : BLENDING_LIGHT_BEAN_NAME,
+      )
+
+      const currentCycles = current[cyclesKey][dayIndex] ?? 0
+      if (currentCycles === newCycles) {
+        return current
+      }
+      const delta = newCycles - currentCycles
+
+      const componentRawByBeanKey = new Map<string, number>()
+      for (const comp of recipe.components) {
+        const key = normalizeNameKey(comp.beanName)
+        if (!key) continue
+        componentRawByBeanKey.set(
+          key,
+          (componentRawByBeanKey.get(key) ?? 0) + comp.rawPerCycle,
+        )
+      }
+      const totalRawPerCycle = recipe.components.reduce(
+        (sum, comp) => sum + comp.rawPerCycle,
+        0,
+      )
+
+      const previousRawByRow = current.beanRows.map((b) => [...b.production])
+
+      const nextBeanRows = current.beanRows.map((bean) => {
+        const beanKey = normalizeNameKey(bean.name)
+        if (beanKey === blendBeanKey) {
+          // 블렌딩 원두 본체도 Δ 누적: 기존 수동 입력을 보존한다.
+          const nextProduction = [...bean.production]
+          nextProduction[dayIndex] = Math.max(
+            0,
+            (bean.production[dayIndex] ?? 0) + delta * totalRawPerCycle,
+          )
+          return { ...bean, production: nextProduction }
+        }
+        const rawRatio = componentRawByBeanKey.get(beanKey)
+        if (rawRatio && rawRatio > 0) {
+          const nextProduction = [...bean.production]
+          nextProduction[dayIndex] = Math.max(
+            0,
+            (bean.production[dayIndex] ?? 0) + delta * rawRatio,
+          )
+          return { ...bean, production: nextProduction }
+        }
+        return bean
+      })
+
+      const nextCycles = [...current[cyclesKey]]
+      nextCycles[dayIndex] = newCycles
+
+      const updatedState: InventoryStatusState = {
+        ...current,
+        beanRows: nextBeanRows,
+        [cyclesKey]: nextCycles,
+      }
+      const syncedRoasting = syncRoastingRowsFromBeanProduction(updatedState)
+
+      const physIdx = dayIndexForReferenceDate(current.days, current.physicalCountDate)
+      const pins = buildStockPinnedDayIndices(current.days, current.surveyMarkedDays, physIdx)
+
+      return {
+        ...updatedState,
+        beanRows: updatedState.beanRows.map((bean, bi) => ({
+          ...bean,
+          stock: resyncAutoStockForBeanRow(bean, pins, {
+            previousRawProduction: previousRawByRow[bi] ?? null,
+          }),
+        })),
+        roastingRows: syncedRoasting,
+      }
+    })
+  }
+
+  const recipeKeyFor = (target: BlendTarget) =>
+    target === 'dark' ? 'blendingDarkRecipe' : 'blendingLightRecipe'
+
+  const updateBlendingRecipeComponent = (
+    target: BlendTarget,
+    index: number,
+    patch: Partial<BlendingRecipeComponent>,
+  ) => {
+    setInventoryState((current) => {
+      const key = recipeKeyFor(target)
+      const prev = current[key]
+      const nextComponents = prev.components.map((comp, i) => {
+        if (i !== index) return comp
+        return {
+          beanName: patch.beanName !== undefined ? patch.beanName : comp.beanName,
+          rawPerCycle:
+            patch.rawPerCycle !== undefined
+              ? Math.max(0, patch.rawPerCycle)
+              : comp.rawPerCycle,
+        }
+      })
+      const nextRecipe = { ...prev, components: nextComponents }
+      const next = { ...current, [key]: nextRecipe }
+      return { ...next, roastingRows: syncRoastingRowsFromBeanProduction(next) }
+    })
+  }
+
+  const updateBlendingRoastedPerCycle = (target: BlendTarget, value: number) => {
+    setInventoryState((current) => {
+      const key = recipeKeyFor(target)
+      const prev = current[key]
+      const roastedPerCycle = Math.max(0, value)
+      if (roastedPerCycle === prev.roastedPerCycle) return current
+      const nextRecipe = { ...prev, roastedPerCycle }
+      const next = { ...current, [key]: nextRecipe }
+      return { ...next, roastingRows: syncRoastingRowsFromBeanProduction(next) }
+    })
+  }
+
+  const addBlendingRecipeComponent = (target: BlendTarget) => {
+    setInventoryState((current) => {
+      const key = recipeKeyFor(target)
+      const prev = current[key]
+      const nextRecipe = {
+        ...prev,
+        components: [...prev.components, { beanName: '', rawPerCycle: 0 }],
+      }
+      return { ...current, [key]: nextRecipe }
+    })
+  }
+
+  const removeBlendingRecipeComponent = (target: BlendTarget, index: number) => {
+    setInventoryState((current) => {
+      const key = recipeKeyFor(target)
+      const prev = current[key]
+      const nextRecipe = {
+        ...prev,
+        components: prev.components.filter((_, i) => i !== index),
+      }
+      const next = { ...current, [key]: nextRecipe }
+      return { ...next, roastingRows: syncRoastingRowsFromBeanProduction(next) }
     })
   }
 
@@ -2223,18 +3152,6 @@ function InventoryStatusPage() {
           >
             기본값 복원
           </button>
-          <div className="segmented inventory-sheet-tabs inventory-sheet-tabs--actionline">
-            {SHEET_OPTIONS.map((sheet) => (
-              <button
-                key={sheet.id}
-                type="button"
-                className={activeSheet === sheet.id ? 'active' : ''}
-                onClick={() => setActiveSheet(sheet.id)}
-              >
-                {sheet.label}
-              </button>
-            ))}
-          </div>
         </div>
         <div className="page-status-bar">
           <div className="page-status-inline inventory-status-inline">
@@ -2254,7 +3171,7 @@ function InventoryStatusPage() {
         </div>
       </section>
 
-      {activeSheet === 'beans' ? (
+      <>
         <section className="meeting-grid">
           <div className="meeting-card">
             <div className="meeting-card-header inventory-bean-summary-card-header">
@@ -2616,18 +3533,22 @@ function InventoryStatusPage() {
             </div>
           </div>
         </section>
-      ) : (
         <section className="meeting-grid">
           <div className="meeting-card inventory-roasting-summary-card">
             <div className="meeting-card-header">
               <h3>품목별 로스팅 요약</h3>
-              <button
-                type="button"
-                className={`ghost-button ${hideZeroRoastingItems ? 'active' : ''}`}
-                onClick={() => setHideZeroRoastingItems((current) => !current)}
-              >
-                {hideZeroRoastingItems ? '전체 품목 보기' : '사용 품목만 보기'}
-              </button>
+              <div className="inventory-roasting-summary-actions">
+                <span className="inventory-master-hint" title="품목명은 위쪽「생두 전체현황」에서만 수정됩니다.">
+                  생두 전체현황에서 수정하면 자동 반영
+                </span>
+                <button
+                  type="button"
+                  className={`ghost-button ${hideZeroRoastingItems ? 'active' : ''}`}
+                  onClick={() => setHideZeroRoastingItems((current) => !current)}
+                >
+                  {hideZeroRoastingItems ? '전체 품목 보기' : '사용 품목만 보기'}
+                </button>
+              </div>
             </div>
             <div className="inventory-roasting-kpi-strip" aria-label="로스팅 요약 지표">
               <div className="inventory-roasting-kpi-chip">
@@ -2658,7 +3579,7 @@ function InventoryStatusPage() {
                 <span>최다 로스팅 품목</span>
                 <strong>
                   {topRoastingItem
-                    ? `${topRoastingItem.beanNo != null ? `${topRoastingItem.beanNo}. ` : ''}${topRoastingItem.name} / ${formatTwoDecimals(topRoastingItem.roastedTotal)}kg`
+                    ? `${topRoastingItem.displayNo != null ? `${topRoastingItem.displayNo}. ` : ''}${topRoastingItem.name} / ${formatTwoDecimals(topRoastingItem.roastedTotal)}kg`
                     : '-'}
                 </strong>
               </div>
@@ -2683,15 +3604,13 @@ function InventoryStatusPage() {
                 </thead>
                 <tbody>
                   {visibleRoastingSummaryRows.map((row) => (
-                    <tr key={`roasting-summary-${row.name}`}>
+                    <tr key={`roasting-summary-${row.columnIndex}`}>
                       <td className={`inventory-text-left inventory-heat-cell ${row.heatLevel}`}>
-                        {row.beanNo != null ? (
-                          <>
-                            <span className="inventory-bean-summary-no-prefix">{row.beanNo}.</span> {row.name}
-                          </>
-                        ) : (
-                          row.name
-                        )}
+                        {row.displayNo != null ? (
+                          <span className="inventory-bean-summary-no-prefix">{row.displayNo}.</span>
+                        ) : null}
+                        {row.displayNo != null ? ' ' : null}
+                        {row.name}
                       </td>
                       <td>{formatTwoDecimals(row.roastedTotal)}kg</td>
                       <td>{row.rawUsageTotal === null ? '-' : `${formatTwoDecimals(row.rawUsageTotal)}kg`}</td>
@@ -2723,137 +3642,125 @@ function InventoryStatusPage() {
                 </button>
               </div>
             </div>
-            <div className="table-wrapper">
-              <table className="meeting-table inventory-table">
-                <thead>
-                  <tr>
-                    <th className="inventory-sticky-column">
-                      {roastingViewMode === 'daily' ? '일자' : '주차'}
-                    </th>
-                    {visibleRoastingColumnIndices.map((index) => (
-                      <th key={`roast-col-h-${index}`} className="inventory-roasting-th-name">
-                        <div className="inventory-roasting-th-name-inner">
-                          {roastingColumnIndexToBeanNo.has(index) ? (
-                            <span className="inventory-roasting-col-no-prefix" aria-hidden>
-                              {roastingColumnIndexToBeanNo.get(index)}.
-                            </span>
-                          ) : null}
-                          <input
-                            type="text"
-                            className="inventory-cell-input inventory-roasting-column-name-input"
-                            aria-label={`로스팅 열 ${index + 1} 품목명`}
-                            value={inventoryState.roastingColumns[index] ?? ''}
-                            readOnly={!inventoryNameEditMode}
-                            title={
-                              inventoryNameEditMode
-                                ? '입출고와 같은 이름의 생두 행이 함께 바뀝니다. 다른 품목과 겹치는 이름은 쓸 수 없습니다.'
-                                : '품목별 요약의「이름 수정」을 누른 뒤에만 바꿀 수 있습니다.'
-                            }
-                            onFocus={
-                              inventoryNameEditMode
-                                ? () => {
-                                    roastingColumnRenameOriginRef.current.set(
-                                      index,
-                                      inventoryState.roastingColumns[index] ?? '',
-                                    )
-                                  }
-                                : undefined
-                            }
-                            onBlur={
-                              inventoryNameEditMode ? () => finalizeRoastingColumnName(index) : undefined
-                            }
-                            onChange={(event) => updateRoastingColumnName(index, event.target.value)}
-                          />
-                        </div>
-                      </th>
-                    ))}
-                    <th>{roastingViewMode === 'daily' ? '일 합계' : '주 합계'}</th>
-                    {roastingViewMode === 'weekly' ? <th>전주 대비</th> : null}
-                    {roastingViewMode === 'weekly' ? <th>활성 품목</th> : null}
-                    {roastingViewMode === 'weekly' ? <th>Top 품목</th> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {roastingViewMode === 'daily'
-                    ? roastingDailyRows.map((row) => (
-                        <tr key={row.day}>
-                          <td className="inventory-sticky-column">{row.day}</td>
-                          {visibleRoastingColumnIndices.map((index) => (
-                            <td key={`${row.day}-col-${index}`}>
-                              <input
-                                type="number"
-                                className={`inventory-cell-input inventory-heat-cell ${getHeatLevel(
-                                  row.values[index] ?? 0,
-                                  maxRoastingCellValue,
-                                )}`}
-                                value={inventoryNumericInputValue(row.values[index] ?? 0)}
-                                onChange={(event) => updateRoastingValue(row.day, index, event.target.value)}
-                              />
-                            </td>
-                          ))}
-                          <td>{formatTwoDecimals(sumValues(row.values))}</td>
-                        </tr>
-                      ))
-                    : roastingWeeklyRows.map((row) => (
-                        <tr
-                          key={row.key}
-                          className={row.isCurrentWeek ? 'inventory-week-current' : undefined}
-                        >
-                          <td className="inventory-sticky-column">{row.label}</td>
-                          {visibleRoastingColumnIndices.map((index) => (
-                            <td
-                              key={`${row.key}-col-${index}`}
-                              className={`inventory-heat-cell ${getHeatLevel(
-                                row.values[index] ?? 0,
-                                maxWeeklyRoastingCellValue,
-                              )}`}
-                            >
-                              {formatTwoDecimals(row.values[index] ?? 0)}
-                            </td>
-                          ))}
-                          <td>{formatTwoDecimals(row.total)}</td>
-                          <td
-                            className={
-                              row.deltaFromPrevious === null
-                                ? ''
-                                : row.deltaFromPrevious >= 0
-                                  ? 'inventory-delta-positive'
-                                  : 'inventory-delta-negative'
-                            }
-                          >
-                            {row.deltaFromPrevious === null
-                              ? '-'
-                              : `${row.deltaFromPrevious > 0 ? '▲ ' : row.deltaFromPrevious < 0 ? '▼ ' : '− '}${
-                                  row.deltaFromPrevious > 0 ? '+' : ''
-                                }${formatTwoDecimals(row.deltaFromPrevious)}kg`}
-                          </td>
-                          <td>{row.activeItemCount}개</td>
-                          <td>
-                            {row.topItemTotal > 0
-                              ? `${row.topItemName} / ${formatTwoDecimals(row.topItemTotal)}kg`
-                              : '-'}
-                          </td>
-                        </tr>
-                      ))}
-                </tbody>
-                {inventoryState.roastingColumns.length > 0 ? (
-                  <tfoot>
+            {roastingViewMode === 'daily' ? (
+              <DailyRoastingJournal
+                days={inventoryState.days}
+                columnIndices={visibleRoastingColumnIndices}
+                columnNames={inventoryState.roastingColumns}
+                columnDisplayNo={roastingColumnIndexToDisplayNo}
+                dailyRows={roastingDailyRows}
+                columnTotals={computedRoastingTotals}
+                grandTotal={roastingMetrics.grandTotal}
+                latestActiveDay={roastingMetrics.latestActiveDay}
+                peakDay={roastingMetrics.peakDay}
+                daysWithRoasting={roastingMetrics.daysWithRoasting}
+                referenceDate={inventoryState.referenceDate}
+                onChangeCell={updateRoastingValue}
+                blendingDarkCycles={inventoryState.blendingDarkCycles}
+                blendingDarkRecipe={inventoryState.blendingDarkRecipe}
+                blendingLightCycles={inventoryState.blendingLightCycles}
+                blendingLightRecipe={inventoryState.blendingLightRecipe}
+                beanNameOptions={inventoryState.beanRows.map((b) => b.name)}
+                onChangeBlendingCycles={updateBlendingCyclesForDay}
+                onChangeRecipeComponent={updateBlendingRecipeComponent}
+                onChangeRoastedPerCycle={updateBlendingRoastedPerCycle}
+                onAddRecipeComponent={addBlendingRecipeComponent}
+                onRemoveRecipeComponent={removeBlendingRecipeComponent}
+              />
+            ) : (
+              <div className="table-wrapper">
+                <table className="meeting-table inventory-table">
+                  <thead>
                     <tr>
-                      <td className="inventory-sticky-column">계</td>
-                      {visibleRoastingColumnIndices.map((index) => (
-                        <td key={`total-col-${index}`}>
-                          {formatTwoDecimals(computedRoastingTotals[index] ?? 0)}
-                        </td>
-                      ))}
-                      <td>{formatTwoDecimals(roastingMetrics.grandTotal)}</td>
+                      <th className="inventory-sticky-column">주차</th>
+                      {visibleRoastingColumnIndices.map((index) => {
+                        const headerNo = roastingColumnIndexToDisplayNo.get(index) ?? null
+                        return (
+                          <th key={`roast-col-h-${index}`} className="inventory-roasting-th-name">
+                            <div className="inventory-roasting-th-name-inner">
+                              {headerNo != null ? (
+                                <span className="inventory-roasting-col-no-prefix" aria-hidden>
+                                  {headerNo}.
+                                </span>
+                              ) : null}
+                              <span
+                                className="inventory-roasting-column-name-label"
+                                title="품목명은 생두 전체현황에서만 수정할 수 있습니다."
+                              >
+                                {inventoryState.roastingColumns[index] ?? ''}
+                              </span>
+                            </div>
+                          </th>
+                        )
+                      })}
+                      <th>주 합계</th>
+                      <th>전주 대비</th>
+                      <th>활성 품목</th>
+                      <th>Top 품목</th>
                     </tr>
-                  </tfoot>
-                ) : null}
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {roastingWeeklyRows.map((row) => (
+                      <tr
+                        key={row.key}
+                        className={row.isCurrentWeek ? 'inventory-week-current' : undefined}
+                      >
+                        <td className="inventory-sticky-column">{row.label}</td>
+                        {visibleRoastingColumnIndices.map((index) => (
+                          <td
+                            key={`${row.key}-col-${index}`}
+                            className={`inventory-heat-cell ${getHeatLevel(
+                              row.values[index] ?? 0,
+                              maxWeeklyRoastingCellValue,
+                            )}`}
+                          >
+                            {formatTwoDecimals(row.values[index] ?? 0)}
+                          </td>
+                        ))}
+                        <td>{formatTwoDecimals(row.total)}</td>
+                        <td
+                          className={
+                            row.deltaFromPrevious === null
+                              ? ''
+                              : row.deltaFromPrevious >= 0
+                                ? 'inventory-delta-positive'
+                                : 'inventory-delta-negative'
+                          }
+                        >
+                          {row.deltaFromPrevious === null
+                            ? '-'
+                            : `${row.deltaFromPrevious > 0 ? '▲ ' : row.deltaFromPrevious < 0 ? '▼ ' : '− '}${
+                                row.deltaFromPrevious > 0 ? '+' : ''
+                              }${formatTwoDecimals(row.deltaFromPrevious)}kg`}
+                        </td>
+                        <td>{row.activeItemCount}개</td>
+                        <td>
+                          {row.topItemTotal > 0
+                            ? `${row.topItemName} / ${formatTwoDecimals(row.topItemTotal)}kg`
+                            : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {inventoryState.roastingColumns.length > 0 ? (
+                    <tfoot>
+                      <tr>
+                        <td className="inventory-sticky-column">계</td>
+                        {visibleRoastingColumnIndices.map((index) => (
+                          <td key={`total-col-${index}`}>
+                            {formatTwoDecimals(computedRoastingTotals[index] ?? 0)}
+                          </td>
+                        ))}
+                        <td>{formatTwoDecimals(roastingMetrics.grandTotal)}</td>
+                      </tr>
+                    </tfoot>
+                  ) : null}
+                </table>
+              </div>
+            )}
           </div>
         </section>
-      )}
+      </>
     </div>
 
     {fullResetDialogOpen ? (

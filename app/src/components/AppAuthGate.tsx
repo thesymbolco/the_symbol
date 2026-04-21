@@ -9,11 +9,12 @@ export default function AppAuthGate({ children }: PropsWithChildren) {
     memberships,
     activeCompanyId,
     errorMessage,
-    signInWithOtp,
+    signInWithPassword,
     createCompany,
     setActiveCompanyId,
   } = useAppRuntime()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [status, setStatus] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -41,25 +42,52 @@ export default function AppAuthGate({ children }: PropsWithChildren) {
           onSubmit={async (event) => {
             event.preventDefault()
             setIsSubmitting(true)
-            const message = await signInWithOtp(email)
-            setStatus(message ?? '로그인 링크를 메일로 보냈습니다. 메일의 링크로 접속해 주세요.')
+            setStatus('')
+            const message = await signInWithPassword(username, password)
+            if (message) {
+              setStatus(message)
+            } else {
+              setStatus('')
+              setPassword('')
+            }
             setIsSubmitting(false)
           }}
         >
           <p className="eyebrow">다중기기 클라우드 모드</p>
           <h1>로그인</h1>
           <p className="app-auth-copy">
-            이메일 링크 로그인으로 회사 공용 데이터를 여러 기기에서 함께 사용할 수 있습니다.
+            관리자가 발급한 아이디와 비밀번호로 로그인하세요.
           </p>
           <label className="app-auth-field">
-            이메일
-            <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" />
+            아이디
+            <input
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="예: park"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          </label>
+          <label className="app-auth-field">
+            비밀번호
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="비밀번호"
+              autoComplete="current-password"
+            />
           </label>
           <button type="submit" className="primary-button" disabled={isSubmitting}>
-            {isSubmitting ? '보내는 중…' : '로그인 링크 보내기'}
+            {isSubmitting ? '로그인 중…' : '로그인'}
           </button>
-          {status ? <p className="app-auth-status">{status}</p> : null}
+          {status ? <p className="app-auth-error">{status}</p> : null}
           {errorMessage ? <p className="app-auth-error">{errorMessage}</p> : null}
+          <p className="app-auth-hint">
+            계정이 필요하신가요? 관리자에게 문의하세요.
+          </p>
         </form>
       </div>
     )

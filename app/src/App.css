@@ -471,6 +471,190 @@
   color: #b91c1c;
 }
 
+.app-auth-hint {
+  color: #64748b;
+  font-size: 12px;
+  margin: 4px 0 0;
+  text-align: center;
+}
+
+/* Team management page */
+.team-page {
+  display: grid;
+  gap: 20px;
+  padding: 4px 2px 40px;
+}
+
+.team-page-empty {
+  padding: 40px;
+  text-align: center;
+  color: #64748b;
+}
+
+.team-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: grid;
+  gap: 14px;
+}
+
+.team-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.team-section-head h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.team-section-head p.muted {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.team-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.team-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 760px;
+}
+
+.team-table th,
+.team-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #eef2f7;
+  vertical-align: middle;
+}
+
+.team-table thead th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #475569;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.team-table tbody tr.is-inactive {
+  background: #fafbfc;
+  color: #94a3b8;
+}
+
+.team-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.team-table input,
+.team-table select {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+}
+
+.team-table code {
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.team-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.team-self-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.team-create-form {
+  display: grid;
+  gap: 12px;
+}
+
+.team-create-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px 14px;
+}
+
+.team-create-grid label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.team-create-grid input,
+.team-create-grid select {
+  padding: 7px 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+}
+
+.team-create-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.team-self-password {
+  display: flex;
+  gap: 8px;
+  max-width: 420px;
+}
+
+.team-self-password input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.ghost-button.small,
+.primary-button.small {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.ghost-button.danger {
+  color: #b91c1c;
+  border-color: rgba(185, 28, 28, 0.35);
+}
+
+.ghost-button.danger:hover:not(:disabled) {
+  background: rgba(185, 28, 28, 0.08);
+}
+
 .app-auth-company-list {
   display: grid;
   gap: 8px;
@@ -729,7 +913,7 @@
 }
 
 .hero-panel {
-  position: relative;
+    position: relative;
   display: grid;
   gap: 24px;
   grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr);
@@ -744,7 +928,7 @@
 .hero-panel::after,
 .panel::before {
   content: '';
-  position: absolute;
+    position: absolute;
   inset: 0 auto auto 0;
   width: 100%;
   height: 1px;
@@ -865,7 +1049,7 @@
 }
 
 .statements-records-panel-toolbar .statements-records-toolbar-actions select.statements-records-year-select {
-  width: auto;
+    width: auto;
   flex: 0 0 auto;
   min-width: 4.75rem;
   max-width: 6.25rem;
@@ -1202,9 +1386,9 @@
 
 .meeting-layout {
   display: grid;
-  gap: 18px;
+    gap: 18px;
   margin-top: 18px;
-}
+  }
 
 .meeting-config-row {
   display: grid;
@@ -1305,6 +1489,13 @@
   align-items: flex-start;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(219, 229, 241, 0.9);
+}
+
+.inventory-roasting-summary-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .meeting-summary-cashflow {
@@ -1479,7 +1670,7 @@
 
 .meeting-outbound-trend-stack {
   display: flex;
-  flex-direction: column;
+    flex-direction: column;
   gap: 16px;
 }
 
@@ -2248,8 +2439,8 @@
 
 .expense-checkbox {
   width: 18px;
-  height: 18px;
-}
+    height: 18px;
+  }
 
 .staff-payroll-table {
   min-width: 1420px;
@@ -2312,7 +2503,7 @@
   border: 1px solid #e2e8f0;
   background: #f8fafc;
   color: #64748b;
-  font-size: 16px;
+    font-size: 16px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -2945,6 +3136,1023 @@
   background: #93c5fd;
 }
 
+/* === 일별 로스팅 일지(journal) === */
+.inventory-daily-journal {
+  display: grid;
+  gap: 12px;
+}
+
+.inventory-daily-journal-empty,
+.inventory-daily-journal-empty-list {
+  padding: 28px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  border-radius: 10px;
+}
+
+.inventory-daily-journal-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.55), rgba(241, 245, 249, 0.55));
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
+}
+
+.inventory-daily-journal-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 20px;
+  border-right: 1px solid rgba(226, 232, 240, 0.8);
+  min-width: 0;
+}
+
+.inventory-daily-journal-metric:last-of-type {
+  border-right: none;
+}
+
+.inventory-daily-journal-metric-label {
+  font-size: 11px;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+
+.inventory-daily-journal-metric-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.inventory-daily-journal-metric-value em {
+  font-style: normal;
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.inventory-daily-journal-topbeans {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.inventory-daily-journal-topbean {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 10px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 999px;
+  font-size: 11px;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-daily-journal-topbean-rank {
+  font-size: 10px;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.inventory-daily-journal-topbean-kg {
+  color: #64748b;
+}
+
+.inventory-daily-journal-quickadd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 10px;
+  background: #ffffff;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.inventory-daily-journal-quickadd-label {
+  font-size: 11px;
+  color: #64748b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.inventory-daily-journal-quickadd-cycle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding-top: 6px;
+  margin-top: 2px;
+  border-top: 1px dashed rgba(196, 181, 253, 0.6);
+}
+
+.inventory-daily-journal-quickadd-label-cycle {
+  color: #6b21a8;
+}
+
+.inventory-daily-journal-commit-cycle {
+  background: #6d28d9;
+  border-color: #6d28d9;
+}
+
+.inventory-daily-journal-commit-cycle:hover:not(:disabled) {
+  background: #5b21b6;
+  border-color: #5b21b6;
+}
+
+.inventory-daily-journal-quickadd-hint {
+  font-size: 11px;
+  color: #6b21a8;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-daily-journal-target-toggle {
+  display: inline-flex;
+  border: 1px solid rgba(203, 213, 225, 0.8);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.inventory-daily-journal-target-toggle button {
+  padding: 4px 10px;
+  font-size: 11px;
+  background: #ffffff;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.inventory-daily-journal-target-toggle button + button {
+  border-left: 1px solid rgba(203, 213, 225, 0.8);
+}
+
+.inventory-daily-journal-target-toggle button.is-dark.is-active {
+  background: #6d28d9;
+  color: #ffffff;
+}
+
+.inventory-daily-journal-target-toggle button.is-light.is-active {
+  background: #d97706;
+  color: #ffffff;
+}
+
+.inventory-daily-journal-commit-cycle.is-light {
+  background: #d97706;
+  border-color: #d97706;
+}
+
+.inventory-daily-journal-commit-cycle.is-light:hover:not(:disabled) {
+  background: #b45309;
+  border-color: #b45309;
+}
+
+.inventory-daily-journal-metric-value .inventory-daily-journal-metric-dark,
+.inventory-daily-journal-metric-value .inventory-daily-journal-metric-light {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.inventory-daily-journal-metric-value .inventory-daily-journal-metric-dark {
+  color: #6b21a8;
+}
+
+.inventory-daily-journal-metric-value .inventory-daily-journal-metric-light {
+  color: #b45309;
+  margin-left: 10px;
+}
+
+.inventory-daily-journal-metric-value .inventory-daily-journal-metric-dark em,
+.inventory-daily-journal-metric-value .inventory-daily-journal-metric-light em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 500;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.inventory-daily-journal-card-cycles {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.inventory-daily-journal-card-cycles.is-readonly {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.inventory-daily-journal-card-cycle-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.inventory-daily-journal-card-cycle-badge.is-dark {
+  background: rgba(124, 58, 237, 0.1);
+  color: #6b21a8;
+  border: 1px solid rgba(124, 58, 237, 0.25);
+}
+
+.inventory-daily-journal-card-cycle-badge.is-light {
+  background: rgba(217, 119, 6, 0.1);
+  color: #b45309;
+  border: 1px solid rgba(217, 119, 6, 0.25);
+}
+
+.inventory-daily-journal-card-cycle.is-light .inventory-daily-journal-card-cycle-label,
+.inventory-daily-journal-card-cycle.is-light .inventory-daily-journal-card-cycle-hint {
+  color: #b45309;
+}
+
+.inventory-daily-journal-card-cycle.is-light .inventory-daily-journal-card-cycle-input:focus {
+  outline-color: rgba(217, 119, 6, 0.35);
+  border-color: rgba(217, 119, 6, 0.55);
+}
+
+.inventory-daily-journal-select,
+.inventory-daily-journal-kg {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 8px;
+  font-size: 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  outline: none;
+}
+
+.inventory-daily-journal-kg {
+  width: 80px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-daily-journal-select:focus,
+.inventory-daily-journal-kg:focus {
+  border-color: #1d4ed8;
+  background: #ffffff;
+}
+
+.inventory-daily-journal-commit {
+  height: 30px;
+  padding: 0 14px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.inventory-daily-journal-commit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.inventory-daily-journal-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #64748b;
+  cursor: pointer;
+  user-select: none;
+}
+
+.inventory-daily-journal-toggle input {
+  accent-color: #1d4ed8;
+}
+
+.inventory-daily-journal-toggle-count {
+  color: #94a3b8;
+}
+
+.inventory-daily-journal-list {
+  display: grid;
+  gap: 8px;
+}
+
+.inventory-daily-journal-card {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 10px;
+}
+
+.inventory-daily-journal-card.is-sunday .inventory-daily-journal-card-day {
+  color: #dc2626;
+}
+
+.inventory-daily-journal-card.is-empty {
+  background: rgba(248, 250, 252, 0.6);
+  border-style: dashed;
+}
+
+.inventory-daily-journal-card-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 2px;
+  flex-wrap: wrap;
+}
+
+.inventory-daily-journal-card-cycle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #475569;
+}
+
+.inventory-daily-journal-card-cycle-label {
+  font-weight: 600;
+  color: #6b21a8;
+}
+
+.inventory-daily-journal-card-cycle-step {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.inventory-daily-journal-card-cycle-step:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.inventory-daily-journal-card-cycle-step:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: rgba(148, 163, 184, 0.9);
+}
+
+.inventory-daily-journal-card-cycle-input {
+  width: 34px;
+  height: 20px;
+  text-align: center;
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 0 2px;
+}
+
+.inventory-daily-journal-card-cycle-input:focus {
+  outline: 2px solid rgba(124, 58, 237, 0.35);
+  outline-offset: 0;
+  border-color: rgba(124, 58, 237, 0.55);
+}
+
+.inventory-daily-journal-card-cycle-hint {
+  color: #6b21a8;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-daily-journal-metric-blend .inventory-daily-journal-metric-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inventory-daily-journal-recipe-toggle {
+  font-size: 11px;
+  color: #6b21a8;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.inventory-daily-journal-recipe-toggle:hover {
+  text-decoration: underline;
+}
+
+.inventory-daily-journal-recipes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .inventory-daily-journal-recipes {
+    grid-template-columns: 1fr;
+  }
+}
+
+.inventory-daily-journal-recipe {
+  border: 1px solid rgba(196, 181, 253, 0.6);
+  background: rgba(245, 243, 255, 0.55);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.inventory-daily-journal-recipe.is-light {
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(254, 252, 232, 0.6);
+}
+
+.inventory-daily-journal-recipe.is-light .inventory-daily-journal-recipe-head strong,
+.inventory-daily-journal-recipe.is-light .inventory-daily-journal-recipe-output {
+  color: #b45309;
+}
+
+.inventory-daily-journal-recipe.is-light .inventory-daily-journal-recipe-output {
+  border-top-color: rgba(251, 191, 36, 0.6);
+}
+
+.inventory-daily-journal-recipe-add {
+  justify-self: start;
+  font-size: 12px;
+  color: #6b21a8;
+  background: transparent;
+  border: 1px dashed rgba(139, 92, 246, 0.6);
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.inventory-daily-journal-recipe-add:hover {
+  background: rgba(237, 233, 254, 0.6);
+}
+
+.inventory-daily-journal-recipe.is-light .inventory-daily-journal-recipe-add {
+  color: #b45309;
+  border-color: rgba(251, 191, 36, 0.7);
+}
+
+.inventory-daily-journal-recipe.is-light .inventory-daily-journal-recipe-add:hover {
+  background: rgba(254, 243, 199, 0.5);
+}
+
+.inventory-daily-journal-recipe-remove {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(203, 213, 225, 0.7);
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.inventory-daily-journal-recipe-remove:hover {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.6);
+}
+
+.inventory-daily-journal-recipe-empty {
+  font-size: 11px;
+  color: #94a3b8;
+  padding: 4px 0;
+}
+
+.inventory-daily-journal-recipe-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.inventory-daily-journal-recipe-head strong {
+  color: #6b21a8;
+  font-size: 13px;
+}
+
+.inventory-daily-journal-recipe-rows {
+  display: grid;
+  gap: 6px;
+}
+
+.inventory-daily-journal-recipe-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.inventory-daily-journal-recipe-row.inventory-daily-journal-recipe-output {
+  border-top: 1px dashed rgba(196, 181, 253, 0.7);
+  padding-top: 6px;
+  font-weight: 600;
+  color: #6b21a8;
+}
+
+.inventory-daily-journal-recipe-unit {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.inventory-daily-journal-card-date {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.inventory-daily-journal-card-day {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.inventory-daily-journal-card-wd {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.inventory-daily-journal-card-total {
+  font-size: 11px;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.inventory-daily-journal-card-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.inventory-daily-journal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 2px 2px 10px;
+  background: #f1f5f9;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+
+.inventory-daily-journal-chip:hover {
+  background: #e0e7ff;
+}
+
+.inventory-daily-journal-chip.is-new {
+  background: #ffffff;
+  border: 1px dashed rgba(29, 78, 216, 0.55);
+  padding: 2px 4px;
+}
+
+.inventory-daily-journal-chip-name {
+  font-weight: 500;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.inventory-daily-journal-chip-no {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.inventory-daily-journal-chip-kg {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d4ed8;
+  cursor: text;
+  font-variant-numeric: tabular-nums;
+  border-radius: 6px;
+}
+
+.inventory-daily-journal-chip-kg:hover {
+  background: rgba(29, 78, 216, 0.1);
+}
+
+.inventory-daily-journal-chip-kg em {
+  font-style: normal;
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 400;
+  margin-left: 2px;
+}
+
+.inventory-daily-journal-chip-input {
+  width: 60px;
+  height: 22px;
+  border: 1px solid #1d4ed8;
+  border-radius: 6px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  outline: none;
+  background: #ffffff;
+}
+
+.inventory-daily-journal-chip-select {
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid rgba(29, 78, 216, 0.55);
+  border-radius: 6px;
+  font-size: 12px;
+  background: #ffffff;
+  max-width: 160px;
+}
+
+.inventory-daily-journal-chip-remove,
+.inventory-daily-journal-chip-confirm {
+  appearance: none;
+  border: none;
+  background: transparent;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.inventory-daily-journal-chip-remove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.inventory-daily-journal-chip-confirm {
+  color: #1d4ed8;
+  font-size: 12px;
+}
+
+.inventory-daily-journal-chip-confirm:hover {
+  background: rgba(29, 78, 216, 0.12);
+}
+
+.inventory-daily-journal-add-chip {
+  appearance: none;
+  background: transparent;
+  border: 1px dashed rgba(148, 163, 184, 0.55);
+  color: #64748b;
+  border-radius: 999px;
+  padding: 2px 12px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 0.1s ease, color 0.1s ease, background 0.1s ease;
+}
+
+.inventory-daily-journal-add-chip:hover {
+  border-color: #1d4ed8;
+  color: #1d4ed8;
+  background: rgba(29, 78, 216, 0.06);
+}
+
+@media (max-width: 640px) {
+  .inventory-daily-journal-summary {
+    gap: 8px 12px;
+    padding: 10px 12px;
+  }
+  .inventory-daily-journal-metric {
+    padding-right: 12px;
+  }
+  .inventory-daily-journal-topbeans {
+    margin-left: 0;
+    width: 100%;
+  }
+  .inventory-daily-journal-card {
+    grid-template-columns: 72px 1fr;
+    gap: 10px;
+    padding: 8px 10px;
+  }
+  .inventory-daily-journal-card-day {
+    font-size: 18px;
+  }
+  .inventory-daily-journal-quickadd {
+    gap: 6px;
+  }
+  .inventory-daily-journal-toggle {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* === 기존 일별 그리드 스타일(레거시) — 사용 안 함 === */
+.inventory-daily-grid-wrap {
+  position: relative;
+  max-height: 64vh;
+  overflow: auto;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.inventory-daily-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  min-width: 100%;
+  font-size: 11px;
+  color: #0f172a;
+}
+
+.inventory-daily-grid th,
+.inventory-daily-grid td {
+  border-right: 1px solid rgba(241, 245, 249, 0.9);
+  border-bottom: 1px solid rgba(241, 245, 249, 0.9);
+  padding: 0;
+  text-align: center;
+  font-weight: 500;
+  box-sizing: border-box;
+  height: 24px;
+}
+
+.inventory-daily-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  font-size: 10px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  padding: 4px 0;
+  height: 22px;
+}
+
+.inventory-daily-grid-corner {
+  left: 0;
+  z-index: 4 !important;
+  background: #f8fafc !important;
+  min-width: 140px;
+  max-width: 180px;
+  position: sticky !important;
+}
+
+.inventory-daily-grid-day-head {
+  min-width: 30px;
+  line-height: 1;
+  cursor: help;
+  color: #64748b !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-daily-grid-day-head.is-hovered {
+  background: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.inventory-daily-grid-total-head {
+  right: 0;
+  z-index: 4 !important;
+  position: sticky !important;
+  min-width: 64px;
+  background: #f8fafc !important;
+  color: #475569 !important;
+}
+
+.inventory-daily-grid-bean-label {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #ffffff;
+  text-align: left !important;
+  padding: 0 10px !important;
+  min-width: 140px;
+  max-width: 180px;
+  border-right: 1px solid rgba(226, 232, 240, 0.9);
+  font-weight: 500;
+  color: #0f172a;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inventory-daily-grid-bean-no {
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 400;
+  margin-right: 4px;
+}
+
+.inventory-daily-grid-bean-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-daily-grid-row.is-hovered .inventory-daily-grid-bean-label {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.inventory-daily-grid-cell {
+  position: relative;
+  min-width: 30px;
+  padding: 0;
+  vertical-align: middle;
+  transition: box-shadow 0.1s ease;
+}
+
+.inventory-daily-grid-cell.heat-0 {
+  background: #ffffff;
+}
+
+.inventory-daily-grid-cell.heat-1 {
+  background: #f1f7ff;
+}
+
+.inventory-daily-grid-cell.heat-2 {
+  background: #dbeafe;
+}
+
+.inventory-daily-grid-cell.heat-3 {
+  background: #bfdbfe;
+}
+
+.inventory-daily-grid-cell.heat-4 {
+  background: #93c5fd;
+}
+
+.inventory-daily-grid-cell.is-empty .inventory-daily-grid-input {
+  color: rgba(148, 163, 184, 0.35);
+}
+
+.inventory-daily-grid-cell.has-value .inventory-daily-grid-input {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.inventory-daily-grid-cell.is-day-hovered {
+  box-shadow: inset 0 0 0 1.5px rgba(29, 78, 216, 0.35);
+  z-index: 1;
+}
+
+.inventory-daily-grid-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  padding: 0 2px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.inventory-daily-grid-input::-webkit-outer-spin-button,
+.inventory-daily-grid-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.inventory-daily-grid-input:focus {
+  box-shadow: inset 0 0 0 1.5px #1d4ed8;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.inventory-daily-grid-row-total {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background: #f8fafc;
+  padding: 0 8px !important;
+  min-width: 64px;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+  border-left: 1px solid rgba(226, 232, 240, 0.9);
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 11px;
+}
+
+.inventory-daily-grid tfoot th,
+.inventory-daily-grid tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: #f8fafc;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 11px;
+  z-index: 3;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-daily-grid-foot-label {
+  left: 0;
+  z-index: 4 !important;
+  text-align: left !important;
+  padding: 0 10px !important;
+  color: #475569 !important;
+  font-weight: 500 !important;
+}
+
+.inventory-daily-grid-foot-cell {
+  color: #334155 !important;
+  transition: background 0.1s ease;
+}
+
+.inventory-daily-grid-foot-cell.is-hovered {
+  background: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.inventory-daily-grid-foot-grand {
+  right: 0;
+  z-index: 4 !important;
+  padding: 0 8px !important;
+  text-align: right !important;
+}
+
+.inventory-daily-grid-empty {
+  padding: 24px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.inventory-master-hint {
+  font-size: 11px;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.inventory-roasting-column-name-label {
+  display: inline-block;
+  font-size: 12px;
+  color: #0f172a;
+  padding: 2px 4px;
+}
+
+@media (max-width: 768px) {
+  .inventory-daily-grid-corner,
+  .inventory-daily-grid-bean-label {
+    min-width: 108px;
+    max-width: 140px;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  .inventory-daily-grid-day-head,
+  .inventory-daily-grid-cell,
+  .inventory-daily-grid-foot-cell {
+    min-width: 26px;
+  }
+  .inventory-daily-grid-total-head,
+  .inventory-daily-grid-row-total,
+  .inventory-daily-grid-foot-grand {
+    min-width: 52px;
+  }
+}
+
 .inventory-week-current td {
   background: #f8fafc;
 }
@@ -3020,7 +4228,7 @@
 .meeting-table:not(.meeting-table-compact) .meeting-cell-input {
   padding: 5px 6px;
   font-size: 11px;
-  border-radius: 6px;
+    border-radius: 6px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -3228,10 +4436,10 @@
 }
 
 .statement-form-submit-row {
-  display: flex;
+    display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  align-items: center;
+    align-items: center;
 }
 
 .statement-form-submit-row .primary-button {
@@ -3438,7 +4646,7 @@
 .statement-template-settings-grid label {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+    gap: 8px;
   color: #334155;
   font-size: 14px;
   font-weight: 600;
@@ -3882,7 +5090,7 @@ tfoot td {
 }
 
 .preview-panel {
-  margin-top: 20px;
+    margin-top: 20px;
 }
 
 .preview-stack {
@@ -3926,7 +5134,7 @@ tfoot td {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+    flex-wrap: wrap;
 }
 
 .sheet-toolbar--compact {
@@ -4434,7 +5642,7 @@ tfoot td {
   }
 
   .sheet-toolbar {
-    width: 100%;
+      width: 100%;
     flex-direction: column;
     align-items: stretch;
   }
@@ -4688,7 +5896,7 @@ tfoot td {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  justify-content: center;
+      justify-content: center;
   flex: 1 1 0;
   min-width: 0;
 }
@@ -5389,8 +6597,8 @@ button.green-bean-toolbar-link:hover:not(:disabled) {
   width: 7%;
   min-width: 5.75rem;
   max-width: 10rem;
-  box-sizing: border-box;
-}
+      box-sizing: border-box;
+    }
 
 .green-bean-th-alma-ref {
   text-align: right;
@@ -6433,8 +7641,8 @@ button.green-bean-toolbar-link:hover:not(:disabled) {
 }
 
 .memo-daily-weekly-hover-detail::after {
-  content: '';
-  position: absolute;
+    content: '';
+    position: absolute;
   left: 50%;
   top: 100%;
   transform: translateX(-50%);
