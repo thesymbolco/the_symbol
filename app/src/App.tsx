@@ -941,6 +941,15 @@ const formatLongDateLabel = (value: string) => {
 const formatStatementAmountText = (value: number) => `일금 ${formatCurrency(value)}원정`
 
 const isTaxFreeNote = (note: string) => normalizeName(note) === '부가세 없음'
+const calculateTaxAmount = (supplyAmount: number, note: string) => {
+  if (isTaxFreeNote(note)) {
+    return 0
+  }
+  const baseTax = Math.floor(supplyAmount * 0.1)
+  const totalAmount = supplyAmount + baseTax
+  // 실무상 1원 청구를 피하기 위해 계가 1원으로 끝나면 1원 내림 보정
+  return totalAmount % 10 === 1 ? Math.max(0, baseTax - 1) : baseTax
+}
 
 const normalizeLoadedRecords = (records: Array<StatementRecord & { note?: string }>) =>
   records.map((record) => ({
@@ -1372,7 +1381,7 @@ const parseStatementSheet = (
       }
 
       const supplyAmount = quantity * unitPrice
-      const taxAmount = isTaxFreeNote(note) ? 0 : Math.round(supplyAmount * 0.1)
+      const taxAmount = calculateTaxAmount(supplyAmount, note)
       const issueDate =
         issueDateIndex === -1 ? deliveryDate : parseSpreadsheetDate(row[issueDateIndex]) || deliveryDate
       const paymentDate =
@@ -2021,7 +2030,7 @@ function App() {
     const quantity = parseNumber(form.quantity)
     const unitPrice = parseNumber(form.unitPrice)
     const supplyAmount = quantity * unitPrice
-    const taxAmount = isTaxFreeNote(form.note) ? 0 : Math.round(supplyAmount * 0.1)
+    const taxAmount = calculateTaxAmount(supplyAmount, form.note)
     const totalAmount = supplyAmount + taxAmount
 
     return { quantity, unitPrice, supplyAmount, taxAmount, totalAmount }
@@ -3111,7 +3120,7 @@ function App() {
       return
     }
     const supplyAmount = quantity * unitPrice
-    const taxAmount = isTaxFreeNote(inlineEditDraft.note) ? 0 : Math.round(supplyAmount * 0.1)
+    const taxAmount = calculateTaxAmount(supplyAmount, inlineEditDraft.note)
     const totalAmount = supplyAmount + taxAmount
     setRecords((current) =>
       current
@@ -4355,9 +4364,7 @@ function App() {
                                 const q = parseNumber(inlineEditDraft.quantity)
                                 const p = parseNumber(inlineEditDraft.unitPrice)
                                 const supply = q * p
-                                const tax = isTaxFreeNote(inlineEditDraft.note)
-                                  ? 0
-                                  : Math.round(supply * 0.1)
+                                const tax = calculateTaxAmount(supply, inlineEditDraft.note)
                                 return `공급 ${formatCurrency(supply)} · 세액 ${formatCurrency(tax)} · 계 ${formatCurrency(supply + tax)}`
                               })()}
                             </td>
@@ -4402,7 +4409,7 @@ function App() {
                           <td className="statement-record-actions">
                             <button
                               type="button"
-                              className="table-action"
+                              className="table-action statement-record-action-mini"
                               onClick={() => handleStartInlineEdit(record)}
                               title="현재 행에서 바로 수정"
                             >
@@ -4410,7 +4417,7 @@ function App() {
                             </button>
                             <button
                               type="button"
-                              className="table-action"
+                              className="table-action statement-record-action-mini"
                               onClick={() => handleStartEditStatementRecord(record)}
                               title="상단 입력 폼에서 수정"
                             >
@@ -4418,7 +4425,7 @@ function App() {
                             </button>
                             <button
                               type="button"
-                              className="table-action"
+                              className="table-action statement-record-action-mini"
                               onClick={() => handleDelete(record.id)}
                             >
                               삭제
