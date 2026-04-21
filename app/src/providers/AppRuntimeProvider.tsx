@@ -37,6 +37,7 @@ export type TeamMember = {
   displayName: string
   phone: string
   title: string
+  department: string
   email: string
   createdAt: string
 }
@@ -47,6 +48,7 @@ export type CreateMemberInput = {
   displayName: string
   phone: string
   title: string
+  department: string
   email: string
   role: 'owner' | 'admin' | 'member'
 }
@@ -56,6 +58,7 @@ export type UpdateMemberInput = {
   displayName?: string
   phone?: string
   title?: string
+  department?: string
   email?: string
   role?: 'owner' | 'admin' | 'member'
   status?: 'active' | 'inactive'
@@ -374,7 +377,7 @@ export function AppRuntimeProvider({ children }: PropsWithChildren) {
     if (userIds.length > 0) {
       const { data: profileRows, error: profileError } = await supabase
         .from('profiles')
-        .select('user_id, username, display_name, phone, title, email')
+        .select('user_id, username, display_name, phone, title, department, email')
         .in('user_id', userIds)
       if (profileError) {
         return { members: [], error: describeSupabaseError(profileError, '프로필을 불러오지 못했습니다.') }
@@ -395,6 +398,7 @@ export function AppRuntimeProvider({ children }: PropsWithChildren) {
         displayName: String(profile.display_name ?? ''),
         phone: String(profile.phone ?? ''),
         title: String(profile.title ?? ''),
+        department: String(profile.department ?? ''),
         email: String(profile.email ?? ''),
         createdAt: String(row.created_at ?? ''),
       }
@@ -470,6 +474,7 @@ export function AppRuntimeProvider({ children }: PropsWithChildren) {
         display_name: input.displayName.trim(),
         phone: input.phone.trim(),
         title: input.title.trim(),
+        department: input.department.trim(),
         email: input.email.trim(),
       })
       if (profileError) {
@@ -498,6 +503,7 @@ export function AppRuntimeProvider({ children }: PropsWithChildren) {
       if (input.displayName !== undefined) profilePatch.display_name = input.displayName.trim()
       if (input.phone !== undefined) profilePatch.phone = input.phone.trim()
       if (input.title !== undefined) profilePatch.title = input.title.trim()
+      if (input.department !== undefined) profilePatch.department = input.department.trim()
       if (input.email !== undefined) profilePatch.email = input.email.trim()
 
       if (Object.keys(profilePatch).length > 0) {

@@ -30775,4 +30775,3765 @@ _**Agent (claude-opus-4-7)**_
 _**Agent (claude-opus-4-7)**_
 
 <think><details><summary>Thought Process</summary>
- I need to consolidate everything into a single notes file at the project root—the user asked for one unified location. Since there's already a `docs/` folder at the root level, I'll place it there as `docs/NOTES.md` rather than scattering notes across multiple locations.</details></think>
+ I need to consolidate everything into a single notes file at the project root—the user asked for one unified location. Since there's already a `docs/` folder at the root level, I'll place it there as `docs/NOTES.md` rather than scattering notes across multiple locations.
+
+The structure will pull together the git and deployment commands, authentication and team management sections from the existing AUTH.md, a new SQL migrations list, and the UX notes from the green-bean file. Once consolidated, I'll remove the old AUTH.md from app/docs and the green-bean notes file, then check if any code references those old files that need updating.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "AUTH\\.md|green-bean-order-copy-notes"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "AUTH\\.md|green-bean-order-copy-notes",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": ".specstory/history/2026-04-01_06-35-39Z-chat-name-generation-request.md"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ Since there's only a chat history file referencing them and that's off-limits, I can safely consolidate these files. Let me check what git workflows make sense for this project, then write up a unified doc at `docs/NOTES.md`.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+이제 모든 문서를 `docs/NOTES.md` 하나로 통합하겠습니다.
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/docs/NOTES.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+이제 기존 분산 문서들을 삭제합니다.
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="delete_file">
+<details><summary>Tool use: **delete_file**</summary>
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="delete_file"><details>
+<summary>Tool use: **delete_file**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="delete_file">
+<details><summary>Tool use: **delete_file**</summary>
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="delete_file"><details>
+<summary>Tool use: **delete_file**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **0** results in **1** directory</summary>
+
+Directory: **/Users/parkcg/The Symbol_Edit** (0 files)
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ The `app/docs` folder is empty, so I'll verify the final structure to make sure everything's properly consolidated.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+정리 완료.
+
+## 통합 결과
+
+### 삭제
+- `app/docs/AUTH.md`
+- `docs/green-bean-order-copy-notes.md`
+
+### 단일 문서
+- **`docs/NOTES.md`** — 앞으로 모든 프로젝트 문서는 여기에 추가
+
+### 포함된 섹션
+1. 자주 쓰는 Git / 배포 명령 (기본 흐름, 브랜치, 실수 복구, Vercel)
+2. Supabase 초기 설정 (SQL 마이그레이션, Auth 설정, 초기 owner, 환경변수)
+3. 로그인 / 팀 계정 관리 (로그인 흐름, 앱 내 CRUD, 데이터 구조)
+4. SQL 마이그레이션 기록 (표로 정리)
+5. 로컬 개발 명령
+6. 페이지별 UX 메모 (생두 주문 체크리스트 그대로)
+7. 트러블슈팅 (지금까지 나온 이슈들)
+
+앞으로 새로운 운영 정보/메모/명령은 `docs/NOTES.md`에만 기록할게요. 필요하면 커밋하고 푸시해서 Vercel에도 반영하시면 됩니다.
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit"
+git add -A
+git commit -m "docs: consolidate project notes into single docs/NOTES.md"
+git push origin main
+```
+
+---
+
+_**User**_
+
+새 계정 만들기 할때 직책 부분이 드랍다운 형식으로 지정할 수 있게 만들어줄래? 너무 무분별하게 여러개 만들면 그러니깐 직책은 너가 알아서 몇개 만들어서 넣어줘 그리고 부서명 적는 칸도 필요할거같아
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I need to add a department column to the profiles table and update the account creation form to use a dropdown for job titles instead of free text, plus add a new department field.
+
+For the job title options, I'm settling on a practical set that works for a coffee roastery: 대표, 이사, 매니저, 팀장, 바리스타, 로스터, and 사원—keeping it to seven core roles that cover both management and specialized positions.
+
+Now I'm ready to implement this. I'll create a migration to add the department column to the profiles table, update the TypeScript types to include department, and define the title options as a constant in the team management page.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+직책 옵션은 제가 소규모 로스터리/사무 환경에 맞춰 대표/이사/매니저/팀장/바리스타/로스터/사원/인턴 — 8가지로 가져갈게요. 부서명은 자유 입력칸으로 추가합니다.
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="todo_write">
+<details>
+<summary>Tool use: **todo_write**</summary>
+
+
+Parameters:
+
+```json
+{
+  "merge": true
+}
+```
+Result:
+
+```json
+{
+  "finalTodos": [
+    {
+      "content": "profiles에 department 컬럼 추가 마이그레이션",
+      "id": "dept-sql",
+      "status": "in_progress"
+    },
+    {
+      "content": "TeamMember/CreateMemberInput/UpdateMemberInput에 department 추가",
+      "id": "dept-types",
+      "status": "pending"
+    },
+    {
+      "content": "provider 쿼리들에 department 필드 반영",
+      "id": "dept-provider",
+      "status": "pending"
+    },
+    {
+      "content": "TeamManagementPage 직책 드롭다운 + 부서명 입력칸 추가",
+      "id": "dept-ui",
+      "status": "pending"
+    },
+    {
+      "content": "NOTES.md에 마이그레이션 기록 추가",
+      "id": "dept-notes",
+      "status": "pending"
+    },
+    {
+      "content": "빌드/린트 검증",
+      "id": "dept-verify",
+      "status": "pending"
+    }
+  ],
+  "initialTodos": [
+    {
+      "content": "profiles 테이블 + RLS 마이그레이션 SQL 작성",
+      "id": "team-sql",
+      "status": "completed"
+    },
+    {
+      "content": "supabase.ts에 임시 클라이언트 팩토리 추가",
+      "id": "team-supabase-helper",
+      "status": "completed"
+    },
+    {
+      "content": "AppRuntimeProvider에 계정 생성/조회/수정/삭제 API 추가",
+      "id": "team-provider",
+      "status": "completed"
+    },
+    {
+      "content": "TeamManagementPage 컴포넌트 작성 + 네비게이션 등록",
+      "id": "team-page",
+      "status": "completed"
+    },
+    {
+      "content": "팀 관리 페이지 스타일 추가",
+      "id": "team-styles",
+      "status": "completed"
+    },
+    {
+      "content": "AUTH.md 업데이트 + 마이그레이션 실행 안내",
+      "id": "team-docs",
+      "status": "completed"
+    },
+    {
+      "content": "빌드/린트 검증",
+      "id": "team-verify",
+      "status": "completed"
+    }
+  ],
+  "success": true
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="todo_write"><details>
+<summary>Tool use: **todo_write**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+### 1. SQL 마이그레이션
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/supabase/migrations/2026-04-16-profile-department.sql</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+### 2. 타입 확장
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+### 3. Provider 쿼리 수정
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+### 4. Team 페이지 UI 업데이트
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+이제 수정 로직에 department 추가:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+이제 테이블에 부서 컬럼 추가 + 직책을 드롭다운으로:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+이제 "새 계정 만들기" 폼의 직책 → 드롭다운, 부서명 칸 추가:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+### 5. NOTES.md에 마이그레이션 추가
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/docs/NOTES.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+### 6. 빌드 검증
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1 | tail -15</summary>
+
+```bash
+npm run build 2>&1 | tail -15
+```
+
+```
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 641 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-3U36NJzn.css    125.68 kB │ gzip:  21.29 kB
+dist/assets/index-DMl8uEzG.js   2,503.82 kB │ gzip: 717.49 kB
+
+✓ built in 401ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="todo_write">
+<details>
+<summary>Tool use: **todo_write**</summary>
+
+
+Parameters:
+
+```json
+{
+  "merge": true
+}
+```
+Result:
+
+```json
+{
+  "finalTodos": [
+    {
+      "content": "profiles에 department 컬럼 추가 마이그레이션",
+      "id": "dept-sql",
+      "status": "completed"
+    },
+    {
+      "content": "TeamMember/CreateMemberInput/UpdateMemberInput에 department 추가",
+      "id": "dept-types",
+      "status": "completed"
+    },
+    {
+      "content": "provider 쿼리들에 department 필드 반영",
+      "id": "dept-provider",
+      "status": "completed"
+    },
+    {
+      "content": "TeamManagementPage 직책 드롭다운 + 부서명 입력칸 추가",
+      "id": "dept-ui",
+      "status": "completed"
+    },
+    {
+      "content": "NOTES.md에 마이그레이션 기록 추가",
+      "id": "dept-notes",
+      "status": "completed"
+    },
+    {
+      "content": "빌드/린트 검증",
+      "id": "dept-verify",
+      "status": "completed"
+    }
+  ],
+  "initialTodos": [
+    {
+      "content": "profiles에 department 컬럼 추가 마이그레이션",
+      "id": "dept-sql",
+      "status": "in_progress"
+    },
+    {
+      "content": "TeamMember/CreateMemberInput/UpdateMemberInput에 department 추가",
+      "id": "dept-types",
+      "status": "pending"
+    },
+    {
+      "content": "provider 쿼리들에 department 필드 반영",
+      "id": "dept-provider",
+      "status": "pending"
+    },
+    {
+      "content": "TeamManagementPage 직책 드롭다운 + 부서명 입력칸 추가",
+      "id": "dept-ui",
+      "status": "pending"
+    },
+    {
+      "content": "NOTES.md에 마이그레이션 기록 추가",
+      "id": "dept-notes",
+      "status": "pending"
+    },
+    {
+      "content": "빌드/린트 검증",
+      "id": "dept-verify",
+      "status": "pending"
+    }
+  ],
+  "success": true
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="todo_write"><details>
+<summary>Tool use: **todo_write**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+완료.
+
+## 변경 요약
+
+### 직책 드롭다운 옵션 (8개)
+대표 · 이사 · 매니저 · 팀장 · 바리스타 · 로스터 · 사원 · 인턴
+
+기본값은 "사원". 필요하면 `TeamManagementPage.tsx`의 `TITLE_OPTIONS` 배열에서 가감 가능.
+
+### 추가된 필드
+- **부서명**: 자유 입력 (예: "로스팅팀", "매장운영")
+
+### 적용된 파일
+- `app/supabase/migrations/2026-04-16-profile-department.sql` (신규)
+- `app/src/providers/AppRuntimeProvider.tsx` — 타입/쿼리에 `department` 추가
+- `app/src/TeamManagementPage.tsx` — 직책 드롭다운, 부서명 입력칸, 테이블에 부서 컬럼
+- `docs/NOTES.md` — 마이그레이션 목록에 추가
+
+## 다음 할 일
+
+### 1. Supabase에서 마이그레이션 실행
+
+Supabase Dashboard → SQL Editor → Run:
+
+```sql
+alter table public.profiles
+  add column if not exists department text;
+```
+
+(또는 `app/supabase/migrations/2026-04-16-profile-department.sql` 파일 내용을 붙여넣기)
+
+### 2. Git 커밋 & 배포
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit"
+git add -A
+git commit -m "feat(team): add title dropdown and department field"
+git push origin main
+```
+
+### 참고: 기존 사용자 데이터
+- 기존에 자유입력으로 넣어둔 직책이 있다면, 드롭다운에 없는 값이어도 수정 모드에서 "(기존)" 꼬리표와 함께 보존됩니다. 저장하지 않는 한 그대로 유지.
+- 새로 만들거나 수정 시 드롭다운에서 다시 선택하면 표준 값으로 교체됩니다.
+
+---
+
+_**User**_
+
+이거 개발자 모드로 하면 회사 선택화면 왜 뜨는거지? run dev 말이야
+아직 연결된 회사가 없다고 뜨고
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ The user is seeing the "no companies connected" screen in dev mode because they're logged in as a Supabase user who doesn't have any rows in the `company_members` table, and since the app is running in cloud mode with environment variables set, it's trying to fetch memberships from Supabase rather than using local data. The issue is likely either that their user account lacks a `company_members` entry or an RLS policy is preventing the read.
+
+Looking at the `refreshMemberships` query, it filters by the current user's ID and checks for active status. The RLS policy should allow users to view their own company memberships, and the new owner policy I added shouldn't affect this since it only expands access. The problem might be that when the migration ran, something changed with how the policies work or the user's data got out of sync.
+
+Actually, I'm realizing the `is_company_owner` function uses SECURITY DEFINER, which means it bypasses RLS when checking if someone owns a company. That should prevent recursive RLS issues, but let me trace through what happens when the query runs...
+
+The most likely explanation is that the logged-in user simply doesn't have any rows in company_members — they might be using a different account in dev mode than in production, or a test account created during debugging that was never added to any company. Since localhost and the production domain use separate localStorage, they could easily have different sessions.
+
+I should guide them to verify who's actually logged in and whether that account has any company memberships, or just have them sign out and log back in with the correct admin account.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+`npm run dev`(localhost)와 Vercel(배포판)은 **브라우저 기준으로 서로 다른 도메인**이라 **세션(로그인 상태)이 완전히 별개**입니다. 그래서:
+
+- Vercel 사이트에서 admin으로 로그인해둬도 → localhost:5173은 그 세션을 모름
+- localhost에 현재 **아무 계정도 로그인 안 돼 있거나**, 혹은 **이전 테스트 때 만든 고아/빈 계정** 세션이 남아있는 상태
+
+그래서 로그인된 유저의 `company_members` 행이 없으니 "아직 연결된 회사가 없다"가 뜨는 거예요.
+
+## 어느 쪽인지 확인하는 법
+
+브라우저 개발자도구(F12) → Console에서:
+
+```javascript
+const { data } = await (await import('/src/lib/supabase.ts')).supabase.auth.getSession()
+console.log('logged in as:', data.session?.user?.email)
+```
+
+- `undefined` → 로그인 자체가 안 된 상태 (근데 그럼 보통 로그인 화면이 떠야 하는데…)
+- `test@thesymbol.local` 같은 고아 계정 → 이게 원인
+
+## 해결
+
+가장 쉽게는 **localhost에서 로그아웃 후 admin 계정으로 다시 로그인**:
+
+개발자도구 Console에서:
+
+```javascript
+await (await import('/src/lib/supabase.ts')).supabase.auth.signOut()
+location.reload()
+```
+
+그러면 로그인 화면이 뜨고, Supabase에서 owner로 연결해둔 계정 아이디/비밀번호로 로그인하면 됩니다.
+
+---
+
+혹시 이게 자주 번거롭다면, 앱 어딘가에 "로그아웃" 버튼 하나 넣어드릴 수 있어요. (상단 사용자 메뉴 같은 곳에) 필요하시면 말씀해주세요.
+
+---
+
+_**User**_
+
+로컬 환경에서는 왜 구성원 없다고뜨지 Vercel 배포에는 2명 내가 만들어놨는데
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I think the issue might be Row Level Security — on Vercel they're logged in as the admin account that created the members, so they see them, but on localhost they could be logged in as a different user account without permission to view that data.
+
+Let me check the RLS policy I wrote — it allows viewing if the user is the owner via a security definer function, which should work. But if localhost shows zero members while Vercel shows two from the same Supabase project, the difference has to be which account is logged in locally.
+
+Actually, I need to clarify what they're seeing — are they looking at the company selection screen (which shows memberships for the logged-in user) or the team management page (which shows all members of the active company)?
+
+Given they said "2명 내가 만들어놨는데" (I created 2 members), they're talking about team members they added via the management page. If both environments connect to the same Supabase but show different data, either the local user isn't logged in as admin, or the `.env.local` file has stale values and the dev server needs a restart to pick up the correct Supabase project.
+
+Looking at the file size of 3 lines, it seems the env vars are set, so the most likely culprit is that localhost is logged in as a different user than Vercel. I should suggest logging out and back in with the same admin account, and maybe add a logout button to prevent this confusion in the future.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+**도메인이 달라서 로그인 세션이 완전히 별개**예요. 같은 Supabase DB를 보지만 localhost에선 다른 계정으로 들어가 있거나(아니면 예전 테스트 계정), 로그인이 안 된 상태일 가능성이 큽니다.
+
+확인해봅시다. 브라우저에서 localhost 창 → F12 → Console에 붙여넣어 실행:
+
+```javascript
+const { data } = await (await import('/src/lib/supabase.ts')).supabase.auth.getSession()
+console.log('email:', data.session?.user?.email, 'id:', data.session?.user?.id)
+```
+
+여기서 나오는 email이 **Vercel에서 로그인한 admin 계정과 같은지** 확인해 주세요. 다르면 그게 원인이에요.
+
+### 로그아웃 후 재로그인
+
+Console에서:
+
+```javascript
+await (await import('/src/lib/supabase.ts')).supabase.auth.signOut()
+location.reload()
+```
+
+로그인 화면이 뜨면 Vercel에서 쓰는 admin 아이디/비밀번호로 로그인 → 구성원 2명 보일 거예요.
+
+---
+
+이런 혼란이 계속 생기니까, 앱 안에 **현재 로그인된 계정 표시 + 로그아웃 버튼**을 하나 박아둘까요? 좌측 레일 하단이나 상단 우측 어디든 원하시는 위치로. 추가할까요?
+
+---
+
+_**User**_
+
+email: ckdrb1729@thesymbol.local id: 5780f5a6-a381-44fc-9c65-2d1ddaa60407
+이걸로 로그인한거 맞긴한데 
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ The user logged in successfully with `ckdrb1729@thesymbol.local` on localhost, but they're seeing "no companies" in the local environment even though they created 2 members in the Vercel deployment. They're confused why the local app isn't showing the members they set up.
+
+This is likely a Supabase configuration mismatch — the localhost environment might be pointing to a different Supabase instance than Vercel, or there's a caching issue preventing the data from loading properly on the local build. I need to narrow down whether the issue is with the RLS policies, the environment configuration, or the localStorage state affecting company selection. Let me ask them to run a direct query in the Supabase SQL Editor to see if those rows actually exist for their user ID, and also check what the client-side query returns to see if there's a silent error happening.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+같은 계정인데 결과가 다르다면 진짜 이상한 거예요. 몇 가지만 빠르게 확인해볼게요.
+
+### 확인 1: 같은 Supabase 프로젝트 바라보는지
+
+로컬 Console에서:
+
+```javascript
+console.log(import.meta.env.VITE_SUPABASE_URL)
+```
+
+이 값이 Vercel **Project Settings → Environment Variables**의 `VITE_SUPABASE_URL`과 **완전히 동일**한지 확인. 프로젝트가 다르면 DB도 다르니까요.
+
+### 확인 2: 실제 DB에 ckdrb1729의 company_members 행이 있는지
+
+Supabase Dashboard → **SQL Editor**에서:
+
+```sql
+select cm.*, c.name as company_name
+from public.company_members cm
+left join public.companies c on c.id = cm.company_id
+where cm.user_id = '5780f5a6-a381-44fc-9c65-2d1ddaa60407';
+```
+
+- 결과 0행 → `ckdrb1729`는 실제로 어떤 회사에도 연결돼 있지 않음 (Vercel에서 본 건 다른 계정이었을 수 있음)
+- 결과 있음 → RLS나 Vite 캐시 문제
+
+### 확인 3: 쿼리가 실제로 뭘 반환하는지
+
+로컬 Console에서:
+
+```javascript
+const s = (await import('/src/lib/supabase.ts')).supabase
+const r = await s.from('company_members').select('company_id, role, status, companies(name)')
+console.table(r.data)
+console.log('error:', r.error)
+```
+
+출력 결과 알려주세요. 이 3가지로 원인이 확실히 드러납니다.
+
+가장 의심되는 건 **확인 2에서 0행이 나오는 경우** — Vercel 화면에서 보신 "2명"이 ckdrb1729 본인 포함이 아니라 관리자(admin) 계정 기준으로 본 거고, ckdrb1729는 owner 권한만 있고 스스로를 company_members에 추가 안 해둔 상태일 수 있어요.
+
+---
+
+_**User**_
+
+console.log(import.meta.env.VITE_SUPABASE_URL)
+VM235:1 Uncaught SyntaxError: Cannot use 'import.meta' outside a module
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ The user hit a syntax error with `import.meta` in the browser, so I should walk them through a few workarounds—checking the Network tab to inspect the actual URL, accessing the Supabase client's properties directly, or just reading the `.env.local` file to get what they need.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+아, console은 모듈 스코프가 아니라 그래요. 더 쉬운 방법으로 확인하세요.
+
+### 방법 A: 네트워크 탭에서 직접 확인
+
+1. 개발자도구 → **Network** 탭 열기
+2. 페이지 새로고침 (Cmd+R)
+3. 상단 필터에 `supabase.co` 입력
+4. 나오는 요청의 **Request URL**을 확인 → `https://xxxxx.supabase.co/...` 의 `xxxxx` 부분이 프로젝트 ID
+
+### 방법 B: `.env.local` 파일 직접 확인
+
+`/Users/parkcg/The Symbol_Edit/app/.env.local`에 적힌 `VITE_SUPABASE_URL` 값이랑, Vercel 대시보드 → Project → Settings → Environment Variables → `VITE_SUPABASE_URL` 값을 비교.
+
+### 방법 C: Console에서 supabase 인스턴스 직접 보기
+
+```javascript
+const mod = await import('/src/lib/supabase.ts')
+console.log(mod.supabase)
+```
+
+출력된 객체 안에 `supabaseUrl` 같은 속성이 보일 거예요.
+
+---
+
+그리고 아까 드린 **확인 2(Supabase SQL Editor에서 ckdrb1729의 company_members 조회)**도 같이 해주세요. 그게 제일 명확하게 원인을 알려줘요.
+
+---
+
+_**User**_
+
+https://mkswlmkrrvhkgurvrefd.supabase.co/rest/v1/company_members?select=company_id%2Crole%2Cstatus%2Ccompanies%3Acompanies%21inner%28name%29&user_id=eq.5780f5a6-a381-44fc-9c65-2d1ddaa60407&status=eq.active
+Request Method
+GET
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ The URL and Supabase project are correct, and the query parameters are set up properly with the right user ID and status filter. Since the request is going to the right endpoint, the problem is likely either that this user genuinely has no active company memberships, or row-level security is preventing the read.
+
+I should have them check the actual response from that network request—if it returns an empty array, there's no data; if it returns a 401 or 403 error, RLS is blocking it. They can also query the database directly in Supabase's SQL Editor to verify what rows exist for this user.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+URL은 같은 프로젝트(`mkswlmkrrvhkgurvrefd`) 맞아요. 이제 **응답(Response)**을 확인해야 원인이 나옵니다.
+
+### 네트워크 탭에서 응답 확인
+
+그 요청을 **클릭** → 우측 패널에서 **Response** 탭 클릭 → 내용 복사해서 알려주세요.
+
+대략 이런 식으로 나올 거예요:
+- `[]` (빈 배열) → 이 유저에게 active 상태의 company_members 행이 실제로 없음
+- `[{ company_id: "...", role: "owner", ... }]` → 행은 있는데 UI가 안 읽는 문제
+- `{ "message": "...", "code": "..." }` → RLS나 권한 에러
+
+### 아니면 Supabase에서 직접
+
+Supabase Dashboard → **SQL Editor** → 실행:
+
+```sql
+select *
+from public.company_members
+where user_id = '5780f5a6-a381-44fc-9c65-2d1ddaa60407';
+```
+
+결과 행 수와 role/status 값 알려주시면 원인이 확정됩니다.
+
+---
+
+_**User**_
+
+    {
+        "company_id": "65ec1674-7de8-4f39-acc1-0975a07ea346",
+        "role": "owner",
+        "status": "active",
+        "companies": {
+            "name": "The SYMBOL"
+        }
+    }
+]
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ The data is actually being returned from Supabase, so the query works fine—but the UI still displays the "no connected company" message. This suggests either the state isn't updating properly after the fetch, or there's a localStorage sync issue with the active company. Let me check the `AppRuntimeProvider` logic to see where `refreshMemberships` sets the state and whether `syncActiveCompany` is being called correctly.
+
+Looking at `AppAuthGate`, it only shows the company selection screen when both `!activeCompanyId` AND `memberships.length === 0`. Since the query returned a row, `memberships` should have at least one item, which means `syncActiveCompany` should auto-select that company's ID and we'd never hit this screen. But we are seeing it, so there might be a normalization issue when processing the membership rows.
+
+Examining the normalization function...
+
+Still writing parser...
+
+Actually, I'm wondering if there's a race condition here. When the user signs in, the session updates and triggers the refresh, but what if the session is stale or expired? Or maybe the network request the user showed me was from a different call — the actual `refreshMemberships` in the app might be returning an empty array for some reason, even though the manual request succeeded with data.
+
+Let me look at that URL again to confirm it matches what the code should be doing. The decoded query shows it's definitely the right endpoint with the right filters, and it returned one row with owner role. So the data exists in the database.
+
+The real question is whether the UI is actually updating with that data, or if there's a stale cache issue. I should ask them to reload and check the current state, and also verify whether `activeCompanyId` is actually getting set properly in the provider.
+
+Looking at the sync logic, it should pick the first membership's company ID if there's no previously selected one, then store it in localStorage. The render order checks `isReady` first, then session, then `activeCompanyId` — so if `isReady` becomes true before `activeCompanyId` gets populated, they'd briefly see the company selection screen even though the data is loading. But that should resolve quickly once the sync completes.
+
+Let me trace through the auth flow to see where `refreshMemberships` gets called relative to when the session updates...
+
+The first effect sets the session once during bootstrap, then listens for auth state changes. The second effect depends on `session?.user`, so it fires when the user logs in and runs `refreshMemberships`. That should work fine even if the initial `getSession` returns null and `onAuthStateChange` fires later with the actual session.
+
+One thing I should verify — whether the RLS policy on the companies table actually allows the user to read the data they need. Looking at the policy, users can select companies if they created them or if they're an active member, so that should be covered.
+
+Actually, the user's response already included the company name "The SYMBOL", which means the join worked and RLS allowed it. So the data is definitely coming back. Let me think through the timing here — there might be a React hooks race condition where `isReady` gets set to true before `refreshMemberships` finishes, or maybe `isReady` is starting as false when it shouldn't be. Let me trace through the initial render sequence to see if the loading state is being shown when it shouldn't be.
+
+Actually, the user might already be past this issue now, or they briefly saw the company selection screen before it updated. I should just ask them to reload and describe the current state rather than keep theorizing about what happened. There's a mismatch here — the query shows they have one company membership, but the UI is displaying the company selection screen saying no company exists. Either they're looking at a stale page state, or something changed between when they ran the query and now. I should suggest they reload the page to see if the fresh state reflects the actual data.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+데이터는 정상적으로 내려오고 있어요. `ckdrb1729` 계정이 **The SYMBOL** 회사의 owner로 제대로 연결되어 있습니다.
+
+응답이 정상이라면 UI에서도 **회사 선택을 건너뛰고 바로 대시보드가 떠야 정상**이에요. 지금도 여전히 "아직 연결된 회사가 없다" 화면이면 프론트 상태가 응답 전에 얼어있는 거라, 일단 새로고침부터:
+
+### 1. 강제 새로고침
+
+localhost 창에서 **Cmd + Shift + R**
+
+### 2. 그래도 안 뜨면 localStorage 초기화
+
+개발자도구 → **Application 탭** → 왼쪽 **Storage → Local Storage → http://localhost:5173** → 오른쪽 목록에서 **모두 삭제**(휴지통 아이콘) → 새로고침 → 다시 로그인
+
+### 3. 그래도 안 되면 확인할 것
+
+반영 후에도 문제가 계속되면 Console에 아래 한 줄 실행:
+
+```javascript
+Object.entries(localStorage).filter(([k]) => k.includes('company') || k.startsWith('sb-')).forEach(([k,v]) => console.log(k, '→', v.length > 100 ? '[long]' : v))
+```
+
+무슨 값들이 들어있는지 출력해주세요.
+
+---
+
+확실히 데이터는 있어서 화면에 떠야 정상이에요. 1번이면 거의 해결될 겁니다. 혹시 새로고침 후 바로 대시보드 들어가지면 "해결됐어" 한 마디만 주시면 돼요.
+
+---
+
+_**User**_
+
+구성원
+The SYMBOL · 0명
+
+새로고침
+column profiles.department does not exist
+이게 이렇게 뜬다고 같은 데이터베이스를 공유하는데 로컬환경에서는 안뜨는게 말이돼?
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ So the actual problem is a database schema issue—the `profiles.department` column doesn't exist, which is why the team management page shows 0 members and throws that error. This is happening on their end, not locally.
+
+The confusion is that Vercel is still running the old code before the department column was added to the query, so it succeeds and shows members fine. But their local environment has the new code that tries to select the department column, which fails because the migration hasn't been applied to the shared database yet. The fix is to run the migration to add that column.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+원인 찾았어요! 에러 메시지가 모든 걸 말해줍니다:
+
+> **`column profiles.department does not exist`**
+
+### 지금 상황
+- **localhost (새 코드)**: `department` 컬럼을 SELECT 하려고 함 → DB에 그 컬럼이 없어서 **쿼리 자체가 실패 → 0명**
+- **Vercel (이전 빌드)**: 아직 `department` 반영 전 코드가 배포돼 있음 → 쿼리 성공 → 구성원 보임
+
+즉 같은 DB를 쓰지만 **코드 버전이 달라서** 그래요. 해결은 간단합니다.
+
+### 해결: 마이그레이션 실행
+
+Supabase Dashboard → **SQL Editor** → New query → 아래 실행:
+
+```sql
+alter table public.profiles
+  add column if not exists department text;
+```
+
+혹은 제가 만들어둔 `app/supabase/migrations/2026-04-16-profile-department.sql` 파일 내용 복사해서 Run.
+
+실행 후 localhost 페이지 새로고침하면 구성원 보일 거예요.
+
+그 다음에 git push 하면 Vercel도 새 코드(department 컬럼 쓰는 버전)로 빌드되고, 양쪽 모두 정상 동작합니다.
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit"
+git add -A
+git commit -m "feat(team): add title dropdown and department field"
+git push origin main
+```
+
+---
+
+_**User**_
+
+팀 관리 페이지랑 직원 급여 페이지가 분리될 필요가 있어보여? 필요없어보여?
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I'm trying to understand whether the Team Management and Staff/Payroll pages should be separate features. The Team Management page handles user account creation and editing through Supabase auth, managing credentials and profile details like name, phone, title, and department, plus company membership. I need to check what the Staff/Payroll page actually contains to see if there's functional overlap or if they serve distinct purposes.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **2** results in **1** directory</summary>
+
+Directory: **/Users/parkcg/The Symbol_Edit/app/src** (2 files)
+
+| File |
+|------|
+| `StaffPayrollPage.tsx` |
+| `staffPayrollExcelStyledExport.ts` |
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx",
+  "pattern": "type.*Staff|interface.*Staff|const.*Staff|export default|name|position|salary|phone|title|department"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx",
+  "pattern": "type.*Staff|interface.*Staff|const.*Staff|export default|name|position|salary|phone|title|department",
+  "topFiles": [
+    {
+      "matchCount": 36,
+      "uri": "app/src/StaffPayrollPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 36
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I'm seeing that the Staff Payroll page maintains its own separate record structure with employee details like store name, job title, department, pay type, and hire date—this is distinct from the Team Management section which handles authentication accounts with login credentials. The payroll records aren't connected to Supabase auth users; they're purely HR data used for computing compensation.
+
+The thinking explores whether to merge these two systems or keep them separate. Most stores have a mismatch where only some employees (like one barista out of three) have app login access, while all employees need payroll records. Merging would eliminate duplicate data entry for shared fields like name and department, but it creates complications—how do you represent employees without login accounts, and what happens when you delete someone? The proposed compromise is to keep the systems separate but add an optional `user_id` field to the payroll records so they can link to auth accounts when needed, giving flexibility without forcing the UX into awkward corners.
+
+My recommendation is to stay separated since the data models serve fundamentally different purposes—one handles authentication, the other HR records—and the workflows differ too (team management happens rarely, payroll happens monthly). If duplicate entry becomes a real pain point, adding that optional linking feature later is the right move. I should present both the reasoning and the options to the user.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+분리 유지하는 게 나아 보여요. 둘 다 "사람 정보"지만 **목적과 범위가 다릅니다**.
+
+### 둘의 차이
+
+| 팀 관리 | 직원·급여 |
+|---|---|
+| **앱에 로그인할 수 있는 계정** | **급여를 지급하는 모든 직원 기록** |
+| 소수 (사장, 관리자, 매니저 등) | 전체 (알바·파트타임 포함) |
+| 인증 정보 (아이디/비번/역할) | 급여 정보 (입금계좌/월급/4대보험/원천징수/재직일) |
+| Supabase auth + profiles | company_documents (JSON) |
+| 가끔 쓰는 관리 화면 | 매달 쓰는 업무 화면 |
+
+### 분리 유지가 나은 이유
+
+1. **앱 계정이 없는 직원이 대부분**일 가능성 높음. 알바 바리스타까지 로그인 시키려면 계정 남발됨.
+2. 통합하면 급여 페이지에 "로그인 정보" 필드가 섞이고, 반대로 팀 관리에 "원천징수/4대보험" 칼럼이 섞여서 UI가 무거워짐.
+3. 삭제/비활성 흐름이 달라요. 직원 퇴사 ≠ 계정 삭제.
+
+### 그래도 불편한 게 있다면
+
+"이름/부서/직책을 두 곳에 중복 입력하는 게 귀찮다"는 불편이 생긴다면, 나중에 **연결 고리**만 하나 더할 수 있어요:
+
+- 직원·급여 레코드에 optional한 "로그인 계정 선택" 드롭다운
+- 연결하면 해당 계정의 이름/부서/직책이 자동 채워짐
+- 로그인 계정 없는 알바는 비워두면 됨
+
+이 정도가 실용적인 절충안이에요. 지금 당장은 필요해 보이진 않고, 직원 수가 늘어나서 중복 입력이 귀찮아지면 그때 추가합시다.
+
+---
+
+정리: **지금은 분리 유지** 권장. 필요하면 나중에 optional 링크 추가.
+
+---
+
+_**User**_
+
+거래명세서 입력 하는거에 더치 커피도 존재해서 그거에 맞게 수정좀 해볼래?
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ The user wants to add Dutch coffee (cold brew) as an option to the transaction/delivery statement input, so I need to locate the relevant files and make that modification.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "거래명세"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "거래명세",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/statementExcelStyledExport.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MemoPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.css"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/adminPin.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 6,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "거래명세|statement|더치|Dutch|dutch"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "거래명세|statement|더치|Dutch|dutch",
+  "topFiles": [
+    {
+      "matchCount": 30,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 100
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": true,
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "드립백|드립|drip|원두|커피|dutch|더치|콜드브루|cold.?brew"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "드립백|드립|drip|원두|커피|dutch|더치|콜드브루|cold.?brew",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/inventoryBlendRecipes.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/monthlyMeetingData.ts"
+    }
+  ],
+  "totalFiles": 6,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I need to trace back through the codebase to find where the statement input gets defined and what products are already available in the system.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "원두|드립백|드립|커피|product|상품|품목"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "원두|드립백|드립|커피|product|상품|품목",
+  "topFiles": [
+    {
+      "matchCount": 15,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 15
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I'm examining the statement input form more closely to understand what product types are actually available. It looks like the form might be using a generic structure where items are selected from pricing rules rather than having hardcoded options like Dutch coffee, so I need to check the form implementation itself.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "QUICK_SPEC_OPTIONS|NOTE_OPTIONS|CUSTOM_ITEM_OPTION|quickItemOptions"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "QUICK_SPEC_OPTIONS|NOTE_OPTIONS|CUSTOM_ITEM_OPTION|quickItemOptions",
+  "topFiles": [
+    {
+      "matchCount": 9,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 9
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I see the item field pulls from default options with pricing rules applied, and the spec/unit field has preset choices like "1kg" and "200g" for coffee beans. For Dutch coffee specifically, I'd need to adjust those unit options to bottle sizes in milliliters and liters instead, since cold brew comes in different volume formats.
+
+The user is asking me to add Dutch coffee support, so I should probably ask them what specific product names and package sizes they want rather than guessing. Let me check if there's any existing Dutch coffee data in the system first before requesting clarification.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "더치|dutch|콜드브루|cold.?brew|원액"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "더치|dutch|콜드브루|cold.?brew|원액",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": ".specstory/history/2026-04-03_08-29-31Z-geneva-classic-s-bluetooth-connection.md"
+    },
+    {
+      "matchCount": 1,
+      "uri": ".specstory/history/2026-04-16_05-08-49Z-brand-content-strategy-and-types.md"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/monthlyMeetingData.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 6,
+      "uri": ".specstory/history/2026-04-01_06-35-39Z-chat-name-generation-request.md"
+    }
+  ],
+  "totalFiles": 5,
+  "totalMatches": 12
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/monthlyMeetingData.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I see that Dutch coffee measurements use liters as the unit. To support this in the statement input, I need to add Dutch coffee items to the default options and include liter-based specifications like "1/L" and "500/ML" in the quick spec options.
+
+Since the shop's item names are already populated dynamically from their existing pricing rules, I should focus on adding Dutch coffee as a default option and volume-based units. The request is a bit unclear about which specific products and sizes they need, so I should ask for clarification on what Dutch coffee products they offer and what package sizes they want to support.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+현재 거래명세 입력 폼을 살펴보니 품목은 단가표/기본목록에서 선택하고, 규격/단위는 퀵 버튼으로 `1kg`/`200g` 두 개만 있습니다. 더치 커피는 월간미팅 자료상 단위가 `L(리터)`로 관리되고 있더라고요.
+
+수정 방향 몇 가지 확인 좀 받고 싶습니다:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ask_question">
+<details>
+<summary>Tool use: **ask_question**</summary>
+
+
+Parameters:
+
+```json
+{
+  "questions": [
+    {
+      "allowMultiple": true,
+      "id": "skus",
+      "options": [
+        {
+          "id": "dutch_original",
+          "label": "더치 오리지널"
+        },
+        {
+          "id": "dutch_decaf",
+          "label": "더치 디카페인"
+        },
+        {
+          "id": "dutch_blend",
+          "label": "더치 블렌드"
+        },
+        {
+          "id": "dutch_single",
+          "label": "더치 싱글오리진"
+        },
+        {
+          "id": "dutch_generic",
+          "label": "더치 (단일 항목)"
+        },
+        {
+          "id": "custom",
+          "label": "직접 말씀 (아래 남겨주세요)"
+        }
+      ],
+      "prompt": "기본 품목 드롭다운에 넣을 더치 항목은 어떻게 할까요? (다중 선택 가능, 필요하면 '직접 말씀' 옵션 선택 후 원하는 이름 알려주세요)"
+    },
+    {
+      "allowMultiple": true,
+      "id": "specs",
+      "options": [
+        {
+          "id": "ml_250",
+          "label": "250ml"
+        },
+        {
+          "id": "ml_500",
+          "label": "500ml"
+        },
+        {
+          "id": "ml_1000",
+          "label": "1L"
+        },
+        {
+          "id": "ml_5000",
+          "label": "5L (대용량)"
+        },
+        {
+          "id": "custom",
+          "label": "직접 말씀 (아래 남겨주세요)"
+        }
+      ],
+      "prompt": "규격/단위 퀵 버튼에 추가할 더치 패키지 사이즈는? (다중 선택 가능)"
+    },
+    {
+      "id": "behavior",
+      "options": [
+        {
+          "id": "all_flat",
+          "label": "모두 한 줄에 나열 (1kg, 200g, 500ml, 1L …)"
+        },
+        {
+          "id": "grouped",
+          "label": "원두/더치 구분해서 두 줄로 표시"
+        },
+        {
+          "id": "auto",
+          "label": "선택한 품목 이름에 '더치'가 들어가면 ml/L 위주로 자동 전환"
+        }
+      ],
+      "prompt": "규격 퀵 버튼을 어떻게 배치할까요?"
+    }
+  ],
+  "title": "더치 커피 거래명세 입력 지원"
+}
+```
+Additional data:
+
+```json
+{
+  "currentSelections": {
+    "behavior": [
+      "auto"
+    ],
+    "skus": [
+      "dutch_decaf",
+      "dutch_generic",
+      "dutch_original",
+      "dutch_blend"
+    ],
+    "specs": [
+      "ml_1000",
+      "ml_500",
+      "ml_250"
+    ]
+  },
+  "freeformTexts": {
+    "behavior": "",
+    "skus": "",
+    "specs": ""
+  },
+  "status": "submitted"
+}
+```
+Result:
+
+```json
+{
+  "answers": [
+    {
+      "freeformText": "",
+      "questionId": "skus",
+      "selectedOptionIds": [
+        "dutch_decaf",
+        "dutch_generic",
+        "dutch_original",
+        "dutch_blend"
+      ]
+    },
+    {
+      "freeformText": "",
+      "questionId": "specs",
+      "selectedOptionIds": [
+        "ml_1000",
+        "ml_500",
+        "ml_250"
+      ]
+    },
+    {
+      "freeformText": "",
+      "questionId": "behavior",
+      "selectedOptionIds": [
+        "auto"
+      ]
+    }
+  ]
+}
+```
+User decision: **accepted**
+
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ask_question"><details>
+<summary>Tool use: **ask_question**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I need to set up the Dutch coffee product options with their default specifications. I'm adding the four Dutch item variants to the default options, creating the ml/L unit quick buttons for those products, and then implementing the logic to switch the spec buttons whenever a Dutch item is selected.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "showSpecOtherInput|isCustomSpec"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "showSpecOtherInput|isCustomSpec",
+  "topFiles": [
+    {
+      "matchCount": 11,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 11
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I need to add Dutch coffee items to the defaults and create a separate spec options array for them, then use the item name to determine which spec set to display. I'll refactor the quick spec options into two distinct groups and use a memoized selector to pick the right one based on whether the item contains the Dutch indicator. Adding Dutch item variants...</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now let's wire the auto-switching of quick spec buttons based on the selected item name:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now add the `activeQuickSpecOptions` memo near the other useMemo specs. Let me put it next to `showSpecOtherInput`:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Let me verify there are no lint errors:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Let me also verify the build compiles:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1 | tail -20</summary>
+
+```bash
+npm run build 2>&1 | tail -20
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 641 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-3U36NJzn.css    125.68 kB │ gzip:  21.29 kB
+dist/assets/index-CH33pf1z.js   2,504.17 kB │ gzip: 717.62 kB
+
+✓ built in 395ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+빌드도 통과했습니다. 거래명세 입력에 더치 커피를 반영했습니다.
+
+### 바뀐 내용
+
+1. **기본 품목 드롭다운에 더치 항목 추가** (`App.tsx` DEFAULT_ITEM_OPTIONS)
+   - 더치 오리지널
+   - 더치 디카페인
+   - 더치 블렌드
+   - 더치
+
+2. **규격/단위 퀵 버튼이 품목에 따라 자동 전환**
+
+```140:172:app/src/App.tsx
+const DEFAULT_ITEM_OPTIONS = [
+  // ... 원두 항목 ...
+  '더치 오리지널',
+  '더치 디카페인',
+  '더치 블렌드',
+  '더치',
+] as const
+const DEFAULT_SPEC_OPTIONS = ['1/KG', '200/G', '1/L', '500/ML', '250/ML'] as const
+const NOTE_OPTIONS = ['부가세 별도', '부가세 없음'] as const
+const STATEMENT_PREVIEW_LABEL = '공급받는자용'
+const QUICK_SPEC_OPTIONS_BEAN = [
+  { label: '1kg', value: '1/KG' },
+  { label: '200g', value: '200/G' },
+] as const
+const QUICK_SPEC_OPTIONS_DUTCH = [
+  { label: '250ml', value: '250/ML' },
+  { label: '500ml', value: '500/ML' },
+  { label: '1L', value: '1/L' },
+] as const
+```
+
+- 품목 이름에 "더치"/"dutch"/"콜드브루"가 들어가면 규격 퀵 버튼이 자동으로 **250ml / 500ml / 1L** 로 바뀝니다.
+- 원두류 품목이면 기존대로 **1kg / 200g** 만 보입니다.
+- 직접 입력창 placeholder도 더치일 때 `예: 2/L` 로 안내되도록 했습니다.
+
+3. **자동 판별 로직 추가**
+
+```166:166:app/src/App.tsx
+const isDutchItemName = (value: string) => /더치|dutch|cold.?brew|콜드브루/i.test(value)
+```
+
+### 참고 사항
+- 품목 목록은 기본값일 뿐이고, 거래처 **단가표(엑셀 업로드 또는 직접 등록)**에 더치 품목이 있으면 해당 거래처 선택 시 그 목록도 그대로 같이 뜹니다. 그러니 실제 판매가 쓰는 단가표에도 더치 SKU(더치 오리지널 500ml 등)를 추가해 두시면 단가 자동 적용까지 한 번에 됩니다.
+- 월간미팅 원가 페이지의 `더치(L)` 칼럼과 단위 표기가 어긋나지 않도록 `1/L`, `500/ML` 포맷을 사용했습니다. 다른 규격 필요하시면 알려주세요 (예: 2L, 5L 대용량 등).
+
+---
+
+_**User**_
+
+품목을 추가할 일이 생기는데 그것도 추가 가능하게 만들어볼래 품목 별로 단가는 같으니깐 단가 맞출 수 있게 해주고 관리자모드에서
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I need to understand how the admin mode handles item creation and pricing, particularly since the unit price appears to be consistent across clients based on a master price structure.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "adminPin|adminMode|관리자|isAdmin"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "adminPin|adminMode|관리자|isAdmin",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/providers/AppRuntimeProvider.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/StaffPayrollPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/lib/supabase.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/components/AppAuthGate.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/adminPin.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/TeamManagementPage.tsx"
+    }
+  ],
+  "totalFiles": 8,
+  "totalMatches": 8
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/adminPin.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "ADMIN_FOUR_DIGIT_PIN|관리자 모드|adminMode|isAdminMode"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "ADMIN_FOUR_DIGIT_PIN|관리자 모드|adminMode|isAdminMode",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I need to examine how itemOptions gets built and what the pricingRules structure looks like to understand the relationship between them.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "itemOptions|PricingRule|pricingRules|applyPricingRuleToForm"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "itemOptions|PricingRule|pricingRules|applyPricingRuleToForm",
+  "topFiles": [
+    {
+      "matchCount": 60,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 78
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I'm seeing what the user needs now—they want to manage a global item list in admin mode with customizable unit prices, rather than relying on the hardcoded defaults. The key insight is that items should have consistent pricing across different vendors, so they need a way to set and adjust those unit prices centrally.
+
+I'm thinking through the implementation: I'll create a master items system that stores items with their default unit prices in localStorage, then integrate it into the dropdown and pricing logic so it acts as a fallback when there's no client-specific pricing rule. I should also check if the app uses Supabase for data persistence, since that might be a better storage option than localStorage.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "STORAGE_KEY|PRICING_RULES_STORAGE_KEY|localStorage\\.setItem\\(|company_documents"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "STORAGE_KEY|PRICING_RULES_STORAGE_KEY|localStorage\\.setItem\\(|company_documents",
+  "topFiles": [
+    {
+      "matchCount": 30,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 75
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I need to add a `masterItems` field to the statementPage document structure and update the normalizer accordingly. The master items feature should let admins add items in admin mode, with each item having a single unit price that applies across all clients rather than varying by client.
+
+I'm defining the MasterItem structure with id, itemName, specUnit, and unitPrice, then setting up a priority system where client-specific pricing rules take precedence over master items when both exist. Master items will also populate the item dropdown for selection. Now I need to check how the normalizeStatementPageDocument function works to understand the current data shape.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "normalizeStatementPageDocument|StatementPageDocument"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "normalizeStatementPageDocument|StatementPageDocument",
+  "topFiles": [
+    {
+      "matchCount": 7,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 7
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I've got a clear picture of what needs to happen. Let me map out the implementation strategy: I'll define a MasterItem type to represent individual items with their properties, set up a storage key for persisting the master items list, and then extend the existing StatementPageDoc structure to incorporate this new data model.
+
+From there, I need to wire up the state management—adding hooks to track master items and their storage readiness—and ensure the data flows through the read/normalize/persist pipeline just like the rest of the document. I'll also need to update the pricing logic so that when there's no client-specific rule, it falls back to the master item prices.
+
+Finally, I'll build out the admin UI with add/edit/delete functionality, then check the existing layout and CSS to see where and how to integrate the master items panel alongside the pricing rules section.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now let's add the MasterItem type right after PricingRule:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now extend the StatementPageDocument type:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now update readStatementPageLocalState and normalizeStatementPageDocument:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I need to verify that `normalizeName` is defined before it's used in the `normalizeMasterItemsList` function.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "^const normalizeName|^function normalizeName"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "^const normalizeName|^function normalizeName",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I've spotted a function ordering issue — `normalizeName` is defined later in the file but I'm calling it earlier in `normalizeMasterItemsList`, so I'll inline that normalization logic directly where it's needed.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now add the state and wire it up in the component:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now add `isMasterItemsStorageReady` and wire up loading/saving:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now add localStorage save effect and include masterItems in cloud save effect:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now update cloud save effect to include masterItems:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now I need to look at how the matching pricing rule is used to apply master item fallback, and update `allItemOptions` + `matchingPricingRule` to consider master items:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now find the `matchingPricingRule` and extend it with master item fallback:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ I need to keep the existing client-specific pricing rule matching while adding a fallback to master items, and make sure both appear together in the item options list instead of client rules hiding the master items. The user mentioned that master items have a single unified price across all clients, so I should include them in the dropdown regardless of whether client-specific rules exist.
+
+Setting up the fallback logic...</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now let's add the matchingMasterItem memo and incorporate it into the auto-apply effect and the item options:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now update the auto-apply effect to fall back to master item if no client-specific rule matches:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now let me look at `applyPricingRuleToForm` to update it similarly:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "applyPricingRuleToForm|const applyPricingRule"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "applyPricingRuleToForm|const applyPricingRule",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ Now I'm modifying `applyPricingRuleToForm` to check for a client-specific pricing rule first, then fall back to the master item rule if one doesn't exist.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now update the field-help for items where master item price applies. Let's look at the field-help:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "matchingPricingRule\\.unitPrice|마스터 기준 단가"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "matchingPricingRule\\.unitPrice|마스터 기준 단가",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now let's add handlers for master items and the admin UI. Let me find where the pricing admin UI ends and add a new "품목 마스터" section:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "handleResetPricingRules|handlePricingFileUpload"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "handleResetPricingRules|handlePricingFileUpload",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now let me add master item handlers after `handleResetPricingRules`:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now add the UI section in the admin panel. Let me find the end of the pricing rules admin table:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now add the master items section after the pricing rules table:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now add CSS styles for the new admin section and master item form. Let me check existing admin CSS:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "\\.admin-panel-header|\\.admin-panel |\\.admin-actions|\\.admin-table"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "\\.admin-panel-header|\\.admin-panel |\\.admin-actions|\\.admin-table",
+  "topFiles": [
+    {
+      "matchCount": 14,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 14
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now let me add the master item form styles at the end of the admin section:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+Now let me check for lint errors and build:
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1 | tail -25</summary>
+
+```bash
+npm run build 2>&1 | tail -25
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 641 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.28 kB
+dist/assets/index-Dnza4Sj1.css    126.61 kB │ gzip:  21.43 kB
+dist/assets/index-EstS8p4d.js   2,510.07 kB │ gzip: 718.82 kB
+
+✓ built in 396ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+빌드 통과했습니다. 관리자 모드에 품목 마스터 관리 기능을 추가했습니다.
+
+### 동작 요약
+
+1. **관리자 모드 → 품목 마스터 관리** 섹션 신설
+   - 단가표(거래처별) 아래에 새로 생긴 패널입니다.
+   - 품목명 / 규격 / 단가를 한 줄에 입력하고 `추가/수정` 버튼을 누르면 저장됩니다.
+   - 같은 이름으로 다시 넣으면 기존 단가가 덮어쓰기됩니다.
+   - 각 행에 **수정 / 삭제** 버튼이 있습니다.
+
+2. **거래명세서 입력 폼에 자동 반영**
+   - 품목 드롭다운에 마스터 품목도 항상 함께 표시됩니다 (거래처 단가표에 없어도 보여요).
+   - 품목을 고르면 단가가 자동으로 채워집니다. 우선순위는:
+     1) **거래처 전용 단가**(`pricingRules`) 매칭이 있으면 그걸 사용
+     2) 없으면 **품목 기본 단가**(`masterItems`) 사용
+   - 힌트 문구도 구분되어 표시됩니다:
+     - `거래처 전용 단가 12,000원 자동 적용` — 단가표에 있는 항목
+     - `품목 기본 단가 15,000원 자동 적용` — 품목 마스터에서 적용
+   - 규격/단위도 품목 마스터에 저장된 값이 있으면 같이 채워집니다.
+
+3. **저장/동기화**
+   - 클라우드(Supabase) 모드면 `company_documents`의 statementPage 문서에 같이 저장되어 팀 멤버 모두 공유됩니다.
+   - 로컬/브라우저 모드면 `master-items-v1` localStorage 키에 저장됩니다.
+   - 백업 JSON에도 함께 포함됩니다.
+
+### 주요 코드 포인트
+
+- 타입
+
+```224:233:app/src/App.tsx
+/** 품목 마스터 (거래처 공통 기본 단가). 거래처별 단가표가 없을 때 이 값을 자동 적용합니다. */
+type MasterItem = {
+  id: string
+  itemName: string
+  specUnit: string
+  unitPrice: number
+}
+```
+
+- 단가 자동 적용 우선순위 (거래처 단가 → 품목 마스터 → 비움)
+
+```2196:2231:app/src/App.tsx
+  useEffect(() => {
+    if (matchingPricingRule) {
+      setForm((current) => ({
+        ...current,
+        specUnit: matchingPricingRule.specUnit || current.specUnit,
+        unitPrice: String(matchingPricingRule.unitPrice),
+      }))
+
+      if (matchingPricingRule.specUnit) {
+        setIsCustomSpec(false)
+      }
+      return
+    }
+
+    if (matchingMasterItem) {
+      setForm((current) => ({
+        ...current,
+        specUnit: matchingMasterItem.specUnit || current.specUnit,
+        unitPrice: String(matchingMasterItem.unitPrice),
+      }))
+```
+
+### 사용 예 (더치 커피 세트업)
+
+관리자 모드 → 품목 마스터 관리에서 이렇게 등록해두면 모든 거래처에서 자동 단가 적용됩니다:
+
+| 품목 | 규격/단위 | 단가 |
+| --- | --- | --- |
+| 더치 오리지널 | 500/ML | 15,000 |
+| 더치 오리지널 | 1/L | 28,000 |
+| 더치 디카페인 | 500/ML | 17,000 |
+| 더치 블렌드 | 1/L | 30,000 |
+
+※ 같은 품목명인데 용량이 다르면 지금 구조에서는 한 행으로만 들어갑니다. 용량별로 다른 단가를 쓰려면 **품목명을 다르게 (예: `더치 오리지널 500ml`, `더치 오리지널 1L`)** 넣어주시면 깔끔하게 동작합니다. 용량별 단가 구조를 진짜로 원하시면 표를 `품목+규격` 조합 키로 바꿔드릴 수 있으니 말씀해 주세요.
+
+---
+
+_**User**_
+
+거래명세표 페이지에서 조금 편하게 입력하거나 편하게 볼 수 있는 방법 아이디어 내볼래? 단순한 크기 조정 이런거 말고
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ The user wants meaningful UX improvements for the transaction statement page—not just visual tweaks—so I need to understand the current form structure with its fields like delivery date, frequency, supplier name, items, specifications, quantity, unit price, and tax classification, plus the admin mode features, to suggest practical enhancements for data entry and viewing.
+
+I'm thinking through several efficiency improvements: quick-repeat functionality that lets users duplicate recent transactions from the same supplier with just one click, keyboard shortcuts to speed up navigation and common actions, smart sorting of frequently-used items per supplier based on recent history, barcode or QR code scanning to auto-populate item fields, voice input to parse spoken entries into form fields, a bulk entry mode similar to spreadsheets for entering multiple items at once, pattern recognition that suggests suppliers based on day-of-week delivery schedules, and auto-incrementing frequency counters.
+
+For viewing and querying the data, I'm considering a calendar view that highlights delivery dates with expandable details, card-based layouts for suppliers instead of tables, a weekly board showing deliveries across the week, smart suggestions for next scheduled deliveries based on learned patterns, and toggle-style filter chips for quick filtering by time period, supplier, or item.
+
+I'm also thinking about inline editing where double-clicking a row lets you edit cells directly, keyboard navigation with arrow keys and shortcuts, a duplicate button for copying similar deliveries, mini charts showing monthly revenue trends, and alert badges to flag anomalies like price mismatches or missing tax settings.
+
+For data integrity, I want duplicate warnings when the same supplier and item appear on the same day, range checks that prompt if quantities or prices deviate significantly from averages, and auto-saving drafts to local storage so work isn't lost on refresh.
+
+I'm thinking it makes sense to group these ideas into categories and present about 10 of them with brief descriptions and expected impact, then ask which ones to prioritize first. Since the user asked for ideas rather than implementation, I'll keep it concise in list format without switching to a full planning mode.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+거래명세표 화면을 자주 쓰신다고 생각하고, 실질적으로 "손이 덜 가는" 아이디어 위주로 정리해봤습니다. 크게 **입력 속도 / 조회·탐색 / 신뢰성·자동화** 세 갈래입니다.
+
+## 1) 입력 속도 (한 번 눌러서 끝)
+
+1. **"어제 똑같이" 한 클릭 복제**
+   - 거래처를 고르면, 최근 5건이 카드로 뜨고 클릭하면 납품일·수량만 갱신해서 바로 저장.
+   - 대부분 "매주 월요일 A카페 원두 3kg"처럼 반복 납품이라 효과가 큽니다.
+
+2. **요일·패턴 기반 자동 추천**
+   - 과거 납품 로그에서 "A카페는 월/목 납품"을 학습해, 오늘 요일에 맞는 거래처를 드롭다운 최상단에 배치.
+   - 열자마자 오늘 돌릴 3~4건이 대기 중인 느낌.
+
+3. **벌크 입력 모드 (한 거래처에 여러 품목 한 번에)**
+   - "같은 날 같은 거래처 품목 3개" 케이스용으로, 한 화면에 행을 여러 개 쌓고 한 번에 저장. 횟수도 자동 증가.
+   - 지금은 한 건씩 폼을 채워야 해서 반복 타이핑이 많습니다.
+
+4. **횟수 자동 +1**
+   - 같은 날 같은 거래처로 두 번째 입력 시 `1 → 2` 자동, 손으로 고칠 수도 있게.
+
+5. **키보드 중심 플로우**
+   - `Enter`로 다음 필드 이동, `Cmd/Ctrl+S` 저장, `Cmd/Ctrl+D` 직전 건 복제, `Esc`로 수정 취소.
+   - 모두 마우스 없이 끊김 없는 입력이 목표.
+
+6. **음성/붙여넣기 한 줄 입력 (실험용)**
+   - "카페이즈 · 더치 오리지널 · 500ml · 10개" 한 줄을 파싱해서 폼을 채움. 카톡으로 받은 주문 메시지를 그대로 붙여넣는 시나리오.
+
+## 2) 조회·탐색
+
+7. **거래처 선택 시 이번 달 스냅샷 배지**
+   - 거래처 고르자마자 `이번달 12건 · 450만원 · 마지막 납품 4/12` 같은 요약 pill이 폼 위에 뜸.
+   - 같은 달 중복 납품 실수 방지와 매출 감각을 한 번에.
+
+8. **캘린더 뷰 탭 추가**
+   - 달력에 납품 있는 날이 점·색으로 표시. 클릭하면 그 날 내역이 사이드에 펼쳐짐.
+   - 월별 표만 있는 지금은 "4월 8일에 뭐 나갔더라?"가 불편합니다.
+
+9. **거래처 카드 대시보드**
+   - 월별 표 위/옆에 거래처별 카드(총액·최근 납품·단가 안내)를 그리드로.
+   - 카드 클릭 → 해당 거래처 필터 자동 적용.
+
+10. **인라인 편집**
+    - 리스트 행을 더블클릭하면 그 자리에서 셀 편집, `Tab`으로 이동. 지금은 폼으로 스크롤 올라가서 수정해야 해서 흐름이 끊깁니다.
+
+11. **검색창 + 토글 필터칩**
+    - 거래처/품목/메모 프리 텍스트 검색 + "이번주 · 이번달 · 올해", "부가세 별도 · 없음" 같은 토글칩.
+    - 연도 셀렉트 하나만 있는 현재보다 훨씬 탐색이 빠릅니다.
+
+12. **월별 매출 미니 차트**
+    - 월별 합계 옆에 12칸짜리 막대 스파크라인. 상승/하락·피크를 숫자로 훑지 않아도 파악.
+
+## 3) 신뢰성·자동화
+
+13. **중복 입력 경고**
+    - 같은 날 · 같은 거래처 · 같은 품목 · 같은 횟수가 이미 있으면 저장 전에 경고. 엑셀 업로드 때 중복 체크하듯 수동 입력에도 적용.
+
+14. **단가 편차 알림**
+    - 입력한 단가가 마스터/거래처 단가와 다르면 입력칸 밑에 "마스터 15,000원 → 입력 12,000원" 뱃지. 실수로 0 하나 빠진 케이스 즉시 포착.
+
+15. **Draft 자동 저장 & 복구**
+    - 폼 입력 중인 값은 임시 저장. 브라우저 꺼져도 다음에 열면 "작성하던 건 복구할까요?" 배너.
+
+16. **Undo / Redo**
+    - 방금 지운 행 복구, 실수 수정 복구. `Ctrl+Z`.
+
+17. **이상치 배지 (리스트에 표시)**
+    - 리스트 행 우측에 소소한 뱃지: `단가 마스터와 다름` · `부가세 누락 가능` · `최근 30일 대비 수량 3배` 같은 힌트.
+
+18. **PDF 미리보기 썸네일**
+    - 현재 폼에 입력된 내용이 명세서 템플릿에서 어떻게 보일지 작게 미리보기. 출력 직전에 확인 누르느라 왕복하는 시간을 줍니다.
+
+---
+
+## 제안 우선순위 (제 관점)
+
+- **즉효성 + 구현 가볍**: **1(한 클릭 복제)**, **4(횟수 자동+1)**, **5(단축키)**, **7(거래처 스냅샷)**, **13(중복 경고)**, **14(단가 편차 알림)**  
+  → 하루 입력 시간이 체감 절반으로 줄어들 가능성이 높고, 기존 데이터 구조만으로 바로 구현 가능.
+
+- **중간 공수, 임팩트 큼**: **3(벌크 입력)**, **8(캘린더 뷰)**, **10(인라인 편집)**, **11(검색·필터칩)**, **15(Draft 복구)**
+
+- **실험 성격**: **2(요일 패턴 추천)**, **6(음성/한 줄 붙여넣기)**, **17(이상치 배지)**, **18(PDF 썸네일)**
+
+---
+
+이 중에 꽂히는 거 몇 개만 골라 주시면 바로 구현으로 들어갈게요.  
+특히 평소 입력 흐름 생각하시면서 "이거 하나만 있어도 훨씬 나을 것 같다" 싶은 순위 1~3만 말씀해 주시면, 거기에 맞춰 설계-구현 플랜으로 바로 넘어가겠습니다.
+
+---
+
+_**User**_
+
+1,7,8,9,10,11,13 해볼래
+
+---
+
+_**Agent (claude-opus-4-7)**_
+
+<think><details><summary>Thought Process</summary>
+ Looking at the feature list the user wants me to build: a one-click duplicate function for recent entries tied to a specific client, a monthly snapshot badge that appears when selecting a client, a new calendar view tab, a client card dashboard, and inline editing capabilities for records.
+
+Now I need to understand the existing page structure—how records are currently displayed, what view modes already exist, where I can add new tabs, and how the current filtering and search system works. Let me examine the statements page to map out these details before creating a prioritized implementation plan.</details></think>
+
+_**Agent (claude-opus-4-7)**_
+
+좋습니다. 큰 작업이니까 todo로 쪼개고, 코드 구조부터 파악한 뒤 순차로 들어갈게요.
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="todo_write">
+<details>
+<summary>Tool use: **todo_write**</summary>
+
+
+Parameters:
+
+```json
+{
+  "merge": true
+}
+```
+Result:
+
+```json
+{
+  "finalTodos": [
+    {
+      "content": "거래명세 페이지 간 구조 파악 (형식, 리스트, 뷰 스위치, 상태)",
+      "id": "inspect",
+      "status": "in_progress"
+    },
+    {
+      "content": "13: 입력 시 중복 경고 배지 + 저장 확인 다이어로그",
+      "id": "f13-dup",
+      "status": "pending"
+    },
+    {
+      "content": "1: 한 클릭 재입력 패널(최근 5건)",
+      "id": "f1-copy",
+      "status": "pending"
+    },
+    {
+      "content": "7: 거래처 이번달 스냅샷 배지",
+      "id": "f7-snap",
+      "status": "pending"
+    },
+    {
+      "content": "11: 검색창 + 토글 필터칩 (이번주/이번달/올해, 과세구분)",
+      "id": "f11-search",
+      "status": "pending"
+    },
+    {
+      "content": "10: 리스트 행 인라인 편집 모드",
+      "id": "f10-inline",
+      "status": "pending"
+    },
+    {
+      "content": "9: 거래처 카드 대시보드 뷰 탭",
+      "id": "f9-cards",
+      "status": "pending"
+    },
+    {
+      "content": "8: 캘린더 뷰 탭",
+      "id": "f8-cal",
+      "status": "pending"
+    },
+    {
+      "content": "빌드/린트 검증",
+      "id": "verify",
+      "status": "pending"
+    }
+  ],
+  "success": true
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="todo_write"><details>
+<summary>Tool use: **todo_write**</summary>
+
+</details></tool-use>
+
+_**Agent (claude-opus-4-7)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "activeView|filteredRecords|statement-records|record-list|statements-main"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "activeView|filteredRecords|statement-records|record-list|statements-main",
+  "topFiles": [
+    {
+      "matchCount": 16,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 16
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>

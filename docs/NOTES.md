@@ -180,6 +180,7 @@ RLS 정책 핵심:
 | `app/supabase/schema.sql` | 초기 테이블/RLS | ✅ |
 | `app/supabase/migrations/2026-04-16-team-management.sql` | profiles + 팀 관리 RLS | ✅ |
 | `app/supabase/migrations/2026-04-16-team-management-fix.sql` | profile insert RLS 완화 | ✅ |
+| `app/supabase/migrations/2026-04-16-profile-department.sql` | profiles에 department 컬럼 추가 | ⏳ 실행 필요 |
 
 ---
 

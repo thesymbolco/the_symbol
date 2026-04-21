@@ -17,6 +17,18 @@ const STATUS_LABEL: Record<string, string> = {
   inactive: '비활성',
 }
 
+/** 직책 드롭다운 옵션. 필요 시 여기에서 항목을 추가/수정. */
+const TITLE_OPTIONS = [
+  '대표',
+  '이사',
+  '매니저',
+  '팀장',
+  '바리스타',
+  '로스터',
+  '사원',
+  '인턴',
+] as const
+
 type BusyState = null | { kind: 'create' } | { kind: 'member'; userId: string; action: string }
 
 export default function TeamManagementPage() {
@@ -41,7 +53,8 @@ export default function TeamManagementPage() {
     password: '',
     displayName: '',
     phone: '',
-    title: '',
+    title: TITLE_OPTIONS[6],
+    department: '',
     email: '',
     role: 'member',
   })
@@ -103,7 +116,8 @@ export default function TeamManagementPage() {
       password: '',
       displayName: '',
       phone: '',
-      title: '',
+      title: TITLE_OPTIONS[6],
+      department: '',
       email: '',
       role: 'member',
     })
@@ -129,6 +143,7 @@ export default function TeamManagementPage() {
     if (draft.displayName !== member.displayName) patch.displayName = draft.displayName ?? ''
     if (draft.phone !== member.phone) patch.phone = draft.phone ?? ''
     if (draft.title !== member.title) patch.title = draft.title ?? ''
+    if (draft.department !== member.department) patch.department = draft.department ?? ''
     if (draft.email !== member.email) patch.email = draft.email ?? ''
     if (draft.role && draft.role !== member.role) patch.role = draft.role as 'owner' | 'admin' | 'member'
     if (draft.status && draft.status !== member.status) patch.status = draft.status as 'active' | 'inactive'
@@ -210,6 +225,7 @@ export default function TeamManagementPage() {
                 <th>이름</th>
                 <th>아이디</th>
                 <th>직책</th>
+                <th>부서</th>
                 <th>휴대폰</th>
                 <th>이메일</th>
                 <th>역할</th>
@@ -220,7 +236,7 @@ export default function TeamManagementPage() {
             <tbody>
               {members.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 20 }}>
+                  <td colSpan={9} className="muted" style={{ textAlign: 'center', padding: 20 }}>
                     구성원이 없습니다. 아래 폼에서 추가해 보세요.
                   </td>
                 </tr>
@@ -255,7 +271,7 @@ export default function TeamManagementPage() {
                     </td>
                     <td>
                       {isEditing ? (
-                        <input
+                        <select
                           value={draft?.title ?? ''}
                           onChange={(event) =>
                             setEditDrafts((prev) => ({
@@ -263,9 +279,35 @@ export default function TeamManagementPage() {
                               [member.userId]: { ...prev[member.userId], title: event.target.value },
                             }))
                           }
-                        />
+                        >
+                          <option value="">—</option>
+                          {TITLE_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                          {draft?.title && !TITLE_OPTIONS.includes(draft.title as (typeof TITLE_OPTIONS)[number]) ? (
+                            <option value={draft.title}>{draft.title} (기존)</option>
+                          ) : null}
+                        </select>
                       ) : (
                         member.title || '—'
+                      )}
+                    </td>
+                    <td>
+                      {isEditing ? (
+                        <input
+                          value={draft?.department ?? ''}
+                          onChange={(event) =>
+                            setEditDrafts((prev) => ({
+                              ...prev,
+                              [member.userId]: { ...prev[member.userId], department: event.target.value },
+                            }))
+                          }
+                          placeholder="부서"
+                        />
+                      ) : (
+                        member.department || '—'
                       )}
                     </td>
                     <td>
@@ -403,10 +445,23 @@ export default function TeamManagementPage() {
               </label>
               <label>
                 직책
-                <input
+                <select
                   value={createForm.title}
                   onChange={(event) => setCreateForm((prev) => ({ ...prev, title: event.target.value }))}
-                  placeholder="예: 매니저"
+                >
+                  {TITLE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                부서명
+                <input
+                  value={createForm.department}
+                  onChange={(event) => setCreateForm((prev) => ({ ...prev, department: event.target.value }))}
+                  placeholder="예: 로스팅팀 / 매장운영"
                 />
               </label>
               <label>

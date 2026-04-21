@@ -33,6 +33,7 @@ import './App.css'
 
 const STORAGE_KEY = STATEMENT_RECORDS_STORAGE_KEY
 const PRICING_RULES_STORAGE_KEY = 'pricing-rules-v1'
+const MASTER_ITEMS_STORAGE_KEY = 'master-items-v1'
 const ACTIVE_PAGE_STORAGE_KEY = 'active-page-v1'
 const STATEMENT_TEMPLATE_STORAGE_KEY = 'statement-template-base64-v1'
 const STATEMENT_TEMPLATE_NAME_STORAGE_KEY = 'statement-template-name-v1'
@@ -153,15 +154,26 @@ const DEFAULT_ITEM_OPTIONS = [
   '과테말라 안티구아 디카페인',
   '브라질 슈가케인 디카페인',
   '에티오피아 시다모 G4',
+  '더치 오리지널',
+  '더치 디카페인',
+  '더치 블렌드',
+  '더치',
 ] as const
-const DEFAULT_SPEC_OPTIONS = ['1/KG', '200/G'] as const
+const DEFAULT_SPEC_OPTIONS = ['1/KG', '200/G', '1/L', '500/ML', '250/ML'] as const
 const NOTE_OPTIONS = ['부가세 별도', '부가세 없음'] as const
 const STATEMENT_PREVIEW_LABEL = '공급받는자용'
-const QUICK_SPEC_OPTIONS = [
+const QUICK_SPEC_OPTIONS_BEAN = [
   { label: '1kg', value: '1/KG' },
   { label: '200g', value: '200/G' },
 ] as const
+const QUICK_SPEC_OPTIONS_DUTCH = [
+  { label: '250ml', value: '250/ML' },
+  { label: '500ml', value: '500/ML' },
+  { label: '1L', value: '1/L' },
+] as const
+const QUICK_SPEC_OPTIONS = [...QUICK_SPEC_OPTIONS_BEAN, ...QUICK_SPEC_OPTIONS_DUTCH] as const
 const QUICK_SPEC_VALUES = new Set<string>(QUICK_SPEC_OPTIONS.map((option) => option.value))
+const isDutchItemName = (value: string) => /더치|dutch|cold.?brew|콜드브루/i.test(value)
 
 type StatementRecord = {
   id: string
@@ -205,6 +217,14 @@ type MonthlySummaryRow = {
 type PricingRule = {
   id: string
   clientName: string
+  itemName: string
+  specUnit: string
+  unitPrice: number
+}
+
+/** 품목 마스터 (거래처 공통 기본 단가). 거래처별 단가표가 없을 때 이 값을 자동 적용합니다. */
+type MasterItem = {
+  id: string
   itemName: string
   specUnit: string
   unitPrice: number
@@ -258,6 +278,7 @@ type StatementTemplateSettings = {
 type StatementPageDocument = {
   records: StatementRecord[]
   pricingRules: PricingRule[]
+  masterItems: MasterItem[]
   statementTemplateBase64: string | null
   statementTemplateFileName: string
   statementTemplateUpdatedAt: string
@@ -399,6 +420,16 @@ const readStatementPageLocalState = (): StatementPageDocument => {
     }
   }
 
+  let masterItems: MasterItem[] = []
+  const savedMasterItems = window.localStorage.getItem(MASTER_ITEMS_STORAGE_KEY)
+  if (savedMasterItems) {
+    try {
+      masterItems = normalizeMasterItemsList(JSON.parse(savedMasterItems))
+    } catch (error) {
+      console.error('저장된 품목 마스터를 읽지 못했습니다.', error)
+    }
+  }
+
   let statementTemplateSettings = { ...DEFAULT_STATEMENT_TEMPLATE_SETTINGS }
   const savedStatementTemplateSettings = window.localStorage.getItem(STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY)
   if (savedStatementTemplateSettings) {
@@ -412,6 +443,7 @@ const readStatementPageLocalState = (): StatementPageDocument => {
   return {
     records,
     pricingRules,
+    masterItems,
     statementTemplateBase64: window.localStorage.getItem(STATEMENT_TEMPLATE_STORAGE_KEY),
     statementTemplateFileName: window.localStorage.getItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY) ?? '',
     statementTemplateUpdatedAt: window.localStorage.getItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY) ?? '',
@@ -419,11 +451,42 @@ const readStatementPageLocalState = (): StatementPageDocument => {
   }
 }
 
+const normalizeMasterItemsList = (value: unknown): MasterItem[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  const seen = new Set<string>()
+  const next: MasterItem[] = []
+  value.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      return
+    }
+    const item = entry as Partial<MasterItem>
+    const itemName = typeof item.itemName === 'string' ? item.itemName.trim() : ''
+    if (!itemName) {
+      return
+    }
+    const key = itemName.replace(/\s+/g, ' ').toLowerCase()
+    if (seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    next.push({
+      id: typeof item.id === 'string' && item.id ? item.id : `master-${Date.now()}-${index}`,
+      itemName,
+      specUnit: typeof item.specUnit === 'string' ? item.specUnit.trim() : '',
+      unitPrice: typeof item.unitPrice === 'number' && Number.isFinite(item.unitPrice) ? item.unitPrice : 0,
+    })
+  })
+  return next
+}
+
 const normalizeStatementPageDocument = (value: unknown): StatementPageDocument => {
   if (!value || typeof value !== 'object') {
     return {
       records: [],
       pricingRules: [],
+      masterItems: [],
       statementTemplateBase64: null,
       statementTemplateFileName: '',
       statementTemplateUpdatedAt: '',
@@ -437,6 +500,7 @@ const normalizeStatementPageDocument = (value: unknown): StatementPageDocument =
       ? normalizeLoadedRecords(source.records as Array<StatementRecord & { note?: string }>)
       : [],
     pricingRules: Array.isArray(source.pricingRules) ? (source.pricingRules as PricingRule[]) : [],
+    masterItems: normalizeMasterItemsList(source.masterItems),
     statementTemplateBase64:
       typeof source.statementTemplateBase64 === 'string' && source.statementTemplateBase64.length > 0
         ? source.statementTemplateBase64
@@ -1421,6 +1485,19 @@ function App() {
   const [form, setForm] = useState<FormState>(() => defaultFormState())
   const [records, setRecords] = useState<StatementRecord[]>([])
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([])
+  const [masterItems, setMasterItems] = useState<MasterItem[]>([])
+  const [masterItemDraft, setMasterItemDraft] = useState<{
+    itemName: string
+    specUnit: string
+    unitPrice: string
+  }>({ itemName: '', specUnit: '', unitPrice: '' })
+  const [editingMasterItemId, setEditingMasterItemId] = useState<string | null>(null)
+  const [editingMasterItemDraft, setEditingMasterItemDraft] = useState<{
+    itemName: string
+    specUnit: string
+    unitPrice: string
+  }>({ itemName: '', specUnit: '', unitPrice: '' })
+  const [masterItemMessage, setMasterItemMessage] = useState('')
   const [activePage, setActivePage] = useState<AppActivePage>(() => {
     const savedPage = window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY)
     if (
@@ -1458,7 +1535,37 @@ function App() {
   )
 
   const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR))
-  const [activeView, setActiveView] = useState<'records' | 'summary'>('records')
+  const [activeView, setActiveView] = useState<'records' | 'summary' | 'cards' | 'calendar'>(
+    'records',
+  )
+  const [recordsSearchQuery, setRecordsSearchQuery] = useState('')
+  const [recordsRangeFilter, setRecordsRangeFilter] = useState<'all' | 'week' | 'month' | 'year'>(
+    'year',
+  )
+  const [recordsNoteFilter, setRecordsNoteFilter] = useState<'all' | '부가세 별도' | '부가세 없음'>(
+    'all',
+  )
+  const [inlineEditRecordId, setInlineEditRecordId] = useState<string | null>(null)
+  const [inlineEditDraft, setInlineEditDraft] = useState<{
+    deliveryDate: string
+    deliveryCount: string
+    clientName: string
+    itemName: string
+    specUnit: string
+    quantity: string
+    unitPrice: string
+    note: string
+  }>({
+    deliveryDate: '',
+    deliveryCount: '',
+    clientName: '',
+    itemName: '',
+    specUnit: '',
+    quantity: '',
+    unitPrice: '',
+    note: '부가세 별도',
+  })
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7))
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [isCustomClient, setIsCustomClient] = useState(false)
   const [isCustomItem, setIsCustomItem] = useState(false)
@@ -1502,6 +1609,7 @@ function App() {
   const lastBackupSnapshotRef = useRef('')
   const [isRecordsStorageReady, setIsRecordsStorageReady] = useState(false)
   const [isPricingStorageReady, setIsPricingStorageReady] = useState(false)
+  const [isMasterItemsStorageReady, setIsMasterItemsStorageReady] = useState(false)
   const [isStatementCloudReady, setIsStatementCloudReady] = useState(mode === 'local')
   const {
     lastSavedAt: statementLastSavedAt,
@@ -1526,6 +1634,7 @@ function App() {
 
     setIsRecordsStorageReady(false)
     setIsPricingStorageReady(false)
+    setIsMasterItemsStorageReady(false)
     setIsStatementCloudReady(mode === 'local')
     resetStatementSaveUi()
 
@@ -1535,12 +1644,14 @@ function App() {
       }
       setRecords(next.records)
       setPricingRules(next.pricingRules)
+      setMasterItems(next.masterItems)
       setStatementTemplateBase64(next.statementTemplateBase64)
       setStatementTemplateFileName(next.statementTemplateFileName)
       setStatementTemplateUpdatedAt(next.statementTemplateUpdatedAt)
       setStatementTemplateSettings(next.statementTemplateSettings)
       setIsRecordsStorageReady(true)
       setIsPricingStorageReady(true)
+      setIsMasterItemsStorageReady(true)
       setIsStatementCloudReady(true)
     }
 
@@ -1591,6 +1702,14 @@ function App() {
   }, [isPricingStorageReady, pricingRules])
 
   useEffect(() => {
+    if (!isMasterItemsStorageReady) {
+      return
+    }
+
+    window.localStorage.setItem(MASTER_ITEMS_STORAGE_KEY, JSON.stringify(masterItems))
+  }, [isMasterItemsStorageReady, masterItems])
+
+  useEffect(() => {
     if (statementTemplateBase64) {
       window.localStorage.setItem(STATEMENT_TEMPLATE_STORAGE_KEY, statementTemplateBase64)
     } else {
@@ -1618,7 +1737,12 @@ function App() {
   }, [statementTemplateSettings])
 
   useEffect(() => {
-    if (!isRecordsStorageReady || !isPricingStorageReady || !isStatementCloudReady) {
+    if (
+      !isRecordsStorageReady ||
+      !isPricingStorageReady ||
+      !isMasterItemsStorageReady ||
+      !isStatementCloudReady
+    ) {
       return
     }
     if (mode !== 'cloud' || !activeCompanyId) {
@@ -1638,6 +1762,7 @@ function App() {
         {
           records,
           pricingRules,
+          masterItems,
           statementTemplateBase64,
           statementTemplateFileName,
           statementTemplateUpdatedAt,
@@ -1658,8 +1783,10 @@ function App() {
   }, [
     activeCompanyId,
     isPricingStorageReady,
+    isMasterItemsStorageReady,
     isRecordsStorageReady,
     isStatementCloudReady,
+    masterItems,
     mode,
     pricingRules,
     records,
@@ -1934,6 +2061,11 @@ function App() {
 
   const allItemOptions = useMemo(() => {
     const merged = new Set<string>(DEFAULT_ITEM_OPTIONS)
+    masterItems.forEach((item) => {
+      if (item.itemName.trim()) {
+        merged.add(item.itemName.trim())
+      }
+    })
     pricingRules.forEach((rule) => {
       if (rule.itemName.trim()) {
         merged.add(rule.itemName.trim())
@@ -1945,17 +2077,18 @@ function App() {
       }
     })
     return Array.from(merged)
-  }, [pricingRules, records])
+  }, [masterItems, pricingRules, records])
 
   const itemOptions = useMemo(() => {
     const clientItems = selectedClientPricingRules.map((rule) => rule.itemName)
+    const masterNames = masterItems.map((item) => item.itemName)
 
     if (clientItems.length === 0) {
       return allItemOptions
     }
 
-    return Array.from(new Set(clientItems)).sort((a, b) => a.localeCompare(b, 'ko'))
-  }, [allItemOptions, selectedClientPricingRules])
+    return Array.from(new Set([...clientItems, ...masterNames])).sort((a, b) => a.localeCompare(b, 'ko'))
+  }, [allItemOptions, masterItems, selectedClientPricingRules])
 
   const matchingPricingRule = useMemo(
     () =>
@@ -1966,6 +2099,14 @@ function App() {
     [form.itemName, selectedClientPricingRules],
   )
 
+  const matchingMasterItem = useMemo(
+    () =>
+      masterItems.find(
+        (item) => normalizeName(item.itemName) === normalizeName(form.itemName),
+      ) ?? null,
+    [form.itemName, masterItems],
+  )
+
   const showSpecOtherInput = useMemo(() => {
     const specTrim = form.specUnit.trim()
     return (
@@ -1973,6 +2114,13 @@ function App() {
       (isCustomSpec && specTrim === '')
     )
   }, [form.specUnit, isCustomSpec])
+
+  const activeQuickSpecOptions = useMemo(() => {
+    if (isDutchItemName(form.itemName)) {
+      return QUICK_SPEC_OPTIONS_DUTCH
+    }
+    return QUICK_SPEC_OPTIONS_BEAN
+  }, [form.itemName])
 
   const filteredRecords = useMemo(
     () => records.filter((record) => record.deliveryDate.startsWith(selectedYear)),
@@ -1983,6 +2131,156 @@ function App() {
     () => [...records].sort(compareStatementRecordsNewestFirst),
     [records],
   )
+
+  const visibleRecords = useMemo(() => {
+    const todayIso = new Date().toISOString().slice(0, 10)
+    const today = new Date(todayIso)
+    const startOfWeek = new Date(today)
+    startOfWeek.setDate(today.getDate() - 6)
+    const startOfWeekIso = startOfWeek.toISOString().slice(0, 10)
+    const currentMonth = todayIso.slice(0, 7)
+    const query = recordsSearchQuery.trim().toLowerCase()
+
+    return statementPreviewRecords.filter((record) => {
+      if (recordsRangeFilter === 'year' && !record.deliveryDate.startsWith(selectedYear)) {
+        return false
+      }
+      if (recordsRangeFilter === 'month' && !record.deliveryDate.startsWith(currentMonth)) {
+        return false
+      }
+      if (recordsRangeFilter === 'week' && record.deliveryDate < startOfWeekIso) {
+        return false
+      }
+      if (recordsNoteFilter !== 'all' && record.note !== recordsNoteFilter) {
+        return false
+      }
+      if (query) {
+        const haystack = `${record.clientName} ${record.itemName} ${record.specUnit} ${record.note}`.toLowerCase()
+        if (!haystack.includes(query)) {
+          return false
+        }
+      }
+      return true
+    })
+  }, [statementPreviewRecords, recordsRangeFilter, recordsNoteFilter, recordsSearchQuery, selectedYear])
+
+  const visibleTotals = useMemo(() => {
+    return visibleRecords.reduce(
+      (acc, record) => {
+        acc.supply += record.supplyAmount
+        acc.tax += record.taxAmount
+        acc.total += record.totalAmount
+        return acc
+      },
+      { supply: 0, tax: 0, total: 0 },
+    )
+  }, [visibleRecords])
+
+  const recentRecordsForClient = useMemo(() => {
+    const clientKey = normalizeName(form.clientName)
+    if (!clientKey) {
+      return []
+    }
+    return statementPreviewRecords
+      .filter((record) => normalizeName(record.clientName) === clientKey)
+      .slice(0, 5)
+  }, [form.clientName, statementPreviewRecords])
+
+  const clientMonthSnapshot = useMemo(() => {
+    const clientKey = normalizeName(form.clientName)
+    if (!clientKey) {
+      return null
+    }
+    const currentMonth = new Date().toISOString().slice(0, 7)
+    let count = 0
+    let totalAmount = 0
+    let quantity = 0
+    let lastDeliveryDate = ''
+    records.forEach((record) => {
+      if (normalizeName(record.clientName) !== clientKey) {
+        return
+      }
+      if (!lastDeliveryDate || record.deliveryDate > lastDeliveryDate) {
+        lastDeliveryDate = record.deliveryDate
+      }
+      if (record.deliveryDate.startsWith(currentMonth)) {
+        count += 1
+        totalAmount += record.totalAmount
+        quantity += record.quantity
+      }
+    })
+    return { count, totalAmount, quantity, lastDeliveryDate, currentMonth }
+  }, [form.clientName, records])
+
+  const duplicateCandidate = useMemo(() => {
+    const clientKey = normalizeName(form.clientName)
+    const itemKey = normalizeName(form.itemName)
+    if (!clientKey || !itemKey || !form.deliveryDate) {
+      return null
+    }
+    const match = records.find(
+      (record) =>
+        record.id !== editingRecordId &&
+        record.deliveryDate === form.deliveryDate &&
+        normalizeName(record.clientName) === clientKey &&
+        normalizeName(record.itemName) === itemKey,
+    )
+    return match ?? null
+  }, [form.clientName, form.deliveryDate, form.itemName, records, editingRecordId])
+
+  const clientCardStats = useMemo(() => {
+    const grouped = new Map<
+      string,
+      {
+        clientName: string
+        totalAmount: number
+        count: number
+        lastDeliveryDate: string
+        monthAmount: number
+      }
+    >()
+    const currentMonth = new Date().toISOString().slice(0, 7)
+    statementPreviewRecords.forEach((record) => {
+      const key = normalizeName(record.clientName)
+      if (!key) return
+      const existing = grouped.get(key) ?? {
+        clientName: record.clientName,
+        totalAmount: 0,
+        count: 0,
+        lastDeliveryDate: '',
+        monthAmount: 0,
+      }
+      existing.totalAmount += record.totalAmount
+      existing.count += 1
+      if (!existing.lastDeliveryDate || record.deliveryDate > existing.lastDeliveryDate) {
+        existing.lastDeliveryDate = record.deliveryDate
+      }
+      if (record.deliveryDate.startsWith(currentMonth)) {
+        existing.monthAmount += record.totalAmount
+      }
+      grouped.set(key, existing)
+    })
+    return Array.from(grouped.values()).sort((a, b) => b.totalAmount - a.totalAmount)
+  }, [statementPreviewRecords])
+
+  const calendarEntries = useMemo(() => {
+    const map = new Map<string, { count: number; totalAmount: number; records: StatementRecord[] }>()
+    statementPreviewRecords.forEach((record) => {
+      if (!record.deliveryDate.startsWith(calendarMonth)) {
+        return
+      }
+      const existing = map.get(record.deliveryDate) ?? {
+        count: 0,
+        totalAmount: 0,
+        records: [] as StatementRecord[],
+      }
+      existing.count += 1
+      existing.totalAmount += record.totalAmount
+      existing.records.push(record)
+      map.set(record.deliveryDate, existing)
+    })
+    return map
+  }, [statementPreviewRecords, calendarMonth])
 
   const statementDeliveryMonthSeqById = useMemo(
     () => statementRecordDeliveryMonthSeqById(records),
@@ -2066,27 +2364,40 @@ function App() {
   }, [selectedSheetKey, statementSheetGroups])
 
   useEffect(() => {
-    if (!matchingPricingRule) {
-      if (hasPricingForSelectedClient && form.itemName) {
-        setForm((current) => ({
-          ...current,
-          unitPrice: '',
-          specUnit: isCustomSpec ? current.specUnit : '',
-        }))
+    if (matchingPricingRule) {
+      setForm((current) => ({
+        ...current,
+        specUnit: matchingPricingRule.specUnit || current.specUnit,
+        unitPrice: String(matchingPricingRule.unitPrice),
+      }))
+
+      if (matchingPricingRule.specUnit) {
+        setIsCustomSpec(false)
       }
       return
     }
 
-    setForm((current) => ({
-      ...current,
-      specUnit: matchingPricingRule.specUnit || current.specUnit,
-      unitPrice: String(matchingPricingRule.unitPrice),
-    }))
+    if (matchingMasterItem) {
+      setForm((current) => ({
+        ...current,
+        specUnit: matchingMasterItem.specUnit || current.specUnit,
+        unitPrice: String(matchingMasterItem.unitPrice),
+      }))
 
-    if (matchingPricingRule.specUnit) {
-      setIsCustomSpec(false)
+      if (matchingMasterItem.specUnit) {
+        setIsCustomSpec(false)
+      }
+      return
     }
-  }, [form.itemName, hasPricingForSelectedClient, isCustomSpec, matchingPricingRule])
+
+    if (hasPricingForSelectedClient && form.itemName) {
+      setForm((current) => ({
+        ...current,
+        unitPrice: '',
+        specUnit: isCustomSpec ? current.specUnit : '',
+      }))
+    }
+  }, [form.itemName, hasPricingForSelectedClient, isCustomSpec, matchingMasterItem, matchingPricingRule])
 
   const summaryRows = useMemo(() => {
     const grouped = new Map<string, MonthlySummaryRow>()
@@ -2202,7 +2513,26 @@ function App() {
         normalizeName(entry.itemName) === normalizeName(itemName),
     )
 
-    if (!rule) {
+    if (rule) {
+      setForm((current) => ({
+        ...current,
+        clientName,
+        itemName,
+        specUnit: rule.specUnit || current.specUnit,
+        unitPrice: String(rule.unitPrice),
+      }))
+
+      if (rule.specUnit) {
+        setIsCustomSpec(false)
+      }
+      return
+    }
+
+    const master = masterItems.find(
+      (entry) => normalizeName(entry.itemName) === normalizeName(itemName),
+    )
+
+    if (!master) {
       return
     }
 
@@ -2210,11 +2540,11 @@ function App() {
       ...current,
       clientName,
       itemName,
-      specUnit: rule.specUnit || current.specUnit,
-      unitPrice: String(rule.unitPrice),
+      specUnit: master.specUnit || current.specUnit,
+      unitPrice: String(master.unitPrice),
     }))
 
-    if (rule.specUnit) {
+    if (master.specUnit) {
       setIsCustomSpec(false)
     }
   }
@@ -2482,6 +2812,110 @@ function App() {
     setPricingUploadMessage('단가 마스터를 초기화했습니다.')
   }
 
+  const handleAddMasterItem = () => {
+    const itemName = masterItemDraft.itemName.trim()
+    if (!itemName) {
+      setMasterItemMessage('품목명을 입력해주세요.')
+      return
+    }
+    const unitPrice = Number(masterItemDraft.unitPrice.replaceAll(',', '').trim() || '0')
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      setMasterItemMessage('단가는 0 이상의 숫자로 입력해주세요.')
+      return
+    }
+    const specUnit = masterItemDraft.specUnit.trim()
+    const existing = masterItems.find(
+      (item) => normalizeName(item.itemName) === normalizeName(itemName),
+    )
+    if (existing) {
+      setMasterItems((current) =>
+        current.map((item) =>
+          item.id === existing.id ? { ...item, itemName, specUnit, unitPrice } : item,
+        ),
+      )
+      setMasterItemMessage(`「${itemName}」 품목 단가를 업데이트했습니다.`)
+    } else {
+      const next: MasterItem = {
+        id: `master-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        itemName,
+        specUnit,
+        unitPrice,
+      }
+      setMasterItems((current) => [...current, next])
+      setMasterItemMessage(`「${itemName}」 품목을 추가했습니다.`)
+    }
+    setMasterItemDraft({ itemName: '', specUnit: '', unitPrice: '' })
+  }
+
+  const handleStartEditMasterItem = (item: MasterItem) => {
+    setEditingMasterItemId(item.id)
+    setEditingMasterItemDraft({
+      itemName: item.itemName,
+      specUnit: item.specUnit,
+      unitPrice: String(item.unitPrice),
+    })
+    setMasterItemMessage('')
+  }
+
+  const handleCancelEditMasterItem = () => {
+    setEditingMasterItemId(null)
+    setEditingMasterItemDraft({ itemName: '', specUnit: '', unitPrice: '' })
+  }
+
+  const handleSaveEditMasterItem = () => {
+    if (!editingMasterItemId) {
+      return
+    }
+    const itemName = editingMasterItemDraft.itemName.trim()
+    if (!itemName) {
+      setMasterItemMessage('품목명을 입력해주세요.')
+      return
+    }
+    const unitPrice = Number(editingMasterItemDraft.unitPrice.replaceAll(',', '').trim() || '0')
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      setMasterItemMessage('단가는 0 이상의 숫자로 입력해주세요.')
+      return
+    }
+    const duplicated = masterItems.find(
+      (item) =>
+        item.id !== editingMasterItemId &&
+        normalizeName(item.itemName) === normalizeName(itemName),
+    )
+    if (duplicated) {
+      setMasterItemMessage('같은 이름의 품목이 이미 있습니다.')
+      return
+    }
+    setMasterItems((current) =>
+      current.map((item) =>
+        item.id === editingMasterItemId
+          ? {
+              ...item,
+              itemName,
+              specUnit: editingMasterItemDraft.specUnit.trim(),
+              unitPrice,
+            }
+          : item,
+      ),
+    )
+    setMasterItemMessage(`「${itemName}」 품목을 수정했습니다.`)
+    handleCancelEditMasterItem()
+  }
+
+  const handleRemoveMasterItem = (id: string) => {
+    const target = masterItems.find((item) => item.id === id)
+    if (!target) {
+      return
+    }
+    if (!window.confirm(`「${target.itemName}」 품목 마스터를 삭제할까요?`)) {
+      return
+    }
+    setMasterItems((current) => current.filter((item) => item.id !== id))
+    if (editingMasterItemId === id) {
+      handleCancelEditMasterItem()
+    }
+    setMasterItemMessage(`「${target.itemName}」 품목을 삭제했습니다.`)
+  }
+
   const handleStatementFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
 
@@ -2555,6 +2989,15 @@ function App() {
       return
     }
 
+    if (duplicateCandidate && !editingRecordId) {
+      const confirmDup = window.confirm(
+        `이미 같은 날(${formatDateLabel(duplicateCandidate.deliveryDate)}) ${duplicateCandidate.clientName}에 「${duplicateCandidate.itemName}」 ${duplicateCandidate.quantity}개 건이 있습니다.\n그래도 새로 저장할까요?`,
+      )
+      if (!confirmDup) {
+        return
+      }
+    }
+
     const nextRecord: StatementRecord = {
       id: editingRecordId ?? crypto.randomUUID(),
       deliveryDate: form.deliveryDate,
@@ -2609,6 +3052,101 @@ function App() {
       resetStatementFormAfterSave()
     }
     setRecords((current) => current.filter((record) => record.id !== id))
+  }
+
+  const handleCopyFromRecentRecord = (record: StatementRecord) => {
+    setEditingRecordId(null)
+    setIsCustomClient(false)
+    setIsCustomItem(false)
+    setIsCustomSpec(!QUICK_SPEC_VALUES.has(record.specUnit.trim()) && record.specUnit.trim() !== '')
+    setForm({
+      deliveryDate: new Date().toISOString().slice(0, 10),
+      deliveryCount: record.deliveryCount,
+      clientName: record.clientName,
+      itemName: record.itemName,
+      specUnit: record.specUnit,
+      quantity: String(record.quantity),
+      unitPrice: String(record.unitPrice),
+      note: record.note,
+    })
+    const formPanel = document.querySelector('.statements-form-compact')
+    formPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  const handleFilterByClient = (clientName: string) => {
+    setRecordsSearchQuery(clientName)
+    setActiveView('records')
+  }
+
+  const handleStartInlineEdit = (record: StatementRecord) => {
+    setInlineEditRecordId(record.id)
+    setInlineEditDraft({
+      deliveryDate: record.deliveryDate,
+      deliveryCount: record.deliveryCount,
+      clientName: record.clientName,
+      itemName: record.itemName,
+      specUnit: record.specUnit,
+      quantity: String(record.quantity),
+      unitPrice: String(record.unitPrice),
+      note: record.note,
+    })
+  }
+
+  const handleCancelInlineEdit = () => {
+    setInlineEditRecordId(null)
+  }
+
+  const handleSaveInlineEdit = () => {
+    if (!inlineEditRecordId) {
+      return
+    }
+    const quantity = parseNumber(inlineEditDraft.quantity)
+    const unitPrice = parseNumber(inlineEditDraft.unitPrice)
+    if (!inlineEditDraft.deliveryDate || !inlineEditDraft.clientName.trim() || !inlineEditDraft.itemName.trim()) {
+      window.alert('납품일, 거래처명, 품목은 비워둘 수 없습니다.')
+      return
+    }
+    if (quantity <= 0 || unitPrice <= 0) {
+      window.alert('수량과 단가는 0보다 커야 합니다.')
+      return
+    }
+    const supplyAmount = quantity * unitPrice
+    const taxAmount = isTaxFreeNote(inlineEditDraft.note) ? 0 : Math.round(supplyAmount * 0.1)
+    const totalAmount = supplyAmount + taxAmount
+    setRecords((current) =>
+      current
+        .map((record) =>
+          record.id === inlineEditRecordId
+            ? {
+                ...record,
+                deliveryDate: inlineEditDraft.deliveryDate,
+                issueDate: record.issueDate || inlineEditDraft.deliveryDate,
+                deliveryCount: inlineEditDraft.deliveryCount || '1',
+                clientName: inlineEditDraft.clientName.trim(),
+                itemName: inlineEditDraft.itemName.trim(),
+                specUnit: inlineEditDraft.specUnit.trim(),
+                quantity,
+                unitPrice,
+                note: inlineEditDraft.note,
+                supplyAmount,
+                taxAmount,
+                totalAmount,
+              }
+            : record,
+        )
+        .sort(compareStatementRecordsNewestFirst),
+    )
+    setInlineEditRecordId(null)
+  }
+
+  const handleCalendarShiftMonth = (delta: number) => {
+    setCalendarMonth((current) => {
+      const [year, month] = current.split('-').map(Number)
+      const date = new Date(year, (month || 1) - 1 + delta, 1)
+      const nextYear = date.getFullYear()
+      const nextMonth = String(date.getMonth() + 1).padStart(2, '0')
+      return `${nextYear}-${nextMonth}`
+    })
   }
 
   const handleStatementTemplateUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -3156,6 +3694,164 @@ function App() {
                   </tbody>
                 </table>
               </div>
+
+              <div className="admin-panel-header admin-panel-section">
+                <div>
+                  <strong>품목 마스터 관리</strong>
+                  <p>거래처 공통 기본 단가를 지정해두면 거래처별 단가표가 없을 때 자동 적용됩니다.</p>
+                </div>
+                <span>{masterItems.length}개 품목</span>
+              </div>
+
+              <div className="master-item-form">
+                <input
+                  type="text"
+                  value={masterItemDraft.itemName}
+                  onChange={(event) =>
+                    setMasterItemDraft((current) => ({ ...current, itemName: event.target.value }))
+                  }
+                  placeholder="품목명 (예: 더치 오리지널 500ml)"
+                />
+                <input
+                  type="text"
+                  value={masterItemDraft.specUnit}
+                  onChange={(event) =>
+                    setMasterItemDraft((current) => ({ ...current, specUnit: event.target.value }))
+                  }
+                  placeholder="규격/단위 (예: 500/ML)"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={masterItemDraft.unitPrice}
+                  onChange={(event) =>
+                    setMasterItemDraft((current) => ({ ...current, unitPrice: event.target.value }))
+                  }
+                  placeholder="단가 (원)"
+                />
+                <button type="button" className="primary-button" onClick={handleAddMasterItem}>
+                  추가/수정
+                </button>
+              </div>
+
+              {masterItemMessage ? <p className="admin-status">{masterItemMessage}</p> : null}
+
+              <div className="table-wrapper admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>품목</th>
+                      <th>규격/단위</th>
+                      <th>단가</th>
+                      <th style={{ width: 160 }}>관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {masterItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="empty-state">
+                          아직 등록된 품목 마스터가 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      masterItems.map((item) => {
+                        const isEditing = editingMasterItemId === item.id
+                        return (
+                          <tr key={item.id}>
+                            <td>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={editingMasterItemDraft.itemName}
+                                  onChange={(event) =>
+                                    setEditingMasterItemDraft((current) => ({
+                                      ...current,
+                                      itemName: event.target.value,
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                item.itemName
+                              )}
+                            </td>
+                            <td>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={editingMasterItemDraft.specUnit}
+                                  onChange={(event) =>
+                                    setEditingMasterItemDraft((current) => ({
+                                      ...current,
+                                      specUnit: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="예: 500/ML"
+                                />
+                              ) : (
+                                item.specUnit || '-'
+                              )}
+                            </td>
+                            <td>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={editingMasterItemDraft.unitPrice}
+                                  onChange={(event) =>
+                                    setEditingMasterItemDraft((current) => ({
+                                      ...current,
+                                      unitPrice: event.target.value,
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                `${formatCurrency(item.unitPrice)}원`
+                              )}
+                            </td>
+                            <td className="master-item-actions">
+                              {isEditing ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="ghost-button small"
+                                    onClick={handleSaveEditMasterItem}
+                                  >
+                                    저장
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="ghost-button small"
+                                    onClick={handleCancelEditMasterItem}
+                                  >
+                                    취소
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="ghost-button small"
+                                    onClick={() => handleStartEditMasterItem(item)}
+                                  >
+                                    수정
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="ghost-button small danger"
+                                    onClick={() => handleRemoveMasterItem(item.id)}
+                                  >
+                                    삭제
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ) : null}
 
@@ -3164,6 +3860,59 @@ function App() {
               <p className="statement-edit-hint">
                 입력 목록에서 선택한 건을 수정 중입니다. 반영하려면 위의 「저장」, 취소하려면 「수정 취소」를
                 눌러주세요.
+              </p>
+            ) : null}
+
+            {clientMonthSnapshot && clientMonthSnapshot.count > 0 ? (
+              <div className="statement-client-snapshot" role="status">
+                <span className="statement-client-snapshot-title">
+                  {form.clientName} · {clientMonthSnapshot.currentMonth.replace('-', '.')} 월 요약
+                </span>
+                <span className="statement-client-snapshot-pill">{clientMonthSnapshot.count}건</span>
+                <span className="statement-client-snapshot-pill">
+                  {formatCurrency(clientMonthSnapshot.totalAmount)}원
+                </span>
+                <span className="statement-client-snapshot-pill">누적 {clientMonthSnapshot.quantity}개</span>
+                {clientMonthSnapshot.lastDeliveryDate ? (
+                  <span className="statement-client-snapshot-pill">
+                    마지막 납품 {formatDateLabel(clientMonthSnapshot.lastDeliveryDate)}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+
+            {recentRecordsForClient.length > 0 && !editingRecordId ? (
+              <div className="statement-recent-panel">
+                <div className="statement-recent-panel-head">
+                  <strong>최근 납품</strong>
+                  <span>{form.clientName} · 클릭하면 오늘 날짜로 자동 입력</span>
+                </div>
+                <div className="statement-recent-panel-list">
+                  {recentRecordsForClient.map((record) => (
+                    <button
+                      key={record.id}
+                      type="button"
+                      className="statement-recent-panel-item"
+                      onClick={() => handleCopyFromRecentRecord(record)}
+                      title="이 납품을 오늘 날짜로 복제합니다"
+                    >
+                      <span className="statement-recent-panel-item-date">
+                        {formatDateLabel(record.deliveryDate)}
+                      </span>
+                      <span className="statement-recent-panel-item-name">{record.itemName}</span>
+                      <span className="statement-recent-panel-item-meta">
+                        {record.specUnit || '-'} · {record.quantity}개 · {formatCurrency(record.unitPrice)}원
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {duplicateCandidate && !editingRecordId ? (
+              <p className="statement-duplicate-warning" role="alert">
+                같은 날 {duplicateCandidate.clientName}에 「{duplicateCandidate.itemName}」 {duplicateCandidate.quantity}개 건이 이미 있습니다.
+                그대로 저장하면 중복으로 들어갑니다.
               </p>
             ) : null}
             <div className="statement-form-primary-row">
@@ -3231,7 +3980,11 @@ function App() {
                 ) : null}
                 {matchingPricingRule ? (
                   <span className="field-help">
-                    마스터 기준 단가 {formatCurrency(matchingPricingRule.unitPrice)}원 자동 적용
+                    거래처 전용 단가 {formatCurrency(matchingPricingRule.unitPrice)}원 자동 적용
+                  </span>
+                ) : matchingMasterItem ? (
+                  <span className="field-help">
+                    품목 기본 단가 {formatCurrency(matchingMasterItem.unitPrice)}원 자동 적용
                   </span>
                 ) : hasPricingForSelectedClient && form.itemName ? (
                   <span className="field-help warning">
@@ -3244,7 +3997,7 @@ function App() {
               <label className="statement-form-field statement-form-field--spec">
                 규격/단위
                 <div className="quick-option-row">
-                  {QUICK_SPEC_OPTIONS.map((option) => (
+                  {activeQuickSpecOptions.map((option) => (
                     <button
                       key={option.value}
                       type="button"
@@ -3260,7 +4013,7 @@ function App() {
                     type="text"
                     value={form.specUnit}
                     onChange={(event) => handleSpecOtherInputChange(event.target.value)}
-                    placeholder="예: 500/G"
+                    placeholder={isDutchItemName(form.itemName) ? '예: 2/L' : '예: 500/G'}
                   />
                 ) : null}
               </label>
@@ -3336,6 +4089,20 @@ function App() {
               </button>
               <button
                 type="button"
+                className={activeView === 'cards' ? 'active' : ''}
+                onClick={() => setActiveView('cards')}
+              >
+                거래처 카드
+              </button>
+              <button
+                type="button"
+                className={activeView === 'calendar' ? 'active' : ''}
+                onClick={() => setActiveView('calendar')}
+              >
+                캘린더
+              </button>
+              <button
+                type="button"
                 className={activeView === 'summary' ? 'active' : ''}
                 onClick={() => setActiveView('summary')}
               >
@@ -3372,6 +4139,70 @@ function App() {
             </div>
           </div>
 
+          {activeView === 'records' ? (
+            <div className="statements-records-filterbar">
+              <div className="statements-records-search">
+                <input
+                  type="search"
+                  value={recordsSearchQuery}
+                  onChange={(event) => setRecordsSearchQuery(event.target.value)}
+                  placeholder="거래처·품목·메모 검색"
+                />
+                {recordsSearchQuery ? (
+                  <button
+                    type="button"
+                    className="statements-records-search-clear"
+                    onClick={() => setRecordsSearchQuery('')}
+                    aria-label="검색 초기화"
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
+              <div className="statements-records-chips">
+                {[
+                  { id: 'week', label: '최근 7일' },
+                  { id: 'month', label: '이번달' },
+                  { id: 'year', label: `${selectedYear}년` },
+                  { id: 'all', label: '전체' },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`filter-chip${recordsRangeFilter === option.id ? ' active' : ''}`}
+                    onClick={() =>
+                      setRecordsRangeFilter(option.id as typeof recordsRangeFilter)
+                    }
+                  >
+                    {option.label}
+                  </button>
+                ))}
+                <span className="statements-records-chips-divider" aria-hidden="true" />
+                {[
+                  { id: 'all', label: '전체 과세' },
+                  { id: '부가세 별도', label: '별도' },
+                  { id: '부가세 없음', label: '없음' },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`filter-chip${recordsNoteFilter === option.id ? ' active' : ''}`}
+                    onClick={() =>
+                      setRecordsNoteFilter(option.id as typeof recordsNoteFilter)
+                    }
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="statements-records-filter-summary">
+                <strong>{visibleRecords.length.toLocaleString('ko-KR')}건</strong>
+                <span>·</span>
+                <strong>{formatCurrency(visibleTotals.total)}원</strong>
+              </div>
+            </div>
+          ) : null}
+
           {statementTemplateMessage ? <p className="admin-status">{statementTemplateMessage}</p> : null}
           {statementTemplateFileName ? (
             <p className="local-save-status">
@@ -3401,51 +4232,328 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {records.length === 0 ? (
+                  {visibleRecords.length === 0 ? (
                     <tr>
                       <td colSpan={13} className="empty-state">
-                        아직 저장된 거래명세서가 없습니다.
+                        {records.length === 0
+                          ? '아직 저장된 거래명세서가 없습니다.'
+                          : '현재 조건에 맞는 건이 없습니다. 필터나 검색어를 변경해 보세요.'}
                       </td>
                     </tr>
                   ) : (
-                    statementPreviewRecords.map((record) => (
-                      <tr
-                        key={record.id}
-                        className={editingRecordId === record.id ? 'statement-row-editing' : undefined}
-                      >
-                        <td>{statementDeliveryMonthSeqById.get(record.id) ?? '—'}</td>
-                        <td>{formatDateLabel(record.deliveryDate)}</td>
-                        <td>{record.deliveryCount}</td>
-                        <td>{record.clientName}</td>
-                        <td>{record.itemName}</td>
-                        <td>{record.specUnit || '-'}</td>
-                        <td>{record.quantity}</td>
-                        <td>{formatCurrency(record.unitPrice)}</td>
-                        <td>{record.note}</td>
-                        <td>{formatCurrency(record.supplyAmount)}</td>
-                        <td>{formatCurrency(record.taxAmount)}</td>
-                        <td>{formatCurrency(record.totalAmount)}</td>
-                        <td className="statement-record-actions">
-                          <button
-                            type="button"
-                            className="table-action"
-                            onClick={() => handleStartEditStatementRecord(record)}
-                          >
-                            수정
-                          </button>
-                          <button
-                            type="button"
-                            className="table-action"
-                            onClick={() => handleDelete(record.id)}
-                          >
-                            삭제
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    visibleRecords.map((record) => {
+                      const isInlineEditing = inlineEditRecordId === record.id
+                      if (isInlineEditing) {
+                        return (
+                          <tr key={record.id} className="statement-row-editing">
+                            <td>{statementDeliveryMonthSeqById.get(record.id) ?? '—'}</td>
+                            <td>
+                              <input
+                                type="date"
+                                value={inlineEditDraft.deliveryDate}
+                                onChange={(event) =>
+                                  setInlineEditDraft((current) => ({
+                                    ...current,
+                                    deliveryDate: event.target.value,
+                                  }))
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                value={inlineEditDraft.deliveryCount}
+                                onChange={(event) =>
+                                  setInlineEditDraft((current) => ({
+                                    ...current,
+                                    deliveryCount: event.target.value,
+                                  }))
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                value={inlineEditDraft.clientName}
+                                onChange={(event) =>
+                                  setInlineEditDraft((current) => ({
+                                    ...current,
+                                    clientName: event.target.value,
+                                  }))
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                value={inlineEditDraft.itemName}
+                                onChange={(event) =>
+                                  setInlineEditDraft((current) => ({
+                                    ...current,
+                                    itemName: event.target.value,
+                                  }))
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                value={inlineEditDraft.specUnit}
+                                onChange={(event) =>
+                                  setInlineEditDraft((current) => ({
+                                    ...current,
+                                    specUnit: event.target.value,
+                                  }))
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={inlineEditDraft.quantity}
+                                onChange={(event) =>
+                                  setInlineEditDraft((current) => ({
+                                    ...current,
+                                    quantity: event.target.value,
+                                  }))
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={inlineEditDraft.unitPrice}
+                                onChange={(event) =>
+                                  setInlineEditDraft((current) => ({
+                                    ...current,
+                                    unitPrice: event.target.value,
+                                  }))
+                                }
+                              />
+                            </td>
+                            <td>
+                              <select
+                                value={inlineEditDraft.note}
+                                onChange={(event) =>
+                                  setInlineEditDraft((current) => ({
+                                    ...current,
+                                    note: event.target.value,
+                                  }))
+                                }
+                              >
+                                {NOTE_OPTIONS.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td colSpan={3} className="statement-inline-preview">
+                              {(() => {
+                                const q = parseNumber(inlineEditDraft.quantity)
+                                const p = parseNumber(inlineEditDraft.unitPrice)
+                                const supply = q * p
+                                const tax = isTaxFreeNote(inlineEditDraft.note)
+                                  ? 0
+                                  : Math.round(supply * 0.1)
+                                return `공급 ${formatCurrency(supply)} · 세액 ${formatCurrency(tax)} · 계 ${formatCurrency(supply + tax)}`
+                              })()}
+                            </td>
+                            <td className="statement-record-actions">
+                              <button
+                                type="button"
+                                className="table-action primary"
+                                onClick={handleSaveInlineEdit}
+                              >
+                                저장
+                              </button>
+                              <button
+                                type="button"
+                                className="table-action"
+                                onClick={handleCancelInlineEdit}
+                              >
+                                취소
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      }
+                      return (
+                        <tr
+                          key={record.id}
+                          className={`statement-row${editingRecordId === record.id ? ' statement-row-editing' : ''}`}
+                          onDoubleClick={() => handleStartInlineEdit(record)}
+                          title="더블클릭하면 바로 수정합니다"
+                        >
+                          <td>{statementDeliveryMonthSeqById.get(record.id) ?? '—'}</td>
+                          <td>{formatDateLabel(record.deliveryDate)}</td>
+                          <td>{record.deliveryCount}</td>
+                          <td>{record.clientName}</td>
+                          <td>{record.itemName}</td>
+                          <td>{record.specUnit || '-'}</td>
+                          <td>{record.quantity}</td>
+                          <td>{formatCurrency(record.unitPrice)}</td>
+                          <td>{record.note}</td>
+                          <td>{formatCurrency(record.supplyAmount)}</td>
+                          <td>{formatCurrency(record.taxAmount)}</td>
+                          <td>{formatCurrency(record.totalAmount)}</td>
+                          <td className="statement-record-actions">
+                            <button
+                              type="button"
+                              className="table-action"
+                              onClick={() => handleStartInlineEdit(record)}
+                              title="현재 행에서 바로 수정"
+                            >
+                              빠른수정
+                            </button>
+                            <button
+                              type="button"
+                              className="table-action"
+                              onClick={() => handleStartEditStatementRecord(record)}
+                              title="상단 입력 폼에서 수정"
+                            >
+                              폼수정
+                            </button>
+                            <button
+                              type="button"
+                              className="table-action"
+                              onClick={() => handleDelete(record.id)}
+                            >
+                              삭제
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
                   )}
                 </tbody>
               </table>
+            </div>
+          ) : activeView === 'cards' ? (
+            <div className="statements-cards-viewport">
+              {clientCardStats.length === 0 ? (
+                <p className="empty-state">아직 저장된 거래처가 없습니다.</p>
+              ) : (
+                <div className="statements-cards-grid">
+                  {clientCardStats.map((card) => (
+                    <button
+                      key={card.clientName}
+                      type="button"
+                      className="statements-client-card"
+                      onClick={() => handleFilterByClient(card.clientName)}
+                      title="입력 목록에서 이 거래처만 필터링"
+                    >
+                      <div className="statements-client-card-head">
+                        <strong>{card.clientName}</strong>
+                        <span>{card.count}건</span>
+                      </div>
+                      <div className="statements-client-card-amount">
+                        {formatCurrency(card.totalAmount)}원
+                      </div>
+                      <dl className="statements-client-card-meta">
+                        <div>
+                          <dt>이번달</dt>
+                          <dd>{formatCurrency(card.monthAmount)}원</dd>
+                        </div>
+                        <div>
+                          <dt>마지막 납품</dt>
+                          <dd>
+                            {card.lastDeliveryDate ? formatDateLabel(card.lastDeliveryDate) : '—'}
+                          </dd>
+                        </div>
+                      </dl>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : activeView === 'calendar' ? (
+            <div className="statements-calendar-viewport">
+              <div className="statements-calendar-toolbar">
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => handleCalendarShiftMonth(-1)}
+                >
+                  ◀
+                </button>
+                <strong>{calendarMonth.replace('-', '.')}</strong>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => handleCalendarShiftMonth(1)}
+                >
+                  ▶
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() =>
+                    setCalendarMonth(new Date().toISOString().slice(0, 7))
+                  }
+                >
+                  이번달
+                </button>
+              </div>
+              {(() => {
+                const [cy, cm] = calendarMonth.split('-').map(Number)
+                const firstDay = new Date(cy, (cm || 1) - 1, 1)
+                const daysInMonth = new Date(cy, cm || 1, 0).getDate()
+                const leadingBlanks = firstDay.getDay()
+                const cells: Array<{ key: string; date?: string; day?: number }> = []
+                for (let i = 0; i < leadingBlanks; i += 1) {
+                  cells.push({ key: `blank-${i}` })
+                }
+                for (let d = 1; d <= daysInMonth; d += 1) {
+                  const dateIso = `${cy}-${String(cm).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+                  cells.push({ key: dateIso, date: dateIso, day: d })
+                }
+                return (
+                  <div className="statements-calendar-grid">
+                    {['일', '월', '화', '수', '목', '금', '토'].map((dow) => (
+                      <div key={dow} className="statements-calendar-dow">
+                        {dow}
+                      </div>
+                    ))}
+                    {cells.map((cell) => {
+                      if (!cell.date) {
+                        return <div key={cell.key} className="statements-calendar-cell is-blank" />
+                      }
+                      const entry = calendarEntries.get(cell.date)
+                      return (
+                        <div
+                          key={cell.key}
+                          className={`statements-calendar-cell${entry ? ' has-records' : ''}`}
+                        >
+                          <div className="statements-calendar-cell-head">
+                            <span>{cell.day}</span>
+                            {entry ? <em>{entry.count}건</em> : null}
+                          </div>
+                          {entry ? (
+                            <div className="statements-calendar-cell-body">
+                              <strong>{formatCurrency(entry.totalAmount)}원</strong>
+                              <ul>
+                                {entry.records.slice(0, 3).map((record) => (
+                                  <li key={record.id} title={`${record.clientName} · ${record.itemName}`}>
+                                    {record.clientName} · {record.itemName}
+                                  </li>
+                                ))}
+                                {entry.records.length > 3 ? (
+                                  <li className="statements-calendar-more">
+                                    +{entry.records.length - 3}건
+                                  </li>
+                                ) : null}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
             </div>
           ) : (
             <div className="table-wrapper statements-main-table-hscroll" ref={statementMainTableScrollRef}>
