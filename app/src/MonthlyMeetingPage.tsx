@@ -36,12 +36,16 @@ import {
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
+import { BLENDING_DARK_BEAN_NAME } from './inventoryBlendRecipes'
 
 /** 출고 표에서 생두 열과 구분하기 위한 기본 수동 품목(더치·디저트 등) 헤더 */
 const MEETING_OUTBOUND_MANUAL_COLUMN_LABELS = new Set(
   monthlyMeetingData.productionColumns.slice(1).map((label) => label.trim()),
 )
-const MEETING_OUTBOUND_TOTAL_EXCLUDED_BEAN_NAMES = new Set(['Blending-Dark'])
+const MEETING_OUTBOUND_TOTAL_EXCLUDED_BEAN_NAMES = new Set([
+  BLENDING_DARK_BEAN_NAME,
+  'Blending-Dark',
+])
 
 /** 생두 비율 도넛 — 채도 낮은 톤온톤(원두·로스터리 느낌), 무지개색 피함 */
 const OUTBOUND_SHARE_PIE_COLORS = [
@@ -2379,36 +2383,28 @@ function MonthlyMeetingPage() {
 
   return (
     <>
-      <header className="hero-panel">
-        <div>
-          <p className="eyebrow">월 마감회의</p>
-          <h1>{data.title}</h1>
-          <p className="hero-copy">
-            월별 회의 내용을 입력하면 합계와 점유비가 자동 계산되도록 정리했습니다. 상단 두 번째 숫자는 입금
-            합계에서 출금 합계를 뺀 입출금 순손익으로, 1번 요약 맨 아래 표와 같습니다.
-          </p>
-          <div className="hero-meta-row no-print">
+      <main className="meeting-layout">
+        <div className="meeting-page-hero-rehome no-print" aria-label="회의 요약">
+          <h2 className="meeting-page-hero-rehome-heading">{data.title}</h2>
+          <div className="hero-metrics meeting-hero-metrics">
+            {activeOverview.map((metric) => (
+              <div key={metric.label} className="metric-card">
+                <span>{metric.label}</span>
+                <strong>
+                  {metric.value === null
+                    ? '-'
+                    : metric.unit === 'kg'
+                      ? `${meetingAmountDisplayFormatter.format(metric.value)} kg`
+                      : formatMoney(metric.value)}
+                </strong>
+              </div>
+            ))}
+          </div>
+          <div className="hero-meta-row">
             <span className="page-hero-pill">{mode === 'cloud' ? '회사 공용 회의 문서' : '이 브라우저 회의 문서'}</span>
             <PageSaveStatus mode={mode} saveState={saveState} lastSavedAt={lastSavedAt} />
           </div>
         </div>
-        <div className="hero-metrics meeting-hero-metrics">
-          {activeOverview.map((metric) => (
-            <div key={metric.label} className="metric-card">
-              <span>{metric.label}</span>
-              <strong>
-                {metric.value === null
-                  ? '-'
-                  : metric.unit === 'kg'
-                    ? `${meetingAmountDisplayFormatter.format(metric.value)} kg`
-                    : formatMoney(metric.value)}
-              </strong>
-            </div>
-          ))}
-        </div>
-      </header>
-
-      <main className="meeting-layout">
         <section className="panel">
           <div className="panel-header">
             <div className="meeting-section-heading">

@@ -1492,16 +1492,8 @@ function ExpensePage() {
 
   return (
     <div className="meeting-layout">
-      <header className="hero-panel">
-        <div>
-          <p className="eyebrow">현금흐름 관리</p>
-          <h1>지출표 관리</h1>
-          <p className="hero-copy">
-            건별 입력·엑셀 반영이 가능하고, 데이터는 이 브라우저에만 저장됩니다. 아래 표·요약은 같은 조건으로
-            맞춰집니다.
-          </p>
-        </div>
-        <div className="hero-metrics">
+      <section className="panel expense-work-section">
+        <div className="expense-page-snapshot-metrics no-print" aria-label="이번 달 요약">
           <div className="metric-card">
             <span>{hasActiveFilters ? '표시 중 총액' : `${formatMonthLabel(pageState.activeMonth)} 총 지출`}</span>
             <strong>{formatMoney(totalExpenses)}</strong>
@@ -1512,9 +1504,6 @@ function ExpensePage() {
             {unpaidCount > 0 ? <em className="expense-unpaid-badge">{unpaidCount}건</em> : null}
           </div>
         </div>
-      </header>
-
-      <section className="panel expense-work-section">
         <div className="panel-header">
           <div>
             <h2>사업 지출 입력</h2>

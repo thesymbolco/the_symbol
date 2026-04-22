@@ -1,18 +1,47 @@
 import type { InventoryBeanRow } from './inventoryStatusUtils'
 
-/** 품목명이 이 값이면 「블렌딩 다크」행(UI 안내용). 다른 원두와 생산·재고 숫자는 연동하지 않는다. */
-export const BLENDING_DARK_BEAN_NAME = 'Blending-Dark'
+export const BLENDING_DARK_BEAN_NAME = '13. DARK BLEND'
+export const BLENDING_LIGHT_BEAN_NAME = '14. LIGHT BLEND'
+export const BLENDING_DECAFFEINE_BEAN_NAME = '15. DECAFFEINE BLEND'
 
-/** `inventoryStatusUtils` EXTRA_BEAN_ROWS와 동일한 품목명 */
-export const BLENDING_LIGHT_BEAN_NAME = 'Blending-Light'
+/** 예전 엑셀/로컬저장 품목명 → 현재 품목명 */
+const LEGACY_BLENDING_TO_CANONICAL: Readonly<Record<string, string>> = {
+  'Blending-Dark': BLENDING_DARK_BEAN_NAME,
+  'Blending-Light': BLENDING_LIGHT_BEAN_NAME,
+  'Blending-Signature': BLENDING_DECAFFEINE_BEAN_NAME,
+}
+
+export const canonicalBlendDisplayName = (name: string): string => {
+  const t = name.trim()
+  return LEGACY_BLENDING_TO_CANONICAL[t] ?? t
+}
+
+/**
+ * "13. DARK BLEND" / "14 LIGHT BLEND" / "DARK BLEND" 등 번호·공백 차이를 무시한 뒤
+ * "DARK BLEND" 같은 코어만 남긴다(엑셀·수동명이 canonical 전체 문자열과 다를 때 대비).
+ */
+const blendLineCoreName = (name: string): string => {
+  const c = canonicalBlendDisplayName(name).trim()
+  return c.replace(/^\d+(?:\.\s*|\s+)/, '').trim()
+}
+
+const isBlendCore = (name: string, core: 'DARK BLEND' | 'LIGHT BLEND' | 'DECAFFEINE BLEND') =>
+  blendLineCoreName(name).toLowerCase() === core.toLowerCase()
 
 export const isBlendingDarkBeanRow = (bean: InventoryBeanRow | undefined) =>
-  Boolean(bean && bean.name.trim() === BLENDING_DARK_BEAN_NAME)
+  Boolean(bean && isBlendCore(bean.name, 'DARK BLEND'))
 
 export const isBlendingLightBeanRow = (bean: InventoryBeanRow | undefined) =>
-  Boolean(bean && bean.name.trim() === BLENDING_LIGHT_BEAN_NAME)
+  Boolean(bean && isBlendCore(bean.name, 'LIGHT BLEND'))
 
-/** 블렌딩 다크·라이트: 자동 재고 연쇄에서 일별 출고만큼 재고를 줄인다(입고·생산과 별도). */
+export const isBlendingDecaffeineBeanRow = (bean: InventoryBeanRow | undefined) =>
+  Boolean(bean && isBlendCore(bean.name, 'DECAFFEINE BLEND'))
+
+/** DARK / LIGHT / DECAFFEINE 블렌드 품목 — 생두 부족 경고 등에서 제외 */
+export const isBlendingLineBeanRow = (bean: InventoryBeanRow | undefined) =>
+  isBlendingDarkBeanRow(bean) || isBlendingLightBeanRow(bean) || isBlendingDecaffeineBeanRow(bean)
+
+/** 다크·라이트: 자동 재고 = 전일+생산(raw)−출고(입고는 연채에 쓰지 않음). 디카페인 블렌드는 일반 생두와 동일 규칙. */
 export const isBlendingOutboundAdjustsStockRow = (bean: InventoryBeanRow | undefined) =>
   isBlendingDarkBeanRow(bean) || isBlendingLightBeanRow(bean)
 

@@ -2329,37 +2329,32 @@ export default function GreenBeanOrderPage() {
 
   return (
     <div className="meeting-layout green-bean-order-page">
-      <header className="hero-panel">
-        <div>
-          <p className="eyebrow">원두 구매</p>
-          <h1>생두 주문</h1>
-        </div>
-        <div className="green-bean-hero-metrics-row">
-          <div className="green-bean-hero-stat">
-            <span className="green-bean-hero-stat-label">주문표 합계</span>
-            <strong className="green-bean-hero-stat-value green-bean-hero-summary-line">
-              {persisted.rows.filter((r) => r.itemName.trim()).length}개 · {formatKg(totals.sumQty)} · 반영{' '}
-              {formatMoney(totals.sumMoney)}
-            </strong>
-            {totals.sumDeductions > 0 ? (
-              <p className="muted tiny green-bean-hero-deduction-hint">
-                품목 소계 {formatMoney(totals.grossMoney)} − 감면 합계 {formatMoney(totals.sumDeductions)}
-              </p>
-            ) : null}
-          </div>
-          <div className="green-bean-hero-stat-divider" role="presentation" />
-          <div className="green-bean-hero-stat">
-            <span className="green-bean-hero-stat-label">기준 시점</span>
-            <strong className="green-bean-hero-stat-value green-bean-hero-stat-value--baseline">
-              {persisted.baseline
-                ? new Date(persisted.baseline.savedAt).toLocaleString('ko-KR')
-                : '미설정'}
-            </strong>
-          </div>
-        </div>
-      </header>
-
       <section className="panel">
+        <div className="green-bean-page-hero-rehome no-print" aria-label="주문 요약">
+          <div className="green-bean-hero-metrics-row">
+            <div className="green-bean-hero-stat">
+              <span className="green-bean-hero-stat-label">주문표 합계</span>
+              <strong className="green-bean-hero-stat-value green-bean-hero-summary-line">
+                {persisted.rows.filter((r) => r.itemName.trim()).length}개 · {formatKg(totals.sumQty)} · 반영{' '}
+                {formatMoney(totals.sumMoney)}
+              </strong>
+              {totals.sumDeductions > 0 ? (
+                <p className="muted tiny green-bean-hero-deduction-hint">
+                  품목 소계 {formatMoney(totals.grossMoney)} − 감면 합계 {formatMoney(totals.sumDeductions)}
+                </p>
+              ) : null}
+            </div>
+            <div className="green-bean-hero-stat-divider" role="presentation" />
+            <div className="green-bean-hero-stat">
+              <span className="green-bean-hero-stat-label">기준 시점</span>
+              <strong className="green-bean-hero-stat-value green-bean-hero-stat-value--baseline">
+                {persisted.baseline
+                  ? new Date(persisted.baseline.savedAt).toLocaleString('ko-KR')
+                  : '미설정'}
+              </strong>
+            </div>
+          </div>
+        </div>
         <div className="panel-header">
           <div>
             <h2>주문표</h2>

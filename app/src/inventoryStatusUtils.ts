@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx'
+import { canonicalBlendDisplayName } from './inventoryBlendRecipes'
 import { inventoryStatusData } from './inventoryStatusData'
 
 export type InventoryBeanRow = {
@@ -49,6 +50,10 @@ export type InventoryStatusState = {
   /** 일자별 Blending-Light 로스팅 사이클 횟수 */
   blendingLightCycles: number[]
   blendingLightRecipe: BlendingRecipe
+  /**
+   * true: 엑셀을 방금 불러온 뒤 재고를 자동 연쇄로 다시 계산해 덮어쓰지 않고, 시트에 있던 값 그대로 표시
+   */
+  skipAutoStockDisplay?: boolean
 }
 
 export const DEFAULT_BLENDING_DARK_RECIPE: BlendingRecipe = {
@@ -103,7 +108,15 @@ const INVENTORY_VALUE_ROW_LENGTH = BEAN_DAY_END_COLUMN_INDEX - BEAN_DAY_START_CO
 const EXTRA_BEAN_ROWS: InventoryBeanRow[] = [
   {
     no: 25,
-    name: 'Blending-Light',
+    name: '14. LIGHT BLEND',
+    inbound: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
+    production: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
+    outbound: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
+    stock: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, (_, index) => (index < 31 ? 5 : 0)),
+  },
+  {
+    no: 26,
+    name: '15. DECAFFEINE BLEND',
     inbound: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
     production: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
     outbound: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
@@ -130,6 +143,16 @@ const toNumber = (value: unknown) => {
 
   return 0
 }
+
+const roundToTwoDecimals = (n: number) => {
+  if (!Number.isFinite(n)) {
+    return 0
+  }
+  return Math.round(n * 100) / 100
+}
+
+/** `parseInventoryWorkbook` 전용: 셀 값을 읽고 kg은 소수 둘째 자리로 맞춤 */
+const parseWorkbookCellKg = (value: unknown) => roundToTwoDecimals(toNumber(value))
 
 const formatLocalDate = (date: Date) => {
   const year = date.getFullYear()
@@ -216,6 +239,7 @@ const cloneState = (state: InventoryStatusState): InventoryStatusState => ({
         components: DEFAULT_BLENDING_LIGHT_RECIPE.components.map((c) => ({ ...c })),
         roastedPerCycle: DEFAULT_BLENDING_LIGHT_RECIPE.roastedPerCycle,
       },
+  skipAutoStockDisplay: state.skipAutoStockDisplay ?? false,
 })
 
 const ensureExpectedBeanRows = (beanRows: InventoryBeanRow[]) => {
@@ -257,6 +281,7 @@ export const createZeroedInventoryStatusFrom = (current: InventoryStatusState): 
     })),
     blendingDarkCycles: base.blendingDarkCycles.map(() => 0),
     blendingLightCycles: base.blendingLightCycles.map(() => 0),
+    skipAutoStockDisplay: false,
   }
 }
 
@@ -292,6 +317,7 @@ export const createDefaultInventoryStatusState = (): InventoryStatusState => {
       components: DEFAULT_BLENDING_LIGHT_RECIPE.components.map((c) => ({ ...c })),
       roastedPerCycle: DEFAULT_BLENDING_LIGHT_RECIPE.roastedPerCycle,
     },
+    skipAutoStockDisplay: false,
   })
 }
 
@@ -366,13 +392,13 @@ export const normalizeInventoryStatusState = (value: unknown): InventoryStatusSt
       days: source.days.map((day) => toNumber(day)),
       beanRows: source.beanRows.map((bean) => ({
         no: toNumber(bean.no),
-        name: String(bean.name ?? ''),
+        name: canonicalBlendDisplayName(String(bean.name ?? '')),
         inbound: Array.isArray(bean.inbound) ? bean.inbound.map(toNumber) : [],
         production: Array.isArray(bean.production) ? bean.production.map(toNumber) : [],
         outbound: Array.isArray(bean.outbound) ? bean.outbound.map(toNumber) : [],
         stock: Array.isArray(bean.stock) ? bean.stock.map(toNumber) : [],
       })),
-      roastingColumns: source.roastingColumns.map((column) => String(column)),
+      roastingColumns: source.roastingColumns.map((column) => canonicalBlendDisplayName(String(column))),
       roastingRows: source.roastingRows.map((row) => ({
         day: row.day === '계' ? '계' : toNumber(row.day),
         values: Array.isArray(row.values) ? row.values.map(toNumber) : [],
@@ -393,6 +419,7 @@ export const normalizeInventoryStatusState = (value: unknown): InventoryStatusSt
         (source as Partial<InventoryStatusState>).blendingLightRecipe,
         DEFAULT_BLENDING_LIGHT_RECIPE,
       ),
+      skipAutoStockDisplay: source.skipAutoStockDisplay === true,
     }
   } catch {
     return null
@@ -458,7 +485,7 @@ export const parseInventoryWorkbook = (workbook: XLSX.WorkBook): InventoryStatus
 
   const createValueRow = (targetRowIndex: number) =>
     Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, (_, offset) =>
-      toNumber(getSheetCellValue(beanSheet, targetRowIndex, BEAN_DAY_START_COLUMN_INDEX + offset)),
+      parseWorkbookCellKg(getSheetCellValue(beanSheet, targetRowIndex, BEAN_DAY_START_COLUMN_INDEX + offset)),
     )
 
   for (let rowIndex = 2; rowIndex <= 79; rowIndex += 1) {
@@ -473,7 +500,7 @@ export const parseInventoryWorkbook = (workbook: XLSX.WorkBook): InventoryStatus
     if (name) {
       currentBean = {
         no,
-        name,
+        name: canonicalBlendDisplayName(name),
         inbound: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
         production: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
         outbound: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
@@ -500,8 +527,8 @@ export const parseInventoryWorkbook = (workbook: XLSX.WorkBook): InventoryStatus
   }
 
   const roastingColumns = Array.from({ length: 26 }, (_, offset) =>
-    String(getSheetCellValue(roastingSheet, 1, offset + 1) ?? ''),
-  ).filter(Boolean)
+    canonicalBlendDisplayName(String(getSheetCellValue(roastingSheet, 1, offset + 1) ?? '')),
+  ).filter((col) => col.length > 0)
 
   const roastingRows: InventoryRoastingRow[] = []
 
@@ -512,7 +539,7 @@ export const parseInventoryWorkbook = (workbook: XLSX.WorkBook): InventoryStatus
     }
 
     const values = Array.from({ length: roastingColumns.length }, (_, offset) =>
-      toNumber(getSheetCellValue(roastingSheet, rowIndex, offset + 1)),
+      parseWorkbookCellKg(getSheetCellValue(roastingSheet, rowIndex, offset + 1)),
     )
 
     roastingRows.push({
@@ -540,5 +567,6 @@ export const parseInventoryWorkbook = (workbook: XLSX.WorkBook): InventoryStatus
       components: DEFAULT_BLENDING_LIGHT_RECIPE.components.map((c) => ({ ...c })),
       roastedPerCycle: DEFAULT_BLENDING_LIGHT_RECIPE.roastedPerCycle,
     },
+    skipAutoStockDisplay: false,
   }
 }

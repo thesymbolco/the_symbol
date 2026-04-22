@@ -463,16 +463,8 @@ function StaffPayrollPage() {
 
   return (
     <div className="meeting-layout staff-payroll-page">
-      <header className="hero-panel">
-        <div>
-          <p className="eyebrow">인건비 메모</p>
-          <h1>직원·급여·근무</h1>
-          <p className="hero-copy">
-            매장명·직책·부서·월 급여·지급일·재직 여부를 한곳에 적어 두는 용도입니다. 3.3%·4대보험은 단순 추정이며,
-            실제 세액·보험과 다를 수 있습니다.
-          </p>
-        </div>
-        <div className="hero-metrics">
+      <section className="panel expense-work-section">
+        <div className="staff-payroll-snapshot-metrics no-print" aria-label="급여 요약">
           <div className="metric-card">
             <span>재직 인원</span>
             <strong>{activeRecords.length}명</strong>
@@ -486,9 +478,6 @@ function StaffPayrollPage() {
             <strong>{formatMoney(monthlyInputTotalActive)}</strong>
           </div>
         </div>
-      </header>
-
-      <section className="panel expense-work-section">
         <div className="panel-header">
           <div>
             <h2>직원 목록</h2>

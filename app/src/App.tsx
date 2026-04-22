@@ -1,19 +1,23 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ExcelJS from 'exceljs'
-import * as XLSX from 'xlsx'
+import BeanSalesAnalysisPage from './BeanSalesAnalysisPage'
 import ExpensePage, { EXPENSE_PAGE_STORAGE_KEY } from './ExpensePage'
 import MemoPage, { MEMO_PAGE_STORAGE_KEY } from './MemoPage'
 import TeamManagementPage from './TeamManagementPage'
 import GreenBeanOrderPage, { GREEN_BEAN_ORDER_STORAGE_KEY } from './GreenBeanOrderPage'
 import StaffPayrollPage, { STAFF_PAYROLL_STORAGE_KEY } from './StaffPayrollPage.tsx'
-import InventoryStatusPage from './InventoryStatusPage'
-import {
+import InventoryStatusPage, {
+  getLowGreenBeanWarningItems,
+  INVENTORY_STATUS_CACHE_EVENT,
   INVENTORY_AUTO_STOCK_MODE_KEY,
   INVENTORY_STATUS_BASELINE_STORAGE_KEY,
   INVENTORY_STATUS_STORAGE_KEY,
   INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY,
   INVENTORY_STATUS_TEMPLATE_STORAGE_KEY,
+  inventoryPageScopedKey,
+  type LowGreenBeanWarningItem,
 } from './InventoryStatusPage'
+import { normalizeInventoryStatusState } from './inventoryStatusUtils'
 import MonthlyMeetingPage, {
   MONTHLY_MEETING_DATA_KEY,
   STATEMENT_RECORDS_SAVED_EVENT,
@@ -44,6 +48,7 @@ const MONTH_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}월`)
 
 type AppActivePage =
   | 'statements'
+  | 'beanSalesAnalysis'
   | 'meeting'
   | 'inventory'
   | 'expense'
@@ -60,7 +65,14 @@ const PAGE_CATEGORY_GROUPS: {
   label: string
   pages: { page: AppActivePage; label: string }[]
 }[] = [
-  { id: 'trade', label: '거래·명세', pages: [{ page: 'statements', label: '거래명세 관리' }] },
+  { 
+    id: 'trade', 
+    label: '거래·명세', 
+    pages: [
+      { page: 'statements', label: '거래명세 관리' },
+      { page: 'beanSalesAnalysis', label: '원두별 매출 분석' }
+    ] 
+  },
   {
     id: 'closing',
     label: '마감·지출',
@@ -93,6 +105,10 @@ const PAGE_HEADER_META: Record<AppActivePage, { title: string; description: stri
     title: '거래명세 관리',
     description: '거래명세 입력, 단가 관리, 월별 납품현황을 한 화면에서 이어서 관리합니다.',
   },
+  beanSalesAnalysis: {
+    title: '원두별 매출 분석',
+    description: '거래명세서 데이터를 기반으로 원두별 매출과 수익성을 분석합니다.',
+  },
   meeting: {
     title: '월 마감회의',
     description: '월 요약, 비용 현황, 생산과 판매 지표를 한 번에 정리하는 회의 화면입니다.',
@@ -124,6 +140,77 @@ const PAGE_HEADER_META: Record<AppActivePage, { title: string; description: stri
   team: {
     title: '팀 관리',
     description: '회사 구성원 계정을 만들고 역할과 연락처를 관리합니다.',
+  },
+}
+
+/** `#root … > header`(app-home-shell) 안 전체 너비 히어로 — 각 화면 본문의 hero-panel과 중복되지 않게 여기만 사용 */
+const WORKSPACE_SHELL_PAGE_HERO: Record<
+  AppActivePage,
+  { headline: string; copyLocal: string; copyCloud: string }
+> = {
+  statements: {
+    headline: '거래명세서 입력 및 월별 납품현황 관리',
+    copyLocal:
+      '거래명세서를 먼저 입력하고, 같은 데이터를 기반으로 월별 납품현황을 자동 집계할 수 있게 만든 화면입니다. 저장 데이터는 현재 브라우저에만 보관됩니다.',
+    copyCloud:
+      '거래명세, 단가표, 템플릿 설정이 같은 회사 문서로 함께 동기화됩니다. 입력 내용은 다른 기기에서도 이어서 확인할 수 있습니다.',
+  },
+  beanSalesAnalysis: {
+    headline: '원두별 매출 및 수익성 분석',
+    copyLocal:
+      '거래명세서와 생두 주문 데이터를 연동해 원두별 매출, 원가, 수익을 분석합니다. 데이터는 현재 브라우저에 저장됩니다.',
+    copyCloud:
+      '거래명세서와 생두 주문 데이터를 연동해 원두별 매출, 원가, 수익을 분석합니다. 회사 문서로 동기화되어 팀원과 공유할 수 있습니다.',
+  },
+  expense: {
+    headline: '지출표 관리',
+    copyLocal:
+      '건별 입력·엑셀 반영이 가능하고, 데이터는 이 브라우저에만 저장됩니다. 아래 표·요약은 같은 조건으로 맞춰집니다.',
+    copyCloud:
+      '건별 입력·엑셀 반영이 가능합니다. 회사 문서로 동기화되면 팀·다른 기기에서도 같은 지출표를 이어서 볼 수 있습니다.',
+  },
+  inventory: {
+    headline: '생두 / 로스팅 현황',
+    copyLocal:
+      '입고·생산·출고 흐름과 재고 기준일을 같은 맥락으로 확인합니다. 저장 데이터는 이 브라우저에만 보관될 수 있습니다.',
+    copyCloud:
+      '입고·생산·출고 흐름과 재고 기준일을 같은 맥락으로 확인합니다. 회사 문서로 동기화되면 팀과 같은 재고 표를 공유합니다.',
+  },
+  meeting: {
+    headline: '월 마감회의',
+    copyLocal:
+      '월별 회의 내용을 입력하면 합계와 점유비가 자동 계산되도록 정리했습니다. 상단 두 번째 숫자는 입금 합계에서 출금 합계를 뺀 입출금 순손익으로, 1번 요약 맨 아래 표와 같습니다.',
+    copyCloud:
+      '월별 회의 내용을 입력하면 합계와 점유비가 자동 계산되도록 정리했습니다. 회의 문서가 클라우드에 있으면 팀과 함께 수정·확인할 수 있습니다.',
+  },
+  staffPayroll: {
+    headline: '직원·급여·근무',
+    copyLocal:
+      '매장명·직책·부서·월 급여·지급일·재직 여부를 한곳에 적어 두는 용도입니다. 3.3%·4대보험은 단순 추정이며, 실제 세액·보험과 다를 수 있습니다. 데이터는 이 브라우저에만 저장될 수 있습니다.',
+    copyCloud:
+      '매장명·직책·부서·월 급여·지급일·재직 여부를 한곳에 적어 두는 용도입니다. 3.3%·4대보험은 단순 추정이며, 실제 세액·보험과 다를 수 있습니다. 회사 문서로 동기화되면 팀과 공유할 수 있습니다.',
+  },
+  greenBeanOrder: {
+    headline: '생두 주문',
+    copyLocal:
+      '생두 주문, 가격 비교, 재고 연동 정보를 한곳에서 확인합니다. 저장 데이터는 이 브라우저에만 보관될 수 있습니다.',
+    copyCloud:
+      '생두 주문, 가격 비교, 재고 연동 정보를 한곳에서 확인합니다. 회사 문서로 동기화되면 주문표를 팀과 함께 관리할 수 있습니다.',
+  },
+  memo: {
+    headline: '메모',
+    copyLocal: `${PAGE_HEADER_META.memo.description} 이 브라우저에만 저장될 수 있습니다.`,
+    copyCloud: `${PAGE_HEADER_META.memo.description} 회사 문서로 동기화되면 팀과 공유할 수 있습니다.`,
+  },
+  dailyMeeting: {
+    headline: '일일회의',
+    copyLocal: `${PAGE_HEADER_META.dailyMeeting.description} 이 브라우저에만 저장될 수 있습니다.`,
+    copyCloud: `${PAGE_HEADER_META.dailyMeeting.description} 회사 문서로 동기화되면 팀과 공유할 수 있습니다.`,
+  },
+  team: {
+    headline: '팀 관리',
+    copyLocal: `${PAGE_HEADER_META.team.description} 이 브라우저에만 저장될 수 있습니다.`,
+    copyCloud: `${PAGE_HEADER_META.team.description} 클라우드 회사에서 구성원을 함께 관리합니다.`,
   },
 }
 
@@ -297,24 +384,6 @@ const DEFAULT_STATEMENT_TEMPLATE_SETTINGS: StatementTemplateSettings = {
 }
 
 const today = new Date().toISOString().slice(0, 10)
-const pricingHeaderAliases = {
-  clientName: ['거래처명', '업체명', '거래처', '업체', '매장명'],
-  itemName: ['품목', '상품명', '제품명', '메뉴명', '원두명'],
-  specUnit: ['규격/단위', '규격', '단위'],
-  unitPrice: ['단가', '판매단가', '공급단가', '원가단가', '금액'],
-} as const
-const statementHeaderAliases = {
-  deliveryDate: ['날짜', '납품일', '거래일자', '일자'],
-  clientName: ['거래처명', '업체명', '거래처', '업체', '매장명'],
-  itemName: ['품목', '상품명', '제품명', '메뉴명', '원두명'],
-  specUnit: ['규격/단위', '규격', '단위'],
-  quantity: ['수량', '개수'],
-  unitPrice: ['단가', '판매단가', '공급단가', '원가단가', '금액'],
-  issueDate: ['발행일자', '작성일자', '청구일'],
-  paymentDate: ['입금일자', '수금일', '입금일'],
-  deliveryCount: ['횟수', '회차'],
-  note: ['비고', '과세구분', '부가세'],
-} as const
 
 const defaultFormState = (): FormState => ({
   deliveryDate: today,
@@ -685,6 +754,29 @@ const setStatementTemplateCellText = (worksheet: ExcelJS.Worksheet, address: str
  * 납품일 월·일 표시 칸: 값은 숫자, 표시는 양식과 같이 `4권` `13호` 형태(Excel 사용자 지정 `0"권"` / `0"호"`).
  * 숫자만 넣으면 서식이 빠져 `4`·`13`만 보이는 문제를 막습니다.
  */
+/** `거래명세서양식` 시트: 본문 품목 행 10~24행 다음의 공급가액·세액 합계 행(좌·우 동일 블록). */
+const STATEMENT_TEMPLATE_FOOTER_SUPPLY_COLS = ['M', 'AF'] as const
+const STATEMENT_TEMPLATE_FOOTER_TAX_COLS = ['P', 'AI'] as const
+const STATEMENT_TEMPLATE_FOOTER_ROW = 25
+
+const setStatementTemplateFooterTotals = (
+  worksheet: ExcelJS.Worksheet,
+  supplyTotal: number,
+  taxTotal: number,
+) => {
+  const assignNumber = (address: string, value: number) => {
+    const cell = worksheet.getCell(address)
+    cell.value = value
+    cell.numFmt = '#,##0'
+  }
+  for (const col of STATEMENT_TEMPLATE_FOOTER_SUPPLY_COLS) {
+    assignNumber(`${col}${STATEMENT_TEMPLATE_FOOTER_ROW}`, supplyTotal)
+  }
+  for (const col of STATEMENT_TEMPLATE_FOOTER_TAX_COLS) {
+    assignNumber(`${col}${STATEMENT_TEMPLATE_FOOTER_ROW}`, taxTotal)
+  }
+}
+
 const setStatementDeliveryBadgeCells = (
   worksheet: ExcelJS.Worksheet,
   monthAddress: string,
@@ -761,87 +853,10 @@ const fillStatementTemplateWorksheet = (
     worksheet.getCell(`AF${rowNumber}`).value = row?.supplyAmount ?? ''
     worksheet.getCell(`AI${rowNumber}`).value = row?.taxAmount ?? ''
   })
+
+  // 양식에 남은 SUM / ROUND(공급*10%) 식은 줄별 세액(내림·1원 보정) 합과 어긋날 수 있음 → 앱 집계와 동일하게 고정
+  setStatementTemplateFooterTotals(worksheet, statementSheet.supplyAmount, statementSheet.taxAmount)
 }
-
-const formatIsoDate = (year: number, month: number, day: number) =>
-  `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-
-const formatLocalDate = (value: Date) =>
-  formatIsoDate(value.getFullYear(), value.getMonth() + 1, value.getDate())
-
-const parseSpreadsheetDate = (value: unknown) => {
-  if (value === null || value === undefined || value === '') {
-    return ''
-  }
-
-  if (typeof value === 'number') {
-    const parsed = XLSX.SSF.parse_date_code(value)
-    if (parsed) {
-      return formatIsoDate(parsed.y, parsed.m, parsed.d)
-    }
-  }
-
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return formatLocalDate(value)
-  }
-
-  const text = String(value).trim()
-  if (!text) {
-    return ''
-  }
-
-  if (text.toUpperCase() === '=TODAY()') {
-    return today
-  }
-
-  const normalized = text
-    .replace(/[년.]/g, '-')
-    .replace(/[월/]/g, '-')
-    .replace(/일/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-  const directMatch = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\D.*)?$/)
-  if (directMatch) {
-    return formatIsoDate(
-      Number(directMatch[1]),
-      Number(directMatch[2]),
-      Number(directMatch[3]),
-    )
-  }
-
-  const monthFirstMatch = normalized.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})(?:\D.*)?$/)
-  if (monthFirstMatch) {
-    const year =
-      monthFirstMatch[3].length === 2 ? 2000 + Number(monthFirstMatch[3]) : Number(monthFirstMatch[3])
-
-    return formatIsoDate(year, Number(monthFirstMatch[1]), Number(monthFirstMatch[2]))
-  }
-
-  const isoLikeMatch = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})T/)
-  if (isoLikeMatch) {
-    return formatIsoDate(
-      Number(isoLikeMatch[1]),
-      Number(isoLikeMatch[2]),
-      Number(isoLikeMatch[3]),
-    )
-  }
-
-  const parsedTimestamp = Date.parse(text)
-  if (!Number.isNaN(parsedTimestamp)) {
-    const parsedDate = new Date(parsedTimestamp)
-    return formatLocalDate(parsedDate)
-  }
-
-  return ''
-}
-
-const normalizeHeader = (value: unknown) =>
-  String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '')
-    .replace(/\r?\n/g, '')
 
 const normalizeName = (value: string) => value.trim().replace(/\s+/g, ' ')
 
@@ -951,6 +966,30 @@ const calculateTaxAmount = (supplyAmount: number, note: string) => {
   return totalAmount % 10 === 1 ? Math.max(0, baseTax - 1) : baseTax
 }
 
+/** 거래처별 단가표 우선, 없으면 품목 마스터 단가 (단건 입력과 동일). */
+const resolveStatementPricingForClientItem = (
+  pricingRules: PricingRule[],
+  masterItems: MasterItem[],
+  clientName: string,
+  itemName: string,
+): { specUnit: string; unitPrice: number } | null => {
+  const rule =
+    pricingRules.find(
+      (entry) =>
+        normalizeName(entry.clientName) === normalizeName(clientName) &&
+        normalizeName(entry.itemName) === normalizeName(itemName),
+    ) ?? null
+  if (rule) {
+    return { specUnit: rule.specUnit.trim(), unitPrice: rule.unitPrice }
+  }
+  const master =
+    masterItems.find((entry) => normalizeName(entry.itemName) === normalizeName(itemName)) ?? null
+  if (master) {
+    return { specUnit: master.specUnit.trim(), unitPrice: master.unitPrice }
+  }
+  return null
+}
+
 const normalizeLoadedRecords = (records: Array<StatementRecord & { note?: string }>) =>
   records.map((record) => ({
     ...record,
@@ -990,44 +1029,6 @@ const loadStoredFileHandle = async (): Promise<FileSystemFileHandle | null> => {
 
     request.onsuccess = () => {
       resolve((request.result as FileSystemFileHandle | undefined) ?? null)
-      database.close()
-    }
-    request.onerror = () => {
-      reject(request.error)
-      database.close()
-    }
-  })
-}
-
-const saveStoredFileHandle = async (fileHandle: FileSystemFileHandle) => {
-  const database = await openFileHandleDb()
-
-  return new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(FILE_HANDLE_STORE_NAME, 'readwrite')
-    const store = transaction.objectStore(FILE_HANDLE_STORE_NAME)
-    const request = store.put(fileHandle, FILE_HANDLE_KEY)
-
-    request.onsuccess = () => {
-      resolve()
-      database.close()
-    }
-    request.onerror = () => {
-      reject(request.error)
-      database.close()
-    }
-  })
-}
-
-const clearStoredFileHandle = async () => {
-  const database = await openFileHandleDb()
-
-  return new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(FILE_HANDLE_STORE_NAME, 'readwrite')
-    const store = transaction.objectStore(FILE_HANDLE_STORE_NAME)
-    const request = store.delete(FILE_HANDLE_KEY)
-
-    request.onsuccess = () => {
-      resolve()
       database.close()
     }
     request.onerror = () => {
@@ -1224,225 +1225,6 @@ const pickLatestDate = (dates: string[]) => {
   return filtered.at(-1) ?? ''
 }
 
-const parsePricingSheet = (workbook: XLSX.WorkBook): PricingRule[] => {
-  const firstSheetName = workbook.SheetNames[0]
-
-  if (!firstSheetName) {
-    return []
-  }
-
-  const sheet = workbook.Sheets[firstSheetName]
-  const rows = XLSX.utils.sheet_to_json<(string | number)[]>(sheet, {
-    header: 1,
-    defval: '',
-    raw: false,
-  })
-
-  const headerRowIndex = rows.findIndex((row) => {
-    const normalizedCells = row.map(normalizeHeader)
-    return (
-      normalizedCells.some((cell) => pricingHeaderAliases.clientName.map(normalizeHeader).includes(cell)) &&
-      normalizedCells.some((cell) => pricingHeaderAliases.itemName.map(normalizeHeader).includes(cell)) &&
-      normalizedCells.some((cell) => pricingHeaderAliases.unitPrice.map(normalizeHeader).includes(cell))
-    )
-  })
-
-  if (headerRowIndex === -1) {
-    throw new Error('엑셀에서 거래처명, 품목, 단가 컬럼을 찾지 못했습니다.')
-  }
-
-  const headers = rows[headerRowIndex].map(normalizeHeader)
-  const findHeaderIndex = (aliases: readonly string[]) =>
-    headers.findIndex((cell) => aliases.map(normalizeHeader).includes(cell))
-
-  const clientIndex = findHeaderIndex(pricingHeaderAliases.clientName)
-  const itemIndex = findHeaderIndex(pricingHeaderAliases.itemName)
-  const specIndex = findHeaderIndex(pricingHeaderAliases.specUnit)
-  const unitPriceIndex = findHeaderIndex(pricingHeaderAliases.unitPrice)
-
-  if (clientIndex === -1 || itemIndex === -1 || unitPriceIndex === -1) {
-    throw new Error('단가표 필수 컬럼이 부족합니다.')
-  }
-
-  const parsedRules: PricingRule[] = rows
-    .slice(headerRowIndex + 1)
-    .flatMap((row) => {
-      const clientName = normalizeName(String(row[clientIndex] ?? ''))
-      const itemName = normalizeName(String(row[itemIndex] ?? ''))
-      const specUnit = specIndex === -1 ? '' : normalizeName(String(row[specIndex] ?? ''))
-      const unitPrice = parseNumber(String(row[unitPriceIndex] ?? ''))
-
-      if (!clientName || !itemName || unitPrice <= 0) {
-        return []
-      }
-
-      return [
-        {
-          id: crypto.randomUUID(),
-          clientName,
-          itemName,
-          specUnit,
-          unitPrice,
-        },
-      ]
-    })
-
-  const deduped = new Map<string, PricingRule>()
-  parsedRules.forEach((rule) => {
-    deduped.set([rule.clientName, rule.itemName, rule.specUnit].join('__'), rule)
-  })
-
-  return Array.from(deduped.values()).sort((a, b) =>
-    `${a.clientName}-${a.itemName}`.localeCompare(`${b.clientName}-${b.itemName}`, 'ko'),
-  )
-}
-
-const parseStatementSheet = (
-  workbook: XLSX.WorkBook,
-  pricingRules: PricingRule[],
-): StatementRecord[] => {
-  const firstSheetName = workbook.SheetNames[0]
-
-  if (!firstSheetName) {
-    return []
-  }
-
-  const sheet = workbook.Sheets[firstSheetName]
-  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
-    header: 1,
-    defval: '',
-    raw: false,
-    dateNF: 'yyyy-mm-dd',
-  })
-
-  const headerRowIndex = rows.findIndex((row) => {
-    const normalizedCells = row.map(normalizeHeader)
-    return (
-      normalizedCells.some((cell) =>
-        statementHeaderAliases.deliveryDate.map(normalizeHeader).includes(cell),
-      ) &&
-      normalizedCells.some((cell) =>
-        statementHeaderAliases.clientName.map(normalizeHeader).includes(cell),
-      ) &&
-      normalizedCells.some((cell) =>
-        statementHeaderAliases.itemName.map(normalizeHeader).includes(cell),
-      ) &&
-      normalizedCells.some((cell) =>
-        statementHeaderAliases.quantity.map(normalizeHeader).includes(cell),
-      )
-    )
-  })
-
-  if (headerRowIndex === -1) {
-    throw new Error('거래 엑셀에서 날짜, 거래처명, 품목, 수량 컬럼을 찾지 못했습니다.')
-  }
-
-  const headers = rows[headerRowIndex].map(normalizeHeader)
-  const findHeaderIndex = (aliases: readonly string[]) =>
-    headers.findIndex((cell) => aliases.map(normalizeHeader).includes(cell))
-
-  const deliveryDateIndex = findHeaderIndex(statementHeaderAliases.deliveryDate)
-  const clientIndex = findHeaderIndex(statementHeaderAliases.clientName)
-  const itemIndex = findHeaderIndex(statementHeaderAliases.itemName)
-  const specIndex = findHeaderIndex(statementHeaderAliases.specUnit)
-  const quantityIndex = findHeaderIndex(statementHeaderAliases.quantity)
-  const unitPriceIndex = findHeaderIndex(statementHeaderAliases.unitPrice)
-  const issueDateIndex = findHeaderIndex(statementHeaderAliases.issueDate)
-  const paymentDateIndex = findHeaderIndex(statementHeaderAliases.paymentDate)
-  const deliveryCountIndex = findHeaderIndex(statementHeaderAliases.deliveryCount)
-  const noteIndex = findHeaderIndex(statementHeaderAliases.note)
-
-  const parsedRecords: StatementRecord[] = rows
-    .slice(headerRowIndex + 1)
-    .flatMap((row) => {
-      const deliveryDate = parseSpreadsheetDate(row[deliveryDateIndex])
-      const clientName = normalizeName(String(row[clientIndex] ?? ''))
-      const itemName = normalizeName(String(row[itemIndex] ?? ''))
-      const quantity =
-        quantityIndex === -1 ? 0 : parseNumber(String(row[quantityIndex] ?? ''))
-      const directUnitPrice =
-        unitPriceIndex === -1 ? 0 : parseNumber(String(row[unitPriceIndex] ?? ''))
-      const matchedRule =
-        pricingRules.find(
-          (rule) =>
-            normalizeName(rule.clientName) === clientName &&
-            normalizeName(rule.itemName) === itemName,
-        ) ?? null
-      const specUnit =
-        specIndex === -1
-          ? matchedRule?.specUnit ?? ''
-          : normalizeName(String(row[specIndex] ?? '')) || matchedRule?.specUnit || ''
-      const unitPrice = directUnitPrice > 0 ? directUnitPrice : matchedRule?.unitPrice ?? 0
-      const note =
-        noteIndex === -1 ? '부가세 별도' : normalizeName(String(row[noteIndex] ?? '')) || '부가세 별도'
-
-      if (!deliveryDate || !clientName || !itemName || quantity <= 0 || unitPrice <= 0) {
-        return []
-      }
-
-      const supplyAmount = quantity * unitPrice
-      const taxAmount = calculateTaxAmount(supplyAmount, note)
-      const issueDate =
-        issueDateIndex === -1 ? deliveryDate : parseSpreadsheetDate(row[issueDateIndex]) || deliveryDate
-      const paymentDate =
-        paymentDateIndex === -1 ? '' : parseSpreadsheetDate(row[paymentDateIndex])
-      const deliveryCount =
-        deliveryCountIndex === -1
-          ? '1'
-          : String(row[deliveryCountIndex] ?? '').trim() || '1'
-
-      return [
-        {
-          id: crypto.randomUUID(),
-          deliveryDate,
-          issueDate,
-          paymentDate,
-          deliveryCount,
-          clientName,
-          itemName,
-          specUnit,
-          quantity,
-          unitPrice,
-          note,
-          supplyAmount,
-          taxAmount,
-          totalAmount: supplyAmount + taxAmount,
-        },
-      ]
-    })
-
-  return parsedRecords.sort(compareStatementRecordsNewestFirst)
-}
-
-/** id 제외 동일 거래(엑셀/업로드 이중 반영·같은 행 중복 파싱 방지). */
-const statementRecordImportSignature = (r: StatementRecord) =>
-  [
-    r.deliveryDate,
-    r.clientName,
-    r.itemName,
-    r.specUnit,
-    String(r.quantity),
-    String(r.unitPrice),
-    r.note,
-    r.deliveryCount,
-    r.issueDate,
-    r.paymentDate,
-  ].join('\u001f')
-
-const dedupeStatementRecordsByImportSignature = (records: StatementRecord[]): StatementRecord[] => {
-  const seen = new Set<string>()
-  const out: StatementRecord[] = []
-  for (const r of records) {
-    const sig = statementRecordImportSignature(r)
-    if (seen.has(sig)) {
-      continue
-    }
-    seen.add(sig)
-    out.push(r)
-  }
-  return out
-}
-
 /** 납품일 연·월(YYYY-MM)이 같은 건끼리, 납품일·거래처·id 순으로 월 내 몇 번째인지(1부터). */
 const statementRecordDeliveryMonthSeqById = (records: StatementRecord[]): Map<string, number> => {
   const byMonth = new Map<string, StatementRecord[]>()
@@ -1543,14 +1325,43 @@ function App() {
     [],
   )
 
+  const [lowGreenBeanWarningItems, setLowGreenBeanWarningItems] = useState<LowGreenBeanWarningItem[]>([])
+
+  const lowGreenBeanWarningDigest = useMemo(
+    () =>
+      lowGreenBeanWarningItems
+        .map((i) => `${i.name}\0${i.kg.toFixed(4)}\0${i.threshold}`)
+        .join('|'),
+    [lowGreenBeanWarningItems],
+  )
+  const [isLowGreenBeanPanelDismissed, setIsLowGreenBeanPanelDismissed] = useState(false)
+  useEffect(() => {
+    setIsLowGreenBeanPanelDismissed(false)
+  }, [lowGreenBeanWarningDigest])
+
+  const refreshLowGreenBeanWarnings = useCallback(() => {
+    try {
+      const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
+      const raw = window.localStorage.getItem(key)
+      if (!raw) {
+        setLowGreenBeanWarningItems([])
+        return
+      }
+      const state = normalizeInventoryStatusState(JSON.parse(raw) as unknown)
+      if (!state) {
+        setLowGreenBeanWarningItems([])
+        return
+      }
+      setLowGreenBeanWarningItems(getLowGreenBeanWarningItems(state))
+    } catch {
+      setLowGreenBeanWarningItems([])
+    }
+  }, [mode, activeCompanyId])
+
   const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR))
-  const [activeView, setActiveView] = useState<'records' | 'summary' | 'cards' | 'calendar'>(
-    'records',
-  )
+  const [activeView, setActiveView] = useState<'records' | 'summary' | 'cards' | 'calendar'>('cards')
   const [recordsSearchQuery, setRecordsSearchQuery] = useState('')
-  const [recordsRangeFilter, setRecordsRangeFilter] = useState<'all' | 'week' | 'month' | 'year'>(
-    'year',
-  )
+  const [recordsRangeFilter, setRecordsRangeFilter] = useState<'all' | 'week' | 'month' | 'year'>('month')
   const [recordsNoteFilter, setRecordsNoteFilter] = useState<'all' | '부가세 별도' | '부가세 없음'>(
     'all',
   )
@@ -1576,6 +1387,21 @@ function App() {
   })
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7))
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
+  const [statementEntryModalOpen, setStatementEntryModalOpen] = useState(false)
+  const [bulkItemPickerOpen, setBulkItemPickerOpen] = useState(false)
+  const [bulkItemPickerQuery, setBulkItemPickerQuery] = useState('')
+  const [bulkItemPickerPick, setBulkItemPickerPick] = useState<{
+    selected: Set<string>
+    quantities: Record<string, string>
+  }>(() => ({ selected: new Set(), quantities: {} }))
+  const [pricingAdminClientKey, setPricingAdminClientKey] = useState('')
+  const [pricingAdminClientInput, setPricingAdminClientInput] = useState('')
+  const [pricingAdminLineDraft, setPricingAdminLineDraft] = useState({
+    itemName: '',
+    specUnit: '',
+    unitPrice: '',
+  })
+  const [pricingRuleFormMessage, setPricingRuleFormMessage] = useState('')
   const [isCustomClient, setIsCustomClient] = useState(false)
   const [isCustomItem, setIsCustomItem] = useState(false)
   const [isCustomSpec, setIsCustomSpec] = useState(false)
@@ -1584,8 +1410,6 @@ function App() {
   const [isAdminUnlockDialogOpen, setIsAdminUnlockDialogOpen] = useState(false)
   const [adminUnlockPin, setAdminUnlockPin] = useState('')
   const [adminUnlockError, setAdminUnlockError] = useState('')
-  const [pricingUploadMessage, setPricingUploadMessage] = useState('')
-  const [statementUploadMessage, setStatementUploadMessage] = useState('')
   const [statementTemplateBase64, setStatementTemplateBase64] = useState<string | null>(() =>
     window.localStorage.getItem(STATEMENT_TEMPLATE_STORAGE_KEY),
   )
@@ -1609,11 +1433,10 @@ function App() {
   })
   const [isStatementTemplateEditMode, setIsStatementTemplateEditMode] = useState(false)
   const [statementTemplateMessage, setStatementTemplateMessage] = useState('')
-  const [isStatementPreviewOpen, setIsStatementPreviewOpen] = useState(true)
+  const [isStatementPreviewOpen, setIsStatementPreviewOpen] = useState(false)
   const [backupFileHandle, setBackupFileHandle] = useState<FileSystemFileHandle | null>(null)
   const [excelExportDirHandle, setExcelExportDirHandle] = useState<FileSystemDirectoryHandle | null>(null)
   const [excelExportFolderMessage, setExcelExportFolderMessage] = useState('')
-  const [backupStatusMessage, setBackupStatusMessage] = useState('')
   const [isBackupReady, setIsBackupReady] = useState(false)
   const lastBackupSnapshotRef = useRef('')
   const [isRecordsStorageReady, setIsRecordsStorageReady] = useState(false)
@@ -1636,7 +1459,6 @@ function App() {
   const statementStickyHScrollInnerRef = useRef<HTMLDivElement | null>(null)
   const statementHScrollSyncingRef = useRef(false)
   const [statementStickyHScrollVisible, setStatementStickyHScrollVisible] = useState(false)
-  const statementFileUploadInFlightRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -1694,6 +1516,30 @@ function App() {
   }, [activePage])
 
   useEffect(() => {
+    void refreshLowGreenBeanWarnings()
+    const onCacheOrStorage = () => {
+      void refreshLowGreenBeanWarnings()
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshLowGreenBeanWarnings()
+      }
+    }
+    window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, onCacheOrStorage)
+    window.addEventListener('storage', onCacheOrStorage)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, onCacheOrStorage)
+      window.removeEventListener('storage', onCacheOrStorage)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [refreshLowGreenBeanWarnings])
+
+  useEffect(() => {
+    void refreshLowGreenBeanWarnings()
+  }, [activePage, refreshLowGreenBeanWarnings])
+
+  useEffect(() => {
     if (!isRecordsStorageReady) {
       return
     }
@@ -1744,6 +1590,29 @@ function App() {
       JSON.stringify(statementTemplateSettings),
     )
   }, [statementTemplateSettings])
+
+  useEffect(() => {
+    if (activePage !== 'statements') {
+      setStatementEntryModalOpen(false)
+    }
+  }, [activePage])
+
+  useEffect(() => {
+    if (!statementEntryModalOpen) {
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return
+      }
+      if (bulkItemPickerOpen || isAdminUnlockDialogOpen) {
+        return
+      }
+      setStatementEntryModalOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [statementEntryModalOpen, bulkItemPickerOpen, isAdminUnlockDialogOpen])
 
   useEffect(() => {
     if (
@@ -1816,7 +1685,6 @@ function App() {
 
     if (mode === 'cloud') {
       setIsBackupReady(true)
-      setBackupStatusMessage('클라우드 모드에서는 로컬 저장 파일 자동 복원을 건너뜁니다.')
       return () => {
         isMounted = false
       }
@@ -1840,7 +1708,6 @@ function App() {
 
         if (permission !== 'granted') {
           if (isMounted) {
-            setBackupStatusMessage('로컬 저장 파일 권한을 다시 연결해주세요.')
             setIsBackupReady(true)
           }
           return
@@ -1910,19 +1777,9 @@ function App() {
           } catch {
             setStatementTemplateSettings({ ...DEFAULT_STATEMENT_TEMPLATE_SETTINGS })
           }
-          setBackupStatusMessage(
-            backupPayload.savedAt
-              ? `로컬 파일 불러옴: ${new Date(backupPayload.savedAt).toLocaleString('ko-KR')}`
-              : '로컬 파일과 연결되었습니다.',
-          )
-        } else {
-          setBackupStatusMessage('로컬 저장 파일과 연결되었습니다.')
         }
       } catch (error) {
         console.error('로컬 저장 파일을 복원하지 못했습니다.', error)
-        if (isMounted) {
-          setBackupStatusMessage('로컬 저장 파일 복원에 실패했습니다.')
-        }
       } finally {
         if (isMounted) {
           setIsBackupReady(true)
@@ -1991,10 +1848,8 @@ function App() {
 
         await writeBackupFile(backupFileHandle, records, pricingRules)
         lastBackupSnapshotRef.current = snapshot
-        setBackupStatusMessage(`자동 저장 완료: ${new Date().toLocaleTimeString('ko-KR')}`)
       } catch (error) {
         console.error('로컬 저장 파일에 쓰지 못했습니다.', error)
-        setBackupStatusMessage('자동 저장에 실패했습니다. 저장 파일을 다시 연결해주세요.')
       }
     }
 
@@ -2016,7 +1871,6 @@ function App() {
 
           await writeBackupFile(backupFileHandle, records, pricingRules)
           lastBackupSnapshotRef.current = snapshot
-          setBackupStatusMessage(`전체 자동 저장 완료: ${new Date().toLocaleTimeString('ko-KR')}`)
         } catch (error) {
           console.error('전체 백업 자동 저장에 실패했습니다.', error)
         }
@@ -2058,6 +1912,49 @@ function App() {
     return Array.from(merged).sort((a, b) => a.localeCompare(b, 'ko'))
   }, [pricingRules, records])
 
+  const pricingRulesGrouped = useMemo(() => {
+    const map = new Map<string, { displayName: string; rules: PricingRule[] }>()
+    for (const rule of pricingRules) {
+      const key = normalizeName(rule.clientName)
+      const existing = map.get(key)
+      if (!existing) {
+        map.set(key, { displayName: rule.clientName.trim(), rules: [rule] })
+      } else {
+        existing.rules.push(rule)
+      }
+    }
+    for (const bucket of map.values()) {
+      bucket.rules.sort((a, b) =>
+        `${a.itemName}\u0000${a.specUnit}`.localeCompare(`${b.itemName}\u0000${b.specUnit}`, 'ko'),
+      )
+    }
+    return Array.from(map.entries())
+      .map(([clientKey, bucket]) => ({ clientKey, displayName: bucket.displayName, rules: bucket.rules }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ko'))
+  }, [pricingRules])
+
+  const pricingAdminRulesForView = useMemo(() => {
+    if (!pricingAdminClientKey) {
+      return []
+    }
+    return pricingRules.filter((r) => normalizeName(r.clientName) === pricingAdminClientKey)
+  }, [pricingAdminClientKey, pricingRules])
+
+  const pricingAdminClientSaveLabel = useMemo(() => {
+    if (!pricingAdminClientKey) {
+      return ''
+    }
+    const fromRule = pricingRules.find((r) => normalizeName(r.clientName) === pricingAdminClientKey)
+    if (fromRule?.clientName.trim()) {
+      return fromRule.clientName.trim()
+    }
+    return pricingAdminClientInput.trim()
+  }, [pricingAdminClientKey, pricingAdminClientInput, pricingRules])
+
+  useEffect(() => {
+    setPricingAdminLineDraft({ itemName: '', specUnit: '', unitPrice: '' })
+  }, [pricingAdminClientKey])
+
   const selectedClientPricingRules = useMemo(
     () =>
       pricingRules.filter(
@@ -2098,6 +1995,14 @@ function App() {
 
     return Array.from(new Set([...clientItems, ...masterNames])).sort((a, b) => a.localeCompare(b, 'ko'))
   }, [allItemOptions, masterItems, selectedClientPricingRules])
+
+  const bulkPickerVisibleItems = useMemo(() => {
+    const q = bulkItemPickerQuery.trim().toLowerCase()
+    if (!q) {
+      return itemOptions
+    }
+    return itemOptions.filter((name) => name.toLowerCase().includes(q))
+  }, [bulkItemPickerQuery, itemOptions])
 
   const matchingPricingRule = useMemo(
     () =>
@@ -2615,6 +2520,176 @@ function App() {
     applyPricingRuleToForm(form.clientName, value)
   }
 
+  const resetBulkItemPickerPick = () =>
+    setBulkItemPickerPick({ selected: new Set(), quantities: {} })
+
+  const handleOpenBulkItemPicker = () => {
+    if (!form.clientName.trim()) {
+      window.alert('거래처명을 먼저 선택하거나 입력해주세요.')
+      return
+    }
+    setBulkItemPickerQuery('')
+    resetBulkItemPickerPick()
+    setBulkItemPickerOpen(true)
+  }
+
+  const handleCloseBulkItemPicker = () => {
+    setBulkItemPickerOpen(false)
+    setBulkItemPickerQuery('')
+    resetBulkItemPickerPick()
+  }
+
+  const bulkPickerDefaultQtyString = () => {
+    const q = parseNumber(form.quantity)
+    return q > 0 ? String(q) : '1'
+  }
+
+  const handleBulkItemPickerToggle = (itemName: string) => {
+    setBulkItemPickerPick((prev) => {
+      const selected = new Set(prev.selected)
+      const quantities = { ...prev.quantities }
+      const def = bulkPickerDefaultQtyString()
+      if (selected.has(itemName)) {
+        selected.delete(itemName)
+        delete quantities[itemName]
+      } else {
+        selected.add(itemName)
+        quantities[itemName] = quantities[itemName] ?? def
+      }
+      return { selected, quantities }
+    })
+  }
+
+  const handleBulkItemPickerSelectAllVisible = () => {
+    setBulkItemPickerPick((prev) => {
+      const selected = new Set(prev.selected)
+      const quantities = { ...prev.quantities }
+      const def = bulkPickerDefaultQtyString()
+      bulkPickerVisibleItems.forEach((name) => {
+        selected.add(name)
+        if (!quantities[name]) {
+          quantities[name] = def
+        }
+      })
+      return { selected, quantities }
+    })
+  }
+
+  const handleBulkItemPickerClearVisible = () => {
+    setBulkItemPickerPick((prev) => {
+      const selected = new Set(prev.selected)
+      const quantities = { ...prev.quantities }
+      bulkPickerVisibleItems.forEach((name) => {
+        selected.delete(name)
+        delete quantities[name]
+      })
+      return { selected, quantities }
+    })
+  }
+
+  const handleBulkItemPickerQtyChange = (itemName: string, value: string) => {
+    setBulkItemPickerPick((prev) => ({
+      selected: new Set(prev.selected),
+      quantities: { ...prev.quantities, [itemName]: value },
+    }))
+  }
+
+  const handleBulkAddStatementItems = () => {
+    const clientTrim = form.clientName.trim()
+    if (!clientTrim) {
+      window.alert('거래처명을 먼저 선택하거나 입력해주세요.')
+      return
+    }
+    if (!form.deliveryDate) {
+      window.alert('납품일을 입력해주세요.')
+      return
+    }
+    const selectedNames = Array.from(bulkItemPickerPick.selected)
+    if (selectedNames.length === 0) {
+      window.alert('추가할 품목을 하나 이상 선택해주세요.')
+      return
+    }
+
+    const unresolved: string[] = []
+    const zeroPrice: string[] = []
+    const newRecords: StatementRecord[] = []
+
+    for (const rawName of selectedNames) {
+      const itemLabel = rawName.trim()
+      const resolved = resolveStatementPricingForClientItem(
+        pricingRules,
+        masterItems,
+        clientTrim,
+        itemLabel,
+      )
+      if (!resolved) {
+        unresolved.push(itemLabel)
+        continue
+      }
+      if (resolved.unitPrice <= 0) {
+        zeroPrice.push(itemLabel)
+        continue
+      }
+      const qtyRaw = bulkItemPickerPick.quantities[itemLabel] ?? ''
+      let quantity = parseNumber(qtyRaw)
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        quantity = 1
+      }
+      const supplyAmount = quantity * resolved.unitPrice
+      const taxAmount = calculateTaxAmount(supplyAmount, form.note)
+      newRecords.push({
+        id: crypto.randomUUID(),
+        deliveryDate: form.deliveryDate,
+        issueDate: form.deliveryDate,
+        paymentDate: '',
+        deliveryCount: form.deliveryCount,
+        clientName: clientTrim,
+        itemName: itemLabel,
+        specUnit: resolved.specUnit,
+        quantity,
+        unitPrice: resolved.unitPrice,
+        note: form.note,
+        supplyAmount,
+        taxAmount,
+        totalAmount: supplyAmount + taxAmount,
+      })
+    }
+
+    const skipped = [...unresolved, ...zeroPrice]
+
+    if (newRecords.length === 0) {
+      window.alert(
+        skipped.length
+          ? `단가를 적용할 수 있는 품목이 없습니다.\n제외: ${skipped.join(', ')}`
+          : '추가할 수 있는 품목이 없습니다.',
+      )
+      return
+    }
+
+    const hasDuplicateAgainstExisting = newRecords.some((r) =>
+      records.some(
+        (rec) =>
+          rec.id !== editingRecordId &&
+          rec.deliveryDate === r.deliveryDate &&
+          normalizeName(rec.clientName) === normalizeName(r.clientName) &&
+          normalizeName(rec.itemName) === normalizeName(r.itemName),
+      ),
+    )
+    if (
+      hasDuplicateAgainstExisting &&
+      !window.confirm('선택한 품목 중 일부는 같은 날짜·거래처에 이미 있습니다. 그래도 추가할까요?')
+    ) {
+      return
+    }
+
+    setRecords((current) => [...newRecords, ...current].sort(compareStatementRecordsNewestFirst))
+    handleCloseBulkItemPicker()
+
+    if (skipped.length > 0) {
+      window.alert(`${newRecords.length}건을 추가했습니다.\n단가 없음·0원으로 제외: ${skipped.join(', ')}`)
+    }
+  }
+
   const handleSpecSelectionChange = (value: string) => {
     setIsCustomSpec(false)
     setForm((current) => ({ ...current, specUnit: value }))
@@ -2623,59 +2698,6 @@ function App() {
   const handleSpecOtherInputChange = (value: string) => {
     handleFieldChange('specUnit', value)
     setIsCustomSpec(value.trim() !== '' && !QUICK_SPEC_VALUES.has(value.trim()))
-  }
-
-  const handlePickBackupFile = async () => {
-    const pickerApi = (
-      window as Window & {
-        showSaveFilePicker?: (options?: {
-          suggestedName?: string
-          types?: Array<{ description?: string; accept: Record<string, string[]> }>
-        }) => Promise<FileSystemFileHandle>
-      }
-    ).showSaveFilePicker
-
-    if (!pickerApi) {
-      setBackupStatusMessage('현재 브라우저는 로컬 파일 자동 저장을 지원하지 않습니다.')
-      return
-    }
-
-    try {
-      const fileHandle = await pickerApi({
-        suggestedName: '거래명세서_로컬백업.json',
-        types: [
-          {
-            description: 'JSON files',
-            accept: { 'application/json': ['.json'] },
-          },
-        ],
-      })
-
-      await saveStoredFileHandle(fileHandle)
-      await writeBackupFile(fileHandle, records, pricingRules)
-      lastBackupSnapshotRef.current = getBackupSnapshot(records, pricingRules)
-      setBackupFileHandle(fileHandle)
-      setIsBackupReady(true)
-      setBackupStatusMessage('로컬 저장 파일이 연결되었습니다. 이후 변경분은 자동 저장됩니다.')
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return
-      }
-
-      console.error('로컬 저장 파일 연결에 실패했습니다.', error)
-      setBackupStatusMessage('로컬 저장 파일 연결에 실패했습니다.')
-    }
-  }
-
-  const handleDisconnectBackupFile = async () => {
-    try {
-      await clearStoredFileHandle()
-      setBackupFileHandle(null)
-      setBackupStatusMessage('로컬 저장 파일 연결을 해제했습니다.')
-    } catch (error) {
-      console.error('로컬 저장 파일 연결 해제에 실패했습니다.', error)
-      setBackupStatusMessage('로컬 저장 파일 연결 해제에 실패했습니다.')
-    }
   }
 
   const saveExcelToPreferredFolder = async (
@@ -2794,31 +2816,101 @@ function App() {
     }
   }
 
-  const handlePricingFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+  const pricingRuleDedupeKey = (clientName: string, itemName: string, specUnit: string) =>
+    [normalizeName(clientName), normalizeName(itemName), normalizeName(specUnit)].join('\0')
 
-    if (!file) {
-      return
+  const upsertPricingRuleRow = (
+    rawClient: string,
+    rawItem: string,
+    rawSpec: string,
+    rawUnitPrice: string,
+  ): boolean => {
+    const clientName = rawClient.trim()
+    const itemName = rawItem.trim()
+    const specUnit = rawSpec.trim()
+    const unitPrice = Number(rawUnitPrice.replaceAll(',', '').trim() || '0')
+
+    if (!clientName || !itemName) {
+      setPricingRuleFormMessage('거래처명과 품목은 꼭 입력해주세요.')
+      return false
+    }
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      setPricingRuleFormMessage('단가는 0보다 큰 숫자로 입력해주세요.')
+      return false
     }
 
-    try {
-      const buffer = await file.arrayBuffer()
-      const workbook = XLSX.read(buffer, { type: 'array' })
-      const parsedRules = parsePricingSheet(workbook)
+    const dedupe = pricingRuleDedupeKey(clientName, itemName, specUnit)
+    setPricingRules((current) => {
+      const filtered = current.filter(
+        (r) => pricingRuleDedupeKey(r.clientName, r.itemName, r.specUnit) !== dedupe,
+      )
+      const nextRule: PricingRule = {
+        id: crypto.randomUUID(),
+        clientName,
+        itemName,
+        specUnit,
+        unitPrice,
+      }
+      return [...filtered, nextRule].sort((a, b) =>
+        `${a.clientName}-${a.itemName}`.localeCompare(`${b.clientName}-${b.itemName}`, 'ko'),
+      )
+    })
+    setPricingRuleFormMessage(`「${clientName}」·「${itemName}」 저장`)
+    return true
+  }
 
-      setPricingRules(parsedRules)
-      setPricingUploadMessage(`${parsedRules.length}개의 단가 마스터를 불러왔습니다.`)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '단가표 업로드에 실패했습니다.'
-      setPricingUploadMessage(message)
-    } finally {
-      event.target.value = ''
+  const handlePricingAdminDropdownChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value
+    if (!value) {
+      setPricingAdminClientKey('')
+      setPricingAdminClientInput('')
+      return
+    }
+    const row = pricingRulesGrouped.find((g) => g.clientKey === value)
+    setPricingAdminClientKey(value)
+    setPricingAdminClientInput(row?.displayName ?? '')
+  }
+
+  const handleOpenPricingAdminClientFromInput = () => {
+    const raw = pricingAdminClientInput.trim()
+    if (!raw) {
+      setPricingRuleFormMessage('거래처명을 입력하거나 목록에서 고르세요.')
+      return
+    }
+    const key = normalizeName(raw)
+    const row = pricingRulesGrouped.find((g) => g.clientKey === key)
+    setPricingAdminClientKey(key)
+    setPricingAdminClientInput(row?.displayName ?? raw)
+    setPricingRuleFormMessage('')
+  }
+
+  const handleSavePricingAdminLine = () => {
+    if (!pricingAdminClientKey || !pricingAdminClientSaveLabel) {
+      setPricingRuleFormMessage('거래처를 먼저 선택하세요.')
+      return
+    }
+    if (
+      upsertPricingRuleRow(
+        pricingAdminClientSaveLabel,
+        pricingAdminLineDraft.itemName,
+        pricingAdminLineDraft.specUnit,
+        pricingAdminLineDraft.unitPrice,
+      )
+    ) {
+      setPricingAdminLineDraft({ itemName: '', specUnit: '', unitPrice: '' })
     }
   }
 
-  const handleResetPricingRules = () => {
-    setPricingRules([])
-    setPricingUploadMessage('단가 마스터를 초기화했습니다.')
+  const handleRemovePricingRule = (id: string) => {
+    const target = pricingRules.find((r) => r.id === id)
+    if (!target) {
+      return
+    }
+    if (!window.confirm(`「${target.clientName}」·「${target.itemName}」 단가 규칙을 삭제할까요?`)) {
+      return
+    }
+    setPricingRules((current) => current.filter((r) => r.id !== id))
+    setPricingRuleFormMessage('단가 규칙을 삭제했습니다.')
   }
 
   const handleAddMasterItem = () => {
@@ -2925,54 +3017,6 @@ function App() {
     setMasterItemMessage(`「${target.itemName}」 품목을 삭제했습니다.`)
   }
 
-  const handleStatementFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-
-    if (!file) {
-      return
-    }
-
-    if (statementFileUploadInFlightRef.current) {
-      event.target.value = ''
-      return
-    }
-
-    statementFileUploadInFlightRef.current = true
-
-    try {
-      const buffer = await file.arrayBuffer()
-      const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
-      const parsedRecords = parseStatementSheet(workbook, pricingRules)
-
-      const uniqueIncoming = dedupeStatementRecordsByImportSignature(parsedRecords)
-      const droppedInFile = parsedRecords.length - uniqueIncoming.length
-
-      if (uniqueIncoming.length === 0) {
-        throw new Error('입력 목록으로 옮길 수 있는 거래 데이터가 없습니다.')
-      }
-
-      setRecords((current) =>
-        dedupeStatementRecordsByImportSignature([...uniqueIncoming, ...current]).sort(
-          compareStatementRecordsNewestFirst,
-        ),
-      )
-      setActiveView('records')
-      const baseMsg = `${uniqueIncoming.length}건을 입력 목록에 반영했습니다.`
-      setStatementUploadMessage(
-        droppedInFile > 0
-          ? `${baseMsg} (엑셀 안에서 동일한 거래로 보이는 ${droppedInFile}건은 중복 제거했습니다.)`
-          : `${baseMsg}`,
-      )
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '거래 엑셀 업로드에 실패했습니다.'
-      setStatementUploadMessage(message)
-    } finally {
-      statementFileUploadInFlightRef.current = false
-      event.target.value = ''
-    }
-  }
-
   const resetStatementFormAfterSave = () => {
     setForm((current) => ({
       ...defaultFormState(),
@@ -3051,9 +3095,10 @@ function App() {
     setIsCustomItem(nextCustomItem)
     setIsCustomSpec(nextCustomSpec)
     setEditingRecordId(record.id)
+    setStatementEntryModalOpen(true)
     setActiveView('records')
     const formPanel = document.querySelector('.statements-form-compact')
-    formPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    window.requestAnimationFrame(() => formPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
   }
 
   const handleDelete = (id: string) => {
@@ -3078,8 +3123,9 @@ function App() {
       unitPrice: String(record.unitPrice),
       note: record.note,
     })
+    setStatementEntryModalOpen(true)
     const formPanel = document.querySelector('.statements-form-compact')
-    formPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    window.requestAnimationFrame(() => formPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
   }
 
   const handleFilterByClient = (clientName: string) => {
@@ -3516,15 +3562,17 @@ function App() {
                 <h3>{mode === 'cloud' ? `${activeCompany?.companyName ?? '클라우드'} 워크스페이스` : '로컬 워크스페이스'}</h3>
               </div>
               <p className="workspace-overview-copy">
-                현재 <strong>{activePageMeta.title}</strong> 화면을 보고 있습니다. 같은 구역의 화면을 빠르게 넘기거나,
-                다른 업무 구역으로 바로 이동할 수 있습니다.
+                현재 <strong>{activePageMeta.title}</strong> 화면을 보고 있습니다. 같은 구역의 화면을 빠르게
+                넘기거나, 다른 업무 구역으로 바로 이동할 수 있습니다.
               </p>
               <div className="workspace-overview-pills">
                 <span className="workspace-showcase-pill">{activeCategoryLabel}</span>
                 <span className="workspace-showcase-pill">
                   {mode === 'cloud' ? activeCompany?.companyName ?? '팀 워크스페이스' : '개인 워크스페이스'}
                 </span>
-                <span className="workspace-showcase-pill">{mode === 'cloud' ? '팀 공유 모드' : '개인 브라우저 모드'}</span>
+                <span className="workspace-showcase-pill">
+                  {mode === 'cloud' ? '팀 공유 모드' : '개인 브라우저 모드'}
+                </span>
               </div>
             </section>
 
@@ -3546,6 +3594,68 @@ function App() {
                 <strong>{activeCategoryGroup.pages.length}개</strong>
               </article>
             </div>
+
+            <header
+              className="hero-panel statements-hero-compact statements-hero-embedded app-home-workspace-page-hero-span no-print"
+              aria-label="현재 화면 안내"
+            >
+              <div>
+                <p className="eyebrow">
+                  {mode === 'cloud' ? activeCompany?.companyName ?? '클라우드 워크스페이스' : '로컬 워크스페이스'}
+                </p>
+                <h1>{WORKSPACE_SHELL_PAGE_HERO[activePage].headline}</h1>
+                <p className="hero-copy">
+                  {mode === 'cloud'
+                    ? WORKSPACE_SHELL_PAGE_HERO[activePage].copyCloud
+                    : WORKSPACE_SHELL_PAGE_HERO[activePage].copyLocal}
+                </p>
+                <div className="hero-meta-row no-print">
+                  <span className="page-hero-pill">
+                    {mode === 'cloud' ? '회사 공용 문서' : '개인 브라우저 문서'}
+                  </span>
+                  {activePage === 'statements' ? (
+                    <PageSaveStatus
+                      mode={mode}
+                      saveState={statementSaveState}
+                      lastSavedAt={statementLastSavedAt}
+                    />
+                  ) : null}
+                </div>
+              </div>
+              <div className="hero-metrics">
+                {activePage === 'statements' ? (
+                  <>
+                    <div className="metric-card">
+                      <span>저장 건수</span>
+                      <strong>{records.length}건</strong>
+                    </div>
+                    <div className="metric-card">
+                      <span>전체 총액</span>
+                      <strong>{formatCurrency(grandTotal)}원</strong>
+                    </div>
+                    <div className="metric-card">
+                      <span>{selectedYear} 집계 거래처</span>
+                      <strong>{summaryRows.length}곳</strong>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="metric-card">
+                      <span>업무 구역</span>
+                      <strong>{activeCategoryLabel}</strong>
+                    </div>
+                    <div className="metric-card">
+                      <span>이 화면</span>
+                      <strong>{activePageMeta.title}</strong>
+                    </div>
+                    <div className="metric-card">
+                      <span>저장·연동</span>
+                      <strong>{mode === 'cloud' ? '클라우드' : '로컬'}</strong>
+                    </div>
+                  </>
+                )}
+              </div>
+            </header>
           </div>
 
         </section>
@@ -3554,569 +3664,48 @@ function App() {
       {activePage === 'statements' ? (
         <>
       <div className="statements-page">
-      <header className="hero-panel statements-hero-compact">
-        <div>
-          <p className="eyebrow">
-            {mode === 'cloud' ? activeCompany?.companyName ?? '클라우드 워크스페이스' : '로컬 워크스페이스'}
-          </p>
-          <h1>거래명세서 입력 및 월별 납품현황 관리</h1>
-          <p className="hero-copy">
-            {mode === 'cloud'
-              ? '거래명세, 단가표, 템플릿 설정이 같은 회사 문서로 함께 동기화됩니다. 입력 내용은 다른 기기에서도 이어서 확인할 수 있습니다.'
-              : '거래명세서를 먼저 입력하고, 같은 데이터를 기반으로 월별 납품현황을 자동 집계할 수 있게 만든 화면입니다. 저장 데이터는 현재 브라우저에만 보관됩니다.'}
-          </p>
-          <div className="hero-meta-row no-print">
-            <span className="page-hero-pill">{mode === 'cloud' ? '회사 공용 문서' : '개인 브라우저 문서'}</span>
-            <PageSaveStatus mode={mode} saveState={statementSaveState} lastSavedAt={statementLastSavedAt} />
-          </div>
-        </div>
-        <div className="hero-metrics">
-          <div className="metric-card">
-            <span>저장 건수</span>
-            <strong>{records.length}건</strong>
-          </div>
-          <div className="metric-card">
-            <span>전체 총액</span>
-            <strong>{formatCurrency(grandTotal)}원</strong>
-          </div>
-          <div className="metric-card">
-            <span>{selectedYear} 집계 거래처</span>
-            <strong>{summaryRows.length}곳</strong>
-          </div>
-        </div>
-      </header>
-
       <main className="statements-main">
-        <section className="panel form-panel statements-form-compact">
-          <div className="panel-header">
-            <div>
-              <h2>거래명세서 입력</h2>
-              <p>입력하면 아래 목록과 월별 납품현황에 바로 반영됩니다.</p>
-            </div>
-            <div className="form-panel-actions">
-              <button
-                type="button"
-                className="ghost-button statement-header-admin"
-                onClick={handleAdminModeButtonClick}
-              >
-                {isAdminOpen ? '관리자 모드 닫기' : '관리자 모드'}
-              </button>
-              <button
-                type="submit"
-                form="statement-entry-form"
-                className="primary-button statement-header-save"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-
-          {isAdminOpen ? (
-            <div className="admin-panel">
-              <div className="local-save-panel local-save-panel--in-admin">
-                <div>
-                  <strong>로컬 자동 저장</strong>
-                  <p>
-                    JSON 파일을 한 번 연결하면 거래내역과 단가표가 변경될 때마다 해당 파일에 자동으로
-                    저장됩니다.
-                  </p>
-                </div>
-                <div className="local-save-actions">
-                  <button type="button" className="ghost-button" onClick={handlePickBackupFile}>
-                    {backupFileHandle ? '저장 파일 다시 선택' : '저장 파일 연결'}
-                  </button>
-                  {backupFileHandle ? (
-                    <button type="button" className="ghost-button" onClick={handleDisconnectBackupFile}>
-                      연결 해제
-                    </button>
-                  ) : null}
-                </div>
-                <p className="local-save-status">
-                  {backupStatusMessage || '아직 연결된 로컬 저장 파일이 없습니다.'}
-                </p>
-              </div>
-
-              <div className="admin-panel-header">
-                <div>
-                  <strong>단가 마스터 관리</strong>
-                  <p>거래처별 단가표 엑셀을 올리면 입력 화면에서 자동 적용됩니다.</p>
-                </div>
-                <span>{pricingRules.length}개 단가 규칙</span>
-              </div>
-
-              <div className="admin-actions">
-                <label className="upload-button">
-                  단가표 엑셀 업로드
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={handlePricingFileUpload}
-                  />
-                </label>
-                <label className="upload-button secondary">
-                  거래 엑셀 업로드
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={handleStatementFileUpload}
-                  />
-                </label>
-                <button type="button" className="ghost-button" onClick={handleResetPricingRules}>
-                  단가표 초기화
-                </button>
-              </div>
-
-              <p className="admin-hint">
-                엑셀 컬럼 예시: `거래처명`, `품목`, `규격/단위`, `단가`, `비고(부가세 없음)`
-              </p>
-
-              {pricingUploadMessage ? <p className="admin-status">{pricingUploadMessage}</p> : null}
-              {statementUploadMessage ? <p className="admin-status">{statementUploadMessage}</p> : null}
-
-              <div className="table-wrapper admin-table-wrapper">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>거래처명</th>
-                      <th>품목</th>
-                      <th>규격/단위</th>
-                      <th>단가</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pricingRules.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="empty-state">
-                          아직 업로드된 단가표가 없습니다.
-                        </td>
-                      </tr>
-                    ) : (
-                      pricingRules.slice(0, 12).map((rule) => (
-                        <tr key={rule.id}>
-                          <td>{rule.clientName}</td>
-                          <td>{rule.itemName}</td>
-                          <td>{rule.specUnit || '-'}</td>
-                          <td>{formatCurrency(rule.unitPrice)}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="admin-panel-header admin-panel-section">
-                <div>
-                  <strong>품목 마스터 관리</strong>
-                  <p>거래처 공통 기본 단가를 지정해두면 거래처별 단가표가 없을 때 자동 적용됩니다.</p>
-                </div>
-                <span>{masterItems.length}개 품목</span>
-              </div>
-
-              <div className="master-item-form">
-                <input
-                  type="text"
-                  value={masterItemDraft.itemName}
-                  onChange={(event) =>
-                    setMasterItemDraft((current) => ({ ...current, itemName: event.target.value }))
-                  }
-                  placeholder="품목명 (예: 더치 오리지널 500ml)"
-                />
-                <input
-                  type="text"
-                  value={masterItemDraft.specUnit}
-                  onChange={(event) =>
-                    setMasterItemDraft((current) => ({ ...current, specUnit: event.target.value }))
-                  }
-                  placeholder="규격/단위 (예: 500/ML)"
-                />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={masterItemDraft.unitPrice}
-                  onChange={(event) =>
-                    setMasterItemDraft((current) => ({ ...current, unitPrice: event.target.value }))
-                  }
-                  placeholder="단가 (원)"
-                />
-                <button type="button" className="primary-button" onClick={handleAddMasterItem}>
-                  추가/수정
-                </button>
-              </div>
-
-              {masterItemMessage ? <p className="admin-status">{masterItemMessage}</p> : null}
-
-              <div className="table-wrapper admin-table-wrapper">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>품목</th>
-                      <th>규격/단위</th>
-                      <th>단가</th>
-                      <th style={{ width: 160 }}>관리</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {masterItems.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="empty-state">
-                          아직 등록된 품목 마스터가 없습니다.
-                        </td>
-                      </tr>
-                    ) : (
-                      masterItems.map((item) => {
-                        const isEditing = editingMasterItemId === item.id
-                        return (
-                          <tr key={item.id}>
-                            <td>
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={editingMasterItemDraft.itemName}
-                                  onChange={(event) =>
-                                    setEditingMasterItemDraft((current) => ({
-                                      ...current,
-                                      itemName: event.target.value,
-                                    }))
-                                  }
-                                />
-                              ) : (
-                                item.itemName
-                              )}
-                            </td>
-                            <td>
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={editingMasterItemDraft.specUnit}
-                                  onChange={(event) =>
-                                    setEditingMasterItemDraft((current) => ({
-                                      ...current,
-                                      specUnit: event.target.value,
-                                    }))
-                                  }
-                                  placeholder="예: 500/ML"
-                                />
-                              ) : (
-                                item.specUnit || '-'
-                              )}
-                            </td>
-                            <td>
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={editingMasterItemDraft.unitPrice}
-                                  onChange={(event) =>
-                                    setEditingMasterItemDraft((current) => ({
-                                      ...current,
-                                      unitPrice: event.target.value,
-                                    }))
-                                  }
-                                />
-                              ) : (
-                                `${formatCurrency(item.unitPrice)}원`
-                              )}
-                            </td>
-                            <td className="master-item-actions">
-                              {isEditing ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="ghost-button small"
-                                    onClick={handleSaveEditMasterItem}
-                                  >
-                                    저장
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="ghost-button small"
-                                    onClick={handleCancelEditMasterItem}
-                                  >
-                                    취소
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="ghost-button small"
-                                    onClick={() => handleStartEditMasterItem(item)}
-                                  >
-                                    수정
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="ghost-button small danger"
-                                    onClick={() => handleRemoveMasterItem(item.id)}
-                                  >
-                                    삭제
-                                  </button>
-                                </>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : null}
-
-          <form id="statement-entry-form" className="statement-form" onSubmit={handleSubmit}>
-            {editingRecordId ? (
-              <p className="statement-edit-hint">
-                입력 목록에서 선택한 건을 수정 중입니다. 반영하려면 위의 「저장」, 취소하려면 「수정 취소」를
-                눌러주세요.
-              </p>
-            ) : null}
-
-            {clientMonthSnapshot && clientMonthSnapshot.count > 0 ? (
-              <div className="statement-client-snapshot" role="status">
-                <span className="statement-client-snapshot-title">
-                  {form.clientName} · {clientMonthSnapshot.currentMonth.replace('-', '.')} 월 요약
-                </span>
-                <span className="statement-client-snapshot-pill">{clientMonthSnapshot.count}건</span>
-                <span className="statement-client-snapshot-pill">
-                  {formatCurrency(clientMonthSnapshot.totalAmount)}원
-                </span>
-                <span className="statement-client-snapshot-pill">누적 {clientMonthSnapshot.quantity}개</span>
-                {clientMonthSnapshot.lastDeliveryDate ? (
-                  <span className="statement-client-snapshot-pill">
-                    마지막 납품 {formatDateLabel(clientMonthSnapshot.lastDeliveryDate)}
-                  </span>
-                ) : null}
-              </div>
-            ) : null}
-
-            {recentRecordsForClient.length > 0 && !editingRecordId ? (
-              <div className="statement-recent-panel">
-                <div className="statement-recent-panel-head">
-                  <strong>최근 납품</strong>
-                  <span>{form.clientName} · 클릭하면 오늘 날짜로 자동 입력</span>
-                </div>
-                <div className="statement-recent-panel-list">
-                  {recentRecordsForClient.map((record) => (
-                    <button
-                      key={record.id}
-                      type="button"
-                      className="statement-recent-panel-item"
-                      onClick={() => handleCopyFromRecentRecord(record)}
-                      title="이 납품을 오늘 날짜로 복제합니다"
-                    >
-                      <span className="statement-recent-panel-item-date">
-                        {formatDateLabel(record.deliveryDate)}
-                      </span>
-                      <span className="statement-recent-panel-item-name">{record.itemName}</span>
-                      <span className="statement-recent-panel-item-meta">
-                        {record.specUnit || '-'} · {record.quantity}개 · {formatCurrency(record.unitPrice)}원
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {duplicateCandidate && !editingRecordId ? (
-              <p className="statement-duplicate-warning" role="alert">
-                같은 날 {duplicateCandidate.clientName}에 「{duplicateCandidate.itemName}」 {duplicateCandidate.quantity}개 건이 이미 있습니다.
-                그대로 저장하면 중복으로 들어갑니다.
-              </p>
-            ) : null}
-            <div className="statement-form-primary-row">
-              <label className="statement-form-field statement-form-field--date">
-                납품일
-                <input
-                  type="date"
-                  value={form.deliveryDate}
-                  onChange={(event) => handleFieldChange('deliveryDate', event.target.value)}
-                />
-              </label>
-              <label className="statement-form-field statement-form-field--count">
-                횟수
-                <input
-                  type="text"
-                  value={form.deliveryCount}
-                  onChange={(event) => handleFieldChange('deliveryCount', event.target.value)}
-                  placeholder="예: 1"
-                />
-              </label>
-              <label className="statement-form-field statement-form-field--client">
-                거래처명
-                <select
-                  value={isCustomClient ? CUSTOM_CLIENT_OPTION : form.clientName}
-                  onChange={(event) => handleClientSelectionChange(event.target.value)}
-                >
-                  <option value="">거래처를 선택하세요</option>
-                  {clientOptions.map((client) => (
-                    <option key={client} value={client}>
-                      {client}
-                    </option>
-                  ))}
-                  <option value={CUSTOM_CLIENT_OPTION}>직접 입력</option>
-                </select>
-                {isCustomClient ? (
-                  <input
-                    type="text"
-                    value={form.clientName}
-                    onChange={(event) => handleFieldChange('clientName', event.target.value)}
-                    placeholder="예: 길 인천점"
-                  />
-                ) : null}
-              </label>
-              <label className="statement-form-field statement-form-field--item">
-                품목
-                <select
-                  value={isCustomItem ? CUSTOM_ITEM_OPTION : form.itemName}
-                  onChange={(event) => handleItemSelectionChange(event.target.value)}
-                >
-                  <option value="">품목을 선택하세요</option>
-                  {itemOptions.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                  <option value={CUSTOM_ITEM_OPTION}>직접 입력</option>
-                </select>
-                {isCustomItem ? (
-                  <input
-                    type="text"
-                    value={form.itemName}
-                    onChange={(event) => handleFieldChange('itemName', event.target.value)}
-                    placeholder="목록에 없는 품목 직접 입력"
-                  />
-                ) : null}
-                {matchingPricingRule ? (
-                  <span className="field-help">
-                    거래처 전용 단가 {formatCurrency(matchingPricingRule.unitPrice)}원 자동 적용
-                  </span>
-                ) : matchingMasterItem ? (
-                  <span className="field-help">
-                    품목 기본 단가 {formatCurrency(matchingMasterItem.unitPrice)}원 자동 적용
-                  </span>
-                ) : hasPricingForSelectedClient && form.itemName ? (
-                  <span className="field-help warning">
-                    선택한 거래처 단가표에 없는 품목입니다. 거래처용 품목을 다시 선택해주세요.
-                  </span>
-                ) : null}
-              </label>
-            </div>
-            <div className="statement-form-secondary-row">
-              <label className="statement-form-field statement-form-field--spec">
-                규격/단위
-                <div className="quick-option-row">
-                  {activeQuickSpecOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={form.specUnit === option.value ? 'quick-option active' : 'quick-option'}
-                      onClick={() => handleSpecSelectionChange(option.value)}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-                {showSpecOtherInput ? (
-                  <input
-                    type="text"
-                    value={form.specUnit}
-                    onChange={(event) => handleSpecOtherInputChange(event.target.value)}
-                    placeholder={isDutchItemName(form.itemName) ? '예: 2/L' : '예: 500/G'}
-                  />
-                ) : null}
-              </label>
-              <label className="statement-form-field statement-form-field--qty">
-                수량
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={form.quantity}
-                  onChange={(event) => handleFieldChange('quantity', event.target.value)}
-                  placeholder="예: 10"
-                />
-              </label>
-              <label className="statement-form-field statement-form-field--price">
-                단가
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={form.unitPrice}
-                  onChange={(event) => handleFieldChange('unitPrice', event.target.value)}
-                  placeholder="예: 33000"
-                />
-              </label>
-              <label className="statement-form-field statement-form-field--tax">
-                과세구분
-                <select
-                  value={form.note}
-                  onChange={(event) => handleFieldChange('note', event.target.value)}
-                >
-                  {NOTE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="calculation-card span-2">
-              <div>
-                <span>공급가액</span>
-                <strong>{formatCurrency(calculatedAmounts.supplyAmount)}원</strong>
-              </div>
-              <div>
-                <span>세액</span>
-                <strong>{formatCurrency(calculatedAmounts.taxAmount)}원</strong>
-              </div>
-              <div>
-                <span>계</span>
-                <strong>{formatCurrency(calculatedAmounts.totalAmount)}원</strong>
-              </div>
-            </div>
-
-            {editingRecordId ? (
-              <div className="statement-form-submit-row span-2">
-                <button type="button" className="ghost-button" onClick={handleCancelStatementEdit}>
-                  수정 취소
-                </button>
-              </div>
-            ) : null}
-          </form>
-        </section>
-
         <section className="panel statements-records-panel">
           <div className="panel-header controls statements-records-panel-toolbar">
-            <div className="segmented statements-records-view-toggle">
-              <button
-                type="button"
-                className={activeView === 'records' ? 'active' : ''}
-                onClick={() => setActiveView('records')}
-              >
-                입력 목록
-              </button>
-              <button
-                type="button"
-                className={activeView === 'cards' ? 'active' : ''}
-                onClick={() => setActiveView('cards')}
-              >
-                거래처 카드
-              </button>
-              <button
-                type="button"
-                className={activeView === 'calendar' ? 'active' : ''}
-                onClick={() => setActiveView('calendar')}
-              >
-                캘린더
-              </button>
-              <button
-                type="button"
-                className={activeView === 'summary' ? 'active' : ''}
-                onClick={() => setActiveView('summary')}
-              >
-                월별 납품현황
-              </button>
+            <div className="statements-records-toolbar-left no-print">
+              <div className="segmented statements-records-view-toggle">
+                <button
+                  type="button"
+                  className={activeView === 'cards' ? 'active' : ''}
+                  onClick={() => setActiveView('cards')}
+                >
+                  거래처 카드
+                </button>
+                <button
+                  type="button"
+                  className={activeView === 'records' ? 'active' : ''}
+                  onClick={() => {
+                    setRecordsRangeFilter('month')
+                    setActiveView('records')
+                  }}
+                >
+                  입력 목록
+                </button>
+                <button
+                  type="button"
+                  className={activeView === 'calendar' ? 'active' : ''}
+                  onClick={() => setActiveView('calendar')}
+                >
+                  캘린더
+                </button>
+                <button
+                  type="button"
+                  className={activeView === 'summary' ? 'active' : ''}
+                  onClick={() => setActiveView('summary')}
+                >
+                  월별 납품현황
+                </button>
+              </div>
+              <div className="segmented statements-records-launch">
+                <button type="button" onClick={() => setStatementEntryModalOpen(true)}>
+                  거래명세서 입력
+                </button>
+              </div>
             </div>
 
             <div className="toolbar statements-records-toolbar-actions">
@@ -4543,8 +4132,11 @@ function App() {
                               <strong>{formatCurrency(entry.totalAmount)}원</strong>
                               <ul>
                                 {entry.records.slice(0, 3).map((record) => (
-                                  <li key={record.id} title={`${record.clientName} · ${record.itemName}`}>
-                                    {record.clientName} · {record.itemName}
+                                  <li
+                                    key={record.id}
+                                    title={`${record.clientName} · ${record.itemName} · ${record.quantity}`}
+                                  >
+                                    {record.clientName} · {record.itemName} {record.quantity}
                                   </li>
                                 ))}
                                 {entry.records.length > 3 ? (
@@ -4553,7 +4145,7 @@ function App() {
                                     <div className="statements-calendar-more-tooltip" role="tooltip">
                                       {entry.records.slice(3).map((record) => (
                                         <div key={`more-${record.id}`}>
-                                          {record.clientName} · {record.itemName}
+                                          {record.clientName} · {record.itemName} {record.quantity}
                                         </div>
                                       ))}
                                     </div>
@@ -4646,7 +4238,7 @@ function App() {
             <div className="statement-sheet-toolbar-row no-print">
               <button
                 type="button"
-                className="statement-preview-toggle"
+                className="ghost-button statement-preview-toggle"
                 onClick={() => setIsStatementPreviewOpen((open) => !open)}
                 aria-expanded={isStatementPreviewOpen}
               >
@@ -4969,6 +4561,685 @@ function App() {
       </section>
       </div>
 
+      {statementEntryModalOpen ? (
+        <div
+          className="statement-entry-modal-backdrop"
+          role="presentation"
+          onClick={() => setStatementEntryModalOpen(false)}
+        >
+          <div
+            className="statement-entry-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="statement-entry-dialog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+                    <section className="panel form-panel statements-form-compact">
+          <div className="panel-header">
+            <div>
+              <h2 id="statement-entry-dialog-title">거래명세서 입력</h2>
+              <p>입력하면 아래 목록과 월별 납품현황에 바로 반영됩니다.</p>
+            </div>
+            <div className="form-panel-actions">
+              <button
+                type="button"
+                className="ghost-button statement-header-close"
+                onClick={() => setStatementEntryModalOpen(false)}
+                aria-label="입력창 닫기"
+              >
+                닫기
+              </button>
+              <button
+                type="button"
+                className="ghost-button statement-header-admin"
+                onClick={handleAdminModeButtonClick}
+              >
+                {isAdminOpen ? '관리자 모드 닫기' : '관리자 모드'}
+              </button>
+              <button
+                type="submit"
+                form="statement-entry-form"
+                className="primary-button statement-header-save"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+
+          {isAdminOpen ? (
+            <div className="admin-panel admin-panel--compact">
+              <div className="admin-panel-header">
+                <div>
+                  <strong>단가 (거래처별)</strong>
+                  <p className="admin-panel-line">
+                    거래처 선택·열기 → 표 편집. 입력 화면에서는 해당 거래처 품목만 제안.
+                  </p>
+                </div>
+                <span className="admin-panel-pill">{pricingRules.length}규칙</span>
+              </div>
+
+              <p className="admin-hint admin-hint--tight">품목은 제안·직접입력.</p>
+
+              <div className="pricing-admin-client-bar">
+                <label className="pricing-admin-client-bar-field">
+                  <span>저장된 거래처</span>
+                  <select
+                    value={
+                      pricingAdminClientKey &&
+                      pricingRulesGrouped.some((g) => g.clientKey === pricingAdminClientKey)
+                        ? pricingAdminClientKey
+                        : ''
+                    }
+                    onChange={handlePricingAdminDropdownChange}
+                  >
+                    <option value="">거래처 선택…</option>
+                    {pricingRulesGrouped.map(({ clientKey, displayName, rules }) => (
+                      <option key={clientKey} value={clientKey}>
+                        {displayName} ({rules.length}건)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span className="pricing-admin-client-bar-or">또는</span>
+                <input
+                  type="text"
+                  list="statement-pricing-client-datalist"
+                  value={pricingAdminClientInput}
+                  onChange={(event) => setPricingAdminClientInput(event.target.value)}
+                  placeholder="거래처명 입력 후 열기"
+                  aria-label="거래처명으로 열기"
+                />
+                <button type="button" className="primary-button" onClick={handleOpenPricingAdminClientFromInput}>
+                  이 거래처 열기
+                </button>
+              </div>
+              <datalist id="statement-pricing-client-datalist">
+                {clientOptions.map((client) => (
+                  <option key={client} value={client} />
+                ))}
+              </datalist>
+              <datalist id="statement-pricing-item-datalist">
+                {allItemOptions.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+              {pricingRuleFormMessage ? <p className="admin-status admin-status--tight">{pricingRuleFormMessage}</p> : null}
+
+              {!pricingAdminClientKey ? (
+                <p className="admin-status admin-status--muted">거래처 선택 또는 이름 입력 → 열기</p>
+              ) : (
+                <div className="pricing-client-sheet">
+                  <h3 className="pricing-client-sheet-title">{pricingAdminClientSaveLabel}</h3>
+                  <div className="table-wrapper admin-table-wrapper">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>품목</th>
+                          <th>규격/단위</th>
+                          <th>단가</th>
+                          <th style={{ width: 100 }}>관리</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pricingAdminRulesForView.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="empty-state">
+                              이 거래처에 저장된 단가가 없습니다. 아래에서 품목을 추가하세요.
+                            </td>
+                          </tr>
+                        ) : (
+                          pricingAdminRulesForView.map((rule) => (
+                            <tr key={rule.id}>
+                              <td>{rule.itemName}</td>
+                              <td>{rule.specUnit || '-'}</td>
+                              <td>{formatCurrency(rule.unitPrice)}</td>
+                              <td className="admin-table-pricing-actions">
+                                <button
+                                  type="button"
+                                  className="ghost-button small danger"
+                                  onClick={() => handleRemovePricingRule(rule.id)}
+                                >
+                                  삭제
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="pricing-client-sheet-add-row">
+                    <input
+                      type="text"
+                      list="statement-pricing-item-datalist"
+                      value={pricingAdminLineDraft.itemName}
+                      onChange={(event) =>
+                        setPricingAdminLineDraft((current) => ({ ...current, itemName: event.target.value }))
+                      }
+                      placeholder="품목 (목록 또는 직접)"
+                      aria-label="품목 추가"
+                    />
+                    <input
+                      type="text"
+                      value={pricingAdminLineDraft.specUnit}
+                      onChange={(event) =>
+                        setPricingAdminLineDraft((current) => ({ ...current, specUnit: event.target.value }))
+                      }
+                      placeholder="규격/단위"
+                      aria-label="규격 단위"
+                    />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={pricingAdminLineDraft.unitPrice}
+                      onChange={(event) =>
+                        setPricingAdminLineDraft((current) => ({ ...current, unitPrice: event.target.value }))
+                      }
+                      placeholder="단가 (원)"
+                      aria-label="단가"
+                    />
+                    <button type="button" className="primary-button" onClick={handleSavePricingAdminLine}>
+                      품목 줄 저장
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="admin-panel-header admin-panel-section">
+                <div>
+                  <strong>품목 마스터 (공통 기본)</strong>
+                  <p className="admin-panel-line">거래처 단가 없을 때만 적용.</p>
+                </div>
+                <span className="admin-panel-pill">{masterItems.length}품목</span>
+              </div>
+
+              <div className="master-item-form">
+                <input
+                  type="text"
+                  value={masterItemDraft.itemName}
+                  onChange={(event) =>
+                    setMasterItemDraft((current) => ({ ...current, itemName: event.target.value }))
+                  }
+                  placeholder="품목명 (예: 더치 오리지널 500ml)"
+                />
+                <input
+                  type="text"
+                  value={masterItemDraft.specUnit}
+                  onChange={(event) =>
+                    setMasterItemDraft((current) => ({ ...current, specUnit: event.target.value }))
+                  }
+                  placeholder="규격/단위 (예: 500/ML)"
+                />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={masterItemDraft.unitPrice}
+                  onChange={(event) =>
+                    setMasterItemDraft((current) => ({ ...current, unitPrice: event.target.value }))
+                  }
+                  placeholder="단가 (원)"
+                />
+                <button type="button" className="primary-button" onClick={handleAddMasterItem}>
+                  추가/수정
+                </button>
+              </div>
+
+              {masterItemMessage ? <p className="admin-status">{masterItemMessage}</p> : null}
+
+              <div className="table-wrapper admin-table-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>품목</th>
+                      <th>규격/단위</th>
+                      <th>단가</th>
+                      <th style={{ width: 160 }}>관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {masterItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="empty-state">
+                          아직 등록된 품목 마스터가 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      masterItems.map((item) => {
+                        const isEditing = editingMasterItemId === item.id
+                        return (
+                          <tr key={item.id}>
+                            <td>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={editingMasterItemDraft.itemName}
+                                  onChange={(event) =>
+                                    setEditingMasterItemDraft((current) => ({
+                                      ...current,
+                                      itemName: event.target.value,
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                item.itemName
+                              )}
+                            </td>
+                            <td>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={editingMasterItemDraft.specUnit}
+                                  onChange={(event) =>
+                                    setEditingMasterItemDraft((current) => ({
+                                      ...current,
+                                      specUnit: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="예: 500/ML"
+                                />
+                              ) : (
+                                item.specUnit || '-'
+                              )}
+                            </td>
+                            <td>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={editingMasterItemDraft.unitPrice}
+                                  onChange={(event) =>
+                                    setEditingMasterItemDraft((current) => ({
+                                      ...current,
+                                      unitPrice: event.target.value,
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                `${formatCurrency(item.unitPrice)}원`
+                              )}
+                            </td>
+                            <td className="master-item-actions">
+                              {isEditing ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="ghost-button small"
+                                    onClick={handleSaveEditMasterItem}
+                                  >
+                                    저장
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="ghost-button small"
+                                    onClick={handleCancelEditMasterItem}
+                                  >
+                                    취소
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="ghost-button small"
+                                    onClick={() => handleStartEditMasterItem(item)}
+                                  >
+                                    수정
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="ghost-button small danger"
+                                    onClick={() => handleRemoveMasterItem(item.id)}
+                                  >
+                                    삭제
+                                  </button>
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
+          <form id="statement-entry-form" className="statement-form" onSubmit={handleSubmit}>
+            {editingRecordId ? (
+              <p className="statement-edit-hint">
+                입력 목록에서 선택한 건을 수정 중입니다. 반영하려면 위의 「저장」, 취소하려면 「수정 취소」를
+                눌러주세요.
+              </p>
+            ) : null}
+
+            {clientMonthSnapshot && clientMonthSnapshot.count > 0 ? (
+              <div className="statement-client-snapshot" role="status">
+                <span className="statement-client-snapshot-title">
+                  {form.clientName} · {clientMonthSnapshot.currentMonth.replace('-', '.')} 월 요약
+                </span>
+                <span className="statement-client-snapshot-pill">{clientMonthSnapshot.count}건</span>
+                <span className="statement-client-snapshot-pill">
+                  {formatCurrency(clientMonthSnapshot.totalAmount)}원
+                </span>
+                <span className="statement-client-snapshot-pill">누적 {clientMonthSnapshot.quantity}개</span>
+                {clientMonthSnapshot.lastDeliveryDate ? (
+                  <span className="statement-client-snapshot-pill">
+                    마지막 납품 {formatDateLabel(clientMonthSnapshot.lastDeliveryDate)}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+
+            {recentRecordsForClient.length > 0 && !editingRecordId ? (
+              <div className="statement-recent-panel">
+                <div className="statement-recent-panel-head">
+                  <strong>최근 납품</strong>
+                  <span>{form.clientName} · 클릭하면 오늘 날짜로 자동 입력</span>
+                </div>
+                <div className="statement-recent-panel-list">
+                  {recentRecordsForClient.map((record) => (
+                    <button
+                      key={record.id}
+                      type="button"
+                      className="statement-recent-panel-item"
+                      onClick={() => handleCopyFromRecentRecord(record)}
+                      title="이 납품을 오늘 날짜로 복제합니다"
+                    >
+                      <span className="statement-recent-panel-item-date">
+                        {formatDateLabel(record.deliveryDate)}
+                      </span>
+                      <span className="statement-recent-panel-item-name">{record.itemName}</span>
+                      <span className="statement-recent-panel-item-meta">
+                        {record.specUnit || '-'} · {record.quantity}개 · {formatCurrency(record.unitPrice)}원
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {duplicateCandidate && !editingRecordId ? (
+              <p className="statement-duplicate-warning" role="alert">
+                같은 날 {duplicateCandidate.clientName}에 「{duplicateCandidate.itemName}」 {duplicateCandidate.quantity}개 건이 이미 있습니다.
+                그대로 저장하면 중복으로 들어갑니다.
+              </p>
+            ) : null}
+            <div className="statement-form-primary-row">
+              <label className="statement-form-field statement-form-field--date">
+                납품일
+                <input
+                  type="date"
+                  value={form.deliveryDate}
+                  onChange={(event) => handleFieldChange('deliveryDate', event.target.value)}
+                />
+              </label>
+              <label className="statement-form-field statement-form-field--count">
+                횟수
+                <input
+                  type="text"
+                  value={form.deliveryCount}
+                  onChange={(event) => handleFieldChange('deliveryCount', event.target.value)}
+                  placeholder="예: 1"
+                />
+              </label>
+              <label className="statement-form-field statement-form-field--client">
+                거래처명
+                <select
+                  value={isCustomClient ? CUSTOM_CLIENT_OPTION : form.clientName}
+                  onChange={(event) => handleClientSelectionChange(event.target.value)}
+                >
+                  <option value="">거래처를 선택하세요</option>
+                  {clientOptions.map((client) => (
+                    <option key={client} value={client}>
+                      {client}
+                    </option>
+                  ))}
+                  <option value={CUSTOM_CLIENT_OPTION}>직접 입력</option>
+                </select>
+                {isCustomClient ? (
+                  <input
+                    type="text"
+                    value={form.clientName}
+                    onChange={(event) => handleFieldChange('clientName', event.target.value)}
+                    placeholder="예: 길 인천점"
+                  />
+                ) : null}
+              </label>
+              <label className="statement-form-field statement-form-field--item">
+                품목
+                <div className="statement-item-field-row">
+                  <select
+                    value={isCustomItem ? CUSTOM_ITEM_OPTION : form.itemName}
+                    onChange={(event) => handleItemSelectionChange(event.target.value)}
+                  >
+                    <option value="">품목을 선택하세요</option>
+                    {itemOptions.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                    <option value={CUSTOM_ITEM_OPTION}>직접 입력</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="ghost-button small"
+                    onClick={handleOpenBulkItemPicker}
+                    disabled={!form.clientName.trim()}
+                    title={
+                      form.clientName.trim()
+                        ? '선택한 품목을 여러 개 한 번에 입력 목록에 추가'
+                        : '거래처를 먼저 선택하세요'
+                    }
+                  >
+                    여러 품목
+                  </button>
+                </div>
+                {isCustomItem ? (
+                  <input
+                    type="text"
+                    value={form.itemName}
+                    onChange={(event) => handleFieldChange('itemName', event.target.value)}
+                    placeholder="목록에 없는 품목 직접 입력"
+                  />
+                ) : null}
+                {matchingPricingRule ? (
+                  <span className="field-help">
+                    거래처 전용 단가 {formatCurrency(matchingPricingRule.unitPrice)}원 자동 적용
+                  </span>
+                ) : matchingMasterItem ? (
+                  <span className="field-help">
+                    품목 기본 단가 {formatCurrency(matchingMasterItem.unitPrice)}원 자동 적용
+                  </span>
+                ) : hasPricingForSelectedClient && form.itemName ? (
+                  <span className="field-help warning">
+                    선택한 거래처 단가표에 없는 품목입니다. 거래처용 품목을 다시 선택해주세요.
+                  </span>
+                ) : null}
+              </label>
+            </div>
+            <div className="statement-form-secondary-row">
+              <label className="statement-form-field statement-form-field--spec">
+                규격/단위
+                <div className="quick-option-row">
+                  {activeQuickSpecOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={form.specUnit === option.value ? 'quick-option active' : 'quick-option'}
+                      onClick={() => handleSpecSelectionChange(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                {showSpecOtherInput ? (
+                  <input
+                    type="text"
+                    value={form.specUnit}
+                    onChange={(event) => handleSpecOtherInputChange(event.target.value)}
+                    placeholder={isDutchItemName(form.itemName) ? '예: 2/L' : '예: 500/G'}
+                  />
+                ) : null}
+              </label>
+              <label className="statement-form-field statement-form-field--qty">
+                수량
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.quantity}
+                  onChange={(event) => handleFieldChange('quantity', event.target.value)}
+                  placeholder="예: 10"
+                />
+              </label>
+              <label className="statement-form-field statement-form-field--price">
+                단가
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.unitPrice}
+                  onChange={(event) => handleFieldChange('unitPrice', event.target.value)}
+                  placeholder="예: 33000"
+                />
+              </label>
+              <label className="statement-form-field statement-form-field--tax">
+                과세구분
+                <select
+                  value={form.note}
+                  onChange={(event) => handleFieldChange('note', event.target.value)}
+                >
+                  {NOTE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="calculation-card span-2">
+              <div>
+                <span>공급가액</span>
+                <strong>{formatCurrency(calculatedAmounts.supplyAmount)}원</strong>
+              </div>
+              <div>
+                <span>세액</span>
+                <strong>{formatCurrency(calculatedAmounts.taxAmount)}원</strong>
+              </div>
+              <div>
+                <span>계</span>
+                <strong>{formatCurrency(calculatedAmounts.totalAmount)}원</strong>
+              </div>
+            </div>
+
+            {editingRecordId ? (
+              <div className="statement-form-submit-row span-2">
+                <button type="button" className="ghost-button" onClick={handleCancelStatementEdit}>
+                  수정 취소
+                </button>
+              </div>
+            ) : null}
+          </form>
+        </section>
+          </div>
+        </div>
+      ) : null}
+
+      {bulkItemPickerOpen ? (
+        <div
+          className="inventory-reset-dialog-backdrop"
+          role="presentation"
+          onClick={handleCloseBulkItemPicker}
+        >
+          <div
+            className="inventory-reset-dialog statement-bulk-item-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="statement-bulk-item-picker-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="statement-bulk-item-picker-title" className="inventory-reset-dialog-title">
+              품목 여러 개 추가
+            </h2>
+            <p className="inventory-reset-dialog-body">
+              현재 폼의 <strong>납품일·횟수·과세구분</strong>은 공통으로 적용됩니다. 각 품목 옆 <strong>수량</strong>
+              을 바꿀 수 있고, 새로 체크할 때는 폼 수량란 값(비어 있으면 1)이 기본으로 들어갑니다. 단가는 거래처
+              단가표가 있으면 우선 적용하고, 없으면 품목 마스터 단가를 씁니다.
+            </p>
+            <label className="inventory-reset-dialog-field">
+              <span className="inventory-reset-dialog-label">품목 검색</span>
+              <input
+                type="search"
+                className="statement-bulk-item-dialog-search"
+                value={bulkItemPickerQuery}
+                onChange={(event) => setBulkItemPickerQuery(event.target.value)}
+                placeholder="이름 일부로 좁히기"
+                autoComplete="off"
+              />
+            </label>
+            <div className="statement-bulk-item-dialog-toolbar">
+              <button type="button" className="ghost-button small" onClick={handleBulkItemPickerSelectAllVisible}>
+                보이는 항목 전체 선택
+              </button>
+              <button type="button" className="ghost-button small" onClick={handleBulkItemPickerClearVisible}>
+                보이는 항목 선택 해제
+              </button>
+              <span className="statement-bulk-item-dialog-count">{bulkItemPickerPick.selected.size}개 선택</span>
+            </div>
+            <div className="statement-bulk-item-dialog-list" role="list">
+              {bulkPickerVisibleItems.length === 0 ? (
+                <p className="statement-bulk-item-dialog-empty">표시할 품목이 없습니다.</p>
+              ) : (
+                bulkPickerVisibleItems.map((name) => {
+                  const preview = resolveStatementPricingForClientItem(
+                    pricingRules,
+                    masterItems,
+                    form.clientName.trim(),
+                    name,
+                  )
+                  const checked = bulkItemPickerPick.selected.has(name)
+                  return (
+                    <div key={name} className="statement-bulk-item-dialog-row" role="listitem">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => handleBulkItemPickerToggle(name)}
+                        aria-label={`${name} 선택`}
+                      />
+                      <div className="statement-bulk-item-dialog-row-main">
+                        <span className="statement-bulk-item-dialog-row-name">{name}</span>
+                        <span className="statement-bulk-item-dialog-row-meta">
+                          {preview && preview.unitPrice > 0
+                            ? `${preview.specUnit ? `${preview.specUnit} · ` : ''}${formatCurrency(preview.unitPrice)}원`
+                            : '단가 없음'}
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="statement-bulk-item-dialog-qty"
+                        disabled={!checked}
+                        value={checked ? bulkItemPickerPick.quantities[name] ?? '' : ''}
+                        onChange={(event) => handleBulkItemPickerQtyChange(name, event.target.value)}
+                        aria-label={`${name} 수량`}
+                      />
+                    </div>
+                  )
+                })
+              )}
+            </div>
+            <div className="inventory-reset-dialog-actions">
+              <button type="button" className="ghost-button" onClick={handleCloseBulkItemPicker}>
+                닫기
+              </button>
+              <button type="button" className="primary-button" onClick={handleBulkAddStatementItems}>
+                선택 항목 입력 목록에 추가
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {isAdminUnlockDialogOpen ? (
         <div
           className="inventory-reset-dialog-backdrop"
@@ -5024,6 +5295,8 @@ function App() {
         </div>
       ) : null}
         </>
+      ) : activePage === 'beanSalesAnalysis' ? (
+        <BeanSalesAnalysisPage />
       ) : activePage === 'meeting' ? (
         <MonthlyMeetingPage />
       ) : activePage === 'expense' ? (
@@ -5046,6 +5319,45 @@ function App() {
           aria-hidden={!statementStickyHScrollVisible}
         >
           <div ref={statementStickyHScrollInnerRef} className="statements-sticky-hscroll-inner" />
+        </div>
+      ) : null}
+
+      {lowGreenBeanWarningItems.length > 0 && !isLowGreenBeanPanelDismissed ? (
+        <div
+          className="app-low-green-bean-floating no-print"
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby="app-low-green-bean-floating-title"
+          aria-live="polite"
+        >
+          <div className="app-low-green-bean-floating-header">
+            <span id="app-low-green-bean-floating-title" className="app-low-green-bean-floating-title">
+              생두 재고 경고
+            </span>
+            <button
+              type="button"
+              className="app-low-green-bean-floating-close"
+              onClick={() => setIsLowGreenBeanPanelDismissed(true)}
+              aria-label="경고 닫기"
+            >
+              ×
+            </button>
+          </div>
+          <p className="app-low-green-bean-floating-hint">
+            DARK / LIGHT / DECAFFEINE BLEND 제외. Brazil·Narino·Sidamo 계열 <strong>40kg</strong> 미만, 그 밖 <strong>5kg</strong>{' '}
+            미만.
+          </p>
+          <ul className="app-low-green-bean-floating-list">
+            {lowGreenBeanWarningItems.map((item) => (
+              <li key={item.name}>
+                <span className="app-low-green-bean-floating-name">{item.name}</span>
+                <span className="app-low-green-bean-floating-value">
+                  {item.kg.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}kg
+                </span>
+                <span className="app-low-green-bean-floating-thr">(기준 {item.threshold}kg)</span>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </div>

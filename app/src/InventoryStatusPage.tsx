@@ -13,8 +13,10 @@ import PageSaveStatus from './components/PageSaveStatus'
 import {
   BLENDING_DARK_BEAN_NAME,
   BLENDING_LIGHT_BEAN_NAME,
+  canonicalBlendDisplayName,
   isBlendingDarkBeanRow,
   isBlendingLightBeanRow,
+  isBlendingLineBeanRow,
   isBlendingOutboundAdjustsStockRow,
   productionForAutoStock,
 } from './inventoryBlendRecipes'
@@ -62,7 +64,6 @@ const DEFAULT_FULL_RESET_OPTIONS: FullResetOptions = {
 }
 
 const numberFormatter = new Intl.NumberFormat('ko-KR')
-const DEFAULT_ROAST_YIELD = 0.8
 
 const formatNumber = (value: number) => numberFormatter.format(value)
 
@@ -70,10 +71,6 @@ const formatNumber = (value: number) => numberFormatter.format(value)
 const inventoryNumericInputValue = (value: number) => (value === 0 ? '' : String(value))
 
 const sumValues = (values: readonly number[]) => values.reduce((total, value) => total + value, 0)
-const convertRawInputToRoastedOutput = (value: number) =>
-  Math.round(value * DEFAULT_ROAST_YIELD * 1000) / 1000
-const convertRoastedOutputToRawInput = (value: number) =>
-  Math.round((value / DEFAULT_ROAST_YIELD) * 1000) / 1000
 
 /** 엑셀 열 개수(기준일 수)와 맞추기 — 길이가 어긋나면 이후 열이 밀려 보이는 문제 방지 */
 const alignBeanValuesToDayCount = (values: readonly number[], dayCount: number): number[] =>
@@ -146,7 +143,6 @@ const buildBeanWeeklyDetailRows = (days: readonly number[], bean: InventoryBeanR
   const productionRaw = BEAN_DETAIL_WEEK_RANGES.map(({ start, end }) =>
     sumBeanValuesForWeek(days, bean.production, start, end),
   )
-  const roasted = productionRaw.map((v) => convertRawInputToRoastedOutput(v))
   const outbound = BEAN_DETAIL_WEEK_RANGES.map(({ start, end }) =>
     sumBeanValuesForWeek(days, bean.outbound, start, end),
   )
@@ -155,9 +151,8 @@ const buildBeanWeeklyDetailRows = (days: readonly number[], bean: InventoryBeanR
   )
   return [
     { label: '입고', key: 'inbound' as const, values: inbound },
-    { label: '생산 결과량', key: 'production' as const, values: roasted },
+    { label: '생산(사용량)', key: 'production' as const, values: productionRaw },
     { label: '출고', key: 'outbound' as const, values: outbound },
-    { label: '환산 생두 사용량', key: 'raw-usage' as const, values: productionRaw },
     { label: '재고', key: 'stock' as const, values: stock },
   ]
 }
@@ -291,9 +286,9 @@ const buildStockPinnedDayIndices = (
 }
 
 /**
- * 자동 재고(일반 원두): 핀으로 찍은 열 재고는 직접 입력값을 기준으로 두되, 그날 환산 생두 생산량이 바뀌면
- * (새값−이전값)만큼 재고에서 빼서 반영한다. 그 외 일자는 전일재고+입고−생산(연쇄)이며 `production`은
- * `productionForAutoStock` 결과를 쓴다. Blending-Dark/Light는 `resyncAutoStockForBeanRow`만 사용한다.
+ * 자동 재고(일반 원두): 핀으로 찍은 열은 직접 입력값 유지. 생산(사용량)은 입력 kg을 그대로 재고에서 차감한다.
+ * 그 외 일자는 전일재고+입고−생산(연쇄)이며 `production`은 `productionForAutoStock` 결과를 쓴다.
+ * Blending-Dark/Light는 `resyncAutoStockForBeanRow`만 사용한다.
  */
 const computeAutoStockValues = (
   inbound: readonly number[],
@@ -335,8 +330,8 @@ const computeAutoStockValues = (
 }
 
 /**
- * Blending-Dark/Light 자동 재고: 핀으로 찍은 열은 저장된 `stock`을 유지하고,
- * 그 밖의 열만 `전일재고+입고−생산−출고`로 채운다.
+ * Blending-Dark/Light 자동 재고: 핀으로 찍은 열(실사)은 직접 `stock`을 유지.
+ * 그 밖의 열은 `전일재고 + 생산(raw) − 출고` (입고는 연채에 넣지 않음·비워 둬도 됨).
  */
 const computeBlendingAutoStockWithPins = (
   bean: InventoryBeanRow,
@@ -353,11 +348,7 @@ const computeBlendingAutoStockWithPins = (
     if (pinnedDayIndices.has(i)) {
       continue
     }
-    base[i] =
-      (base[i - 1] ?? 0) +
-      (bean.inbound[i] ?? 0) -
-      (prod[i] ?? 0) -
-      (bean.outbound[i] ?? 0)
+    base[i] = (base[i - 1] ?? 0) + (prod[i] ?? 0) - (bean.outbound[i] ?? 0)
   }
   return base
 }
@@ -395,7 +386,60 @@ const resyncAutoStockForBeanRow = (
   )
 }
 
-/** beanRows.production(raw)을 로스팅현황 일별값(결과량 kg)으로 투영 */
+const LOW_STOCK_LOSSTING_BASE_BEANS_KG = 40
+const LOW_STOCK_OTHER_BEANS_KG = 5
+
+/** 블렌딩/로스팅에 쓰는 Brazil·Narino·Sidamo(브라질·나리뇨·시다모) 등 — 기준 재고(kg)를 더 크게 둔다. */
+const isSpecialLosstingBaseBean = (name: string) => {
+  const n = name.trim().toLowerCase()
+  if (n.includes('brazil') || n.includes('브라질')) {
+    return true
+  }
+  if (n.includes('narino') || n.includes('nariño') || n.includes('nario') || n.includes('나리뇨')) {
+    return true
+  }
+  if (n.includes('sidamo') || n.includes('시다모')) {
+    return true
+  }
+  return false
+}
+
+export type LowGreenBeanWarningItem = { name: string; kg: number; threshold: number }
+
+/**
+ * 기준일 열·자동 연채 반영 후 재고(kg)로, 로스팅용 주요 3원두 40kg 미만·그 외 5kg 미만 항목만 반환.
+ * DARK / LIGHT / DECAFFEINE 블렌드 품목 행은 제외. (App 전역 경고)
+ */
+export function getLowGreenBeanWarningItems(state: InventoryStatusState): LowGreenBeanWarningItem[] {
+  if (!state.beanRows.length) {
+    return []
+  }
+  const physIdx = dayIndexForReferenceDate(state.days, state.physicalCountDate)
+  const pins = buildStockPinnedDayIndices(state.days, state.surveyMarkedDays, physIdx)
+  const endingIdx = dayIndexForReferenceDate(state.days, state.referenceDate)
+  const out: LowGreenBeanWarningItem[] = []
+  for (const bean of state.beanRows) {
+    if (isBlendingLineBeanRow(bean)) {
+      continue
+    }
+    const resynced = state.skipAutoStockDisplay
+      ? bean.stock
+      : resyncAutoStockForBeanRow(bean, pins)
+    const stockLen = resynced.length
+    if (stockLen <= 0) {
+      continue
+    }
+    const cappedIdx = Math.min(Math.max(endingIdx, 0), stockLen - 1)
+    const kg = resynced[cappedIdx] ?? 0
+    const thr = isSpecialLosstingBaseBean(bean.name) ? LOW_STOCK_LOSSTING_BASE_BEANS_KG : LOW_STOCK_OTHER_BEANS_KG
+    if (kg < thr) {
+      out.push({ name: bean.name, kg, threshold: thr })
+    }
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+}
+
+/** bean.production(생두 사용량 kg)을 로스팅 일별 열에 그대로 투영(수율 환산 없음) */
 const syncRoastingRowsFromBeanProduction = (state: InventoryStatusState): InventoryStatusState['roastingRows'] => {
   const dailyRows = state.roastingRows.filter(
     (row): row is InventoryStatusState['roastingRows'][number] & { day: number } => typeof row.day === 'number',
@@ -443,10 +487,9 @@ const syncRoastingRowsFromBeanProduction = (state: InventoryStatusState): Invent
       if (!normalized) {
         return 0
       }
-      // 모든 컬럼: 매칭되는 bean.production에서, 그 원두가 쓰이는 모든 블렌드의
-      // 생두 기여분만큼을 뺀 '단독 로스팅분'에만 yield를 적용한다.
-      // Blending-Dark/Light 원두 자체는 어느 블렌드의 구성원이 아니므로 차감이 0이고,
-      // bean.production에 이미 사이클 × rawTotal이 누적돼 있어 자연스럽게 반영된다.
+      // 매칭되는 bean.production(생두 kg)에서, 그날 그 원두에 대한 블렌딩 raw 기여분을 뺀
+      // 단독(수동) 생산(사용)분을 일별 셀에 그대로 표시한다(환산·수율 없음).
+      // Blending-Dark/Light 행은 구성원이 아니어서 여기서는 0; 구성원 원두는 사이클·레시피로 production에 누적됨.
       return state.beanRows.reduce((sum, bean) => {
         const beanKey = normalizeNameKey(bean.name)
         if (beanKey !== normalized) {
@@ -457,7 +500,7 @@ const syncRoastingRowsFromBeanProduction = (state: InventoryStatusState): Invent
           return s + perCycleRaw * dayCyclesByBlend[i]
         }, 0)
         const standaloneRaw = Math.max(0, (bean.production[dayIndex] ?? 0) - blendingRaw)
-        return sum + convertRawInputToRoastedOutput(standaloneRaw)
+        return sum + standaloneRaw
       }, 0)
     })
     return { ...row, values: nextValues }
@@ -552,12 +595,32 @@ const normalizeInventoryHistoryNotes = (value: unknown): InventoryHistoryNote[] 
         .filter((entry): entry is InventoryHistoryNote => entry !== null)
     : []
 
-const readInventoryPageLocalDocument = (): InventoryPageDocument => {
-  const saved = window.localStorage.getItem(INVENTORY_STATUS_STORAGE_KEY)
-  const savedBaseline = window.localStorage.getItem(INVENTORY_STATUS_BASELINE_STORAGE_KEY)
-  const savedTemplate = window.localStorage.getItem(INVENTORY_STATUS_TEMPLATE_STORAGE_KEY)
-  const savedTemplateName = window.localStorage.getItem(INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY)
-  const savedNotes = window.localStorage.getItem(INVENTORY_HISTORY_NOTES_STORAGE_KEY)
+/** 클라우드+회사: 회사마다 localStorage 캐시 키를 분리 (공용 키 사용 시 문서/값이 뒤섞임) */
+export const inventoryPageScopedKey = (base: string, mode: 'local' | 'cloud', companyId: string | null) => {
+  if (mode === 'cloud' && companyId) {
+    return `${base}::${companyId}`
+  }
+  return base
+}
+
+/** 입출고 현황 브라우저 캐시 갱신 시 App 전역 배너 등이 다시 읽도록 알림 */
+export const INVENTORY_STATUS_CACHE_EVENT = 'inventory-status-cache-updated'
+
+const readInventoryPageLocalDocument = (mode: 'local' | 'cloud', companyId: string | null): InventoryPageDocument => {
+  const stateKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, companyId)
+  const saved = window.localStorage.getItem(stateKey)
+  const savedBaseline = window.localStorage.getItem(
+    inventoryPageScopedKey(INVENTORY_STATUS_BASELINE_STORAGE_KEY, mode, companyId),
+  )
+  const savedTemplate = window.localStorage.getItem(
+    inventoryPageScopedKey(INVENTORY_STATUS_TEMPLATE_STORAGE_KEY, mode, companyId),
+  )
+  const savedTemplateName = window.localStorage.getItem(
+    inventoryPageScopedKey(INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY, mode, companyId),
+  )
+  const savedNotes = window.localStorage.getItem(
+    inventoryPageScopedKey(INVENTORY_HISTORY_NOTES_STORAGE_KEY, mode, companyId),
+  )
 
   const defaultState = createDefaultInventoryStatusState()
 
@@ -724,13 +787,7 @@ const applyStateToTemplateWorkbook = (workbook: ExcelJS.Workbook, inventoryState
       continue
     }
 
-    const values =
-      label === '생산'
-        ? alignBeanValuesToDayCount(
-            rawValues.map((value) => convertRawInputToRoastedOutput(value)),
-            dayCount,
-          )
-        : alignBeanValuesToDayCount(rawValues, dayCount)
+    const values = alignBeanValuesToDayCount(rawValues, dayCount)
 
     values.forEach((value, index) => {
       row.getCell(index + 4).value = value
@@ -1528,7 +1585,7 @@ function InventoryStatusPage() {
   const [hideZeroRoastingItems, setHideZeroRoastingItems] = useState(false)
   const [selectedBeanName, setSelectedBeanName] = useState<string>('')
   const [beanDetailViewMode, setBeanDetailViewMode] = useState<BeanDetailViewMode>('daily')
-  const beanDetailSectionRef = useRef<HTMLDivElement>(null)
+  const [beanDetailModalOpen, setBeanDetailModalOpen] = useState(false)
   const beanDailyScrollRef = useRef<HTMLDivElement>(null)
   const [beanSearchTerm, setBeanSearchTerm] = useState('')
   const [showStockOnly, setShowStockOnly] = useState(false)
@@ -1568,13 +1625,17 @@ function InventoryStatusPage() {
     setIsStorageReady(false)
     setIsCloudReady(mode === 'local')
     resetDocumentSaveUi()
+    initialRoastingSyncDoneRef.current = false
 
     const applyDocument = (
       document: InventoryPageDocument,
       source: 'local' | 'cloud',
       hasRemoteDocument: boolean,
     ) => {
-      const wasManualStockMode = window.localStorage.getItem(INVENTORY_AUTO_STOCK_MODE_KEY) === 'false'
+      const wasManualStockMode =
+        window.localStorage.getItem(
+          inventoryPageScopedKey(INVENTORY_AUTO_STOCK_MODE_KEY, mode, activeCompanyId),
+        ) === 'false'
       let next = document.inventoryState
       let nextBaseline = document.baselineState
       let migratedFromManual = false
@@ -1587,13 +1648,17 @@ function InventoryStatusPage() {
         const pins = buildStockPinnedDayIndices(next.days, next.surveyMarkedDays, physIdx)
         next = {
           ...next,
+          skipAutoStockDisplay: false,
           beanRows: next.beanRows.map((bean) => ({
             ...bean,
             stock: resyncAutoStockForBeanRow(bean, pins),
           })),
         }
         nextBaseline = next
-        window.localStorage.setItem(INVENTORY_AUTO_STOCK_MODE_KEY, 'true')
+        window.localStorage.setItem(
+          inventoryPageScopedKey(INVENTORY_AUTO_STOCK_MODE_KEY, mode, activeCompanyId),
+          'true',
+        )
       }
 
       if (cancelled) {
@@ -1620,7 +1685,7 @@ function InventoryStatusPage() {
     }
 
     const loadDocument = async () => {
-      const localDocument = readInventoryPageLocalDocument()
+      const localDocument = readInventoryPageLocalDocument(mode, activeCompanyId)
       if (mode !== 'cloud' || !activeCompanyId) {
         applyDocument(localDocument, 'local', true)
         return
@@ -1653,8 +1718,12 @@ function InventoryStatusPage() {
       return
     }
 
-    window.localStorage.setItem(INVENTORY_STATUS_STORAGE_KEY, JSON.stringify(inventoryState))
-  }, [inventoryState, isStorageReady])
+    window.localStorage.setItem(
+      inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId),
+      JSON.stringify(inventoryState),
+    )
+    window.dispatchEvent(new Event(INVENTORY_STATUS_CACHE_EVENT))
+  }, [activeCompanyId, inventoryState, isStorageReady, mode])
 
   // 생두전체현황(beanRows)을 마스터로 삼아 로스팅 열을 자동 동기화한다.
   // - 이름 변경: 같은 위치(position)에서 이름만 갱신, 일별 값 보존
@@ -1694,26 +1763,36 @@ function InventoryStatusPage() {
       return
     }
 
-    window.localStorage.setItem(INVENTORY_STATUS_BASELINE_STORAGE_KEY, JSON.stringify(baselineState))
-  }, [baselineState, isStorageReady])
+    window.localStorage.setItem(
+      inventoryPageScopedKey(INVENTORY_STATUS_BASELINE_STORAGE_KEY, mode, activeCompanyId),
+      JSON.stringify(baselineState),
+    )
+  }, [activeCompanyId, baselineState, isStorageReady, mode])
 
   useEffect(() => {
     if (!isStorageReady) {
       return
     }
 
+    const templateKey = inventoryPageScopedKey(INVENTORY_STATUS_TEMPLATE_STORAGE_KEY, mode, activeCompanyId)
+    const templateNameKey = inventoryPageScopedKey(
+      INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY,
+      mode,
+      activeCompanyId,
+    )
+
     if (templateBase64) {
-      window.localStorage.setItem(INVENTORY_STATUS_TEMPLATE_STORAGE_KEY, templateBase64)
+      window.localStorage.setItem(templateKey, templateBase64)
     } else {
-      window.localStorage.removeItem(INVENTORY_STATUS_TEMPLATE_STORAGE_KEY)
+      window.localStorage.removeItem(templateKey)
     }
 
     if (templateFileName) {
-      window.localStorage.setItem(INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY, templateFileName)
+      window.localStorage.setItem(templateNameKey, templateFileName)
     } else {
-      window.localStorage.removeItem(INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY)
+      window.localStorage.removeItem(templateNameKey)
     }
-  }, [isStorageReady, templateBase64, templateFileName])
+  }, [activeCompanyId, isStorageReady, mode, templateBase64, templateFileName])
 
   useEffect(() => {
     if (!inventoryState.beanRows.some((bean) => bean.name === selectedBeanName)) {
@@ -1726,8 +1805,11 @@ function InventoryStatusPage() {
       return
     }
 
-    window.localStorage.setItem(INVENTORY_HISTORY_NOTES_STORAGE_KEY, JSON.stringify(historyNotes))
-  }, [historyNotes, isStorageReady])
+    window.localStorage.setItem(
+      inventoryPageScopedKey(INVENTORY_HISTORY_NOTES_STORAGE_KEY, mode, activeCompanyId),
+      JSON.stringify(historyNotes),
+    )
+  }, [activeCompanyId, historyNotes, isStorageReady, mode])
 
   useEffect(() => {
     if (!isStorageReady || !isCloudReady) {
@@ -1809,14 +1891,16 @@ function InventoryStatusPage() {
     [inventoryState.days, inventoryState.surveyMarkedDays, physicalCountDayIndex],
   )
 
-  /** 항상 입고·생산·출고에 맞춘 연쇄 재고(실사로 찍은 열·월초만 직접값 유지) */
+  /** 입고·생산·출고에 맞춘 연쇄 재고. 엑셀 업로드 직후(`skipAutoStockDisplay`)는 시트 재고 그대로 */
   const displayedBeanRows = useMemo(
     () =>
-      inventoryState.beanRows.map((bean) => ({
-        ...bean,
-        stock: resyncAutoStockForBeanRow(bean, stockPinnedDayIndices),
-      })),
-    [inventoryState.beanRows, stockPinnedDayIndices],
+      inventoryState.skipAutoStockDisplay
+        ? inventoryState.beanRows.map((bean) => ({ ...bean }))
+        : inventoryState.beanRows.map((bean) => ({
+            ...bean,
+            stock: resyncAutoStockForBeanRow(bean, stockPinnedDayIndices),
+          })),
+    [inventoryState.beanRows, inventoryState.skipAutoStockDisplay, stockPinnedDayIndices],
   )
 
   const beanSummaryRows = useMemo(
@@ -1829,8 +1913,7 @@ function InventoryStatusPage() {
           no: bean.no,
           name: bean.name,
           inboundTotal: sumValues(bean.inbound),
-          roastedOutputTotal: sumValues(bean.production.map(convertRawInputToRoastedOutput)),
-          rawUsageTotal: isBlendingDarkBeanRow(bean) ? null : sumValues(bean.production),
+          productionUsageTotal: sumValues(bean.production),
           outboundTotal: sumValues(bean.outbound),
           endingStock: bean.stock[cappedIdx] ?? 0,
         }
@@ -1847,8 +1930,8 @@ function InventoryStatusPage() {
       if (showStockOnly && bean.endingStock <= 0) {
         return false
       }
-      const rawUsage = bean.rawUsageTotal ?? 0
-      if (showActiveOnly && rawUsage <= 0 && bean.inboundTotal <= 0 && bean.outboundTotal <= 0) {
+      const useSum = bean.productionUsageTotal
+      if (showActiveOnly && useSum <= 0 && bean.inboundTotal <= 0 && bean.outboundTotal <= 0) {
         return false
       }
       return true
@@ -1898,7 +1981,7 @@ function InventoryStatusPage() {
     filteredDisplayedBeanRows.find((bean) => bean.name === selectedBeanName) ?? filteredDisplayedBeanRows[0] ?? null
 
   const scrollBeanDailyToCenterDay = useCallback(() => {
-    if (beanDetailViewMode !== 'daily') {
+    if (!beanDetailModalOpen || beanDetailViewMode !== 'daily') {
       return
     }
     const el = beanDailyScrollRef.current
@@ -1924,13 +2007,13 @@ function InventoryStatusPage() {
     const nextLeft = el.scrollLeft + (cellCenterX - elCenterX)
     const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth)
     el.scrollLeft = Math.max(0, Math.min(maxScroll, nextLeft))
-  }, [beanDetailViewMode, inventoryState.days, inventoryState.referenceDate])
+  }, [beanDetailModalOpen, beanDetailViewMode, inventoryState.days, inventoryState.referenceDate])
 
   useLayoutEffect(() => {
     scrollBeanDailyToCenterDay()
     const id = window.requestAnimationFrame(() => scrollBeanDailyToCenterDay())
     return () => window.cancelAnimationFrame(id)
-  }, [scrollBeanDailyToCenterDay, selectedBeanName])
+  }, [beanDetailModalOpen, scrollBeanDailyToCenterDay, selectedBeanName])
 
   useEffect(() => {
     if (beanDetailViewMode !== 'daily') {
@@ -1944,7 +2027,7 @@ function InventoryStatusPage() {
   const inventoryMetric = useMemo(() => {
     const totalEndingStock = beanSummaryRows.reduce((total, bean) => total + bean.endingStock, 0)
     const activeBeans = beanSummaryRows.filter(
-      (bean) => bean.endingStock > 0 || (bean.rawUsageTotal ?? 0) > 0 || bean.inboundTotal > 0,
+      (bean) => bean.endingStock > 0 || bean.productionUsageTotal > 0 || bean.inboundTotal > 0,
     ).length
 
     return {
@@ -1990,7 +2073,6 @@ function InventoryStatusPage() {
       latestActiveDayTotal: latestActiveDayRow ? sumValues(latestActiveDayRow.values) : 0,
       daysWithRoasting,
       averagePerActiveDay,
-      rawUsageEstimate: convertRoastedOutputToRawInput(grandTotal),
     }
   }, [computedRoastingTotals, roastingDailyRows])
 
@@ -1998,18 +2080,17 @@ function InventoryStatusPage() {
     const maxTotal = Math.max(...computedRoastingTotals, 0)
     const totalForShare = inventoryState.roastingColumns.reduce((sum, column, index) => {
       const roastedTotal = computedRoastingTotals[index] ?? 0
-      return column.trim() === BLENDING_DARK_BEAN_NAME ? sum : sum + roastedTotal
+      return canonicalBlendDisplayName(column.trim()) === BLENDING_DARK_BEAN_NAME ? sum : sum + roastedTotal
     }, 0)
     const rows = inventoryState.roastingColumns.map((column, index) => {
       const roastedTotal = computedRoastingTotals[index] ?? 0
-      const isBlendingDark = column.trim() === BLENDING_DARK_BEAN_NAME
+      const isBlendingDark = canonicalBlendDisplayName(column.trim()) === BLENDING_DARK_BEAN_NAME
       const displayNo = roastingColumnIndexToDisplayNo.get(index) ?? null
       return {
         name: column,
         columnIndex: index,
         displayNo,
         roastedTotal,
-        rawUsageTotal: isBlendingDark ? null : convertRoastedOutputToRawInput(roastedTotal),
         share: isBlendingDark ? null : totalForShare > 0 ? roastedTotal / totalForShare : null,
         heatLevel: getHeatLevel(roastedTotal, maxTotal),
       }
@@ -2108,11 +2189,32 @@ function InventoryStatusPage() {
     return buildBeanWeeklyDetailRows(inventoryState.days, selectedBean)
   }, [selectedBean, inventoryState.days])
 
-  const focusBeanDetail = (beanName: string) => {
+  const openBeanDetailModal = (beanName: string) => {
     setSelectedBeanName(beanName)
-    window.requestAnimationFrame(() => {
-      beanDetailSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
+    setBeanDetailModalOpen(true)
+  }
+
+  const closeBeanDetailModal = () => {
+    setBeanDetailModalOpen(false)
+  }
+
+  const handleBeanDetailModalWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (!beanDetailModalOpen || beanDetailViewMode !== 'daily') {
+      return
+    }
+    const container = beanDailyScrollRef.current
+    if (!container) {
+      return
+    }
+    if (container.scrollWidth <= container.clientWidth) {
+      return
+    }
+    // 모달 안에서 휠(위/아래) 입력을 일자별 표의 좌/우 이동으로 변환
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+      return
+    }
+    container.scrollLeft += event.deltaY
+    event.preventDefault()
   }
 
   const toggleSurveyMarkedDay = (calendarDay: number) => {
@@ -2132,6 +2234,7 @@ function InventoryStatusPage() {
         const pins = buildStockPinnedDayIndices(synced.days, synced.surveyMarkedDays, physIdx)
         return {
           ...synced,
+          skipAutoStockDisplay: false,
           beanRows: synced.beanRows.map((bean) => ({
             ...bean,
             stock: resyncAutoStockForBeanRow(bean, pins),
@@ -2208,6 +2311,7 @@ function InventoryStatusPage() {
       const restored = resyncAutoStockForBeanRow(bean, pins)
       return {
         ...current,
+        skipAutoStockDisplay: false,
         beanRows: current.beanRows.map((row, idx) => (idx === selectedBeanIndex ? { ...row, stock: restored } : row)),
       }
     })
@@ -2237,6 +2341,36 @@ function InventoryStatusPage() {
     }
   }, [filteredDisplayedBeanRows, selectedBeanName])
 
+  useEffect(() => {
+    if (!selectedBean && beanDetailModalOpen) {
+      setBeanDetailModalOpen(false)
+    }
+  }, [selectedBean, beanDetailModalOpen])
+
+  useEffect(() => {
+    if (!beanDetailModalOpen) {
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setBeanDetailModalOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [beanDetailModalOpen])
+
+  useEffect(() => {
+    if (!beanDetailModalOpen) {
+      return
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [beanDetailModalOpen])
+
   const updateBeanValue = (
     beanIndex: number,
     targetKey: 'inbound' | 'production' | 'outbound' | 'stock',
@@ -2252,7 +2386,7 @@ function InventoryStatusPage() {
 
       if (targetKey === 'production') {
         const previousRawByRow = current.beanRows.map((b) => [...b.production])
-        const nextRaw = convertRoastedOutputToRawInput(parsedValue)
+        const nextRaw = parsedValue
         const nextBeanRows = current.beanRows.map((bean, index) => {
           if (index !== beanIndex) {
             return bean
@@ -2268,6 +2402,7 @@ function InventoryStatusPage() {
         })
         return {
           ...current,
+          skipAutoStockDisplay: false,
           beanRows: nextBeanRows.map((bean, bi) => ({
             ...bean,
             stock: resyncAutoStockForBeanRow(bean, pins, {
@@ -2280,6 +2415,7 @@ function InventoryStatusPage() {
 
       return {
         ...current,
+        skipAutoStockDisplay: false,
         beanRows: current.beanRows.map((bean, index) => {
           if (index !== beanIndex) {
             return bean
@@ -2316,19 +2452,9 @@ function InventoryStatusPage() {
           }
 
           if (targetKey === 'outbound' && isBlendingOutboundAdjustsStockRow(nextBean)) {
-            const oldOut = bean.outbound[valueIndex] ?? 0
-            const delta = parsedValue - oldOut
-            const patched = [...bean.stock]
-            const pinArr = [...pins]
-            const maxPin = pinArr.length > 0 ? Math.max(...pinArr) : 0
-            if (valueIndex <= maxPin) {
-              for (let j = valueIndex; j <= maxPin; j += 1) {
-                patched[j] -= delta
-              }
-            }
             nextBean = {
               ...nextBean,
-              stock: resyncAutoStockForBeanRow(nextBean, pins, { prefixStock: patched }),
+              stock: resyncAutoStockForBeanRow(nextBean, pins),
             }
           }
 
@@ -2362,7 +2488,7 @@ function InventoryStatusPage() {
       const beanRows = current.beanRows.map((bean) =>
         normalizeNameKey(bean.name) === prevKey ? { ...bean, name: resolved } : bean,
       )
-      return { ...current, roastingColumns, beanRows }
+      return { ...current, skipAutoStockDisplay: false, roastingColumns, beanRows }
     })
     setSelectedBeanName((sel) => (normalizeNameKey(sel) === prevKey ? resolved : sel))
     setStatusMessage('품목명을 바꿨습니다.')
@@ -2378,7 +2504,7 @@ function InventoryStatusPage() {
       (row): row is InventoryStatusState['roastingRows'][number] & { day: number } => typeof row.day === 'number',
     )
 
-    // 블렌딩 기여분(raw)은 로스팅 컬럼값에서 빠져 있으므로, production으로 역변환할 때 다시 더해준다.
+    // 로스팅 일별 셀은 '단독' 생산(사용)만 담기므로, production(전체)로 맞출 때 블렌딩 raw 기여를 더한다.
     const blendRawByBeanKey = new Map<string, number[]>()
     const addBlendContribution = (recipe: typeof current.blendingDarkRecipe, cycles: number[]) => {
       if (!recipe) return
@@ -2407,7 +2533,7 @@ function InventoryStatusPage() {
         }
         const colKey = normalizeNameKey(colName)
         const blendingRaw = blendRawByBeanKey.get(colKey)?.[dayIndex] ?? 0
-        const rawValue = convertRoastedOutputToRawInput(roastedValue ?? 0) + blendingRaw
+        const rawValue = (roastedValue ?? 0) + blendingRaw
         nextBeanRows.forEach((bean) => {
           if (bean.name.trim() !== colName) {
             return
@@ -2443,7 +2569,13 @@ function InventoryStatusPage() {
       return
     }
     initialRoastingSyncDoneRef.current = true
-    setInventoryState((current) => syncBeanProductionFromRoastingRows(current))
+    setInventoryState((current) => {
+      const synced = syncBeanProductionFromRoastingRows(current)
+      if (synced === current) {
+        return current
+      }
+      return { ...synced, skipAutoStockDisplay: false }
+    })
   }, [isStorageReady])
 
   const updateRoastingValue = (day: number, valueIndex: number, nextValue: string) => {
@@ -2460,7 +2592,7 @@ function InventoryStatusPage() {
 
       const targetColumnName = normalizeNameKey(current.roastingColumns[valueIndex] ?? '')
       const previousRawByRow = current.beanRows.map((b) => [...b.production])
-      const nextRaw = convertRoastedOutputToRawInput(parsedRoasted)
+      const nextRaw = parsedRoasted
 
       // 사이클이 돌아간 날에는 구성 원두 production에 이미 블렌딩 기여분(raw)이 누적돼 있다.
       // 단독 로스팅만 수정하는 편집이므로, 블렌딩 기여분은 그대로 두고 단독 부분만 덮어쓴다.
@@ -2503,6 +2635,7 @@ function InventoryStatusPage() {
       const pins = buildStockPinnedDayIndices(current.days, current.surveyMarkedDays, physIdx)
       return {
         ...current,
+        skipAutoStockDisplay: false,
         beanRows: nextBeanRows.map((bean, bi) => ({
           ...bean,
           stock: resyncAutoStockForBeanRow(bean, pins, {
@@ -2599,6 +2732,7 @@ function InventoryStatusPage() {
 
       return {
         ...updatedState,
+        skipAutoStockDisplay: false,
         beanRows: updatedState.beanRows.map((bean, bi) => ({
           ...bean,
           stock: resyncAutoStockForBeanRow(bean, pins, {
@@ -2633,7 +2767,7 @@ function InventoryStatusPage() {
       })
       const nextRecipe = { ...prev, components: nextComponents }
       const next = { ...current, [key]: nextRecipe }
-      return { ...next, roastingRows: syncRoastingRowsFromBeanProduction(next) }
+      return { ...next, skipAutoStockDisplay: false, roastingRows: syncRoastingRowsFromBeanProduction(next) }
     })
   }
 
@@ -2645,7 +2779,7 @@ function InventoryStatusPage() {
       if (roastedPerCycle === prev.roastedPerCycle) return current
       const nextRecipe = { ...prev, roastedPerCycle }
       const next = { ...current, [key]: nextRecipe }
-      return { ...next, roastingRows: syncRoastingRowsFromBeanProduction(next) }
+      return { ...next, skipAutoStockDisplay: false, roastingRows: syncRoastingRowsFromBeanProduction(next) }
     })
   }
 
@@ -2657,7 +2791,7 @@ function InventoryStatusPage() {
         ...prev,
         components: [...prev.components, { beanName: '', rawPerCycle: 0 }],
       }
-      return { ...current, [key]: nextRecipe }
+      return { ...current, skipAutoStockDisplay: false, [key]: nextRecipe }
     })
   }
 
@@ -2670,7 +2804,7 @@ function InventoryStatusPage() {
         components: prev.components.filter((_, i) => i !== index),
       }
       const next = { ...current, [key]: nextRecipe }
-      return { ...next, roastingRows: syncRoastingRowsFromBeanProduction(next) }
+      return { ...next, skipAutoStockDisplay: false, roastingRows: syncRoastingRowsFromBeanProduction(next) }
     })
   }
 
@@ -2705,39 +2839,19 @@ function InventoryStatusPage() {
       const buffer = await file.arrayBuffer()
       const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
       const parsedState = parseInventoryWorkbook(workbook)
-      // 엑셀의 `생산` 행은 일반 원두는 "생산 결과량(로스팅 kg)"으로 보고 내부(raw)로 환산합니다.
-      // Blending-Dark는 시트에 이미 생두 사용량(raw) 기준으로 적는 경우가 많아 같은 환산을 하면 값이 커져 재고가 음수로 깨집니다.
-      const uploadNormalizedState: InventoryStatusState = {
+      // 엑셀 `생산` 행은 생두 사용(차감) kg 그대로 반영(수율 환산 없음). 재고·입고·출고·로스팅도 셀 값(소수 둘째 자리) 그대로 쓰고 자동 연채는 적용하지 않음.
+      const nextState: InventoryStatusState = {
         ...parsedState,
-        beanRows: parsedState.beanRows.map((bean) => ({
-          ...bean,
-          production: isBlendingDarkBeanRow(bean)
-            ? [...bean.production]
-            : bean.production.map((value) => convertRoastedOutputToRawInput(value)),
-        })),
-      }
-      const physIdx = dayIndexForReferenceDate(
-        uploadNormalizedState.days,
-        uploadNormalizedState.physicalCountDate,
-      )
-      const pins = buildStockPinnedDayIndices(
-        uploadNormalizedState.days,
-        uploadNormalizedState.surveyMarkedDays,
-        physIdx,
-      )
-      const nextState = {
-        ...uploadNormalizedState,
-        beanRows: uploadNormalizedState.beanRows.map((bean) => ({
-          ...bean,
-          stock: resyncAutoStockForBeanRow(bean, pins),
-        })),
+        skipAutoStockDisplay: true,
       }
       setTemplateBase64(arrayBufferToBase64(buffer))
       setTemplateFileName(file.name)
       setInventoryState(nextState)
       setBaselineState(nextState)
       setSelectedBeanName(nextState.beanRows[0]?.name ?? '')
-      setStatusMessage(`엑셀 자료 반영 완료: ${file.name} (이 상태가 기본값 복원 기준으로 저장됩니다)`)
+      setStatusMessage(
+        `엑셀 반영: ${file.name} (kg 소수 둘째 자리, 재고·수치는 시트 그대로 / 셀 수정 시 자동 연채) · 복원 기준 저장`,
+      )
     } catch (error) {
       const message = error instanceof Error ? error.message : '엑셀 파일을 읽는 중 오류가 발생했습니다.'
       setStatusMessage(message)
@@ -2826,6 +2940,7 @@ function InventoryStatusPage() {
         const pins = buildStockPinnedDayIndices(next.days, next.surveyMarkedDays, physIdx)
         return {
           ...next,
+          skipAutoStockDisplay: false,
           beanRows: next.beanRows.map((bean) => ({
             ...bean,
             stock: resyncAutoStockForBeanRow(bean, pins),
@@ -2973,13 +3088,7 @@ function InventoryStatusPage() {
     displayedBeanRows.forEach((bean) => {
       const rows = [
         ['입고', alignBeanValuesToDayCount(bean.inbound, dayCount)],
-        [
-          '생산',
-          alignBeanValuesToDayCount(
-            bean.production.map((value) => convertRawInputToRoastedOutput(value)),
-            dayCount,
-          ),
-        ],
+        ['생산(사용)', alignBeanValuesToDayCount(bean.production, dayCount)],
         ['출고', alignBeanValuesToDayCount(bean.outbound, dayCount)],
         ['재고', alignBeanValuesToDayCount(bean.stock, dayCount)],
       ] as const
@@ -3043,30 +3152,25 @@ function InventoryStatusPage() {
 
   return (
     <>
+      {isStorageReady ? (
     <div className="meeting-layout">
-      <header className="hero-panel">
-        <div>
-          <div className="inventory-hero-title-row">
-            <h1>생두 / 로스팅 현황</h1>
-            <div className="hero-metrics inventory-hero-metrics-inline">
-              <div className="metric-card">
-                <span>기준일</span>
-                <strong>{formatReferenceDate(inventoryState.referenceDate)}</strong>
-              </div>
-              <div className="metric-card">
-                <span>기준일 재고 합계</span>
-                <strong>{formatNumber(inventoryMetric.totalEndingStock)}kg</strong>
-              </div>
-              <div className="metric-card">
-                <span>총 로스팅량</span>
-                <strong>{formatNumber(roastingMetrics.grandTotal)}kg</strong>
-              </div>
+      <section className="panel inventory-top-controls-panel">
+        <div className="inventory-page-snapshot-metrics no-print" aria-label="현황 요약">
+          <div className="hero-metrics inventory-hero-metrics-inline">
+            <div className="metric-card">
+              <span>기준일</span>
+              <strong>{formatReferenceDate(inventoryState.referenceDate)}</strong>
+            </div>
+            <div className="metric-card">
+              <span>기준일 재고 합계</span>
+              <strong>{formatNumber(inventoryMetric.totalEndingStock)}kg</strong>
+            </div>
+            <div className="metric-card">
+              <span>월 누적 생산(사용) 합</span>
+              <strong>{formatNumber(roastingMetrics.grandTotal)}kg</strong>
             </div>
           </div>
         </div>
-      </header>
-
-      <section className="panel inventory-top-controls-panel">
         <div className="meeting-config-row inventory-config-row inventory-config-row--single-line">
           <label className="meeting-inline-field">
             기준일
@@ -3077,6 +3181,7 @@ function InventoryStatusPage() {
                 const nextRef = event.target.value
                 setInventoryState((current) => ({
                   ...current,
+                  skipAutoStockDisplay: false,
                   referenceDate: nextRef,
                   physicalCountDate: `${nextRef.slice(0, 8)}${current.physicalCountDate.slice(8, 10)}`,
                 }))
@@ -3091,6 +3196,7 @@ function InventoryStatusPage() {
               onChange={(event) =>
                 setInventoryState((current) => ({
                   ...current,
+                  skipAutoStockDisplay: false,
                   physicalCountDate: `${current.referenceDate.slice(0, 8)}${event.target.value.slice(8, 10)}`,
                 }))
               }
@@ -3213,7 +3319,6 @@ function InventoryStatusPage() {
                   <col className="inventory-summary-col-num" />
                   <col className="inventory-summary-col-num" />
                   <col className="inventory-summary-col-num" />
-                  <col className="inventory-summary-col-num" />
                 </colgroup>
                 <thead>
                   <tr>
@@ -3221,8 +3326,7 @@ function InventoryStatusPage() {
                       NO · 생두명
                     </th>
                     <th scope="col">입고 합계</th>
-                    <th scope="col">생산 결과량 합계</th>
-                    <th scope="col">환산 생두 사용량</th>
+                    <th scope="col">생산(사용) 합계</th>
                     <th scope="col">출고 합계</th>
                     <th scope="col">기준일 재고</th>
                   </tr>
@@ -3253,24 +3357,21 @@ function InventoryStatusPage() {
                           <button
                             type="button"
                             className="inventory-bean-name-cell-button"
-                            onClick={() => focusBeanDetail(bean.name)}
+                            onClick={() => openBeanDetailModal(bean.name)}
                           >
                             <span className="inventory-bean-summary-no-prefix">{bean.no}.</span> {bean.name}
                           </button>
                         )}
                       </td>
                       <td className="inventory-summary-num-cell">{formatNumber(bean.inboundTotal)}</td>
-                      <td className="inventory-summary-num-cell">{formatNumber(bean.roastedOutputTotal)}</td>
-                      <td className="inventory-summary-num-cell">
-                        {bean.rawUsageTotal === null ? '-' : formatNumber(bean.rawUsageTotal)}
-                      </td>
+                      <td className="inventory-summary-num-cell">{formatNumber(bean.productionUsageTotal)}</td>
                       <td className="inventory-summary-num-cell">{formatNumber(bean.outboundTotal)}</td>
                       <td className="inventory-summary-num-cell">{formatNumber(bean.endingStock)}</td>
                     </tr>
                   ))}
                   {filteredBeanSummaryRows.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="inventory-empty-cell">
+                      <td colSpan={5} className="inventory-empty-cell">
                         현재 조건에 맞는 품목이 없습니다.
                       </td>
                     </tr>
@@ -3280,10 +3381,22 @@ function InventoryStatusPage() {
             </div>
           </div>
 
-          {selectedBean ? (
-            <div ref={beanDetailSectionRef} className="meeting-card inventory-bean-detail-card">
+          {selectedBean && beanDetailModalOpen ? (
+            <div
+              className="inventory-reset-dialog-backdrop inventory-bean-detail-modal-backdrop"
+              role="presentation"
+              onClick={closeBeanDetailModal}
+            >
+              <div
+                className="inventory-reset-dialog inventory-bean-detail-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="inventory-bean-detail-modal-title"
+                onWheel={handleBeanDetailModalWheel}
+                onClick={(event) => event.stopPropagation()}
+              >
               <div className="meeting-card-header inventory-daily-detail-card-header">
-                <h3 className="inventory-daily-detail-heading">
+                <h3 id="inventory-bean-detail-modal-title" className="inventory-daily-detail-heading">
                   <span className="inventory-daily-detail-bean-title">
                     {selectedBean.no}. {selectedBean.name}
                   </span>
@@ -3292,6 +3405,14 @@ function InventoryStatusPage() {
                   </span>
                 </h3>
                 <div className="segmented inventory-bean-detail-view-toggle">
+                  <button
+                    type="button"
+                    className="ghost-button small-hit"
+                    onClick={closeBeanDetailModal}
+                    title="원두 상세 닫기"
+                  >
+                    닫기
+                  </button>
                   <button
                     type="button"
                     className="ghost-button small-hit"
@@ -3320,13 +3441,14 @@ function InventoryStatusPage() {
                 <>
                   {isBlendingDarkBeanRow(selectedBean) ? (
                     <p className="muted tiny inventory-blend-dark-hint">
-                      Blending-Dark는 다른 원두 행과 숫자를 연동하지 않습니다. 이 품목만 입고·생산·출고·재고를
-                      따로 적어 주시면 됩니다. 일별 출고만큼 그날부터 재고가 줄어듭니다.
+                      {BLENDING_DARK_BEAN_NAME}: 입고는 비워 둬도 됩니다(자동 재고에 쓰지 않음). 날짜마다{' '}
+                      <strong>전일 재고 + 생산(사용) − 출고</strong>로 이어집니다. 실사한 날은 직접 맞춘 재고를
+                      유지합니다.
                     </p>
                   ) : null}
                   {isBlendingLightBeanRow(selectedBean) ? (
                     <p className="muted tiny inventory-blend-dark-hint">
-                      Blending-Light도 일별 출고만큼 재고가 줄어듭니다.
+                      {BLENDING_LIGHT_BEAN_NAME}도 동일합니다. 입고 없이, 생산이 더해지고 출고가 빠집니다.
                     </p>
                   ) : null}
                   <div ref={beanDailyScrollRef} className="inventory-bean-daily-x-scroll">
@@ -3374,27 +3496,14 @@ function InventoryStatusPage() {
                           isBlendingDarkBeanRow(selectedBean)
                             ? [
                                 { label: '입고', values: selectedBean.inbound, key: 'inbound' as const },
-                                {
-                                  label: '블렌딩 생산량',
-                                  values: selectedBean.production.map(convertRawInputToRoastedOutput),
-                                  key: 'production' as const,
-                                },
+                                { label: '생산(사용)', values: selectedBean.production, key: 'production' as const },
                                 { label: '출고', values: selectedBean.outbound, key: 'outbound' as const },
                                 { label: '재고', values: selectedBean.stock, key: 'stock' as const },
                               ]
                             : [
                                 { label: '입고', values: selectedBean.inbound, key: 'inbound' as const },
-                                {
-                                  label: '생산 결과량',
-                                  values: selectedBean.production.map(convertRawInputToRoastedOutput),
-                                  key: 'production' as const,
-                                },
+                                { label: '생산(사용)', values: selectedBean.production, key: 'production' as const },
                                 { label: '출고', values: selectedBean.outbound, key: 'outbound' as const },
-                                {
-                                  label: '환산 생두 사용량',
-                                  values: selectedBean.production,
-                                  key: 'raw-usage' as const,
-                                },
                                 { label: '재고', values: selectedBean.stock, key: 'stock' as const },
                               ]
                         ).map((row) => (
@@ -3406,7 +3515,7 @@ function InventoryStatusPage() {
                               const stockAutoLocked =
                                 row.key === 'stock' &&
                                 !isStockColumnEditable(inventoryState, index)
-                              const readOnly = row.key === 'raw-usage' || stockAutoLocked
+                              const readOnly = stockAutoLocked
                               const stepMin =
                                 row.key === 'production' || row.key === 'inbound' || row.key === 'outbound'
                                   ? { step: 1, min: 0 }
@@ -3428,7 +3537,7 @@ function InventoryStatusPage() {
                                     onChange={(event) =>
                                       updateBeanValue(
                                         selectedBeanIndex,
-                                        row.key === 'raw-usage' ? 'production' : row.key,
+                                        row.key,
                                         index,
                                         event.target.value,
                                       )
@@ -3478,6 +3587,7 @@ function InventoryStatusPage() {
                   가장 늦은 날의 재고입니다. 수정은「일별」에서 해 주세요.
                 </p>
               ) : null}
+              </div>
             </div>
           ) : null}
 
@@ -3567,13 +3677,9 @@ function InventoryStatusPage() {
                     : '-'}
                 </strong>
               </div>
-              <div className="inventory-roasting-kpi-chip">
-                <span>월 누적 결과량</span>
+                <div className="inventory-roasting-kpi-chip">
+                <span>월 누적 사용(생두)</span>
                 <strong>{formatTwoDecimals(roastingMetrics.grandTotal)}kg</strong>
-              </div>
-              <div className="inventory-roasting-kpi-chip">
-                <span>환산 생두</span>
-                <strong>{formatTwoDecimals(roastingMetrics.rawUsageEstimate)}kg</strong>
               </div>
               <div className="inventory-roasting-kpi-chip inventory-roasting-kpi-chip--wide">
                 <span>최다 로스팅 품목</span>
@@ -3597,8 +3703,7 @@ function InventoryStatusPage() {
                 <thead>
                   <tr>
                     <th>NO · 품목</th>
-                    <th>로스팅 결과량</th>
-                    <th>환산 생두 사용량</th>
+                    <th>생산(사용) 합</th>
                     <th>비중</th>
                   </tr>
                 </thead>
@@ -3613,7 +3718,6 @@ function InventoryStatusPage() {
                         {row.name}
                       </td>
                       <td>{formatTwoDecimals(row.roastedTotal)}kg</td>
-                      <td>{row.rawUsageTotal === null ? '-' : `${formatTwoDecimals(row.rawUsageTotal)}kg`}</td>
                       <td>{row.share === null ? '-' : row.share > 0 ? `${(row.share * 100).toFixed(1)}%` : '-'}</td>
                     </tr>
                   ))}
@@ -3762,6 +3866,15 @@ function InventoryStatusPage() {
         </section>
       </>
     </div>
+      ) : (
+        <div className="meeting-layout inventory-page-hydration-loading" aria-busy="true">
+          <section className="panel">
+            <p className="inventory-page-hydration-message" role="status">
+              입출고 현황을 불러오는 중…
+            </p>
+          </section>
+        </div>
+      )}
 
     {fullResetDialogOpen ? (
       <div
