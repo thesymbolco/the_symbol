@@ -1128,7 +1128,8 @@ const getBackupPayload = (
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'greenBeanOrder' ||
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'memo' ||
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'dailyMeeting' ||
-    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'team'
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'team' ||
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'beanSalesAnalysis'
       ? (window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) as AppActivePage)
       : undefined,
   monthlyMeetingState: window.localStorage.getItem(MONTHLY_MEETING_DATA_KEY) ?? '',
@@ -1191,7 +1192,8 @@ const readBackupFile = async (fileHandle: FileSystemFileHandle): Promise<AppBack
       parsed.activePage === 'greenBeanOrder' ||
       parsed.activePage === 'memo' ||
       parsed.activePage === 'dailyMeeting' ||
-      parsed.activePage === 'team'
+      parsed.activePage === 'team' ||
+      parsed.activePage === 'beanSalesAnalysis'
         ? parsed.activePage
         : undefined,
     monthlyMeetingState: String(parsed.monthlyMeetingState ?? ''),
@@ -1299,7 +1301,8 @@ function App() {
       savedPage === 'staffPayroll' ||
       savedPage === 'greenBeanOrder' ||
       savedPage === 'dailyMeeting' ||
-      savedPage === 'team'
+      savedPage === 'team' ||
+      savedPage === 'beanSalesAnalysis'
     ) {
       return savedPage
     }

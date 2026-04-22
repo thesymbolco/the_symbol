@@ -1,6 +1,12 @@
+import { resolveStatementInventoryManual } from './beanStatementManualMappings'
 import { GREEN_BEAN_ORDER_INVENTORY_ALIASES } from './greenBeanOrderInventoryAliases'
 import { canonicalBlendDisplayName } from './inventoryBlendRecipes'
 import type { InventoryBeanRow } from './inventoryStatusUtils'
+
+export type MapStatementItemToInventoryOptions = {
+  mode?: 'local' | 'cloud'
+  companyId?: string | null
+}
 
 const normCompact = (s: string) => s.trim().toLowerCase().replace(/\s/g, '')
 
@@ -80,9 +86,72 @@ const resolveAliasedTarget = (targetFromAlias: string, rows: readonly InventoryB
   return findLongestSubstringRow(t, rows)
 }
 
+/**
+ * 거래명세에 "브라질"만 오거나(괄호는 매장명이라 strip됨) 세하도 키워드일 때,
+ * **입출고 `bean.name`에 실제로 있는** 브라질·산토스 등 행을 고릅니다(하드코딩 Mogiana 사용 안 함).
+ * 후보가 둘 이상이면 `no`가 작은 쪽(보통 먼저 쓰는 품목)에 붙입니다.
+ */
+const BRAZIL_NAME_HINTS =
+  /브라질|brazil|mogiana|cerrado|세하도|산토스|santos|sugarcane|슈가|ny2|ny2fc|모지아나|lamirande/i
+
+const rowNameHaystack = (b: Pick<InventoryBeanRow, 'name'>) => normCompact(b.name) + normCompact(coreFromName(b.name))
+
+/** 여러 '브라질계' 행일 때: 코어가 정확히 `Brazil`인 `10. Brazil` 를 `3. Cerrado` 보다 먼저(거래명세 `브라질` 품목) */
+const pickInventoryBrazilFromCandidates = (candidates: readonly InventoryBeanRow[]): InventoryBeanRow | null => {
+  if (candidates.length === 0) {
+    return null
+  }
+  if (candidates.length === 1) {
+    return candidates[0]
+  }
+  const coreIsBrazil = candidates.filter((b) => normCompact(coreFromName(b.name)) === 'brazil')
+  if (coreIsBrazil.length > 0) {
+    return [...coreIsBrazil].sort((a, b) => (a.no ?? 999) - (b.no ?? 999))[0] ?? null
+  }
+  return [...candidates].sort((a, b) => (a.no ?? 999) - (b.no ?? 999))[0] ?? null
+}
+
+const findInventoryBrazilRowGuess = (rows: readonly InventoryBeanRow[]): InventoryBeanRow | null => {
+  if (rows.length === 0) {
+    return null
+  }
+  const byHint = rows.filter((b) => BRAZIL_NAME_HINTS.test(rowNameHaystack(b)))
+  if (byHint.length > 0) {
+    return pickInventoryBrazilFromCandidates(byHint)
+  }
+  const byKorean = rows.filter((b) => rowNameHaystack(b).includes('브라질'))
+  if (byKorean.length > 0) {
+    return pickInventoryBrazilFromCandidates(byKorean)
+  }
+  return null
+}
+
+/**
+ * 거래명세가 `브라질`로 시작하는 일반 품목(공백 뒤 `원두` 등, 또는 `브라질원두`처럼 붙은 표기)
+ */
+const isStatementLeadingBrazil = (forMatch: string): boolean => {
+  const t = forMatch.trim()
+  if (!t) {
+    return false
+  }
+  if (t === '브라질') {
+    return true
+  }
+  const w0 = normSpaced(t).split(/[\s,，、]+/)[0] ?? ''
+  if (w0 === '브라질') {
+    return true
+  }
+  if (t.startsWith('브라질') && t.length > 3) {
+    return true
+  }
+  return false
+}
+
+/** `PHRASE_TO_BEAN_NAME`에서 Mogiana가 아닌, 입고 행 기준 브라질 선택을 쓰기 위한 내부 토큰 */
+const PHRASE_PICKS_INVENTORY_BRAZIL = '↑invent:brazil'
+
 type KeywordSpec = { re: RegExp; target: string }
 
-/** 품목문구만 보고 먼저 잡는 키(한글/영문 혼용) → 입출고 `bean.name`과 동일한 문자열 (위에 있을수록 먼저 적용) */
 const KEYWORD_TO_BEAN_NAME: KeywordSpec[] = [
   {
     re: /블렌딩[-–\s]*길\s*시그니처|blending[-\s]*signature/iu,
@@ -92,7 +161,7 @@ const KEYWORD_TO_BEAN_NAME: KeywordSpec[] = [
   { re: /^(케냐|kenya|aa\s*faq|aa\s*plus|aa\s*플러스|aa\s*\+)/i, target: 'Ihider' },
   { re: /나리[노뇨]|narino|콜롬비아.*나리|colombia.*nari/i, target: 'Narino' },
   { re: /sidamo|시다모/i, target: 'Sidamo G4' },
-  { re: /mogiana|모지아나|세하도(?!.*디카)|^브라질$/i, target: 'Mogiana' },
+  { re: /mogiana|모지아나|세하도(?!.*디카)/i, target: 'Mogiana' },
   { re: /koke|코케|코케허니|예가체프 g1(?!.*g2)/i, target: 'Koke honey' },
   { re: /yirgacheffe|예가체프(?!.*g1)/i, target: 'Yirgacheffe' },
   { re: /mormora|모모라/i, target: 'Mormora' },
@@ -111,6 +180,22 @@ const KEYWORD_TO_BEAN_NAME: KeywordSpec[] = [
   { re: /라이트\s*blend|light\s*blend|blending-light|블렌딩.*라이트/i, target: '14. LIGHT BLEND' },
   { re: /deca?ffe?ine|디카페인\s*blend|blending-signature|15\.|decaf.*blend(?!.*dark)/i, target: '15. DECAFFEINE BLEND' },
 ]
+
+const keywordTargetForDisplay = (candidates: string[]): string | null => {
+  for (const c of candidates) {
+    if (!c?.trim()) {
+      continue
+    }
+    const s = c.trim()
+    const spaced = normSpaced(s)
+    for (const { re, target } of KEYWORD_TO_BEAN_NAME) {
+      if (re.test(s) || re.test(spaced)) {
+        return target
+      }
+    }
+  }
+  return null
+}
 
 /**
  * App.tsx `DEFAULT_ITEM_OPTIONS`·실제 납품 품목에서 자주 쓰는 풀문구 → `bean.name`
@@ -133,7 +218,7 @@ const PHRASE_TO_BEAN_NAME: ReadonlyArray<readonly [string, string]> = [
   ['블렌딩 라이트', '14. LIGHT BLEND'],
   ['과테말라 안티구아 디카페인', 'Decaf Antigua SHB'],
   ['브라질 슈가케인 디카페인', 'Decaf 세라도 NY2FC'],
-  ['브라질 세하도', 'Mogiana'],
+  ['브라질 세하도', PHRASE_PICKS_INVENTORY_BRAZIL],
 ]
 
 function findByPhraseMap(clean: string): string | null {
@@ -159,12 +244,22 @@ function findByPhraseMap(clean: string): string | null {
 export function mapStatementItemToInventoryLabel(
   itemName: string,
   beanRows: readonly InventoryBeanRow[],
+  options?: MapStatementItemToInventoryOptions,
 ): { label: string; sortKey: number; matched: boolean } {
   if (!itemName?.trim()) {
     return { label: '—', sortKey: 999_999, matched: false }
   }
 
   const raw = itemName.trim()
+  const fromManual = resolveStatementInventoryManual(
+    raw,
+    beanRows,
+    options?.mode ?? 'local',
+    options?.companyId ?? null,
+  )
+  if (fromManual) {
+    return fromManual
+  }
   const blended = canonicalBlendDisplayName(raw)
   const forMatch = stripParensForMatch(blended)
   const forMatchSpaced = normSpaced(forMatch)
@@ -175,35 +270,62 @@ export function mapStatementItemToInventoryLabel(
     return { label: '더치(디카페인) 음료', sortKey: 950_000, matched: true }
   }
 
+  /** `브라질(라미랑드)` 등 → strip만 하면 '브라질' = 산지, 입고 `10. Brazil` 코어 `Brazil`와 1:1(매장명 괄호 무시) */
+  if (beanRows.length > 0) {
+    if (forMatchSpaced === '브라질') {
+      const exact = findByExactName('Brazil', beanRows)
+      if (exact) {
+        return { label: formatBeanRowLabel(exact), sortKey: exact.no ?? 0, matched: true }
+      }
+    }
+    if (isStatementLeadingBrazil(forMatch)) {
+      const brazil = findInventoryBrazilRowGuess(beanRows)
+      if (brazil) {
+        return { label: formatBeanRowLabel(brazil), sortKey: brazil.no ?? 0, matched: true }
+      }
+    }
+  }
+
   const tokenOnly =
     forMatch.length > 0 && !/[\s,，]/.test(forMatch) ? forMatch : ''
   if (tokenOnly) {
+    if (tokenOnly === '브라질' && beanRows.length === 0) {
+      return { label: '브라질', sortKey: 900_000, matched: true }
+    }
     const singleTokenToBeanName: ReadonlyArray<readonly [string, string]> = [
       ['디카페인', '15. DECAFFEINE BLEND'],
       ['나리노', 'Narino'],
       ['나리뇨', 'Narino'],
-      ['브라질', 'Mogiana'],
       ['유로', 'Euro'],
       ['케냐', 'Ihider'],
     ]
     for (const [tok, beanName] of singleTokenToBeanName) {
-      if (tokenOnly === tok) {
-        if (beanRows.length === 0) {
-          return { label: beanName, sortKey: 900_000, matched: true }
-        }
-        const row = findByExactName(beanName, beanRows)
-        if (row) {
-          return { label: formatBeanRowLabel(row), sortKey: row.no ?? 0, matched: true }
-        }
-        break
+      if (tokenOnly !== tok) {
+        continue
       }
+      if (beanRows.length === 0) {
+        return { label: beanName, sortKey: 900_000, matched: true }
+      }
+      const row = findByExactName(beanName, beanRows)
+      if (row) {
+        return { label: formatBeanRowLabel(row), sortKey: row.no ?? 0, matched: true }
+      }
+      // 입출고에 그 영문 품목 행이 없으면(예: Ihider 미사용) 키워드로 붙이지 않고 아래 단계·원문으로
+      break
     }
   }
 
   if (beanRows.length === 0) {
     const fromPhrase = findByPhraseMap(forMatch)
     if (fromPhrase) {
-      return { label: fromPhrase, sortKey: 900_000, matched: true }
+      if (fromPhrase === PHRASE_PICKS_INVENTORY_BRAZIL) {
+        return { label: '브라질 세하도', sortKey: 900_000, matched: true }
+      }
+      return {
+        label: keywordTargetForDisplay([fromPhrase]) ?? fromPhrase,
+        sortKey: 900_000,
+        matched: true,
+      }
     }
     for (const { re, target } of KEYWORD_TO_BEAN_NAME) {
       if (re.test(forMatchSpaced) || re.test(raw)) {
@@ -212,22 +334,31 @@ export function mapStatementItemToInventoryLabel(
     }
     for (const [from, to] of GREEN_BEAN_ORDER_INVENTORY_ALIASES) {
       if (forMatchCompact.includes(normCompact(from)) || normCompact(from) === forMatchCompact) {
-        return { label: to, sortKey: 900_000, matched: true }
+        return {
+          label: keywordTargetForDisplay([to, forMatch, raw]) ?? to,
+          sortKey: 900_000,
+          matched: true,
+        }
       }
     }
     return { label: raw, sortKey: 900_000, matched: false }
   }
 
-  // 1) 자주 쓰는 풀문구 (앱 품목 옵션 등)
+  // 1) 자주 쓰는 풀문구 (앱 품목 옵션 등) — '브라질 세하도' 등은 입고에 있는 브라질 행으로 연결(고정 Mogiana 없음)
   const fromPhrase = findByPhraseMap(forMatch)
-  if (fromPhrase) {
+  if (fromPhrase === PHRASE_PICKS_INVENTORY_BRAZIL) {
+    const brazil = findInventoryBrazilRowGuess(beanRows)
+    if (brazil) {
+      return { label: formatBeanRowLabel(brazil), sortKey: brazil.no ?? 0, matched: true }
+    }
+  } else if (fromPhrase) {
     const row = findByExactName(fromPhrase, beanRows) ?? resolveAliasedTarget(fromPhrase, beanRows)
     if (row) {
       return { label: formatBeanRowLabel(row), sortKey: row.no ?? 0, matched: true }
     }
   }
 
-  // 2) 키워드 → inventory bean name
+  // 2) 키워드 → inventory bean name(입출고에 해당 `bean.name` 행이 있을 때만 채택)
   for (const { re, target } of KEYWORD_TO_BEAN_NAME) {
     if (re.test(forMatchSpaced) || re.test(raw)) {
       const row = findByExactName(target, beanRows)
@@ -236,8 +367,7 @@ export function mapStatementItemToInventoryLabel(
       }
     }
   }
-
-  // 3) 생두주문-재고 별칭
+  // 3) 생두주문-재고 별칭(괄호·매장명 제거 뒤 문자열만 — forMatch)
   for (const [from, to] of GREEN_BEAN_ORDER_INVENTORY_ALIASES) {
     if (forMatchCompact.includes(normCompact(from)) || normCompact(from) === forMatchCompact) {
       const row = resolveAliasedTarget(to, beanRows) ?? findByExactName(to, beanRows)
@@ -253,13 +383,13 @@ export function mapStatementItemToInventoryLabel(
     return { label: formatBeanRowLabel(direct), sortKey: direct.no ?? 0, matched: true }
   }
 
-  // 5) 가장 긴 부분일치(영문/한글 혼용 대비)
+  // 5) 가장 긴 부분일치(영문/한글 혼용, 괄호는 strip된 본문만)
   const sub = findLongestSubstringRow(forMatchCompact, beanRows)
   if (sub) {
     return { label: formatBeanRowLabel(sub), sortKey: sub.no ?? 0, matched: true }
   }
 
-  // 6) 그대로(미매칭) — 괄호는 표시는 유지하되, 너무 길면 축약은 하지 않음
+  // 6) 그대로(미매칭) — 위에서 입출고 행을 정하지 못한 경우(다른 품목·잘못된 키워드) 원문
   return { label: raw, sortKey: 900_000, matched: false }
 }
 

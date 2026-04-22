@@ -5,9 +5,13 @@ import {
   INVENTORY_STATUS_STORAGE_KEY,
   inventoryPageScopedKey,
 } from './InventoryStatusPage'
-import { mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
+import { getLatestGreenOrderWonPerKgByInventoryLabel } from './beanSalesGreenOrderUnitPrice'
+import { GREEN_BEAN_ORDER_SAVED_EVENT } from './GreenBeanOrderPage'
+import { BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, hasAnyStatementManualForItem } from './beanStatementManualMappings'
+import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
 import { normalizeInventoryStatusState } from './inventoryStatusUtils'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
+import StatementInventoryLinkModal from './StatementInventoryLinkModal'
 
 type StatementRecord = {
   id: string
@@ -19,6 +23,16 @@ type StatementRecord = {
   taxAmount: number
   totalAmount: number
   clientName: string
+}
+
+/** 입고 `N. 품목명` 집합에 못 올라간(매칭 시도 끝) 거래 — 매출 요약에서 제외됐지만 수치는 여기에 표시 */
+type NotInInventorySummary = {
+  itemName: string
+  /** mapStatementItemToInventoryLabel이 만든 라벨(원문/임시) */
+  mappedLabel: string
+  totalRevenue: number
+  totalQuantity: number
+  transactionCount: number
 }
 
 type BeanSalesData = {
@@ -36,6 +50,11 @@ type BeanSalesData = {
     quantity: number
     revenue: number
   }>
+  /** 생두 주문 일자 기록·품목을 입출고 라벨에 맞춰 묶은 뒤, 가장 최근 스냅샷의 원/kg(없으면 null) */
+  latestGreenWonPerKg: number | null
+  latestGreenOrderDate: string | null
+  /** 거래명세 평균단가(원) − 최근 주문가(원/kg) — 1/KG·비교 가능할 때만 참고 */
+  spreadVsGreenOrder: number | null
 }
 
 const STATEMENT_RECORDS_KEY = 'statement-records-v1'
@@ -51,14 +70,30 @@ const formatNumber = (value: number): string => {
 function BeanSalesAnalysisPage() {
   const { mode, activeCompanyId } = useAppRuntime()
   const [inventoryReadTick, setInventoryReadTick] = useState(0)
+  const [greenOrderReadTick, setGreenOrderReadTick] = useState(0)
+  const [manualMappingTick, setManualMappingTick] = useState(0)
+  const mapOptions = useMemo(
+    () => ({ mode, companyId: activeCompanyId } as const),
+    [mode, activeCompanyId],
+  )
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear())
   const [viewMode, setViewMode] = useState<'revenue' | 'detailed'>('revenue')
   const [sortBy, setSortBy] = useState<'inventory' | 'revenue' | 'quantity'>('inventory')
+  const [linkModalOpen, setLinkModalOpen] = useState(false)
+  const [linkModalPreferredToLabel, setLinkModalPreferredToLabel] = useState<string | null>(null)
 
   useEffect(() => {
     const onInv = () => setInventoryReadTick((n) => n + 1)
+    const onGbo = () => setGreenOrderReadTick((n) => n + 1)
+    const onManual = () => setManualMappingTick((n) => n + 1)
     window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, onInv)
-    return () => window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, onInv)
+    window.addEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, onGbo)
+    window.addEventListener(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, onManual)
+    return () => {
+      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, onInv)
+      window.removeEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, onGbo)
+      window.removeEventListener(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, onManual)
+    }
   }, [])
 
   const statementRecords = useMemo(() => {
@@ -75,26 +110,80 @@ function BeanSalesAnalysisPage() {
   }, [selectedYear])
 
   const inventoryBeanRows = useMemo(() => {
-    try {
-      const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
-      const raw = window.localStorage.getItem(key)
-      if (!raw) {
-        return []
+    const readBeanRows = (key: string) => {
+      try {
+        const raw = window.localStorage.getItem(key)
+        if (!raw) {
+          return null
+        }
+        const st = normalizeInventoryStatusState(JSON.parse(raw))
+        const rows = st?.beanRows
+        if (!Array.isArray(rows) || rows.length === 0) {
+          return null
+        }
+        return rows
+      } catch {
+        return null
       }
-      const st = normalizeInventoryStatusState(JSON.parse(raw))
-      return st?.beanRows ?? []
-    } catch {
-      return []
     }
+    const primaryKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
+    const fromPrimary = readBeanRows(primaryKey)
+    if (fromPrimary) {
+      return fromPrimary
+    }
+    if (primaryKey !== INVENTORY_STATUS_STORAGE_KEY) {
+      const fromLegacy = readBeanRows(INVENTORY_STATUS_STORAGE_KEY)
+      if (fromLegacy) {
+        return fromLegacy
+      }
+    }
+    return []
   }, [statementRecords, mode, activeCompanyId, inventoryReadTick])
 
-  const beanSalesAnalysis = useMemo(() => {
+  const latestGreenWonByLabel = useMemo(
+    () => getLatestGreenOrderWonPerKgByInventoryLabel(inventoryBeanRows, mapOptions),
+    [inventoryBeanRows, greenOrderReadTick, mapOptions, manualMappingTick],
+  )
+
+  /** 입출고 생두 표에 없는 품목(키워드만 맞는 영문·더치·미매칭 원문)은 집계에서 제외 */
+  const allowedInventoryLabels = useMemo(
+    () => new Set(inventoryBeanRows.map((b) => formatBeanRowLabel(b))),
+    [inventoryBeanRows],
+  )
+
+  const { beanSalesAnalysis, notInInventoryByStatement, excludedRevenueNotInInventory } = useMemo(() => {
     const salesMap = new Map<string, BeanSalesData>()
-    
-    statementRecords.forEach(record => {
-      const { label, sortKey } = mapStatementItemToInventoryLabel(record.itemName, inventoryBeanRows)
+    const notIn = new Map<string, NotInInventorySummary>()
+
+    statementRecords.forEach((record) => {
+      const { label, sortKey } = mapStatementItemToInventoryLabel(
+        record.itemName,
+        inventoryBeanRows,
+        mapOptions,
+      )
+      if (inventoryBeanRows.length > 0 && !allowedInventoryLabels.has(label)) {
+        if (hasAnyStatementManualForItem(record.itemName, mapOptions.mode, mapOptions.companyId)) {
+          return
+        }
+        const key = record.itemName
+        const ex =
+          notIn.get(key) ??
+          ({
+            itemName: key,
+            mappedLabel: label,
+            totalRevenue: 0,
+            totalQuantity: 0,
+            transactionCount: 0,
+          } satisfies NotInInventorySummary)
+        ex.mappedLabel = label
+        ex.totalRevenue += record.totalAmount
+        ex.totalQuantity += record.quantity
+        ex.transactionCount += 1
+        notIn.set(key, ex)
+        return
+      }
       const beanName = label
-      
+
       if (!salesMap.has(beanName)) {
         salesMap.set(beanName, {
           beanName,
@@ -104,22 +193,24 @@ function BeanSalesAnalysisPage() {
           avgUnitPrice: 0,
           clientCount: 0,
           transactionCount: 0,
-          clients: []
+          clients: [],
+          latestGreenWonPerKg: null,
+          latestGreenOrderDate: null,
+          spreadVsGreenOrder: null,
         })
       } else {
-        const ex = salesMap.get(beanName)!
-        if (sortKey < ex.sortKey) {
-          ex.sortKey = sortKey
+        const prev = salesMap.get(beanName)!
+        if (sortKey < prev.sortKey) {
+          prev.sortKey = sortKey
         }
       }
-      
+
       const data = salesMap.get(beanName)!
       data.totalQuantity += record.quantity
       data.totalRevenue += record.totalAmount
       data.transactionCount += 1
-      
-      // 클라이언트별 집계
-      let clientData = data.clients.find(c => c.name === record.clientName)
+
+      let clientData = data.clients.find((c) => c.name === record.clientName)
       if (!clientData) {
         clientData = { name: record.clientName, quantity: 0, revenue: 0 }
         data.clients.push(clientData)
@@ -127,14 +218,23 @@ function BeanSalesAnalysisPage() {
       clientData.quantity += record.quantity
       clientData.revenue += record.totalAmount
     })
-    
-    // 평균 단가 및 클라이언트 수 계산
-    Array.from(salesMap.values()).forEach(data => {
+
+    Array.from(salesMap.values()).forEach((data) => {
       data.avgUnitPrice = data.totalQuantity > 0 ? data.totalRevenue / data.totalQuantity : 0
       data.clientCount = data.clients.length
       data.clients.sort((a, b) => b.revenue - a.revenue)
+      const g = latestGreenWonByLabel.get(data.beanName)
+      if (g) {
+        data.latestGreenWonPerKg = g.wonPerKg
+        data.latestGreenOrderDate = g.orderDate
+        data.spreadVsGreenOrder = data.avgUnitPrice - g.wonPerKg
+      } else {
+        data.latestGreenWonPerKg = null
+        data.latestGreenOrderDate = null
+        data.spreadVsGreenOrder = null
+      }
     })
-    
+
     const rows = Array.from(salesMap.values())
     const byInventory = [...rows].sort((a, b) => {
       if (a.sortKey !== b.sortKey) {
@@ -145,15 +245,22 @@ function BeanSalesAnalysisPage() {
     const byRevenue = [...rows].sort((a, b) => b.totalRevenue - a.totalRevenue)
     const byQuantity = [...rows].sort((a, b) => b.totalQuantity - a.totalQuantity)
 
+    let sorted: BeanSalesData[]
     switch (sortBy) {
       case 'inventory':
-        return byInventory
+        sorted = byInventory
+        break
       case 'revenue':
-        return byRevenue
+        sorted = byRevenue
+        break
       case 'quantity':
-        return byQuantity
+        sorted = byQuantity
+        break
     }
-  }, [statementRecords, sortBy, inventoryBeanRows])
+    const notInList = Array.from(notIn.values()).sort((a, b) => b.totalRevenue - a.totalRevenue)
+    const excludedSum = notInList.reduce((s, r) => s + r.totalRevenue, 0)
+    return { beanSalesAnalysis: sorted, notInInventoryByStatement: notInList, excludedRevenueNotInInventory: excludedSum }
+  }, [statementRecords, sortBy, inventoryBeanRows, latestGreenWonByLabel, allowedInventoryLabels, mapOptions, manualMappingTick])
 
   const chartColors = [
     '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1',
@@ -177,10 +284,27 @@ function BeanSalesAnalysisPage() {
   return (
     <div className="bean-sales-analysis-page">
       <div className="page-header">
-        <h1>원두별 매출 분석</h1>
+        <div className="page-header__title-row">
+          <h1>원두별 매출 분석</h1>
+          <button
+            type="button"
+            className="bean-sales-open-link-modal"
+            onClick={() => {
+              setLinkModalPreferredToLabel(null)
+              setLinkModalOpen(true)
+            }}
+          >
+            명세↔입고
+          </button>
+        </div>
         <p>
-          거래명세 품목을 <strong>현재 워크스페이스의 입출고 표</strong>와 맞춥니다(로컬/클라우드·회사별 캐시 키 동일). 괄호
-          안 매장명(예: 라미랑드)은 매칭에서 제거합니다. 표가 비어 있으면 번호·이름 풀 표기는 어렵고 키워드만 씁니다.
+          거래명세 품목을 <strong>같은 브라우저에 보관된 입출고 생두 표</strong>에 맞춥니다. 괄호 안은
+          매장명이므로 품목 매칭에 쓰지 않습니다. <strong>입고에 딱 맞는「N. 품목명」이 없는</strong> 거래는
+          위「매출 요약」에만 안 잡힐 수 있고, 하단 <strong>입고에 맞지 않은 품목</strong>에 따로
+          모읍니다(브라질만이 아님). <strong>최근 생두 주문(원/kg)</strong>은 생두 주문 화면의{' '}
+          <em>일자 기록</em> 스냅샷 품목을 최신일부터 묶은 값이며, <strong>스프레드</strong>는「거래명세 평균
+          단가 − 그 주문가」입니다(둘 다 1kg·원 단위로 볼 때만 의미가 가깝습니다. 200g 등은 수량·단가 해석이
+          달라질 수 있음).
         </p>
       </div>
 
@@ -232,6 +356,13 @@ function BeanSalesAnalysisPage() {
           <span>품목 수</span>
           <strong>{beanSalesAnalysis.length}개</strong>
         </div>
+        {inventoryBeanRows.length > 0 && notInInventoryByStatement.length > 0 ? (
+          <div className="metric-card bean-sales-metric-warn">
+            <span>입고에 맞지 않은 품목(누락)</span>
+            <strong>{notInInventoryByStatement.length}개 · {formatCurrency(excludedRevenueNotInInventory)}원</strong>
+            <span className="metric-card-hint">아래 표 — 매출 요약에 안 올라감</span>
+          </div>
+        ) : null}
       </div>
 
       {viewMode === 'revenue' && (
@@ -289,9 +420,13 @@ function BeanSalesAnalysisPage() {
                   <th>매출액</th>
                   <th>매출 비율</th>
                   <th>수량</th>
-                  <th>평균 단가</th>
+                  <th>매출 평균단가</th>
+                  <th>최근 주문(원/kg)</th>
+                  <th>주문일</th>
+                  <th>스프레드(대략)</th>
                   <th>거래처 수</th>
                   <th>거래 건수</th>
+                  <th>수정</th>
                 </tr>
               </thead>
               <tbody>
@@ -304,8 +439,37 @@ function BeanSalesAnalysisPage() {
                       <td>{totalRevenue > 0 ? ((data.totalRevenue / totalRevenue) * 100).toFixed(1) : 0}%</td>
                       <td>{formatNumber(data.totalQuantity)}개</td>
                       <td>{formatCurrency(data.avgUnitPrice)}원</td>
+                      <td>
+                        {data.latestGreenWonPerKg != null ? `${formatCurrency(data.latestGreenWonPerKg)}원` : '—'}
+                      </td>
+                      <td className="bean-sales-td-muted">
+                        {data.latestGreenOrderDate ?? '—'}
+                      </td>
+                      <td
+                        className={
+                          data.spreadVsGreenOrder != null
+                            ? data.spreadVsGreenOrder >= 0
+                              ? 'bean-sales-spread-pos'
+                              : 'bean-sales-spread-neg'
+                            : 'bean-sales-td-muted'
+                        }
+                      >
+                        {data.spreadVsGreenOrder != null ? `${data.spreadVsGreenOrder >= 0 ? '+' : '−'}${formatCurrency(Math.abs(data.spreadVsGreenOrder))}원` : '—'}
+                      </td>
                       <td>{data.clientCount}곳</td>
                       <td>{data.transactionCount}건</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="bean-sales-row-edit-btn"
+                          onClick={() => {
+                            setLinkModalPreferredToLabel(data.beanName)
+                            setLinkModalOpen(true)
+                          }}
+                        >
+                          수정
+                        </button>
+                      </td>
                     </tr>
                   ))}
               </tbody>
@@ -313,6 +477,43 @@ function BeanSalesAnalysisPage() {
           </div>
         </div>
       )}
+
+      {inventoryBeanRows.length > 0 && notInInventoryByStatement.length > 0 ? (
+        <div className="analysis-section bean-sales-not-in-inventory">
+          <h3>입고 생두에 맞지 않은 품목(거래명세)</h3>
+          <p className="bean-sales-not-in-inventory-hint">
+            위「매출 요약」은 입출고에 있는 <strong>N. 품목명</strong>에만 잡힌 금액입니다. 아래 품목은
+            매칭·라벨이 입고에 없어 요약에서 제외됐을 수 있으니, 품목명·입고 표기를 맞추면 같은 표에
+            합쳐집니다. <strong>명세↔입고</strong>에 잡은 품목은 이 목록에 나오지 않습니다(아직 수동으로 안 잡은 것·오매칭만).
+          </p>
+          <div className="revenue-summary-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>거래명세 품목</th>
+                  <th>매칭 시도 라벨</th>
+                  <th>매출액(합)</th>
+                  <th>수량(합)</th>
+                  <th>거래 건수</th>
+                </tr>
+              </thead>
+              <tbody>
+                {notInInventoryByStatement.map((row) => (
+                  <tr key={row.itemName}>
+                    <td>
+                      <strong>{row.itemName}</strong>
+                    </td>
+                    <td className="bean-sales-td-muted">{row.mappedLabel}</td>
+                    <td>{formatCurrency(row.totalRevenue)}원</td>
+                    <td>{formatNumber(row.totalQuantity)}</td>
+                    <td>{row.transactionCount}건</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       {viewMode === 'detailed' && (
         <div className="analysis-section">
@@ -331,6 +532,24 @@ function BeanSalesAnalysisPage() {
                   <span className="metric">
                     평균단가 {formatCurrency(data.avgUnitPrice)}원
                   </span>
+                  {data.latestGreenWonPerKg != null ? (
+                    <span className="metric">
+                      최근 생두주문 {formatCurrency(data.latestGreenWonPerKg)}원/kg · {data.latestGreenOrderDate ?? ''}
+                    </span>
+                  ) : (
+                    <span className="metric bean-sales-td-muted">생두 주문 일자 기록 없음</span>
+                  )}
+                  {data.spreadVsGreenOrder != null ? (
+                    <span
+                      className={
+                        data.spreadVsGreenOrder >= 0 ? 'metric bean-sales-spread-pos' : 'metric bean-sales-spread-neg'
+                      }
+                    >
+                      스프레드(평균−주문){' '}
+                      {data.spreadVsGreenOrder >= 0 ? '+' : '−'}
+                      {formatCurrency(Math.abs(data.spreadVsGreenOrder))}원
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
@@ -352,6 +571,18 @@ function BeanSalesAnalysisPage() {
         </div>
       )}
 
+      <StatementInventoryLinkModal
+        open={linkModalOpen}
+        onClose={() => {
+          setLinkModalOpen(false)
+          setLinkModalPreferredToLabel(null)
+        }}
+        inventoryBeanRows={inventoryBeanRows}
+        mode={mode}
+        activeCompanyId={activeCompanyId}
+        preferredToLabel={linkModalPreferredToLabel}
+      />
+
       <style>{`
         .bean-sales-analysis-page {
           max-width: 1200px;
@@ -363,11 +594,44 @@ function BeanSalesAnalysisPage() {
           margin-bottom: 30px;
         }
 
-        .page-header h1 {
-          color: #333;
+        .page-header__title-row {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 10px 14px;
           margin-bottom: 10px;
+        }
+
+        .page-header__title-row h1 {
+          color: #333;
+          margin: 0;
           font-size: 24px;
         }
+
+        .bean-sales-open-link-modal {
+          padding: 6px 12px;
+          font-size: 13px;
+          font-weight: 500;
+          border: 1px solid #0d6efd;
+          color: #0d6efd;
+          background: #fff;
+          border-radius: 6px;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+
+        .bean-sales-open-link-modal:hover { background: #e7f1ff; }
+        .bean-sales-row-edit-btn {
+          border: 1px solid #0d6efd;
+          background: #fff;
+          color: #0d6efd;
+          border-radius: 6px;
+          font-size: 12px;
+          padding: 4px 9px;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .bean-sales-row-edit-btn:hover { background: #e7f1ff; }
 
         .page-header p {
           color: #666;
@@ -453,6 +717,32 @@ function BeanSalesAnalysisPage() {
           color: #333;
           font-size: 20px;
           font-weight: 600;
+        }
+
+        .metric-card-hint {
+          display: block !important;
+          font-size: 12px !important;
+          color: #888 !important;
+          margin-top: 4px;
+          font-weight: normal;
+        }
+
+        .bean-sales-metric-warn {
+          border: 1px solid #e6c86a;
+          background: #fffdf5;
+        }
+
+        .bean-sales-not-in-inventory h3 {
+          color: #333;
+          font-size: 18px;
+          margin-bottom: 8px;
+        }
+
+        .bean-sales-not-in-inventory-hint {
+          color: #666;
+          font-size: 14px;
+          margin: 0 0 16px 0;
+          line-height: 1.5;
         }
 
         .analysis-section {
@@ -584,6 +874,19 @@ function BeanSalesAnalysisPage() {
 
         .client-stats {
           color: #666;
+        }
+
+        .bean-sales-td-muted {
+          color: #888;
+          font-size: 13px;
+        }
+        .bean-sales-spread-pos {
+          color: #1e6b3a;
+          font-weight: 600;
+        }
+        .bean-sales-spread-neg {
+          color: #b00020;
+          font-weight: 600;
         }
 
         @media (max-width: 768px) {

@@ -51094,4 +51094,7882 @@ export const stripParensForMatch = (s: string): string =>
   - `()`  15. DECAFFEINE BLEND (standalone `` mapped via regex `/^$/`) - Map " ()" to a synthetic row or label " " since it's not a standard bean from inventory list.
 - Consider mapping to existing options like " " or " " if available.
 - User prefers  like inventory names; thus, create a display label such as " " or find matching bean rows.
-- The record may be stored under " " and should be mapped accordingly for 250ml products. Actually, inventory bean rows are green beans, so Dutch might not be included. The display can remain as the categorized group " / " without a number. A better approach is to map PHRASE ' ' to '() ' or use a master item. The simplest </details></think>
+- The record may be stored under " " and should be mapped accordingly for 250ml products. Actually, inventory bean rows are green beans, so Dutch might not be included. The display can remain as the categorized group " / " without a number. A better approach is to map PHRASE ' ' to '() ' or use a master item. The simplest solution is to map `.*|.*` to consistently display `  `, avoiding inventory numbers.
+
+- For `()`, strip to  and map to Ihider (Kenya) using keyword `/| AA|kenya(?!n)/i`.
+- For `()`, add `/|euro/i` to target Euro.
+- For `()`, after stripping "", use regex `/</details></think>
+
+_**Agent (default)**_
+
+원인: 클라우드 모드에서는 입출고가 `inventory-status-v1`가 아니라 `inventory-status-v1::{회사id}` 키에 저장되는데, 원두 매출 페이지는 비스코프 키만 읽어 `beanRows`가 비어 매칭이 전부 실패하고 원문 품목명이 그대로 표시됩니다. 스코프 키 + 전각 괄호·누락 키워드(유로, 케냐, 시그니처, 디카페인 단독, 더치)를 수정합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to add `import { useAppRuntime } from ' to the file. - Add `import { INVENTORY_STATUS_CACHE_EVENT, INVENTORY_STATUS_STORAGE_KEY, inventoryPageScopedKey } from './InventoryStatusPage'`
+- Use `useEffect` for cache event and window focus
+- Add state `inventoryKeyVersion` to force re-read
+- Simplify by including `mode` and `activeCompanyId` in `useMemo` dependencies
+- Read with scoped key using `inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)` getItem(stateKey)
+      ...
+    }
+  }, [statementRecords, mode, activeCompanyId])
+
+5. Reorder KEYWORD: prioritize **Decaf 15. DECAFFEINE** patterns before generic "":
+   - Add specific patterns like `- `, `.*`, `.*` with higher priority
+   - Include "" alone with lower priority for blend interpretation
+   - Add `/^$/` regex for exact match after stripping, ensuring "()" becomes "" for matching - Add regex `/^$/` with normSpaced `^$` as high-priority keyword for blend interpretation, but note that "" may also refer to Decaf Yirgacheffe in some contexts; treat single words as blends at the user's shop.
+- Add PHRASE `[' ', 'DUTCH_DECAF']` with special handling: use display label "   ", sortKey 950000, and avoid bean lookup.
+- Add keyword `/|\s|kenya/i` before other patterns to prevent false matches with "ken".
+- Prioritize **Decaf 15. DECAFFEINE** patterns before generic "" patterns.
+- Include "" alone with lower priority for blend interpretation.
+- Add `/^$/` regex for exact match after stripping, ensuring "()" becomes ""</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "STATEMENT|statement-records"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "STATEMENT|statement-records",
+  "topFiles": [
+    {
+      "matchCount": 30,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 56
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.{ts,tsx}",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "STATEMENT_RECORDS_STORAGE_KEY|statementPageScoped|statement.*Scoped"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "STATEMENT_RECORDS_STORAGE_KEY|statementPageScoped|statement.*Scoped",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 2,
+  "totalMatches": 5
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Statement records use a non-scoped key within the App. The data is stored in `statement-records-v1`, and the user's table displays their data correctly. The main fix involves using an inventory-scoped key.
+
+To ensure proper updates, a useEffect hook listens for the `INVENTORY_STATUS_CACHE_EVENT` and increments a counter to trigger a re-read when inventory changes.
+
+- useEffect listens for cache events to refresh data
+- Counter state tracks inventory revisions
+- Event listener updates counter on cache events
+- Cleanup removes event listener on unmount To update beanSalesStatementMapping, the following changes are implemented:
+
+- stripParensForMatch function removes nested parentheses iteratively and normalizes whitespace
+- Keyword insertion places specific terms before general ones in the matching logic
+- SPECIAL_OVERRIDES array added to handle special cases like "+" beverage with custom label and sort key
+
+These changes ensure proper keyword matching and sorting for statement records. Actually, it's simpler to add a function `trySpecialDutchAndSignature(s): string | null`.  
+Add to PHRASE_TO_BEAN_NAME:
+- ['- ', '15. DECAFFEINE BLEND']
+- ['', '15. DECAFFEINE BLEND'] with compact
+- Add compact match for "" in phrase  the phrase is " " with space
+
+For PHRASE findByPhraseMap, the second item in tuple should be resolvable in inventory as exact name. '15. DECAFFEINE BLEND' is correct.
+
+- ['', '15. DECAFFEINE BLEND']  DANGER: "" as substring in many strings. findByPhraseMap does:
+`if (c === normCompact(phrase) || (norm To prevent incorrect matches like "" triggering on "", longer phrases should be checked before shorter ones. This can be done by sorting phrases by length descending in findByPhraseMap or ensuring longer phrases are listed first in PHRASE_TO_BEAN_NAME.
+
+- Sort PHRASE_TO_BEAN_NAME by phrase length descending
+- In findByPhraseMap, check exact matches first, then substring matches for longer phrases
+- Ensure " " appears before "" in the list to avoid false positives To address the Dutch coffee mapping, add " " to PHRASE with target `__DUTCH__` and handle in mapStatementItem to return "() " using a custom label.
+
+For findByPhraseMap, implement a simplified approach:
+- Check exact matches first with normCompact
+- Then check substring matches with phrases sorted by descending length
+- Create a sorted copy of PHRASE_TO_BEAN_NAME inside findByPhraseMap for efficient lookup for (const [phrase, beanName] of entries) {
+    const p = normCompact(phrase)
+    if (c === p) return beanName
+    if (p.length >= 4 && c.includes(p)) return beanName
+  }
+  return null
+}
+
+To prevent incorrect matches for short phrases like "", exact matching is used instead of substring matching when the phrase length is less than 4 characters. Longer phrases continue to use substring matching to ensure accurate identification. This prevents false positives such as "" incorrectly matching "".
+
+- Use exact matching for short phrases (< 4 chars)
+- Use substring matching for longer phrases
+- Prevent false matches by prioritizing exact matches over includes logic - For phrases with length  6, use substring matching (c.includes(p))
+- For phrases with length 45, use prefix matching with word boundaries
+- For phrases with length < 4, use exact matching only (c === p)
+
+For Korean phrases like " " (compact: ""), which is 7 characters, substring matching works well.
+
+For shorter Korean phrases like "" (4 chars), exact matching is preferred to avoid false positives.</details></think>
+
+_**Agent (default)**_
+
+`inventoryPageScopedKey`로 입출고를 읽도록 수정하고, `stripParens`에 전각 괄호를 처리하며, `findByPhraseMap`을 긴 문구 우선·짧은 ‘디카페인’은 완전일치만 하도록 조정합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to remove duplicate Mogiana lines 95-96 and consolidate them into a single line: `{ re: /mogiana||(?!.` Remove duplicate Mogiana lines 9596 and consolidate into one line: `{ re: /mogiana||(?!.`  
+Delete the typo line 95 completely.  
+For the  line 8889, narrow the `` match to avoid over-matching: use `/[-\s]*\s*|blending.*signature/i` instead of bare `|`.  
+Add early handling in `mapStatementItem` for:  
+- Dutch: `/.*|.*/i`  
+- Single : if `forMatch === ''` (exact match)  
+- Handle `^(|kenya|...` pattern appropriately.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Now, add to mapStatementItemToInventoryLabel at the start (after forMatch is computed, before empty bean check). Add checks for Dutch beverage and exact "" match after `forMatch` is computed and before the empty bean check.
+
+- For Dutch beverage, use regex patterns to detect variations like " ", " ", etc., returning label "() " with sort key 950_000.
+- For exact "" match, check both `forMatch` and `forMatchSpaced` against "" and handle similarly to row 15 logic.
+- When `beanRows` is empty, return "15. DECAFFEINE BLEND" as string for  cases. Order should be: Dutch beverage detection first (covering both +), then exact  match.
+
+Add PHRASE '- ' to PHRASE_TO_BEAN_NAME for compact no-hyphen format: .
+
+Update BeanSalesAnalysisPage with useAppRuntime and scoped key for caching events.
+
+Fix Kenya regex to properly match "" as a standalone word using `/^(|kenya|ihider)/i` instead of `^`, and add specific check `if (forMatch === '')` for exact matches. Use regex pattern `/^(|kenya|aa\s*faq|aa\s*plus|aa\+||ihider)/i` for detecting "" as a full string match. For exact matches, ensure `forMatch` is checked against "^$" to avoid partial matches. Apply similar logic for "kenya", "aa faq", "aa plus", "aa+", "", and "ihider". 
+
+For multiline matching, use `/^(|kenya|aa\s*faq|aa\s*plus|aa\+||ihider)/i` to ensure proper detection at line start. Ensure all variations are captured with appropriate grouping and anchoring. Add explicit checks for "", "kenya", and "kenya" to match exactly, then find Ihider row.  
+Use helper `SINGLE_TOKENS` array with entries like `['', 'Ihider']` and `['', 'Euro']` to map single tokens to bean names.  
+Ensure exact matches using `forMatch === token` for each token in `SINGLE_TOKENS`.  
+Apply similar logic for "" mapping to "15. DECAFFEINE BLEND".</details></think>
+
+_**Agent (default)**_
+
+`mapStatementItemToInventoryLabel`에 더치·한글 단독 토큰(디카페인, 케냐, 유로, 브라질, 나리노)을 추가합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add the phrases "- " and " " as targets with a value of 15. Update BeanSalesAnalysisPage with necessary imports and hooks, removing duplicate PHRASE entries for , then run build and tsc checks. Verify regex patterns and token handling for Kenya and other keywords.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Remove duplicate Ihider in KEYWORD if exists by reading the file.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Line 92 contains a regex pattern starting with `^(|kenya|aa\s*faq|...`</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 643 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.28 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-D-a1Cahd.js   2,567.59 kB │ gzip: 732.13 kB
+
+✓ built in 406ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 원인
+
+말씀하신 그대로 **「입출고 품목(번호)에 맞춰 한 줄로 묶이는 것」**이 아니라, **원문 품목 키(예: `나리노(라미랑드)`)**가 그대로 나갔습니다.
+
+1. **클라우드(회사)일 때** 입출고는 `inventory-status-v1`가 아니라  
+   **`inventory-status-v1::{회사ID}`** 쪽에 캐시됩니다.  
+   원두 매출 페이지만 **키 없이** `inventory-status-v1`만 읽고 있어서, 실제 `beanRows`는 비어 있었고, 매칭이 전부 실패한 뒤 **괄호까지 포함한 원문**이 표에 찍힌 상태였습니다.
+
+2. 그 밖에 **전각 괄호 `（）`**, **한 단어(나리노, 브라질, 케냐, 유로)**, **「블렌딩-길 시그니처」「디카페인 더치」** 같은 케이스는 규칙이 부족했습니다.
+
+## 수정 요약
+
+- **`inventoryPageScopedKey` + `useAppRuntime`**로 입출고 키를 **거래·명세/입출고와 동일**하게 읽습니다.
+- **`INVENTORY_STATUS_CACHE_EVENT`**로 입출고가 바뀌면 다시 읽습니다.
+- 괄호: **반각+전각** 제거, **하이픈을 공백으로** 보정(예: `블렌딩-길` → `블렌딩 길`).
+- **디카+더치** → `더치(디카페인) 음료` (생두가 아닌 줄).
+- **한 토큰** `디카페인` / `나리노`·`나리뇨` / `브라질` / `유로` / `케냐` → 입출고명으로 연결(있으면 `N. 품목` 표기).
+- `블렌딩-길 시그니처` / `Blending-Signature` 계열 → **`15. DECAFFEINE BLEND`**.
+- `findByPhraseMap`는 **긴 문구를 먼저** 보고, **짧은 `디카페인`은 부분일치로 잡지 않게** 정리했습니다.
+
+`npm run build` **성공**했습니다. 새로고침한 뒤(입출고 한 번 열어 캐시가 잡혀도 됨) 위 예시 품목이 **`19. Narino` 등 입출고와 같은 식**으로 붙는지 봐 주시면 됩니다.
+
+---
+
+_**User**_
+
+근데 로컬 모드에서는 왜 적용안되는거야? 어차피 같은 데이터베이스 공유하고 있는거 아냐?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to know why the bean sales analysis or inventory matching feature fails when running in local mode. The user believes local mode should use the same database and thus the same key, but there may be differences in how local mode stores data versus cloud mode. In local mode, data is typically stored in localStorage rather than a shared cloud database like Supabase, which could explain the issue. The key used in local mode (`inventory-status-v1`) should theoretically match the previous unscoped key, but the underlying storage mechanism might differ.
+
+- Local mode uses localStorage instead of cloud database
+- Key should be consistent with previous implementation
+- Storage mechanism difference may cause the failure - There could be a bug where `mode` is not correctly identified as 'local'
+- Alternatively, `activeCompanyId` might be null in local mode, causing failures
+- The `inventoryPageScopedKey` function returns `base` (e.g., `inventory-status-v1`) in local mode, which should work as expected
+- Need to verify `useAppRuntime` behavior in local vs cloud modes The user may be mistaken about "same database"  local mode uses browser localStorage while cloud mode syncs to Supabase but also caches in localStorage with scoped keys. These are not the same storage locations unless logged into cloud and syncing.
+
+Possible issues:
+- `BeanSalesAnalysisPage` uses `useAppRuntime()`  does it correctly identify mode as 'local'?
+- Statement records might be read from a different key than inventory in local mode.
+- A fallback to unscoped key might be needed when scoped key returns empty. Could `activeCompanyId` in local mode incorrectly trigger scoping if it's truthy? Local mode doesn't scope regardless, but if `mode` is misidentified as 'cloud', it could cause issues.
+
+What if the runtime incorrectly reports mode as 'cloud' when in local mode, or vice versa?
+
+User might be in a hybrid state where local workspace isn't fully loaded.
+
+Statement records use `STATEMENT_RECORDS_KEY = 'statement-records-v1'` in BeanSalesAnalysisPage.</details></think>
+
+_**Agent (default)**_
+
+로컬/클라우드의 저장 구조를 확인해 원인을 정확히 설명합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/lib/supabase.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx",
+  "pattern": "mode.*local|runtimeMode"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx",
+  "pattern": "mode.*local|runtimeMode",
+  "topFiles": [
+    {
+      "matchCount": 5,
+      "uri": "app/src/providers/AppRuntimeProvider.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 5
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The `runtimeMode` is set to `cloud` when Supabase is configured using VITE environment variables, otherwise it defaults to `local`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When `runtimeMode === 'local'`, the app uses `LOCAL_RUNTIME_VALUE` with `activeCompanyId: null` and `mode: 'local'`. When `runtimeMode === 'cloud'`, the app consistently uses `mode: 'cloud'` in its configuration, regardless of environment or login status. There is no "local workspace" setting that changes the mode to local.
+
+The user's reference to " " (local mode) likely refers to one of two scenarios:
+- The local development build (without Supabase) using `LOCAL_RUNTIME_VALUE` with unscoped `inventory-page-scoped-key` 
+- The UI's "Local workspace" display when not logged in
+
+The UI may show "Local workspace" text in certain cases, but the actual runtime mode remains consistent with the environment.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "Local workspace|local workspace|mode === 'local'"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "Local workspace|local workspace|mode === 'local'",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The UI "Local workspace" appears only when `mode === 'local'`, which occurs exclusively if `runtimeMode === 'local'` is detected from Supabase. The "Local workspace" UI only appears when `mode === 'local'`, which happens only when Supabase is disabled. In Supabase-enabled environments, `mode` is always 'cloud', so local mode never applies. This means:
+
+- Local mode uses browser `localStorage` only, not a shared database
+- "Same database" assumption is incorrect - local and cloud modes store data differently
+- The UI is intentionally hidden when Supabase is active since local mode isn't applicable If Supabase is enabled (e.g., in dev), the app operates in `mode: 'cloud'`, not `local`. Inventory data is stored under the scoped key `::companyId` when logged in with a company.
+
+To improve reliability:
+- Add a fallback read using the unscoped `INVENTORY_STATUS_STORAGE_KEY` if the scoped key is empty.
+- This helps with edge cases where old data may exist in the unscoped key (e.g., from before login or migration).
+- Merging data from both sources risks inconsistency. - For better reliability, if `beanRows` is empty, fall back to reading from the unscoped `INVENTORY_STATUS_STORAGE_KEY` key.
+- This approach fixes issues for users in true local mode with existing data or cloud users who have data written to the unscoped key.
+- The `InventoryStatusPage` saves to the unscoped key in local mode, using `inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, companyId)` which returns the base key when mode is local.
+- The `inventoryBeanRows` useMemo first tries the scoped key, then falls back to the unscoped key if empty. If `raw` is null or `beanRows` is empty after parsing, fallback to reading from the unscoped `INVENTORY_STATUS_STORAGE_KEY` in `localStorage`.
+
+This ensures compatibility with legacy data stored in the unscoped key, preventing data loss due to migration issues or bugs.
+
+The app does not share one PostgreSQL database between local and cloud modes. Instead:
+- Local mode uses `localStorage` only
+- Cloud mode uses Supabase company documents with scoped `localStorage` keys
+
+This distinction explains why the "same database" assumption is incorrect.</details></think>
+
+_**Agent (default)**_
+
+설명: 로컬과 클라우드는 ‘같은 DB’를 쓰지 않습니다. 개발 환경에 Supabase가 있으면 런타임은 항상 `mode: 'cloud'`입니다. 입출고 캐시 키가 다를 수 있어, 읽을 때 **스코프 키가 비어 있으면 `inventory-status-v1`(비스코프)로 폴백**하겠습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll update the inventoryBeanRows useMemo to:
+- 1.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user may prefer not to see raw code in the UI, as per the user rules which advise against technical language in the interface.</details></think>
+
+_**Agent (default)**_
+
+UI 문구는 사용자에게 과도한 기술용어(코드·키 이름)를 덜 쓰도록 짧게 정리합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 643 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-DapgNVKr.js   2,567.85 kB │ gzip: 732.24 kB
+
+✓ built in 464ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 왜 “같은 DB”가 아닌가
+
+이 앱에서 **Supabase(클라우드)와 `localStorage`(브라우저 안)** 는 같은 PostgreSQL DB를 쓰는 구조가 아닙니다.
+
+- **클라우드(로그인 + 회사)**: Supabase/회사 문서가 있고, 입출고는 그걸 쓰다가 **브라우저에 `inventory-status-v1::회사ID` 처럼 “회사별”로 캐시**됩니다.  
+- **진짜 “로컬 런타임”(Vite에 Supabase env가 아예 없을 때)**: `AppRuntime`이 `mode: 'local'`이고, 입출고는 **`inventory-status-v1` 한 종류**로만 `localStorage`에 쌓입니다.
+
+그리고 **개발용으로 VITE에 Supabase URL/키가 있으면** 빌드는 항상 `runtimeMode === 'cloud'` 쪽이고, 화면에 “Local workspace”가 뜨는 **그** 로컬(개인) 모드의 경우라도, 앱은 **“클라우드 앱 + 로그인 여부/회사”** 조합을 쓰는 쪽이어서, **예전에 쓰던 `inventory-status-v1`만 채워져 있고, 로그인 후엔 `::회사ID` 쪽이 비어 있는** 식이면, 한동안 “입출고는 있는데 원두 매출만 안 맞는” 현상이 날 수 있습니다. 이건 “DB 공유”가 아니라 **캐시 키가 둘로 나뉘는 것**에 가깝습니다.
+
+## 코드 쪽에서 한 조치
+
+원두 매출 페이지에서 입출고를 읽을 때:
+
+1. **먼저** `inventoryPageScopedKey(...)`(지금 모드/회사에 맞는 키)  
+2. **비어 있으면** 예전/비스코프 키 **`inventory-status-v1`를 한 번 더** 읽도록 **폴백**을 넣었습니다.
+
+그래서 “로컬에만 옛날 키로 데이터가 있음”인 경우에도 **같은 브라우저** 안이면 이제 붙을 가능성이 큽니다.
+
+`npm run build`는 통과했습니다.
+
+**정리:** 서버 DB 하나를 로컬/클라가 같이 쓰는 구조는 아니고, **이 브라우저 + 현재 모드(및 로그인 회사)에 해당하는 `localStorage` 키**에 맞춰 쓰는 겁니다. 그래서 예전엔 “한쪽 키에만 입출고”가 있으면 원두 매출이 비어 있거나, 키워드만 적용돼 보였을 수 있습니다.
+
+---
+
+_**User**_
+
+가장 최근에 주문한 생두 1/kg 을 매출 과 비교해서 나타낼 수도 있겠네?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to compare the most recently ordered green bean price (1/kg) with sales revenue, likely on a Bean Sales Analysis page.</details></think>
+
+_**Agent (default)**_
+
+생두 주문 데이터 구조를 확인한 뒤, 최근 1kg 단가와 매출을 비교해 표시하는 방안을 구현합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "GREEN_BEAN_ORDER|getGreenBeanOrder"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "GREEN_BEAN_ORDER|getGreenBeanOrder",
+  "topFiles": [
+    {
+      "matchCount": 8,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 8
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The green bean order includes an `orderSnapshots` array of `GreenBeanOrderDatedSnapshot` objects, each containing an `orderDate`, `items` array of `GreenBeanMonthlyItemSnapshot` objects, and `lineTotal`. Each `GreenBeanMonthlyItemSnapshot` has properties `itemName`, `quantityKg`, and `lineTotal`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "green-bean|GREEN_BEAN|companyDocuments.*green"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "green-bean|GREEN_BEAN|companyDocuments.*green",
+  "topFiles": [
+    {
+      "matchCount": 35,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 100
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/lib/companyDocuments.ts",
+  "pattern": "greenBean|green-bean"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/lib/companyDocuments.ts",
+  "pattern": "greenBean|green-bean",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/lib/companyDocuments.ts"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The green bean order data is retrieved from `readGreenBeanOrderPersistedFromStorage()`, which reads from localStorage. For BeanSalesAnalysisPage, we need to reuse the same data retrieval pattern using `readGreenBeanOrderPersistedFromStorage` from GreenBeanOrderPage.
+
+The `orderSnapshots` contain `orderDate`, `items` with `itemName`, `quantityKg`, and `lineTotal`. Unit price per kg is calculated as `lineTotal/quantityKg` when both values are valid.
+
+Plan:
+- Create a new file `greenBeanOrderLatestUnitPrices.ts` to avoid bloating BeanSales
+- Add `getLatestOrderUnitPricePerKgByInventoryLabel` function that:
+  - Calls `readGreenBeanOrderPersistedFromStorage()`
+  - Sorts snapshots by (orderDate desc, savedAt desc)
+- Calculate unit price per kg from lineTotal and quantityKg when both are valid - For each snapshot in orders, map item names to labels using `mapStatementItemToInventoryLabel`, then calculate unit prices per kg when both quantity and line total are valid, keeping the most recent entry per label.
+- In BeanSalesAnalysisPage:
+  - Import `readGreenBeanOrderPersistedFromStorage` and `GREEN_BEAN_ORDER_SAVED_EVENT`.
+  - Use `useMemo` to build latest unit prices from order snapshots.
+  - Add fields to `BeanSalesData`: `latestGreenOrderWonPerKg` and `latestOrderDate`. The unit price calculation must account for unit consistencysales data uses "" (units), while orders use "kg". If the specification is "1/kg", then order quantities are in kilograms; otherwise, conversions may be needed. The user clarified " 1/kg" for orders, so if statement quantities are in 200g units, the average unit price needs to reflect that. Comparing " (/)" with "  (/kg)" requires alignment on unit types to ensure accurate comparison. If both are "per kg", the comparison works directly.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "export type GreenBeanOrderPersisted|type GreenBeanOrderPersisted"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "export type GreenBeanOrderPersisted|type GreenBeanOrderPersisted",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll create a new utility file named `beanSalesGreenOrderUnitPrice.ts`. I'll create a new utility file named `beanSalesGreenOrderUnitPrice.ts`.
+
+- Imports `readGreenBeanOrderPersistedFromStorage` from GreenBeanOrderPage - could create circular dependency? BeanSalesAnalysisPage imports GreenBeanOrderPage - GreenBeanOrderPage doesn't import BeanSales - OK.
+- `buildLatestGreenOrderWonPerKgByLabel(inventoryBeanRows): Map<string, { wonPerKg: number, orderDate: string }>`
+  - snapshots = [...persisted.orderSnapshots].sort((a,b) => compare orderDate then savedAt)
+  - loop from newest to oldest
+  - for each item in snapshot.items (if undefined, skip)
+  - mapStatementItemToInventoryLabel(item.itemName, inventoryBeanRows) -> label - Processes order snapshots to calculate won per kg for each bean label.
+- Uses `orderSnapshots` for "most recent order" data instead of table rows.
+- Handles edge case of same-day multiple snapshots by sorting by `savedAt` descending.
+- Calculates `wonPerKg` as `money / kg` when both values are non-negative.
+- Maps items to inventory labels using `mapStatementItemToInventoryLabel`.
+- Sorts snapshots by `orderDate` and `savedAt` to determine latest records.</details></think>
+
+_**Agent (default)**_
+
+생두 주문 `orderSnapshots`에서 품목별 최근 원/kg을 구해 매출 단가와 나란히 표시합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesGreenOrderUnitPrice.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Check for circular imports: GreenBeanOrderPage might indirectly import something that imports beanSales, which is unlikely.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to add three new fields to the BeanSalesData interface:
+- latestGreenWonPerKg: number | null
+- latestGreenOrderDate: string | null
+- spreadVsGreenOrder: number | null</details></think>
+
+_**Agent (default)**_
+
+`BeanSalesData`에 생두 주문 비교 필드를 추가하고, `useMemo`에서 병합합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When merging into an existing row in the else branch, the latestGreen flag is not set at that pointthis is handled later in the forEach loop.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add detailed metrics for green order</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 644 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-qRsxDzWK.js   2,570.53 kB │ gzip: 733.03 kB
+
+✓ built in 429ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+가능해서 그렇게 붙여 두었습니다.
+
+## 동작
+
+1. **데이터 출처**  
+   생두 주문 화면에 쌓인 **`orderSnapshots`(일자 기록)** 안의 품목만 사용합니다. 각 행은 `lineTotal ÷ quantityKg`로 **원/kg**을 구합니다.
+
+2. **품목 맞추기**  
+   거래명세와 같이 `mapStatementItemToInventoryLabel`로 **입출고와 같은 라벨**(예: `19. Narino`)으로 묶습니다.
+
+3. **“가장 최근”**  
+   스냅샷을 `orderDate` → `savedAt` 기준으로 **최신이 먼저** 정렬한 뒤, 라벨마다 **처음** 나오는 값만 씁니다(그 품목의 **마지막 주문 기록**).
+
+4. **표에 넣은 열 (매출 현황)**  
+   - **최근 주문(원/kg)**  
+   - **주문일**  
+   - **스프레드(대략)** = `매출 평균단가(거래명세) − 위 주문가(원/kg)`  
+   - 양(+)·음(-)에 따라 초록/빨강으로 표시
+
+5. **갱신**  
+   `green-bean-order-saved` 이벤트를 듣다가 생두 주문을 저장하면 이 표도 다시 읽습니다.
+
+6. **주의(안내 문구에도 적음)**  
+   스프레드는 **둘 다 “1kg·원”으로 볼 수 있을 때**만 의미가 가깝습니다. 거래명세가 200g 등이면 `평균단가`는 “원/팩”에 가깝을 수 있어, 숫자는 참고용으로만 보시면 됩니다.
+
+## 파일
+
+- `app/src/beanSalesGreenOrderUnitPrice.ts` — 최근 원/kg 맵
+- `app/src/BeanSalesAnalysisPage.tsx` — 열·상세·스타일
+
+`npm run build` 통과했습니다.
+
+---
+
+_**User**_
+
+아니 아까 클라우드 환경에서 나리노(라미랑드) Colombia narino 로 잘 보였는데 이번엔 클라우드 환경도 이상하네 도대체 어떤식으로 처리를 했길래 이모양인거야?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user is frustrated because bean name mapping that previously worked is now failing. The user's frustration stems from inconsistent bean name mapping in the cloud environment, where "Colombia Narino" or "()" appears instead of the expected "N. Narino" format. They want to identify the root cause by tracing the `mapStatementItemToInventoryLabel` function and related logic.
+
+Key areas to investigate:
+- What changed in cloud behavior compared to previous working state
+- Why "Colombia Narino" might be appearing (possibly from green bean order aliases or fallback mechanisms)
+- Conflicts between inventory bean rows, phrase maps, and token matching systems
+
+The next step is to examine the current `beanSalesStatementMapping` implementation. The user wants to trace the `beanSalesStatementMapping` pipeline through files like `beanSalesGreenOrderUnitPrice.ts` and `BeanSalesAnalysisPage` to identify bugs or over-aggressive changes.
+
+Possible issues:
+- The `getLatestGreenOrderWonPerKgByInventoryLabel` function or related logic may not be the source of the label issue
+- Map key inconsistency: Sales aggregation uses `mapStatementItemToInventoryLabel` for statement items; if inventory loads empty, labels may default to keyword-only formats like "Narino" instead of "19. Narino"; if inventory loads, it should be "19. Narino" "Colombia Narino" might originate from `GREEN_BEAN_ORDER_INVENTORY_ALIASES` when `resolveAliasedTarget` fails to find a matching row, or from green bean data display logic. The `stripParens` function could be overly aggressive, replacing hyphens with spaces and breaking identifiers like "Colombia-Narino". Additionally, `readBeanRows` returning empty in cloud environments may lead to token matching defaulting to partial names such as "Narino".
+
+Key issues to investigate:
+- Inventory loading behavior differences between local and cloud
+- Alias resolution logic in `resolveAliasedTarget`
+- Token matching fallbacks when inventory rows are missing
+- Impact of `stripParens` on identifier formatting
+- `latestGreenWonByLabel` data access patterns If data from two label strings is merged for the same product, it causes duplicate rows.  
+Need to review the full mapping function and how the flow behaves when `beanRows` is populated versus when using fallbacks.  
+
+Check `stripParensForMatch` with `replace(/[-]+/g, ' ')`  could "Colombia Narino" in an item become something unexpected?  
+"Colombia Narino" has no hyphens, so it wouldn't be affected by hyphen replacement.  
+"()"  "" is fine.  
+
+If inventory has a row with `name: "Narino"`, then `formatBeanRowLabel` should return `19. Narino`.  
+So why would "Colombia Narino" appear? - In `resolveAliasedTarget`, when the target is "Colombia Narino" from a green bean alias and a row matches "Narino", it should return `formatBeanRowLabel` with the row's formatted name, not "Colombia Narino".
+- If no row matches, the old code returns the raw item name, not "Colombia Narino".
+- Keyword-based lookup returns `findByExactName('Narino', rows)`; if found, it returns `19. Narino`.
+- When `beanRows` is empty, keyword lookup returns `label: 'Narino'` as a string, not "Colombia Narino".
+
+Possible source of "Colombia Narino":
+1.</details></think>
+
+_**Agent (default)**_
+
+매핑·입출고·생두 주문 읽기 흐름을 추적해, 클라우드에서 품목명이 흔들리는 원인을 찾고 정리합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I see several issues:
+
+- tokenOnly single-token block runs BEFORE beanRows
+- This causes incorrect ordering of operations
+- Requires reordering of execution sequence
+
+The tokenOnly block executes before beanRows, which leads to incorrect processing order and potential data inconsistencies. This needs to be addressed by adjusting the execution sequence to ensure proper dependency handling. When the length is 0, the tokenOnly block processes "()" and strips it to "", matching `['', 'Narino']`. If beanRows has data, it calls `findByExactName('Narino', beanRows)` which returns the row with name "Narino" (format 19). 
+
+However, if `findByExactName` returns null (due to typo or mismatched name like "Colombia Narino"), the code breaks out of the inner loop but continues executing the next block, potentially causing unexpected behavior. When length equals 0, the condition is false and execution continues to subsequent steps. For a token like "" with non-empty beanRows, if the inner loop breaks due to no exact match found by findByExactName, only the inner loop exits, not the outer flow. This means execution continues normally afterward, requiring re-evaluation of the logic flow after such breaks. The structure shows that after breaking from the inner loop, control proceeds to the next iteration or continuation point, necessitating careful handling of execution paths.
+
+The key points are:
+- Break only exits inner loop, not entire function
+- Execution continues after inner loop break
+- Need to re-evaluate logic flow post-break
+- Inner loop break doesn't return early from outer function When `tokenOnly` matches `tok`, the code checks if `beanRows` is empty. If so, it returns `{ label: beanName, ... }`. Otherwise, it searches for an exact match using `findByExactName`. If a match is found, it returns the formatted label. If no match is found, the inner loop breaks, allowing execution to continue for further processing. This ensures that unmatched tokens can still be handled via alternative methods like keyword or alias matching. When beanRows is empty, the token "" returns `{ label: 'Narino' }` early without the number, which is incorrectshould be "Colombia Narino".  
+
+In the empty beanRows case, if a match includes the Korean text from GREEN_BEAN_ORDER_INVENTORY_ALIASES, it returns `label: to` (e.g., "Colombia Narino") literally, showing the target text instead of formatting it as "19. Narino".  
+
+This discrepancy occurs because:
+- Empty beanRows branch skips number formatting
+- Alias matching uses direct label assignment
+- The label format differs between empty and populated beanRows branches When beanRows is not empty, step 3 should resolve 'Colombia Narino' via resolveAliasedTarget to the actual row, then format it as "19. Narino".
+
+The user saw "Colombia Narino" because:
+- beanRows was empty (cache miss)
+- Alias path returned `to` = 'Colombia Narino' from the empty-beanRows block
+- However, token "" is handled first in single token mode when beanRows is empty, returning "Narino" not "Colombia Narino"
+
+Execution order when beanRows.length === 0:
+- Single token processing occurs first
+- Returns "Narino" instead of "Colombia Narino"
+- Empty beanRows block handles alias matching differently than populated one - In single-token mode, "" matches and returns `{ label: 'Narino' }` before the empty check at line 203.
+- For empty beanRows with token "", it returns "Narino" instead of "Colombia Narino".
+- For full string "  " with space, it skips token-only path and uses alias mapping to return "Colombia Narino".
+- With non-empty beanRows, "" token finds exact match and formats as "19. Narino".
+- If `findByExactName` fails with non-empty beanRows, the inner loop breaks and execution falls through. Keyword "narino" in text matches and finds the correct row  this works as expected.
+
+**The flakiness in cloud**:
+- **Timing issue**: During initial render, `inventoryBeanRows` may be `[]` if localStorage hasnt loaded the scoped inventory data yet (due to async cloud sync). This causes every record to take the **no-inventory** code path, where token "" resolves to bare English "Narino".
+- **Later load**: Once inventory data arrives and `useMemo` re-runs, the map keys update to reflect new labels like "19. Narino", but previously rendered entries used old keys ("Narino"), leading to inconsistent display.
+- **Result**: String keys change from "Narino" to "19. Narino", causing mismatches in cached maps and UI updates. Unless React batches oddly, the second render should resolve issues.
+
+- **Worst-case scenario**: `readBeanRows` returns null for primary (empty) but `fromLegacy` contains outdated data with a different bean `name` structure  indicating a partial load.
+
+- **getLatestGreenOrderWonPerKg** relies on `readGreenBeanOrderPersistedFromStorage()`, which reads only from localStorage. In the cloud, if a user opens the page, GBO might be **default empty** in localStorage while the cloud holds the real data  leading to incorrect enrichment, though labels should still come from statement+inventory. The bug involves split keys caused by inconsistent labeling between renders: during the first render with empty inventory, labels show as "Narino," but on the second render with full inventory, they switch to "19. Narino." This discrepancy arises because the data aggregates correctly within one `useMemo`, but the label formatting changes based on whether inventory is empty or loaded.
+
+- User perceived "Colombia Narino" as looking correct, likely due to the empty inventory + alias path returning `to: 'Colombia Narino'` for Korean phrases containing .
+- Alternatively, it could stem from the empty + keyword path, where keyword matching returns `target: 'Narino'`, not "Colombia Narino."
+- Line 214 confirms this: `return { label: to,` where `to` originates from the alias mapping, specifically set to `'Colombia Narino'` for the Korean long-form So when beanRows is empty, the label shows as "Colombia Narino" (the literal import string), but when beanRows has rows, it formats as "19. Narino".  
+
+The root cause of user confusion is that the same line item maps to different display strings depending on whether `inventoryBeanRows` is empty at compute time. This leads to incorrect initial rendering or alternating displays if the cache updates later.
+
+`getLatestGreenOrderWonPerKg` calls `mapStatementItem` for order item names. If order items use "Koke honey" and the statement has "()", they may get different labels, even though both should map to the same entry. If an order snapshot uses "Colombia Narino" as itemName, it might resolve to "19. Narino" when inventory rows exist, or stay as "Colombia Narino" when empty.  
+- Merging bean sales: revenue row keys come from the statement only, while the green column uses `data.beanName` (statement key).  
+- A lookup miss can occur if the green order cost map was built with "Narino" keys (from empty inventory) but the statement provides "19. Narino". The bug occurs because `getLatestGreenOrderWonPerKgByInventoryLabel` creates a Map using keys from `mapStatementItemToInventoryLabel(orderItem, rows)`, but these keys may differ from those used in the main table if inventory is empty during initial render.  
+
+This mismatch happens when:
+- Empty inventory causes one label format (e.g., "Narino")
+- Loaded inventory uses another (e.g., "19. Narino")
+
+Thus, the Map built from order snapshots may have keys like "Narino", while the statement-based aggregation uses "19. Narino", leading to lookup failures.  
+
+Inconsistent labeling between renders causes:
+- Initial render with empty inventory  "Narino" keys
+- Later render with loaded inventory  "19. Narino" keys
+
+This results in mismatches between `latestGreenWonByLabel` (keys from order items) and `beanSalesAnalysis.beanName` (keys from statement items). Both `mapStatementItem` and `mapOrderItem` use the same `inventoryBeanRows` within the same `useMemo`, so they should produce identical results for the same underlying bean, assuming identical inputs.
+
+However, there's a divergence when:
+- An order snapshot contains "Colombia Narino" while the statement has "()".
+- With inventory: both map to "19. Narino".
+- Without inventory: the statement maps to "Narino" (token-based), and the order maps to "Colombia Narino" (alias-based).
+
+**Fix strategy**:
+A) Normalize map keys to a canonical forme.g., always use `bean.name` or `no` when a resolved row exists, storing `canonicalKey: inventoryLinkKey`  though this is complex. B) In `mapStatementItemToInventoryLabel`, when returning a bare alias string like "Colombia Narino" or "Narino", also normalize to a canonical form: prefer `formatBeanRowLabel(row)` if available, otherwise use the English inventory name from the keyword target, avoiding the alias "to" unless it's in rows. C) For empty beanRows, ensure consistent labels by normalizing alias returns: instead of returning `'Colombia Narino'`, use the keyword target like `'Narino'` to avoid mismatched keys.
+
+D) Merge keys in `latestGreenWonByLabel` and sales data by using a core key such as `normalizeNameKey` or `row.no` when available.
+
+E) Quick fix: when `beanRows.length === 0`, dont return `to` directly from alias path; instead, resolve it via a map from `alias to`  keyword bean name, preferring the normalized target. - **Label normalization**: Use `findByExactName('Narino')` from keyword matching instead of alias string `to` for consistent empty-state labels.
+- **Empty-state stabilization**: When `beanRows` is empty, avoid returning alias strings like `'Colombia Narino'` directly; instead, resolve via keyword mapping to ensure consistent keys.
+- **Cloud behavior**: For cloud environments, `getLatestGreenOrder` should ideally merge company document data, though this requires asynchronous handling and is a larger change.
+- **Simpler fix approach**: Normalize labels in the empty case by preferring keyword-based resolution over direct alias returns to prevent key mismatches. - In the empty beanRows block, avoid returning `to` directly; instead, use keyword-based resolution to ensure consistent labels.
+- Prefer the keyword target (e.g., "Narino") over the alias (e.g., "Colombia Narino") when resolving labels.
+- Unify behavior between empty state and aliased rows by using `resolveAliasToKeywordTarget` to normalize labels.</details></think>
+
+_**Agent (default)**_
+
+원인: `inventoryBeanRows`가 비어 있을 때(클라우드 캐시가 아직 없을 때) 별칭 `Colombia Narino`·키워드 `Narino`·토큰 `나리뇨`가 서로 다른 표시 문자열로 나뉘고, 토큰 `나리노`는 `findByExactName` 실패 시에도 일부 경로가 갈라질 수 있음. 입출고가 없을 때 **항상 키워드 기반 영문 품목명(예: `Narino`)으로 통일**하고, `readGreenBeanOrder`도 동일한 매퍼를 쓰도록 정리합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add:
+
+- `function matchKeywordTarget(s: string): string | null` - iterates KEYWORD_TO_BEAN_NAME, if re. - `matchKeywordTarget` tests both normalized and raw strings, returning the matching target if found.
+- For empty blocks, `stableLabelWhenNoRows` processes phrases and aliases:
+  - Phrases: Use `matchKeywordTarget` on `fromPhrase` if it looks like an alias; otherwise return `fromPhrase`.
+  - Keywords: Return the matched target directly.
+  - Aliases: Never return `to` if it contains spaces or equals "Colombia Narino"; instead use `matchKeywordTarget(to) ?? matchKeywordTarget(from) ?? to`. When a single token block has no matching rows, do not break the loopinstead, continue to the next iteration. This ensures that keyword or alias matching can still occur even if an exact row lookup fails. If no rows are found, avoid breaking the outer logic and allow fallback processing such as keyword/alias matching to proceed. If a token matches but no row is found, return `matchKeywordTarget(tokenOnly) ?? beanName` as the label to ensure consistent output like "Narino." This avoids falling through to incorrect paths and provides a fallback to the bean name when exact matches fail. When no row is found, return `{ label: beanName, sortKey: 900_000, matched: true }` to lock in **Narino** and prevent fallback to other matchers like Colombia.  
+This ensures exact matches take priority over substring or alias resolution.  
+If rows exist but no exact match, prefer the bean name as the label to avoid incorrect fallbacks.</details></think>
+
+_**Agent (default)**_
+
+입출고 행이 있어도 `findByExactName('Narino')`가 실패하는 경우(이름이 미세하게 다름)에 `break`만 하고 뒤 단계로 넘어가면서 **별칭 `Colombia Narino` 등이 섞이는** 문제를 끊고, 입출고가 **비어 있을 때**는 별칭의 긴 `to` 문자열 대신 **키워드로 `Narino`로 통일**합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+`KEYWORD_TO_BEAN_NAME`가 초기화되기 전에 참조할 수 없습니다. 배열 정의 뒤로 `keywordTargetForDisplay`를 옮깁니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to:
+- Move the keywordTargetForDisplay from before KEYWORD to after the KEYWORD array on line 133
+- [No further details provided] The function `keywordTargetForDisplay` closes over `KEYWORD`, but since `KEYWORD` is declared with `const` and initialized later, it's in the Temporal Dead Zone (TDZ) when the function is defined. This causes a **ReferenceError** if the function tries to access `KEYWORD` before its initialization at line 133.
+
+- The function `keywordTargetForDisplay` is defined at line 89 and closes at line 103
+- It references `KEYWORD` before `KEYWORD` is initialized
+- `const KEYWORD = [...]` is at line 133
+- This creates a TDZ issue where accessing `KEYWORD` during definition throws a ReferenceError
+
+No output The function `keywordTargetForDisplay` closes over `KEYWORD`, but since `KEYWORD` is declared with `const` and initialized later, it's in the Temporal Dead Zone (TDZ) when the function is defined. This causes a **ReferenceError** if the function tries to access `KEYWORD` before its initialization at line 133.
+
+- The function `keywordTargetForDisplay` is defined at line 89 and closes at line 103
+- It references `KEYWORD` before `KEYWORD` is initialized
+- `const KEYWORD = [...]` is at line 133
+- This creates a TDZ issue where accessing `KEYWORD` during definition throws a ReferenceError
+
+However, the actual issue is that while the function is defined first, it's invoked later when `KEYWORD` has been initialized. The closure captures `KEYWORD` at runtime, not definition time, so it should work fine once the module</details></think>
+
+_**Agent (default)**_
+
+함수를 `KEYWORD_TO_BEAN_NAME` 배열 아래로 옮기고, 빈 입출고·단일 토큰 케이스를 수정합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+The string to replace was not found in the file.
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+1. empty block - keyword return: use keywordTargetForDisplay on target for consistency?</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Replace `break` at line 213 with `return { label: beanName, sortKey: 900_000, matched: true }` to use English short name when rows exist but exact match fails, similar to empty case. - Add keywordTargetForDisplay for fromPhrase when it contains spaces to handle phrases like "Colombia Narino" and map to English equivalents.
+- If all keywords match but no row is found, continue to next keyword in loop (currently handled).
+- For empty block alias lines 228-231, use keywordTargetForDisplay to determine stable label or fallback to 'to' value.
+- When rows exist but exact match fails, replace break with return statement using English short name and sort key 900_000. If the first keyword matches but no row is found, the loop continues to check subsequent keywords. If no row is found for any keyword, the process falls through to step 3 for alias handling. The logic ensures that matching keywords without corresponding rows do not cause early exits, allowing subsequent keywords to be evaluated. If "Nario" matches but row is null due to typo, continue keyword loop; no other matches found, proceed to step 3 where **resolveAliasedTarget** may find row from "Colombia Narino" alias.
+
+For step 2, if any keyword matches but no return yet, add fallback `keywordTarget` + return label. The **token** path fix already handles failed row returns for .</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When step 2 keyword matches but findByExactName returns null for all results, a fallback mechanism is needed. After the keyword for-loop in the non-empty case, if no matches are found, a fallback mechanism should return the first matching target with `label: target`, `sortKey: 900`, and `matched: true`.  
+- Track the first match during the loop.  
+- Return fallback if no exact matches are found. After the loop, if any keyword matched but no row was found, return the keyword target as a fallback.  
+- Track the first keyword match without a row.  
+- Add a second pass to handle keyword-only matches.  
+- Return fallback target if no exact matches are found.</details></think>
+
+_**Agent (default)**_
+
+입출고에 행이 있으나 `findByExactName('Narino', rows)`가 실패할 때(이름 표기 불일치) 키워드는 맞는데라도 `19. Narino`로 못 이어질 수 있어, 키워드가 맞고 행이 없을 때 `target` 표기로 통일합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Wait  this changes behavior: if keyword 1 () doesn't match, keyword 2 () also doesn't match. If a keyword like "narino" matches but no row is found, we set `firstKeywordNoRow` to Narino and continue checking other keywords. The first matching keyword in the array order determines the row. If no keywords match, we fall back to `firstKeywordNoRow`. However, if the first match is a false positive, it could cause issues since regex patterns are checked in order. 
+
+- First match in keyword array determines row if no row is found.
+- If all keywords fail, fallback to `firstKeywordNoRow`.
+- False positives on early matches may cause incorrect rows to be selected.</details></think>
+
+_**Agent (default)**_
+
+키워드→행을 찾지 못했을 때 `Narino`로 조기 반환하면 별칭(3)·부분일치(5)가 막힙니다. `firstKeywordNoRow`는 6번 직전에만 쓰도록 옮깁니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Step 3 alias when row is null - we don't return, fall through. Good.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 644 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.28 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-CYfgvlNc.js   2,570.77 kB │ gzip: 733.11 kB
+
+✓ built in 406ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 왜 이렇게 보였는지 (처리 방식이 겹쳐서)
+
+원두 매출 품목명은 **`mapStatementItemToInventoryLabel` 한 함수**에서 여러 단계로 잡습니다. 여기에 **클라우드에서 입출고 `localStorage`가 잠깐 비어 있는 타이밍**이 겹치면, **같은 나리노인데도 표기가 갈라졌습니다.**
+
+1. **입출고 `beanRows`가 있을 때**  
+   입고명이 `Narino`이면 → **`19. Narino`** 같은 `번호. 이름`으로 맞춥니다.
+
+2. **입출고가 아직 비어 있을 때(캐시 지연·로딩 전)**  
+   - 한글 한 덩어리 `나리노` → 토큰 처리로 **`Narino`**  
+   - 생두 주문 별칭이 잡히면 예전에는 오른쪽 문자열 **`Colombia Narino`를 그대로** 쓰는 분기가 있었습니다.  
+   → 그래서 **같은 원두가 `Narino` / `Colombia Narino` / 나중에 `19. Narino`로 섞여 보일 수 있었습니다.**
+
+3. **`readGreenBeanOrder` + 매출 둘 다 같은 맵퍼를 쓰지만**  
+   한쪽은 스냅샷 품목이 `"Colombia Narino"`, 다른 쪽은 `"나리노(라미랑드)"`이면, 입출고 유무에 따라 **서로 다른 문자열이 키**가 되어 **최근 주문(원/kg) 열이 비는** 일도 있었습니다.
+
+## 이번에 한 수정
+
+- **입출고가 없을 때** 별칭의 긴 영문(`Colombia Narino` 등)은 그대로 두지 않고, **`keywordTargetForDisplay`로 `Narino` 같은 짧은 입고 키에 맞춤** (같은 라인이 항상 같은 키로 묶이게).  
+- **한글 토큰 `나리노`인데 입고 행만 못 찾을 때** → 이제 **`break`로 다음 단계로 넘기지 않고 `Narino`로 고정**해, 엉뚱한 단계로 안 넘어가게 함.  
+- **키워드는 맞는데 2~5단계로 행이 안 붙는 경우** → 마지막에 **`firstKeywordNoRow`로 `Narino` 등으로라도 반환** (캐시·이름 오타로 행이 비었을 때 **원문 품목**만 나오는 것보다 나음).  
+- `npm run build` **통과**했습니다.
+
+**한 줄로:** *같은 DB를 공유하는 게 아니라, 브라우저 `localStorage` + 단계가 많은 매퍼*라, 클라우드에서 입출고 캐시가 늦게 잡힐 때 **표기가 흔들릴 수 있었고**, 그때 `Colombia Narino` 같은 별칭이 그대로 찍혀 “아까는 괜찮았는데”처럼 느껴졌을 가능성이 큽니다. 위처럼 **표기를 한쪽(`Narino` 계열)으로 통일**하도록 맞춰 두었습니다.
+
+---
+
+_**User**_
+
+Ihider ,Mogiana 는 나간게 없는데 매출 요약에 보이는데? 아니 영문을 한글로 표기한걸 너가 파악해서 매칭 시키는게 어려워?? 입출고현황에 있는 원두만 입 출고 되는건데 왜 다른게 자꾸 보이는거야ㅐ
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user is frustrated that Ihider and Mogiana appear in the sales summary even when there are no sales or outbound transactions for those items in the inventory. The user wants to ensure that only rows corresponding to actual inventory items (i.e., `beanRows` from inventory) are displayed in the sales summary. This means filtering out any rows that do not match an existing inventory line, particularly to prevent incorrect mappings to items like Ihider or Mogiana when there are no real sales or outbound transactions.
+
+The proposed fix involves:
+- Filtering the sales analysis to only include labels that are actual `formatBeanRowLabel` from `inventoryBeanRows`
+- Removing any row that does not correspond to an inventory line Filter the sales analysis results to include only items whose labels match actual inventory bean display names from `inventoryBeanRows`.  
+- Remove any rows that do not correspond to an existing inventory line.  
+- Avoid using fallbacks like "Ihider" or "Mogiana" when no matching inventory row exists.  
+- If no inventory data is present, display a warning or use "" instead of showing unmatched items.  
+- Ensure that only beans listed in the inventory are shown in the sales summary. Post-process `beanSalesAnalysis` by filtering `data.beanName` to only include labels present in `inventoryBeanRows` using `formatBeanRowLabel` or direct `name` matching. Ensure that only actual inventory items are displayed, preventing incorrect mappings like "" to Ihider or "" to Mogiana. Remove any rows that do not correspond to valid inventory lines. - Only include aggregated keys in the sales analysis where the `beanName` matches a `formatBeanRowLabel` from `inventoryBeanRows`.
+- Exclude any rows that do not correspond to actual inventory items; do not show unmatched items like "Ihider" or "Mogiana".
+- In `mapStatementItemToInventoryLabel`, avoid returning labels that do not exist in inventory  if inventory data is available, skip unmatched labels or return raw values instead of fallbacks.
+- If no inventory data exists, display a warning or leave the field blank rather than showing invalid mappings. The issue occurs when `itemName` incorrectly maps to Mogiana, indicating a problem in either the mapping logic or the final filter. If `record.itemName` is legitimate but flagged as wrong, the keyword may be too broad (e.g., "" appearing in another term).  
+
+Only entries matching exact labels from `inventoryBeanRows` (after `formatBeanRowLabel`) should be included in the summary  this forms the whitelist.  
+
+Records that do not match the whitelist can either be:
+- Excluded from the summary entirely (treated as if not sold)
+- Grouped under "()" (other/unidentified) The user does not want to see Ihider or Mogiana in the sales summary if those items are not present in the inventory. These labels should only appear if they are part of the whitelist (i.e., actual inventory items). If no statement records map to these labels, the rows should not appear at all. The presence of Ihider or Mogiana suggests that some statement lines are incorrectly mapping to these items, possibly due to a broad keyword match or incorrect mapping logic. - **Stricter map**: For cloud/local environments, `mapStatementItemToInventoryLabel` should only return labels that exist in `formatBeanRowLabel` set when `beanRows` are present. If no match is found, return `raw` (unmapped) for display or a sentinel for "unmapped" items to avoid spurious Ihider entries.
+
+- **Remove** `firstKeywordNoRow` fallback that returns "Ihider" when no row is found  this causes ghost rows when a fuzzy match occurs.
+
+- **Narrow keyword matching**: Only return keyword matches if `findByExactName` succeeds or if substring matching finds an actual row. Do not return English names without matching inventory rows when inventory is present.
+
+- In `mapStatementItemToInventoryLabel`, when `beanRows.length > 0`:
+  - Remove the final `if (firstKeywordNoRow)` fallback that returns "Ihider" unless the target exists in rows
+  - Token block: if no row is found, do not return `beanName`  fall through to try substring/alias matching, then raw
+  - Empty inventory branch: keep current behavior
+
+- In `BeanSalesAnalysisPage`, after building the map, filter results to include only names present in `inventoryBeanRows` using `formatBeanRowLabel` or direct `name` matching. If `allowedNames.has(data.beanName)` is false, exclude the row from the sales summary.  
+Only include rows where `data.beanName` matches a label in `inventoryBeanRows` (using `formatBeanRowLabel` or direct `name` matching).  
+Exclude unmapped raw items and "uncategorized" entries unless explicitly allowed.  
+Filter out rows with bean names like "Narino" that do not match inventory labels.  
+Do not show rows that do not correspond to actual inventory items  only display whitelisted entries. **Normalize comparison**: Use `formatBeanRowLabel` for consistent labeling and create a whitelist of valid inventory labels.
+
+**Handle unmapped records**: Exclude records that do not map to inventory items. When inventory rows are present, avoid returning non-matching labels from the mapping function.
+
+Implement changes to `mapStatementItemToInventoryLabel`:
+- Remove fallback returns when no row is found
+- Only return keyword matches if an actual inventory row exists
+- When `beanRows.length > 0`, do not return labels that do not correspond to inventory items - In the token block, if no row is found, proceed to the next token or break without returning beanName.
+- For the fallback logic, avoid setting firstKeywordNoRow for final fallback or do not use it.
+- In BeanSalesAnalysisPage, create a whitelist of valid inventory labels using `formatBeanRowLabel`.
+- Filter `beanSalesAnalysis` results to include only entries whose `beanName` exists in the whitelist.
+- If no inventory data is present, handle accordingly (e.g., show warning or leave blank). If Ihider or Mogiana exist in inventory, they should only appear in the summary if actually sold; otherwise, incorrect statement mappings may cause false revenue entries.  
+- If an inventory row exists for Ihider but no sales occurred, it should not appear in the summary.  
+- Incorrect mappings from statement lines to inventory items must be prevented to avoid showing phantom sales.  
+- Only include rows in the summary where the bean name matches an actual inventory item.  
+- Rows that do not correspond to inventory labels should be excluded entirely. The filter whitelist does not remove "Ihider" even if it's included in the list.  
+- User notes that "Ihider, Mogiana are not **** (sold/outbound)"  suggesting no sales in statements, yet UI still displays them, possibly as 0 amount rows or with fake amounts.  
+- If a statement line incorrectly maps to "Ihider," it should not appear in the summary.  
+- Narrow mapping rules: "" alone should not map to "Ihider" without an exact inventory row match.  
+- Only include rows in the summary where the bean name corresponds to an actual inventory item.  
+- Exclude rows that do not match inventory labels or are not present in the whitelist. If the inventory does not include Ihider, the strict whitelist approach ensures that mapped labels must be present in the allowed set. If the mapping returns "Ihider" but this label is not in `beanRows`, the row should be excluded.
+
+- User's inventory may lack Ihider or Mogiana entirely, meaning `allowed` won't contain "19. Ihider" or "5. Ihider", so rows with these bean names are filtered out.
+- **Strict mapper**: When inventory rows exist, the final mapped label must be in `Set(formatBeanRowLabel)`; otherwise, return **unmapped** (raw). Then, only allow entries in the allowed setexclude raw or unmapped items.</details></think>
+
+_**Agent (default)**_
+
+입출고 `beanRows`에 있는 `N. 품목명`만 매출에 포함하고, 키워드만 맞고 입출고에 없는 `Ihider`/`Mogiana` 같은 잘못된 매칭은 제외합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to display only rows for beans that are currently in the inventory (  ). The user wants to display only rows for beans that are currently in the inventory.
+
+I'll:
+- Import `formatBeanRowLabel` from beanSalesStatementMapping
+- Create a set of allowed inventory labels from inventory bean rows
+- Skip records whose formatted labels aren't in the allowed set
+- This prevents showing ghost Ihider/Mogiana entries when they're not in inventory - Skip entire records if their labels are not in the inventory set to prevent incorrect sales aggregation.
+- Exclude non-bean rows like '() ' when inventory and strict mode are enabled.
+- In `mapStatementItemToInventoryLabel`, remove early returns for null rows; instead use `continue` to handle unmatched tokens properly. - When a token matches but the row is null, do not return the bean name; instead, break out of the inner loop to continue with the main flow.
+- Remove the firstKeywordNoRow block (lines 290-292) when rows exist. This ensures the mapper does not return raw English "Ihider" when the Ihider row is missing from inventory, instead falling through to "raw" at the end.
+
+- Filter in page as safety net: when inventoryBeanRows exists, only aggregate if label is in allowed set.
+- Filter out `() ` if not in the allowed set.
+
+Fix the token block:
+- For each token-to-bean mapping, if token matches and no bean rows exist, return early with label and sort key.
+- Otherwise, continue processing to ensure proper handling of unmatched tokens.</details></think>
+
+_**Agent (default)**_
+
+입출고 `beanRows`에 실제로 있는 `N. 품목명`만 집계에 넣고, 키워드만 맞고 행이 없을 때 임의의 영문(`Ihider` 등)을 반환하던 로직을 제거합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "mapStatementItemToInventoryLabel|inventoryBeanRows|statementRecords"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "mapStatementItemToInventoryLabel|inventoryBeanRows|statementRecords",
+  "topFiles": [
+    {
+      "matchCount": 9,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 9
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to import `formatBeanRowLabel` from beanSalesStatementMapping. Add `allowedInventoryLabels` useMemo when inventoryBeanRows.length > 0. In the forEach loop, after mapping, if `inventoryBeanRows.length > 0` and `!allowedInventoryLabels.has(beanName)`, return early to skip the record. The label from mapper may contain raw statement text like " ...", which should be excluded if not in the allowed set. When in strict inventory mode, unmapped items should either be excluded entirely or placed in a separate "" bucket to avoid user confusion. Only aggregate statement data into rows with labels present in the whitelist. Exclude unmapped (raw) coffee names from the main summary to prevent ghost rows. This ensures that only inventory-approved items appear in the primary table, avoiding user confusion from unmatched entries.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts",
+  "pattern": "^export"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts",
+  "pattern": "^export",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/beanSalesStatementMapping.ts"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When `fromPhrase` returns 'Ihider' but the corresponding row doesn't exist, the existing check `if (row)` at lines 245-252 ensures that we fall through in such cases.</details></think>
+
+_**Agent (default)**_
+
+입출고에 실제로 있는 `N. 품목명`만 집계에 포함하도록 `BeanSalesAnalysisPage`에 화이트리스트 필터를 추가합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 644 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-B3Bx8pnR.js   2,570.78 kB │ gzip: 733.11 kB
+
+✓ built in 414ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 원인
+
+1. **토큰만 맞는 경우** (`케냐` → `Ihider`, `브라질` → `Mogiana`)에 입출고에 그 **영문 품목 행이 없어도** `return { label: beanName }`로 그대로 붙이고 있었습니다.  
+2. **6번 `firstKeywordNoRow`**는 키워드는 맞는데 입고명과는 못 맞출 때, 입출고에 **행이 없어도** `Ihider` 같은 `target`을 그대로 쓰는 폴백이었습니다.
+
+그래서 **실제로는 Ihider/Mogiana를 쓰지 않는** 입고 표인데도, 거래명세에 `케냐`·`브라질`만 나오면 매출에 잡혔습니다. “영한 매칭이 어렵다”가 아니라, **입고에 없는데도** 키워드 쪽을 최종 라벨로 쓰고 있었던 쪽이 문제였습니다.
+
+## 수정
+
+**`beanSalesStatementMapping.ts`**
+- 토큰 `케냐`·`브라질` 등: 입출고에 `findByExactName`으로 행이 있을 때만 `formatBeanRowLabel` 반환, 없으면 **`break` 후 아래 단계(부분일치·원문)**로만 진행.  
+- 키워드 루프: 이미 `findByExactName(target)`이 있을 때만 채택 (유지), **`firstKeywordNoRow` 전체 제거** — 입고에 없는 `target`은 더 이상 단독 라벨이 되지 않습니다.
+
+**`BeanSalesAnalysisPage.tsx`**
+- `inventoryBeanRows`가 **비어 있지 않을 때**는 `formatBeanRowLabel`로 만든 **입출고 `N. 품목명` 집합**에 **포함된 라벨만** 합산합니다.  
+  → 키워드/부분일치 꼬리가 남아도, 입고 표에 **없는** 이름·더치·미매칭 원문은 **요약/표에 안 올라갑니다**.  
+- 입고 캐시가 **없을 때**(`length === 0`)는 이전과 같이 **필터 없이** 보므로, 납품 데이터만 있을 때는 집계는 유지됩니다.
+
+`npm run build`는 통과했습니다.
+
+---
+
+_**User**_
+
+브라질(라미랑드) 이게 나간게 있는데 이번엔 또 집계가 안되잖아 아니 어려워? 매칭하는게? 도무지 이해가안되네
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user is frustrated because "()" is not being aggregated in sales analysis, despite a previous fix that was overly strict, only allowing exact matches to the inventory format. The issue occurs when "()" is not matched against inventory rows like "5. Mogiana" or " ", because the system strips parentheses before matching, leaving "" which doesn't align with inventory labels. The fix should ensure that "()" can match correctly against inventory entries, possibly by:
+
+- Avoiding parenthesis stripping before substring/longest match
+- Using content inside parentheses for matching
+- Ensuring the mapped result aligns with inventory labels such as "5. Mogiana" instead of returning unmatched strings</details></think>
+
+_**Agent (default)**_
+
+괄호를 제거해 ‘라미랑드’ 정보가 사라지고, 이후 `브라질`→Mogiana 매칭이 실패하면 집계에서 빠집니다. 괄호 안 문자열을 매칭에 활용하도록 수정합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.{ts,tsx,json}",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "라미|Lamirande|Mogiana|브라질"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "라미|Lamirande|Mogiana|브라질",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/greenBeanOrderInventoryAliases.ts"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "matchCount": 21,
+      "uri": "app/public/alma-prices-latest.json"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 5,
+      "uri": "app/src/beanSalesStatementMapping.ts"
+    },
+    {
+      "matchCount": 20,
+      "uri": "app/public/alma-prices-member.json"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/monthlyMeetingData.ts"
+    }
+  ],
+  "totalFiles": 8,
+  "totalMatches": 55
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The issue is clear:
+
+- "()" after stripParensForMatch  "" only
+- ... tokenOnly = ""  Mogiana findByExactName  "Lamirande"  " " "Mogiana"  
+2.  break findLongestSubstringRow  
+3. forMatchCompact = ""  bean  ""  "Lamirande"  "3. Lamirande"  ""   
+4.  "()"</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/greenBeanOrderInventoryAliases.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The inventory may use "Brazil" or "Lamirande" for certain beans, as indicated by the user's input "()". The paren "" likely represents a farm or region disambiguation, where the actual bean name in inventory could be "Lamirande" (English), which does not substring-match Korean "" when compared to "lamirande". However, "lamirande" is a substring of normCompact("()") = "()", since normCompact removes spaces but preserves parentheses. The regex only matches whitespace characters, so "()" in Korean may not match "lamirande" even after compacting. To resolve this:
+
+- Create a paren disambiguation map or add aliases like `['', 'Lamirande']` or `['()', 'Lamirande']`
+- Alternatively, use `findLongestSubstringRow` on `normCompact(stripParens) + parenKorean` and match English names via a static map:   Lamirande
+
+The cleanest solution involves:
+- Adding `extractParensInners` to process parentheses content
+- Building `forSubMatchCompact` as `normCompact(`${forMatch} ${parens.join(' ')}`)` to combine base name and paren contents
+- This creates "", but still won't match "lamir Add **STATEMENT_PARENHints** or extend aliases to include inner text like "" and try matching with `findByExactName('Lamirande', rows)` or `resolveAliasedTarget('Lamirande', rows)`.
+
+Romanization is fragile; instead, add `['', 'Lamirande']` to `GREEN_BEAN_ORDER_INVENTORY_ALIASES` and use `resolveAliasedTarget('Lamirande', rows)` to find the row if the name contains "Lamirande". I'll add a map `PAREN_INNER_TO_BEAN_EN_HINTS` or use existing aliases like `['', 'Lamirande']` in `GREEN_BEAN_ORDER_INVENTORY_ALIASES`, where the left side matches when it appears in parentheses or as a token.
+
+However, the alias check uses `forMatchCompact.includes(normCompact(from))`, meaning the full item compact must include "" for a match. If `forMatch` is "" (stripped), "" won't match.
+
+- The alias table checks if `forMatchCompact.includes(normCompact(from))`
+- For "" to match, the full item compact must include ""
+- But if `forMatch = ""` (stripped), then "" isn't included
+- So either raw `forMatch` or `forMatch - The system needs to check if `rawCompact` (e.g., "()") includes the substring "" when processing aliases.
+- Since `normCompact` preserves parentheses and removes spaces, "" is found as a contiguous substring in "()".
+- Therefore, adding `['', 'Lamirande']` to aliases allows matching during step 3 using the **raw** input for alias checks when `forMatch` does not contain the alias directly. Currently, step 3 uses `forMatchCompact` from a stripped string, which causes a bug: `normCompact("")` never includes "".
+
+- In `mapStatementItemToInventoryLabel`, define:
+  - `rawCompact` = `normCompact(raw)` (or blended)
+  - For `GREEN_BEAN_ORDER_INVENTORY_ALIASES` loop, check **both** `forMatchCompact` and `rawCompact` (or `normCompact(blended)`) for an includes match.
+
+- Add alias `['', 'Lamirande']`  the right side must match inventory. If user has "3. Lamirande" in `bean.name`, `resolveAliasedTarget` will find it.
+
+- For `findLongestSubstringRow` step 5, use extended string: `normCompact([forMatch, ...]` The system should avoid collapsing to a single token like "" when parentheses contain non-generic content, ensuring extended matching occurs instead of early short-circuiting.  
+- If `extractParensInners(raw).length > 0`, do not use singleTokenToBeanName for "" and proceed to extended matching.  
+- This prevents skipping necessary steps when parenthesized content exists. Easiest solution: Compute `parenInners` early from `blended` or `raw`, and if `tokenOnly === '' && parenInners.length > 0`, skip the singleTokenToBeanName branch to preserve parentheses content for matching.
+
+Alternatively, keep `forMatch` as `stripParens` for some paths and add an early check `if (beanRows.length > 0)` after computing `forMatch`. Also compute `matchHaystackCompact` using `[forMatch, ...extractParensInners(raw).filter(Boolean).join(' ')]` to enable proper substring matching. The implementation uses `extractParensInners` to parse content within parentheses, such as extracting "" from "()". It then builds `matchHaystackCompact` by combining `forMatch` and the extracted inner content, enabling proper matching like " "  "". This ensures that parentheses content is preserved for accurate substring matching during inventory lookup.</details></think>
+
+_**Agent (default)**_
+
+원인: `stripParensForMatch`가 `(라미랑드)`를 지워 `브라질`만 남기고, 그걸 `Mogiana`로 잡는데 입고엔 `Mogiana`가 없으면 끊깁니다. `findLongestSubstringRow`는 `브라질`만 봐서 `Lamirande`와 연결되지 않습니다. 괄호 안 텍스트를 별도로 매칭에 쓰고, `라미랑드` → `Lamirande` 별칭을 추가합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Now update mapStatementItemToInventoryLabel to: Now update mapStatementItemToInventoryLabel to:
+
+- Add parenInners and matchHaystackCompact after forMatch
+- In the token loop, skip Mogiana handling when  is matched as a single token and parenInners exist
+- Use `if (tokenOnly === tok)` to determine when to skip entire Mogiana handling for  with parentheses
+- Update alias section for beanRows > 0 to use compactsIncludeAlias with normalized compact values</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add the aliases '' and 'Lamirande' to the greenBeanOrderInventoryAliases list. If the actual inventory name is "Lamirande" in English, resolveAliasedTarget works.  
+If it's "Mogiana" but user has only "Lamirande" in data  user mentioned sales for   the inventory row name matters.  
+Also run keyword step 2: for raw "()"  regex ^$ matches forMatchSpaced, target Mogiana, findByExactName Mogiana  might still run before alias resolution if order is incorrect.
+
+Order in the function:
+- fromPhrase with forMatch ""  findByPhraseMap  " " needs longer match, not exact ""  skip
+- ...</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/greenBeanOrderInventoryAliases.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+If inventory contains "Lamirande" in the name, the system will resolve it using `resolveAliasedTarget('Lamirande', rows)`, which finds it through `findLongestSubstringRow`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 644 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-BIFj9cFj.js   2,571.12 kB │ gzip: 733.26 kB
+
+✓ built in 421ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts",
+    "/Users/parkcg/The Symbol_Edit/app/src/greenBeanOrderInventoryAliases.ts"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/greenBeanOrderInventoryAliases.ts"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 왜 안 잡혔는지
+
+1. **괄호를 매칭용에서 빼는 처리** 때문에 `브라질(라미랑드)` → 안쪽이 지워지고 **`브라질`만** 남습니다.  
+2. 그다음 `브라질` → **Mogiana**로 붙이는 건데, 입고에는 **Mogiana가 없고** 실제 품목은 **Lamirande(라미랑드)** 쪽이면, 예전 “입고에 없으면 끊기는” 정책과 맞물려 **끝까지 Lamirande 행으로 연결이 안 됐습니다**.  
+3. **부분일치**는 `forMatchCompact`만 쓰는 바람에, 압축 문자열이 **`브라질`뿐**이라 `Lamirande`랑은 겹치지 않았습니다(‘라미랑드’가 이미 잘렸기 때문).
+
+즉, **매칭이 어려운 게 아니라**, 괄호 안 **구체 품목명을 버리는 흐름** 때문에 `브라질(일반) ≠ 브라질(라미랑드)` 구분이 안 됐습니다.
+
+## 한 작업
+
+- 괄호 **안 텍스트**를 따로 읽어 `matchHaystackCompact`에 **합쳐** 부분일치에 씀.  
+- **`브라질` + 괄호가 있을 때**는 `Mogiana`로 **한 줄로 뭉그러지는 걸 막음** (라미랑드·세하도·모지아나를 구분하려는 목적).  
+- 별칭에 **`['라미랑드', 'Lamirande']`** 를 넣고, 별칭 매칭은 **strip된 문자열만** 보던 것을 **원문·괄호 포함** 문자열(`raw`/`blended` compact)도 보도록 바꿈.
+
+입고 `bean.name`이 정말로 `Lamirande` (또는 그걸 품은 영문)이면 이제 `formatBeanRowLabel`과 화이트리스트에 들어가 **집계에 포함**됩니다.  
+만약 입고에 **딴 철자**(예: `Lamilande`만 쓰는 경우)면 `greenBeanOrderInventoryAliases.ts`에 그 한 줄만 맞춰 주면 됩니다.
+
+---
+
+_**User**_
+
+아니 심지어 괄호안에 있는건 매장명이라서 쓸 필요가 없어... 입출고현황에 품목별 요약에는 mogiana 가 존재하지도 않아 뭘 쳐 보고 코드를 짜는지 이해가안되네
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user is frustrated and clarifying their request. The user wants to ignore parenthetical content when matching store names, reverting the previous approach that used content inside parentheses for disambiguation. The inventory summary does not include "Mogiana," indicating a mismatch between the code's assumptions and actual data. - Stop assuming "Mogiana" as the default for "" if it's not in their inventory.
+- Revert the paren-inners matching logic to use only stripped text for core matching.
+- Remove or reduce reliance on hardcoded "Mogiana" for "", instead matching to actual inventory rows.
+- Avoid picking the wrong Brazil bean by using stripped text only, not parenthetical content. The user confirmed that "Mogiana" does not exist in their inventory, making it an invalid target. The fix ensures that hardcoded English names like "Mogiana" are never returned if they don't exist in the actual inventory rows. For "", instead of using `findByExactName('Mogiana', beanRows)`, find the Brazil-related row by checking if the inventory row names contain "" or vice versa, using a longest substring match approach. For the statement "" (compact), we need a bean name fragment f such that "".includes(f)  meaning the item string contains the bean's name fragment. The fragment f must have a minimum length of 2 characters. For example, "" (length 2) or "" (length 1) are possible fragments, but only "" qualifies. If a bean is named " ", its normalized compact form would be "", but since "" is not contained within "", this bean wouldn't match.
+
+The algorithm requires that the beans name fragment be a substring of the cleaned item string (cleanCompact). This ensures accurate matching without relying on parenthetical or hardcoded values. 
+
+- Find the longest valid fragment f where f is a substring of ""
+- Ensure f has at So for the item "" and row name "Something  NY2", the normalized bean name fragment f must be a substring of "". The longest such fragment f from available beans is selected, ensuring f is at least 2 characters long. For example, if a bean is named "2. Brazil ", its normalized form may not match "" exactly, so it would not qualify. The algorithm checks whether the item string includes the selected fragment f, ensuring accurate matching without relying on parenthetical or hardcoded values. The goal is to find the best match based on substring inclusion in the cleaned item string. The function `findLongestSubstringRow` matches an item string to the best-fitting bean row by checking if a normalized fragment from the bean name is a substring of the cleaned item string. It iterates through each bean row and evaluates potential fragments, selecting the one with the longest matching substring that is at least two characters long. The item string must include this fragment for a match. For example, if the item is "" (compact), it looks for a fragment from bean names that is included in this string. So the item string must contain the bean fragment for a match. For example, if the item is "" and a bean is named "XX  YY", the fragment f would be "" (a shorter part of the bean name). The algorithm checks whether the item string includes this fragment. If the item is "" and the bean name is "XX  YY", then f = "" and the check is whether "".includes(""), which is true. However, if the bean name were "XX YY", then f = "YY" and "".includes("YY") would be false. Therefore, the fragment must be a substring of the item string. The goal is to find the longest valid fragment from the bean name that is also a substring of the item string. 
+
+- The code uses the full bean name and its compact form as complete strings, not substrings. For example, if the bean name is "3. Brazil Mogiana", the fragment f is the entire compacted name like "3.brazilmogiana". 
+
+The function `findLongestSubstringRow` only works when the entire bean name (in compact form) is a substring of the item string  this is useful when the item string is long and contains the full bean name. It does not work well for short item strings like "", where the bean name is too long to fit as a substring.</details></think>
+
+_**Agent (default)**_
+
+괄호는 매장명이므로 매칭에 쓰지 않습니다. 입고에 없는 하드코딩 `Mogiana` 대신, 입출고 `beanRows`에 실제로 있는 브라질 품목만 잡는 방식으로 바꿉니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to:
+
+- Remove `extractParensInners`, `parenInners`, and `matchHaystackCompact` (or set `matchHaystackCompact = forMatchCompact` only)
+- Remove `matchHaystackCompact` (or set `matchHaystackCompact = forMatchCompact` only) Remove `compactsIncludeAlias` and use `forMatchCompact` only for alias matching after stripping parentheses from raw input. This prevents incorrect matches like '' in . Avoid using raw or blended formats with parentheses for alias matching; instead, strip parens before applying `forMatchCompact`. Only pass `forMatchCompact` to avoid multi-haystack issues.
+
+- Revert to `forMatchCompact` only for alias matching
+- Strip parentheses from raw input before compact matching
+- Remove `compactsIncludeAlias` multi-haystack usage
+- Use `forMatchCompact` exclusively for alias matching Add `findBrazilRowInInventory(rows: readonly InventoryBeanRow[])` that returns a row or null:
+- Score/filter rows by checking if core name or name contains Korean `` or common Brazil tokens (`brazil`, `mogiana`, `cerrado`, ``, `ny2`, ``) as substrings
+- Simple: candidates = rows where `normCompact(coreFromName(b.name) + b.name)` matches regex `/|brazil|mogiana|cerrado|||ny2fc|santos|?/i`
+- If 0: return null
+- If 1: return that row If multiple rows contain "" in their name, select the one with the lowest `no` value (typical roastery has one "Brazil" line). If there's ambiguity, prioritize the default single Brazil line. Alternatively, use the row with the minimum `no` value among those matching "".
+
+- Split KEYWORD line 124:
+  - `{ re: /mogiana||(?!.*)/i, target: 'Mogiana' }` - findByExactName - `{ re: /^$/i, target: '\x00BRAZIL_PICK' }` is a special case not representing a real name and must be handled within the loop.
+- A cleaner approach involves adding a second pass for generic Brazil matching without hardcoding targets in KEYWORD.
+- During the keyword loop, instead of using a flat array, check after the loop if `^$`.test(forMatchSpaced) && !matched, then call `findBrazilishRowFromInventory(beanRows)`.
+- Alternatively, simplify by moving the Brazil logic into a dedicated function after the main keyword loop. - For raw input, use `forMatchSpaced` and `forMatch` to avoid parentheses issues.
+- If `forMatchSpaced` matches `^$` and `beanRows` exist, find a Brazil row using `findInventoryBrazilRowGuess`.
+- Split keyword line 124: remove `^$` from the Mogiana line and handle it separately.
+- For the single token `''`, use `findInventoryBrazilRowGuess` instead of `'Mogiana'`; if null, continue to the next step. When resolving phrases with bean rows, the phrase map returns a hint. For `findByExactName`, returning **null** is possible, but a simpler solution is to change the return of `findByPhraseMap` for " " to a special constant `__BRAZIL_PHRASE__` and handle it in `findBrazil`. Alternatively, remove the phrase mapping to "Mogiana" and use the phrase that matches " " directly in the item  `findBrazil`. 
+
+This avoids the issue where `findByPhraseMap` returns 'Mogiana' and `findByExactName('Mogiana')` fails. Then a keyword might match. Add **before** or **replace** the phrase: if `fromPhrase === 'Mogiana'` and `c.includes()` and beanRows, use `findInventoryBrazil` - **hacky**.
+
+Cleaner: introduce a new phrase entry result type - too heavy.
+
+Simpler: modify `findByPhraseMap` to return a virtual key for ` ` instead of 'Mogiana', or **remove** `[' ', 'Mogiana']` and rely on: item containing + -> keyword regex `//` targets Mogiana for `findByExactName` - same problem. Replace the PHRASE entry `[' ', 'Mogiana']` with a new entry `[' ', '__INVENTORY_BRAZIL__']`. When `fromPhrase === '__INVENTORY_BRAZIL__'`, use `findInventoryBrazilRowGuess(beanRows)` to resolve the row. This avoids issues with `findByPhraseMap` returning 'Mogiana' while `findByExactName('Mogiana')` fails. Alternatively, perform a dedicated check before phrase mapping: if `normCompact(forMatch)` includes '' and `forMatch` includes '', call `findBrazil`. Also, the phrase map for exact "" is missing; only " " exists.
+
+`findInventoryBrazilRowGuess` filters rows by checking if the normalized name contains Brazil-related keywords. If no candidates are found, it returns null. If one candidate exists, it returns that row. If multiple candidates exist, it selects the one with the lowest `no` value. If only one candidate exists, return it.  
+For multiple candidates containing "Brazil", select the one with the lowest `no` value.  
+If no candidates are found, return null.
+
+Remove `` from `greenBeanOrderInventoryAliases` as it should not be used for matching. To simplify `compactsIncludeAlias`, use `forMatchCompact` exclusively instead of multi-haystack matching, removing the need for `extractParensInners`, `matchHaystack`, and special parentheses cases in `singleToken`.
+
+For  token, if no bean rows exist, return a generic unmatched label. Otherwise, find and return the appropriate Brazil row using `findInventoryBrazilRowGuess` or fall back to a default. Remove the Mogiana reference from singleToken for  entirely.
+
+11. **KEYWORD** - split line 124:
+- `{ re: /mogiana||(?!.*)/i, target: 'Mogiana' }`  // exact name only, if not in inv skip
+- Remove `^$` from this line
+
+Add after the keyword loop a block:
+```javascript
+if (/^$/i.test(forMatchSpaced) && beanRows.length > 0) {
+  const b = findInventoryBrazilRowGuess(beanRows)
+  if (b) {
+    return { label: formatBeanRowLabel(b), sortKey: b.no ?? 0, matched: true }
+  }
+}
+```
+
+However, the keyword loop runs first. If " " exists in PHRASE as Mogiana, it will fail **2 keyword** - The mogiana regex may fail to match. **2b** - Add handling for generic  by running **findBrazil** for `^$` right after the single token block and before beanRows==0 checks.
+
+**singleToken** for  -> Ihider - if no Ihider row, break.
+
+**Keyword** section: Regex `/mogiana|...|/` may incorrectly match non-Brazil items containing .
+
+**PHRASE** change ' ' to use __INVENTORY_BRAZIL__ special case in the block. If `fromPhrase` equals the new constant `PHRASE_INVENTORY_BRAZIL`, use `findInventoryBrazilRowGuess` to locate and return the appropriate row. Add the constant `PHRASE_INVENTORY_BRAZIL = '__INVENTORY_BRAZIL__'` and update the phrase map to replace `' '` with this constant.
+
+In `mapStatementItem`, when `fromPhrase` is `PHRASE_INVENTORY_BRAZIL` and `beanRows` exist, call `findBrazil`; otherwise, show a message indicating no matching Brazil row is available.
+
+If `beanRows` is empty and `fromPhrase` matches `PHRASE_INVENTORY_BRAZIL`, return a label indicating no inventory match is found. For no inventory, return a generic label like `'()'` or use `keywordTargetForDisplay` for offline mode. Alternatively, keep `fromPhrase` as the display string and use a tuple or constants for the phrase map, such as `[' ', PHRASE_INVENTORY_BRAZIL]`. In the no-inventory block, if `fromPhrase` matches `PHRASE_INVENTORY_BRAZIL`, return a label indicating no inventory match is found.</details></think>
+
+_**Agent (default)**_
+
+괄호는 매칭에 쓰지 않고, `Mogiana` 같은 임의 영문이 아니라 **입출고에 실제로 있는** 브라질 품목 행만 골라 붙이도록 바꿉니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/greenBeanOrderInventoryAliases.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Now rewrite beanSalesStatementMapping.ts with: Now rewrite beanSalesStatementMapping.ts with:
+- Remove extractParensInners and compactsIncludeAlias (revert to simple)
+- Add findInventoryBrazilRowGuess
+- Add PHRASE_INVENTORY_BRAZIL
+- Update PHRASE for  
+- Split KEYWORD - remove ^$ from line 124
+- singleToken:  -> findInventoryBrazilRowGuess, not Mogiana; remove the parenInners check and remove parenInners
+- Simplify all variables
+- For mapStatement: handle fromPhrase === PHRASE_INVENTORY_BRAZIL
+- no-inventory path for fromPhrase
+
+Also update keyword for mogiana line - the regex was `/mogiana||(?!.*)|^$/i` - split to `/mogiana|| - Handle "" case in singleToken logic first, avoiding duplicate processing.
+- Remove redundant keyword loop block for "^$" after singleToken runs.
+- Ensure proper order: run keyword loop, then check for "" separately after stripping parentheses. For " (extra)" with space, tokenOnly is false, so skip singleToken and use step 2 for `^$` on forMatchSpaced. If forMatch is "" only, forMatchSpaced is "", and the separate block in step 2 handles cases where singleToken didn't run due to commas.
+
+- Edge case: forMatch = "    "  strip handles this correctly.
+- singleToken only runs when no comma is present in forMatch.
+- Remove duplicate  handler in step 2 if singleToken already covers it. If no inventory rows exist, return a generic label like '' instead of 'Mogiana'. For cases where singleToken doesn't match, add fallback logic after the keyword loop to handle `^$`. This ensures proper labeling even when token matching fails. The logic should prioritize returning '' with a sort key of 900_000 for no-inventory scenarios.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Add `findInventoryBrazilRowGuess` constant after `findLongestSubstringRow`
+- Add `PHRASE` constant after `findLongestSubstringRow`
+- Place both constants before `type KeywordSpec` - Add `findInventoryBrazilRowGuess` constant after `findLongestSubstringRow`
+- Add `PHRASE` constant after `findLongestSubstringRow`
+- Place both constants before `type KeywordSpec`</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+PHRASE_PICKS_INVENTORY_BRAZIL is used in PHRASE_TO_BEAN_NAME before being defined. In JavaScript/TypeScript, const declarations must be defined before use. The issue occurs because findInventoryBrazilRowGuess and PHRASE_PICKS_INVENTORY_BRAZIL are placed before the array definition, but the array itself is defined later in the file.
+
+- PHRASE_PICKS_INVENTORY_BRAZIL should be defined before PHRASE_TO_BEAN_NAME
+- The array definition comes after the usage
+- Const order in JS/TS requires forward references to be declared first PHRASE_PICKS_INVENTORY_BRAZIL was moved before PHRASE_TO_BEAN_NAME to fix the JavaScript const declaration order issue. The updated file order is now:
+- findInventoryBrazilRowGuess, PHRASE_PICKS_INVENTORY_BRAZIL
+- type KeywordSpec, KEYWORD_TO_BEAN_NAME
+- PHRASE_TO_BEAN_NAME with PHRASE_PICKS_INVENTORY_BRAZIL
+
+The mapStatementItemToInventoryLabel function body was updated to remove parenInners, matchHaystack, and related logic. The singleToken function was updated for . The fromPhrase PHRASE now uses no-inventory.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The PHRASE_TO_BEAN_NAME array references PHRASE_PICKS_INVENTORY_BRAZIL, so PHRASE_PICKS_INVENTORY_BRAZIL must be defined before the array. Ensure the constant is declared prior to PHRASE_TO_BEAN_NAME. The constant `PHRASE_PICKS_INVENTORY_BRAZIL` is defined before `PHRASE_TO_BEAN_NAME`, ensuring proper initialization order. Although `PHRASE_TO_BEAN_NAME` references `PHRASE_PICKS_INVENTORY_BRAZIL`, TypeScript evaluates the array literal at runtime, so the reference works correctly since `PHRASE_PICKS_INVENTORY_BRAZIL` is already initialized when the array is evaluated.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Fix the inventory block issue for PHRASE_PICKS_INVENTORY_BRAZIL.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "라미|괄호|매장"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "라미|괄호|매장",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+PHRASE_PICKS_INVENTORY_BRAZIL is used within a no-inventory block but is defined at the module level, which is appropriate since the no-inventory block is inside a function and PHRASE is module-level. PHRASE_PICKS_INVENTORY_BRAZIL is defined at the module level before PHRASE_TO_BEAN_NAME in the file, ensuring proper hoisting order. The variable `fromPhrase` is declared twice in mapStatement, which may indicate a duplicate variable name issue.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+PHRASE_TO_BEAN_NAME has a tuple type `readonly [string, string]`, where the second element PHRASE_PICKS_INVENTORY_BRAZIL is correctly typed as string - OK.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 644 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-C7XgVD5T.js   2,571.69 kB │ gzip: 733.40 kB
+
+✓ built in 416ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts",
+    "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+findByPhraseMap returns a tuple where the second element can be PHRASE, with the return type being `string | null`. The function returns a beanName that may be PHRASE_PICKS_INVENTORY_BRAZIL, and the tuple type is `[string, string]`. Need to verify TypeScript implementation. PHRASE is a string, which is acceptable.</details></think>
+
+_**Agent (default)**_
+
+말씀하신 대로 **괄호는 매장명**이라 품목을 가리는 데 쓰면 안 되고, 이전에 제가 괄호 안(라미랑드)까지 묶어서 쓰게 한 건 방향이 잘못됐습니다. 그 부분은 전부 정리했습니다.
+
+## 이번에 한 일
+
+1. **괄호 안**은 쓰지 않음  
+   - `matchHaystack`·`라미랑드` 별칭·괄호를 넣은 별칭 매칭·헬프문구에 있던 “라미랑드 예시” 류는 제거하거나, 설명을 **“괄호는 매장명이라 매칭에 안 쓴다”**로 맞췄습니다.  
+   - 생두·재고 **별칭**도 다시 `stripParens` 뒤 문자열(`forMatch`)만 봅니다. 매장명이 괄호에만 있으면 집계에 끼지 않습니다.
+
+2. **`Mogiana` 고정 제거**  
+   - `브라질` / `브라질 세하도` / 키워드 `세하도` 등이 **이름이 Mogiana인 행**에만 붙는 전제는 버렸습니다.  
+   - 대신 `findInventoryBrazilRowGuess()`로 **입고 `bean.name`(및 `no. 제거한 이름)** 안에 `브라질`, `brazil`, `cerrado`, `산토스`, `ny2` 같은 **일반적인 표기**가 들어가 있는 행만 골라서 붙입니다.  
+   - 후보가 여러 개면 `no`가 작은 쪽(앞에 있는 품목)에 붙입니다.
+
+3. **결과**  
+   - `브라질(아무매장)` → 괄호는 버리고 **`브라질`만** 보고, 위 규칙으로 **지금 입고에 실제로 있는** 브라질/산토스 계열 **한 행**에 집계됩니다.  
+   - 입고에 브라질 류 **한 줄도 없으면** 예전 Mogiana로 가짜로 붙지 않고, 이전 단계에서 정한 “미매칭” 흐름을 탑니다.
+
+`npm run build`는 통과했습니다.
+
+나중에 입고에 `브라질`·`Brazil`·`ny2` 같은 힌트가 **전혀 없는** 특이한 품목명만 쓰시면, 그때는 `BRAZIL_NAME_HINTS`에 **그 입고명에 맞는 부분**만 한두 개 추가하면 됩니다.
+
+---
+
+_**User**_
+
+여전히 브라질 원두는 매출 요약에 안뜨는데?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Brazil beans are still not appearing in the sales summary. The issue stems from the mapping process: `mapStatementItemToInventoryLabel` must correctly map statement items to inventory labels, and `BeanSalesAnalysisPage` filters results using `allowedInventoryLabels` derived from `formatBeanRowLabel`. If the mapping fails to match or returns a filtered-out value, Brazil beans won't appear.
+
+Key points:
+- `findInventoryBrazilRowGuess` uses BRAZIL_NAME_HINTS regex to identify Brazil beans
+- If bean names don't match the expected Korean/English patterns, the function returns null
+- This prevents Brazil beans from being included in the sales summary
+
+The root cause is likely that the user's inventory bean names don't align with the expected naming patterns in BRAZIL_NAME_HINTS, causing `findInventoryBrazilRowGuess` to return null instead of identifying Brazil beans properly. - Items may return raw "" or "(...)" as unmatched.
+- The whitelist in BeanSalesAnalysisPage excludes anything not in `formatBeanRowLabel` set.
+
+Potential fixes:
+- Widen BRAZIL_NAME_HINTS to match more real-world bean names.
+- Add fallback: if forMatch is only "" and no candidates from hint regex, use all rows with Brazil as country (unreliable).
+- If exactly one row matches `` in any form, try substring matching.
+- Review actual inventory data structure and typical bean names in the app.
+
+Also need to check: - The current `findLongestSubstringRow` algorithm requires the entire bean name fragment to be inside the item string, which fails for short items like "" when the bean name is longer.
+- For short items, a reverse approach is needed: find beans where the item string is a substring of the bean name.
+- Consider adding `findRowWhereItemIsSubstringOfName` to handle cases where short item strings match substrings within longer bean names. The issue likely lies in `findInventoryBrazilRowGuess` returning null because BRAZIL_NAME_HINTS doesn't match the user's bean naming conventionssuch as using a farm name in Korean without "" or storing names like " NY2" without the country label.
+
+To fix this:
+- Read `InventoryBeanRow` type and understand how bean names are stored.
+- Improve fallback logic in `findInventoryBrazilRowGuess`: if forMatch is exactly "" (after stripping), search rows where the item text "" appears within the normalized bean name.
+- Handle edge cases where short item strings might be substrings of longer bean names. The issue is that the item string "" (Korean for Brazil) needs to be matched against the full bean names in inventory. The current logic checks if the item is a substring of the bean name but fails when the item is shorter than the bean name.
+
+- The fix involves improving `findInventoryBrazilRowGuess` to first use BRAZIL_NAME_HINTS filter.
+- If no match, fallback to checking if `normCompact(b.name)` includes the Korean term "".
+- This ensures that even if the item string is shorter, it can still match full bean names containing that substring.</details></think>
+
+_**Agent (default)**_
+
+원인 파악: `브라질`이 단독 토큰이 아니거나(예: `브라질 원두`) 입고 품목명이 힌트 정규식에 안 잡히면 집계에서 빠질 수 있습니다. 코드를 확인한 뒤 `브라질`로 시작하는 품목과 `입고명에 '브라질' 포함`인 행을 잡는 폴백을 추가합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Key issues identified:
+
+- **normCompact** uses `.
+- (The text appears incomplete or cut off, so only the first issue is fully visible.) - `toLowerCase()` in JavaScript does not affect Korean characters.
+- `BRAZIL_NAME_HINTS` should match names containing "", but inventory may store names differently; check `InventoryBeanRow` for potential discrepancies.
+- `normCompact` uses `replace(/\s/g, '')`, which removes full-width spaces; the leading number in "3. Brazil ..." is stripped by `coreFromName` using `^\d+`; the full name might be "3. ...". - **normCompact** of "3. " removes spaces but keeps full-width spaces; the leading number is stripped by `coreFromName` using `^\d+`, so the full name might be "3. ..." instead.
+- **findInventoryBrazilRowGuess** returns null if no row matches **BRAZIL_NAME_HINTS**; users bean might be named only in English (e.g., "Santos NY2") without words like "brazil", "mogiana", or "braziliense"  unless it's a farm name like "2. Pulp Natural".
+- **Add fallback logic**: check rows where `normCompact(coreFromName(b.name))` includes the substring **''**, since `toLowerCase()` doesnt change Korean characters, and `normCompact` preserves them. Use `s.includes('')` after normalization. So filter `rows` where `normCompact(b.name).includes('')` OR core includes
+
+- **Widen regex** - add `fc` `` for common alma style names
+- **" "** - tokenOnly is false (has space), so we skip the  block; the step `if (/^$/i.test(forMatchSpaced))` also fails
+- **findByPhraseMap** - " " - no phrase found
+- **findLongestSubstringRow** for "" - we need the entire bean name as fragment to be in ""; a long name won't fit
+- **Reverse matching needed**: for statement string S, find row R where **normCompact(S).includes( fragment of R)** is wrong direction - we need: - **findRowsWhereNameContainsStatementPrefix** should check if any row name includes a prefix of the statement as a starting substring.
+- Use **findBestRowByForwardMatch** to match the longest prefix of `forMatchSpaced` that starts a rows name.
+- For "...", check if `forMatchSpaced` starts with a word and see if that word appears at the beginning of any row name.
+- Map such matches to the corresponding category (e.g., ""  "brazil"). If the statement matches patterns like "", " ", or starts with "" followed by a space or specific characters, use `findInventoryBrazilRowGuess`. A helper function `statementLooksLikeGenericBrazil` checks these conditions by normalizing the input and testing against regex patterns. This ensures proper detection of Brazilian coffee references regardless of spacing or formatting.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/inventoryBlendRecipes.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+canonicalBlend is acceptable.  
+- The inventory bean name might be stored as "3" in the UI. `normCompact` normalizes spaces but lowercases Latin textunwanted for Korean. NFC normalization is unlikely in user data.
+
+Implemented:
+- `isStatementLeadingBrazil`: Trims input and checks if it starts with "" followed by whitespace or end of string. Uses regex `/^(\s+|$)/` for matching. In Korean e-commerce, terms like "" may appear without spaces. A simpler approach checks if the first token (split by space) equals "", handling cases such as "", " ", or " (something)". This can be implemented by splitting the normalized input on spaces and checking if the first part is "". For "", the first token might be incorrectly identified due to an edge case.
+
+- Early return after Dutch check:
+  - If `beanRows` exists and the first token matches Brazil, look up the corresponding inventory row.
+  - Return formatted label and sort key if found.
+
+- `findInventoryBrazilRowGuess` - expand:
+  - Returns null if rows array is empty.
+  - Otherwise, processes rows to find a match. - The `rowText` function combines normalized bean name and core name with a space.
+- Filters rows where `BRAZIL_NAME_HINTS` matches `rowText`, falling back to checking for "" in `rowText` if no matches found.
+- Returns null if no candidates are found after both filtering steps.
+- Duplicate "" handling is removed from the token block since early returns already cover "" and " x" cases. Order: early return occurs after `forMatch` and before `tokenOnly`. For "", when `isStatementFirstTokenBrazil` is true, `findBrazil` returns immediately. The inner condition `if (tokenOnly === '')` should be removed to eliminate duplicate dead code.
+
+- The step `if (/^$/i.test(forMatchSpaced))` is redundant since first-token matching already handles exact "".
+- If `findInventoryBrazilRowGuess` fails during early return, the fallback logic may retry using longer substring matching or raw text comparison. When `findInventoryBrazilRowGuess` returns null because no row contains  in its name or hints, users see no Brazil match in the summary. They could see **unmatched** instead, still filtered. To fix this, users must add a row name with , brazil, ny2, or expand hints.
+
+For inputs starting with "", the function `isStatementFirstTokenBrazil` trims input, splits by whitespace, and checks if the first token equals "". When processing Korean inputs like "(" or "", trimming removes parentheses but leaves "" as the first token. For "", which has no space, the first token becomes "" instead of "".
+
+To handle this, use regex patterns that match "" at the start of a token, ensuring it's not part of a longer word. Examples include:
+
+- `^(?=||||)`  matches "" followed by specific suffixes.
+- `t.startsWith('') && (t.length === 3 || /^()(?=\s|$||||||)/.test(t))`  checks for exact start and valid continuation.
+
+A simpler approach is to check if the first token starts with " **Option A** checks if the first token is "" or matches `^(|||NY|||\s)`.  
+**Option B** uses `normCompact(t).startsWith('')` and ensures the match is not a substring within another word by validating that the rest of the token consists only of common suffixes (e.g., , , ) or is exactly three characters long.  
+
+This avoids false positives like " " where "" appears as a substring rather than a standalone token.  
+Example: `"".match(/^/)` returns true, and length > 3, so we verify that the remaining part ("") is one of allowed suffixes.</details></think>
+
+_**Agent (default)**_
+
+원인: (1) `브라질 원두`처럼 공백 뒤에 글자가 있으면 `tokenOnly`가 아니고 `^브라질$`에도 걸리지 않습니다. (2) `findInventoryBrazilRowGuess`가 힌트 정규식에만 의존해, 입고명이 `brazil`·`ny2` 없이 `브라질`만 있는 경우 누락될 수 있습니다. 첫 토큰이 `브라질`이거나 `브라질`로 시작하는 품목을 조기에 처리하고, 입고명에 `브라질`이 포함되면 그 행을 고릅니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Add early return after Dutch check.
+- Remove duplicate tokenOnly  block. Update the `if (/^$/i` block to use `isStatementLeadingBrazil` instead of being redundant, and insert the new Brazilian handling logic after the Dutch check. Remove the duplicate `tokenOnly` block for . - Replace the regex-based Brazilian check with `isStatementLeadingBrazil` for consistency.
+- Ensure the early return logic handles cases where `beanRows` is empty to prevent errors.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When beanRows contains data but isStatementLeadingBrazil and findInventoryBrazilRowGuess return null, step 5 requires **findRowWhereNameContainsItemAsSubstring**  a **reverse** longest match. Let me add `findRowWhereInventoryNameBestContainsStatement` for short items.
+
+A simpler addition to step 5: **findRowForShortStatement** when forMatch is short. If isStatementLeadingBrazil and we already tried findBrazil and failed, try: for each row, if `rowNameHaystack(b).includes(forMatchCompact)` for very short forMatch. "" in long name - `forMatch === ''` forMatchCompact 3 chars - "".includes("")?
+
+We need: **if any row's name contains the whole forMatch** when forMatch is short prefix of typical names.
+
+- candidates = rows where rowNameHaystack(b)
+- find first row where rowNameHaystack(b).includes(forMatchCompact)
+- use that row as candidate for short statement matching When `findInventoryBrazilRowGuess` returns null and `isStatementLeadingBrazil(forMatch)` is true, a fallback checks if any rows name includes the compact version of the statement (`forMatchCompact`). If found, it selects the row with the minimum number. This applies when `forMatchCompact` is at least two characters long. If the row name doesn't contain "", it won't match even if it's a Brazilian bean. The `findInventoryBrazilRowGuess` function uses `byKorean`, so the issue could be compatibility Unicode or incorrect field usage. The fallback logic only works if `forMatch` includes "" and matches a row containing the compact version of the statement.
+
+Another case: if `beanRows` is empty on the sales page, it might be reading from the wrong key. This would cause the whitelist to allow nothing, resulting in no inventory being displayed.</details></think>
+
+_**Agent (default)**_
+
+`natural`·`나추?럴` 힌트는 Yirgacheffe “Natural” 등에 걸릴 수 있어 제거합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add a fallback in mapStatement: after all steps, if isStatementLeadingBrazil and still returning raw, query rows where rowNameHaystack(b). If `includes('')` is used in `forMatch`, note that `forMatch` is " "  the **row** name contains ""  so `findKorean` in `findInventoryBrazilRowGuess` can use `byKorean`. However, the row name doesn't contain ""  only "Santos". A **tertiary** guess should be added: "single Brazil row" if exactly one row matches a looser BRAZIL or user config  skip for now.
+
+For reverse lookup: `findRowWhereNameContainsQuery`  for `forMatch` " ", `forMatchCompact` ""  does any row have this full string? Unlikely. For "" only, `byKorean` works.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 644 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-B2s9QvmZ.js   2,571.90 kB │ gzip: 733.45 kB
+
+✓ built in 408ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 왜 아직도 안 떴는지 (코드 기준)
+
+1. **품목이 `브라질` 한 단어만이 아닐 때**  
+   `브라질 원두`, `브라질 산토스`처럼 **뒤에 글자가 붙으면** 기존 로직은 `tokenOnly`도 아니고, `^브라질$` 조건도 아니어서 **브라질 전용 경로에 한 번도 안 탔습니다.**
+
+2. **입고 품목명이 힌트 정규식과만 맞을 때**  
+   `findInventoryBrazilRowGuess`가 **짧은 정규식**에만 맞으면, 입고에 `브라질`이 들어가 있어도 한글만 있는 특이 케이스가 빠질 수 있어 **그 다음으로 `name`에 `브라질` 문자열이 있는지** 보는 단계(`byKorean`)를 넣었습니다.
+
+## 수정 요약
+
+- **`isStatementLeadingBrazil`**:  
+  - 첫 단어가 `브라질`이거나  
+  - `브라질원두` 같이 **공백 없이** `브라질`로 시작하는 품목 → 브라질 납품으로 봄.
+- **더치 다음·토큰 처리 전**에, 입고가 있을 때 `isStatementLeadingBrazil(forMatch)`이면 **`findInventoryBrazilRowGuess`로 바로** 입고 한 줄에 붙이도록 했습니다.
+- **`findInventoryBrazilRowGuess`**:  
+  1) 기존 힌트 정규식  
+  2) 그래도 없으면 **`row.name` / 코어에 `브라질` 포함**인 행만 모아서, 여러 개면 `no`가 작은 쪽.
+
+이제 `브라질`, `브라질(매장)`, `브라질 원두` 같은 케이스는 같은 경로로 들어가고, 입고 표에 `브라질`이 들어간 생두가 있으면 **매출 요약(화이트리스트) `N. 품목명`에도** 맞을 가능성이 큽니다.  
+
+그래도 안 뜨면, 그때는 **입고 `bean.name`에 `브라질` / `brazil` / `ny2` 류가 전혀 없는 영문/코드만 있는 줄**인지 한 번만 확인해보면 됩니다(그때는 그 문자열에 맞는 힌트를 한 줄만 더 넣는 식이 필요합니다).
+
+---
+
+_**User**_
+
+2026.04.22	1	라미랑드	브라질(라미랑드)	1/KG	1	36,364	부가세 별도	36,364	3,636	40,000
+거래명세관리에 이렇게 있지 그럼 원두면이 브라질 이겠지?
+그럼 입출고현황에 브라질이랑 맞느게 뭐겠어? 10.Brazil 항목이겠네 이렇게 맞추는게 어려워? 입출고현황에있는 항목만 쓴다는 개념이 이해가안되나?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user is frustrated and trying to explain their data model clearly. The user wants to match items from a transaction statement () with inventory rows based on the country of origin, not store names in parentheses. For example, "()" should match inventory labeled as "10. Brazil". They need:
+
+- Strip parentheses to extract store names for matching purposes
+- Match extracted country names (like "") against inventory rows (like "10. Brazil")
+- Ensure exact matches with inventory labels, avoiding assumptions or guesses about origins The user needs to match inventory rows by country name, specifically ensuring that "10. Brazil" in inventory is matched correctly. The fix involves:
+
+- Ensuring `findInventoryBrazilRowGuess` identifies rows where the name is "Brazil" (case insensitive) or contains "Brazil" as the country line
+- Using `normCompact` to normalize labels like "10. Brazil" to match against hints such as "brazil"
+- Matching "" to the actual inventory row labeled "10. Brazil" by finding rows where the country name matches exactly
+
+The current `BRAZIL_NAME_HINTS` includes "brazil", so normalization should convert "10. Brazil" to something like "10.brazil" for proper matching. The user's normalization process converts "10. Brazil" to "10.brazil" to enable matching with hints like "brazil". However, issues may arise if `findInventoryBrazilRowGuess` returns multiple rows or if the inventory stores the name differently. The order of operations or `allowedInventoryLabels` might prevent exact matches, and `rowNameHaystack` for "10. Brazil" may not align properly with `b.name`. 
+
+Potential causes include:
+- Multiple rows returned by `findInventoryBrazilRowGuess`
+- Incorrect storage format of inventory names
+- Order of operations interfering with matching
+- Mismatch between expected label format and actual inventory label
+- Inconsistent handling of country name extraction from inventory rows The user wants to match "" from the statement to the inventory row "10. Brazil" by stripping parentheses and matching country names. The process involves:
+
+- Removing leading numbers and extracting "Brazil" from "10. Brazil"
+- Normalizing "Brazil" to "brazil" for matching against hints like "brazil"
+- Ensuring exact matches with inventory labels, avoiding assumptions or guesses about origins
+
+If multiple rows exist, the system should select by `no` when only one candidate exists. The goal is to map "" directly to "10. Brazil" using normalized country names. In `findInventoryBrazilRowGuess`, prioritize rows where the normalized name is exactly "brazil" or ends with "Brazil".  
+Add `['', 'Brazil']` to `GREEN_BEAN_ORDER_INVENTORY_ALIASES` for matching stripped parentheses values.  
+Use `resolveAliasedTarget('Brazil', rows)` to find the correct inventory row. The simplest fix is to add the alias `['', 'Brazil']` to `GREEN_BEAN_ORDER_INVENTORY_ALIASES`. This ensures that `normCompact('')` matches `forMatchCompact` since `forMatchCompact` includes the Korean term "" when normalized. However, the alias loop operates in step 3 and requires either `findByExactName(to)` or `resolveAliasedTarget('Brazil', rows)` for proper resolution.
+
+- Add `['', 'Brazil']` to `GREEN_BEAN_ORDER_INVENTORY_ALIASES`
+- Use `normCompact` to ensure "" maps correctly to "brazil" for matching
+- Ensure exact match logic works via `forMatchCompact === normCompact('')` `resolveAliasedTarget('Brazil', rows)` should locate the row named "10. Brazil" by comparing the normalized form with the target. `findByExactName('Brazil')` checks if the normalized name matches the bean name or core, which should work correctly.
+
+- The **early** `isStatementLeadingBrazil` + `findInventoryBrazilRowGuess` in `mapStatement` may execute first and return a different row if multiple Brazil-related hints exist (e.g., picking the row with the smallest `no` instead of "10. Brazil").
+- If multiple rows contain "Brazil" in their hints, the system defaults to selecting the one with the minimum `no`, which could be incorrect if row 3 is Cerrado and row 10 is "Brazil".
+- The user specifically wants to match **"10. Brazil"**, not another row with a similar hint.
+
+The users data contains a literal row entry: `10.` If `findInventoryBrazilRowGuess` returns the row with no=3 instead of no=10, it results in an incorrect match.  
+To fix this:
+
+- Add an explicit alias `['', 'Brazil']` to ensure it resolves first to the row with core name exactly `Brazil`.
+- In `findInventoryBrazilRowGuess`, when multiple candidates exist, prioritize rows where `coreFromName` equals `Brazil` (case insensitive). The early path in `mapStatementItemToInventoryLabel` should attempt `findByExactName('Brazil', beanRows)` when `forMatch` is exactly "" or starts with "".
+
+The cleanest fix is to add `['', 'Brazil']` to `GREEN_BEAN_ORDER_INVENTORY_ALIASES` and, right after `forMatch`, check if the stripped and compacted value equals only "" or begins with ""  then try `findByExactName('Brazil', beanRows)` first.</details></think>
+
+_**Agent (default)**_
+
+`브라질(라미랑드)` → 괄호 제거 후 `브라질` → 입고 `10. Brazil`과 직접 연결. `findInventoryBrazilRowGuess`가 여러 ‘브라질 계열’ 중 잘못 골랐을 수 있어, 먼저 `findByExactName('Brazil', …)`(코어 `Brazil`)로 매칭하고 별칭 `브라질` → `Brazil`를 추가합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/greenBeanOrderInventoryAliases.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to strip the suffix `()` from the string `()`, resulting in ``. When `forMatchSpaced` equals '' and `beanRows` is not empty, look up 'Brazil' or 'BRAZIL' in the rows using `findByExactName`. If found, use the result.
+
+- This maps to `10. Brazil` in inventory via `findByExactName` with target `Brazil` on core name
+- Core of "10. Brazil" is "Brazil" - norm compact match works
+- Before `isStatementLeadingBrazil` + `findInventoryBrazilRowGuess`, check for exact match of '' in `forMatchSpaced` or `forMatch` Return an object with the formatted label, sort key, and matched flag set to true.
+
+In `findInventoryBrazilRowGuess`, when sorting candidates, prioritize entries where the normalized core name equals 'brazil' over other options. Split the candidates into those matching 'brazil' and the rest; if matches exist, select the one with the smallest sort key. Add the alias `['', 'Brazil']` to the top of the list in `greenBeanOrderInventoryAliases` with high priority during alias resolution. The alias check uses `forMatch`, and for exact matches like "", the condition `forMatchCompact.includes(normCompact(from))` ensures proper matchinge.g., `"".includes("")` returns true. Use `resolveAliasedTarget('Brazil', rows)` in step 3. But step 1's early `findByExactName` is cleaner for exact matches.
+
+4. **findInventoryBrazilRowGuess** refinement:
+- Filter candidates by normalized core name equal to 'brazil'
+- If matches exist, sort by sort key and pick the first
+- Otherwise, sort all candidates by sort key and pick the first
+- Return null if no candidates exist Apply `pickAmong` to both byHint and byKorean branches.
+
+- When `forMatch === ''`, prioritize `findByExactName('Brazil')` before `isStatementLeadingBrazil`
+- If `forMatchSpaced === ''` and `beanRows` is not empty, check for exact match of 'Brazil' first
+- If found, use that row; otherwise proceed with existing logic
+- The first check should happen before `isStatementLeadingBrazil` to avoid incorrect row selection (e.g., Cerrado instead of 10 Brazil)</details></think>
+
+_**Agent (default)**_
+
+괄호를 제거하면 품목은 `브라질`뿐이므로, 입고의 `N. Brazil`(코어 `Brazil`)에 **정확히** 연결합니다. `findInventoryBrazilRowGuess`가 `no`가 더 작은 다른 브라질 를 고르는 문제를 막기 위해, 먼저 `findByExactName('Brazil')`를 시도하고, 다중 후보일 때는 코어가 `brazil`인 행을 우선합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/greenBeanOrderInventoryAliases.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+findByExactName('Brazil', rows) - the bean `name` is "10. findByExactName('Brazil', rows) checks if normCompact(b.name) === t, where '10.brazil'  'brazil', but coreFromName match works: 'brazil' === 'brazil'.
+
+If row name is "10. brazil" (lowercase), toLowerCase in norm handles it correctly.
+
+Build and update BeanSalesAnalysisPage help text for clarity:  `()` becomes `` after strip, connecting to  `N. Brazil`. Optional changeskip unless necessary. Actually verifying the alias [, Brazil]: for " ", `forMatchCompact` is "", and "".includes("") returns **true**, so the alias correctly resolves to Brazil.
+
+However, this logic could incorrectly match "" because `includes` checks from the left  meaning it would match any string containing "" as a substring, not just exact matches. This is problematic since the current implementation uses `forMatchCompact.includes(normCompact(from))`, which treats `forMatch` as the haystack and `from` as the needle  leading to unintended matches like "".</details></think>
+
+_**Agent (default)**_
+
+별칭 `['브라질', 'Brazil']`는 `콜롬비아브라질`처럼 `forMatch`에 `브라질`이 부분 문자열로만 들어가도 `includes`에 걸려 오매칭될 수 있어 제거합니다. `forMatch`가 `브라질`뿐일 때의 조기 `findByExactName('Brazil')`와 `pickInventoryBrazilFromCandidates`로 충분합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/greenBeanOrderInventoryAliases.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 644 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-Co370OyW.js   2,572.10 kB │ gzip: 733.54 kB
+
+✓ built in 427ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 맞습니다, 그게 맞는 연결이에요
+
+거래명세 `브라질(라미랑드)`는  
+- **원두(산지)**: 괄호 **앞**의 `브라질`  
+- **괄호 안** `라미랑드`: **매장명** (품목이 아님)  
+
+이미 `stripParensForMatch`로 괄호는 빼고 `브라질`만 보고 있었는데, 그 다음에 **입고의 `10. Brazil`이 아니라** “브라질이 들어가는” 다른 행(번호 작은 Cerrado 등)을 `findInventoryBrazilRowGuess`가 먼저 잡는 경우가 있어서, 말씀하신 **“입출고에 있는 `N. Brazil` 한 줄”**이 안 잡힌 겁니다.
+
+## 코드에서 바꾼 점
+
+1. **strip 후 `forMatch`가 `브라질`만**일 때 (즉 `브라질(라미랑드)` 케이스)  
+   → **`findByExactName('Brazil', 입출고)`**으로 먼저 찾습니다.  
+   → 입고에 `10. Brazil`처럼 **코어가 `Brazil`**인 행이 있으면 그게 곧 `formatBeanRowLabel` = **`10. Brazil`**이 됩니다.  
+   → **입고에만 있는** 그 `N. 품목명`으로만 집계됩니다(화이트리스트와도 일치).
+
+2. `findInventoryBrazilRowGuess`로 후보가 **여럿**일 때  
+   → **`no`만 작은 쪽`보다, 코어가 정확히 `brazil`인 `N. Brazil` 행을 먼저** 쓰도록 정리했습니다.
+
+3. `['브라질', 'Brazil']` 별칭은 `콜롬비아…브라질` 같이 `브라질`이 **중간/끝**에나 나오는 문자열만 맞는 오매칭이 나와서 **넣지 않았습니다.**  
+   **품목이 `브라질`만**인 경우는 위 1번 경로로만 잡습니다.
+
+`npm run build` 통과했습니다.  
+입고 행이 정말로 **`10. Brazil`**(공백·대소문자는 `findByExactName`이 `norm`으로 맞춤)이면, 이제 그 줄로 묶여야 합니다.
+
+---
+
+_**User**_
+
+브라질만 하면 끝이야? 다른거 안된거 안보여?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- The user wants to know if "Brazil" or "" is the sole case handled.
+- This appears to be a query about the scope of a specific handling rule or case.
+- Clarification is needed on whether other cases are also supported or if Brazil is the only one. The user wants to know if other countries like Kenya, Colombia, and Ethiopia are also handled similarly to Brazil, or if they are excluded from the sales summary. The current implementation may only cover Brazil, leaving other origins unhandled or invisible.
+
+- Need to review `mapStatementItemToInventoryLabel` to check coverage for other origins.
+- Consider implementing a general pattern for single Korean country tokens (e.g., , )  `findByExactName` for corresponding English names (e.g., Kenya, Colombia) in inventory, similar to Brazil. The user wants to know if fixing Brazil is sufficient or if other countries like Kenya and Colombia also need systematic treatment in the sales summary. The proposed solution involves extending the existing pattern of matching Korean country names to their English equivalents in inventory, such as "" to "Kenya" and "" to "Colombia", while acknowledging potential ambiguities in some cases. - Ethiopia is ambiguous and cannot be handled blindly.
+- A safer approach involves creating a mapping of Korean single tokens to English names for common origins, using `findByExactName` for inventory lookup.
+- Examples include:   Brazil (already done),   Kenya,   Colombia (though "Colombia Narino" is common and risky).
+- The mapping should align with how inventory names are structured.
+- '' maps to "Ihider" in the app, not "Kenya," indicating domain-specific naming conventions. The user is asking whether only Brazil is being handled or if other items are also affected. The `BeanSalesAnalysisPage` uses `allowedInventoryLabels` to filter out unmapped items, which are then hidden from the sales summary. To address this, unmatched items could be shown in a separate "" section so users are aware of missing data.
+
+I'll clarify in my response:
+- Brazil was the special case that was fixed.
+- Other items still go through the general mapping process (phrase matching, keyword detection, aliases, and longest substring).</details></think>
+
+_**Agent (default)**_
+
+브라질만 특수 처리한 건 아닙니다. 다만 **매칭 실패**한 품목은 화이트리스트에 걸러져 **집계에서 사라지므로** 화면에 안 보일 수 있습니다. `BeanSalesAnalysisPage`를 확인한 뒤, 입고에 안 붙는 품목을 **‘미매칭’으로 합쳐 보이게** 하겠습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to:
+- Add a `useMemo` hook to collect excluded statement records
+- Trigger this collection when `inventoryBeanRows` changes
+- Ensure the memoization properly excludes relevant records</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add:
+
+- Type for unmatched row: `{ itemName: string, mappedTo: string, totalRevenue, totalQuantity, transactionCount }` - `mappedTo` = label from mapper (what it tried to use)
+- Type for matched row: `{ itemName: string, totalRevenue, totalQuantity, transactionCount }` - `excludedFromInventoryMatch` useMemo runs when `inventoryBeanRows.length > 0`
+- Add a 4th card or warning in `summary-metrics` when `excludedFromInventoryMatch.length > 0`, displaying "    N"
+- Add a new section after `revenue-summary-table` titled "     " with a table showing:  ,   (), , , 
+- Update `totalRevenue` in summary to only include **included** items and add a note: "    " with excluded revenue shown in the unmatched table The `mapStatementItemToInventoryLabel` function returns a value that includes a `matched` property, which can be used to display the mapped label in column 2.
+
+Implementation steps:
+- Create `excludedStatementAggregates` using `useMemo` that runs when `inventoryBeanRows.length > 0`
+- Build a Map with statement records that have matching inventory labels
+- Filter records where `allowedInventoryLabels` includes the returned label
+- Include `matched` status in the returned data structure
+- Store aggregated data with `itemName`, `label`, `totalRevenue`, `totalQuantity`, and `transactionCount` The `useMemo` hook processes statement records and aggregates them by `itemName`, ensuring matching inventory labels are included. It calculates `totalRevenue`, `totalQuantity`, and `transactionCount` for each item, sorting results by revenue in descending order. The aggregation uses a Map to track unique items, updating totals as it iterates through records. Records are filtered based on whether their labels exist within `allowedInventoryLabels`. The resulting array of aggregated objects is sorted by revenue to display top-performing items first.</details></think>
+
+_**Agent (default)**_
+
+브라질만이 아닙니다. 입고에 붙이지 못한 품목은 화이트리스트에 걸려 **요약에 안 잡힌 채 사라집니다**. 한 번의 순회로 집계하고, **‘입고에 맞지 않은 품목’** 표를 추가합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll refactor the useMemo to return both bean sales and excluded.</details></think>
+
+_**Agent (default)**_
+
+`beanSalesAnalysis` useMemo를 한 번의 루프로 합쳐 제외 품목을 집계하고, ‘입고에 맞지 않은 품목’ 테이블을 추가합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Fix the notIn.set - the initial object with satisfies might be incorrect. I'm building:
+
+- A set of objects that satisfy certain conditions
+- An initial object that may have incorrect satisfies logic
+- The notIn.set needs to properly handle these cases The code had a bug in how it handled creating or updating objects in `notIn.set`. Instead of using a default assignment, it should explicitly check if the object exists and create it if needed. The fix involves:
+
+- Checking if the object exists in `notIn` using `get`
+- Creating a new object with default values if it doesn't exist
+- Setting the object in `notIn` if it was created
+- Updating properties like `mappedLabel` and aggregations like `totalRevenue` on existing objects
+
+This ensures proper initialization and updates without relying on default assignments. The issue occurs when using the nullish coalescing operator (`??`) with a `satisfies` clause. The code creates a new object with default values if `notIn.get(key)` returns undefined, but TypeScript's `satisfies` constraint may cause type errors. The fix requires avoiding `satisfies` in this context and instead explicitly checking if an object exists before creating a new one.
+
+- Use `notIn.get(key)` to retrieve existing object
+- Create new object with default values if none exists
+- Avoid `satisfies` in the `??` expression to prevent type issues
+- Ensure proper initialization and update flow for `ex` variable</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When inventory is empty, do not add items to notIn. The condition is `if (inventoryBeanRows.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+Incorrect tool arguments
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "contextAfter": 25,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "\\.metric-card \\{"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "\\.metric-card \\{",
+  "topFiles": [
+    {
+      "matchCount": 26,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Insert after the .metric-card strong block:</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+The string to replace was not found in the file.
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 644 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.28 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-gjJlb-c4.js   2,575.00 kB │ gzip: 734.12 kB
+
+✓ built in 413ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 답: 브라질만이 아닙니다
+
+**매출에 안 잡히는 건** 입고 `N. 품목명`과 **맞는 라벨이 안 될 때뿐**이고, 케냐·콜롬비아·에티오피아 등 **다른 품목**도 똑같이 `mapStatementItemToInventoryLabel` + 입고 화이트리스트로 걸러질 수 있었는데, **그동안 “안 된 품목”은 집계에서만 빠지고 화면에는 아무것도 안 나왔습니다.**
+
+그래서 이번에 이렇게 바꿨습니다.
+
+1. **한 번에 돌면서** `입고에 맞는 행`은 기존처럼 **매출 요약**에만 넣고,  
+2. **입고 집합에 없는 매칭 라벨**이면, 거래 **품목명 기준**으로 **합계(매출·수량·건수)** 를 따로 쌓습니다.  
+3. 상단 요약에 **“입고에 맞지 않은 품목(누락)”** 카드(개수·원),  
+4. 그 아래 **“입고 생두에 맞지 않은 품목(거래명세)”** 표: **거래명세 품목 / 매칭 시도 라벨 / 매출 / 수량 / 건수**
+
+이제 **브라질뿐 아니라, 안 붙는 모든 품목**이 저 표에 **보이니까**, “다른 데 누락된 것도 있는지”를 한눈에 볼 수 있습니다.
+
+---
+
+_**User**_
+
+그냥 내가 연결할 수 있게 관리자모드 하나 만들어봐 내가 직접 연결할게 콤팩트하게 접근성 쉽게 만들어
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user requests an "admin mode" for manually mapping statement item names to inventory bean labels. They want a compact and accessible admin mode for mapping statement items to inventory labels.
+
+I need to:
+- Understand the app structure - routing, how BeanSalesAnalysisPage works, where statement records and inventory are stored
+- Create a new page or section for "mapping" configuration - persist mappings (e.g. localStorage)
+- Update `mapStatementItemToInventoryLabel` to check user-defined mappings first
+
+Key design:
+- Storage key: e.g. `bean-statement-inventory-mappings-v1` as JSON: `{ "exact itemName from statement": "target label" }` or array of { from, to }</details></think>
+
+_**Agent (default)**_
+
+앱 구조와 거래명세·입고 데이터 흐름을 확인한 뒤, 사용자가 품목↔입고를 직접 연결하는 관리 UI를 추가합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "BeanSalesAnalysisPage|viewMode|setPage|currentPage"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "BeanSalesAnalysisPage|viewMode|setPage|currentPage",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Create `beanStatementManualMappings`. - Create `beanStatementManualMappings` to map statement items to inventory labels.
+- Use exact `itemName.trim()` as key for matching, or allow compact form as fallback.
+- Apply mapping in `mapStatement` as first step after empty check and before Dutch processing.
+- Implement `mapStatementItemToInventoryLabel` at the beginning after trimming. - Use `getManualLabelForStatementItem` to find matching inventory labels.
+- Return the label and sortKey if a match is found, indicating a successful manual match.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "BeanSales|원두별|meeting|Page"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "BeanSales|원두별|meeting|Page",
+  "topFiles": [
+    {
+      "matchCount": 100,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 100
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to add `beanStatementLink` to AppActivePage, using the short ID `statementLink` or `beanLink`, following the pattern of `statementInventoryLink` which is clear.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "activePage === 'beanSalesAnalysis'|AppActivePage|beanSalesAnalysis"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "activePage === 'beanSalesAnalysis'|AppActivePage|beanSalesAnalysis",
+  "topFiles": [
+    {
+      "matchCount": 13,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 13
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "savedPage ===|parsed\\.activePage|activePage ==="
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "savedPage ===|parsed\\.activePage|activePage ===",
+  "topFiles": [
+    {
+      "matchCount": 32,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 32
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The initial state lacks `beanSalesAnalysis`, which may be a pre-existing issue. I'll add `statementInventoryLink` to multiple components and files:
+
+- AppActivePage
+- PAGE_CATEGORY_GROUPS (trade, after bean sales or after statements)
+- PAGE_HEADER_META
+- WORKSPACE_SHELL_PAGE_HERO
+- useState initializer for savedPage
+- The render chain before inventory default
+- getBackupPayload activePage ternary
+- readBackupFile parsed.activePage
+
+Page name: `statementInventoryLink` with label `` (compact format)
+
+Files to create:
+- beanStatementManualMappings.ts
+  - Export constant BEAN_STATEMENT_MANUAL_MAPPINGS_KEY with value 'bean-statement-inventory-mappings-v1' - Export constant `BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT` with value `'bean-statement-inventory-mappings-changed'`
+- Define types: `ManualMappingRow` with `from` and `toLabel` properties, and `ManualMappingsFile` with version and rows
+- Create functions: `readManualMappings`, `writeManualMappings`, and `applyManualMapping`
+- `applyManualMapping` loads rows and maps item names to labels with sort keys
+- `applyManualMapping` returns null if no match is found For each row in order, find the first match where `from` exactly equals `itemNameTrimmed`. The `toLabel` must correspond to a valid label format; if found, use its sort key. If not found, return `{ label: toLabel, sortKey: 500000 }` and mark as matched. Validate that the label exists in the whitelist, otherwise return `{ label, sortKey: 800000 }` and exclude from allowed options.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*Provider*",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "setActivePage|AppRuntime"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "setActivePage|AppRuntime",
+  "topFiles": [
+    {
+      "matchCount": 9,
+      "uri": "app/src/providers/AppRuntimeProvider.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 9
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The StatementInventoryLinkPage will have: The StatementInventoryLinkPage will display a text link "   " for sidebar navigation or use `window.location.hash` for exports. The simplest approach is to show a tip "     " and dispatch `BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT` in BeanSalesAnalysisPage, which already listens for this event. BeanSalesAnalysisPage will increment a state tick on this event to refresh data via useMemo dependency. - `const inventoryBeanRows` is copied from BeanSales.
+- `const statementItems` uses `useMemo` to extract unique item names from localStorage.
+- Mappings are managed via `readManualMappings()` state, updated with `setMappings` and persisted using `writeManualMappings`.
+- Each row includes a text input for "from" and a select dropdown for "to", populated with `formatBeanRowLabel` options.
+- The "" button adds a new empty row or populates from a dropdown " " and corresponding "to" select.
+- Layout is compact, showing one line per row: [from] [arrow] [select] [x].
+- A top note explains that transaction item names must match exactly with those in the statement and unit price entries. Default sort prioritizes existing mappings, then suggests unmapped statement items. Add `beanSalesAnalysis` and `statementInventoryLink` to saved page checks. Update initializer to include these pages in rendering logic. Insert `beanSalesAnalysis` render chain after `beanSales`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/inventoryStatusUtils.ts",
+  "pattern": "formatBeanRowLabel"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/inventoryStatusUtils.ts",
+  "pattern": "formatBeanRowLabel",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add `rowLabel` duplicates to the manual mappings file, or use import type only with duplicate format (must stay in sync - single source better). The `getManualOverrideForItem` function in the manual mappings file uses the same formatting logic as `formatBeanRowLabel` to process labels inline. This function reads from localStorage, matches the `from` key, and returns an object with `label` and `sortKey` based on the `toLabel` string. It's designed to handle duplicate `rowLabel` entries in the manual mappings file, ensuring consistency with the inline formatting approach used elsewhere in the code.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "INVENTORY_STATUS_CACHE_EVENT|inventoryReadTick"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "INVENTORY_STATUS_CACHE_EVENT|inventoryReadTick",
+  "topFiles": [
+    {
+      "matchCount": 5,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 5
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add a listener for BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT in BeanSales to increment the tick. StatementInventoryLinkPage dispatches BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT after write. Manual mappings are scoped per company using inventoryPageScopedKey with key 'bean-statement-mappings-v1'.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "contextAfter": 15,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "function inventoryPageScopedKey"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "function inventoryPageScopedKey",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "inventoryPageScopedKey"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "inventoryPageScopedKey",
+  "topFiles": [
+    {
+      "matchCount": 13,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 13
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+export const BEAN_STATEMENT_MANUAL_KEY_BASE = 'bean-statement-mappings-v1'</details></think>
+
+_**Agent (default)**_
+
+`beanStatementManualMappings.ts` 모듈과 `StatementInventoryLinkPage` 화면을 추가하고, `App`에 메뉴·라우트를 연결합니다. 매핑은 회사(클라우드)·로컬 키를 입고와 동일하게 분리합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Update mapStatementItemToInventoryLabel to call resolveStatementInventoryManual
+- Pass mode and companyId as parameters to resolveStatementInventoryManual The function signature now includes optional mode and companyId parameters. When these are missing, default values 'local' and null are used for backward compatibility. The updated function calls resolveStatementInventoryManual with these parameters. In BeanSales, mode and companyId are passed from useAppRuntime.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "mapStatementItemToInventoryLabel\\("
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "mapStatementItemToInventoryLabel\\(",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/beanSalesStatementMapping.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/beanSalesGreenOrderUnitPrice.ts"
+    }
+  ],
+  "totalFiles": 3,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesGreenOrderUnitPrice.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Green order doesn't include a mode parameter in this function and can retain the default setting (local, null) for mapping purposes  user manual guidelines still apply. For cloud environments, the `getLatestGreenOrderWonPerKgByInventoryLabel` function needs an optional third parameter for map options, specifically `mode` and `companyId`. This allows the caller, such as BeanSales, to specify mapping behavior when using `useAppRuntime`.
+
+- Add optional third parameter `options` to `getLatestGreenOrderWonPerKgByInventoryLabel`
+- Pass these options to the map call
+- Define `MapStatementOptions` interface with `mode` and `companyId` properties
+- Update `beanSalesStatementMapping.ts` with `MapStatementItemToInventoryOptions` type definition</details></think>
+
+_**Agent (default)**_
+
+`mapStatementItemToInventoryLabel`에 수동 연결을 최우선으로 연결 중입니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesGreenOrderUnitPrice.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesGreenOrderUnitPrice.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesGreenOrderUnitPrice.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Updated useMemo to handle map calls properly
+- Implemented getLatest functionality
+- Ensured proper state updates in BeanSales component</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Remove `manualMappingTick` from `inventoryBeanRows` useMemo dependencies.
+- Inventory does not need remapping when manually mapping.
+- Only the labeling changes when manually mapping.
+- The `beanSalesAnalysis` useMemo still requires `manualMappingTick`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Fix updateRow: when label options change, the select value might be invalid - ok. **Bug** in addLink: filtering `r.from !== from` and pushing works because write dedupes in writeStatementInventoryManuals.  
+**Select** in saved rows: if `r.toLabel` isn't in labelOptions, show it with "( ?)" label.  
+**removeRow**: use index from map after filter in addLink; UI list uses `rows` state, so removing by index is fine.</details></think>
+
+_**Agent (default)**_
+
+App.tsx에 페이지 등록·백업 화이트리스트·초기 복원을 추가하고, `StatementInventoryLinkPage`의 select에 ‘입고에 없는 기존 라벨’ 옵션을 붙입니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The statement page must refresh item names to ensure the datalist updates properly when users have no statements, preventing an empty display. Users can manually type item names. The `itemNamesFromStatements` should refresh on navigation from statements, optionally via a custom eventskipped for v1. A refresh button "  " is added to update the item list by incrementing `stTick`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Run build.
+- Check if AppBackupPayload type includes activePage
+- Should be fine</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "AppBackupPayload|activePage\\?:"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "AppBackupPayload|activePage\\?:",
+  "topFiles": [
+    {
+      "matchCount": 5,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 5
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 646 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-0EKEhuD1.js   2,584.25 kB │ gzip: 736.22 kB
+
+✓ built in 411ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts",
+    "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts",
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 만든 것
+
+### 1. 메뉴 **거래·명세** 안
+- **「명세↔입고」** — 한 화면에서만 연결 (짧은 라벨)
+- 기존 **원두별 매출 분석** 그대로 유지
+
+### 2. 동작
+- **왼쪽 `거래 품목`** = 거래명세에 저장된 `itemName`과 **문자 하나까지 같게** (리스트는 `거래명세`에서 읽은 값 + 직접 입력)
+- **오른쪽 `입고`** = 입출고 생두 `N. 품목명` 셀렉트
+- **연결** 누르면 로컬(또는 클라우드+회사면 `::회사ID` 키)에 JSON 저장
+- **저장된 연결**에서 입고만 바꾸기·삭제(×) 가능
+- **거래 품목 다시 읽기** = 최근 `거래명세`에서 품목명 목록 갱신
+- `mapStatementItemToInventoryLabel`에서 **가장 먼저** 수동 연결을 쓰고, 그다음이 자동 매칭
+- `원두별 매출`·생두주문 `원/kg` 쪽에도 같은 옵션이 전달됨(클라우드 회사 구분)
+
+### 3. 파일
+- `beanStatementManualMappings.ts` — 저장/조회, `BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT`
+- `StatementInventoryLinkPage.tsx` — 위 UI
+- `App.tsx` — 페이지·히어로·백업 `activePage`·시작 복원
+- `beanSalesStatementMapping.ts` / `BeanSalesAnalysisPage` / `beanSalesGreenOrderUnitPrice.ts` — 3번째 옵션·이벤트
+
+입고에만 있던 `10. Brazil`에 붙이려면, **거래 품목**에 `브라질(라미랑드)`처럼 실제로 찍힌 그대로 넣고, **입고**에서 `10. Brazil`을 고르면 됩니다.
+
+---
+
+_**User**_
+
+원두별 매출 분석 페이지안에다가 만들면 되지 않겠니...? 모달로...
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The statement-to-inventory linking UI will be integrated into the BeanSalesAnalysis page as a modal window, instead of being a standalone navigational page.</details></think>
+
+_**Agent (default)**_
+
+별도 화면을 제거하고, 원두별 매출 분석 페이지에 모달로 통합합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll create `StatementInventoryLinkModal.` I'll create a single `StatementInventoryLinkModal.tsx` file to extract the modal content from `StatementInventoryLinkPage`, accepting `open` and `onClose` props while preserving the internal logic. Alternatively, I can embed it directly in `BeanSalesAnalysisPage` to keep things compact, though the file is already over 800 lines. 
+
+- Move modal body to `StatementInventoryLinkModal.tsx` 
+- Delete `StatementInventoryLinkPage.tsx` after extraction
+- Revert statementInventoryLink changes in App.tsx - Move modal functionality into `BeanSalesAnalysisPage` as an internal `StatementLinkModal` function
+- Keep all code in one file to avoid creating new files
+- Maintain existing behavior with `inventoryReadTick` for inventory refresh
+- Add state `linkModalOpen` and button in page header to control modal visibility
+- Render modal component within the page and pass necessary props for inventory synchronization</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/inventoryStatusUtils.ts",
+  "pattern": "InventoryBeanRow"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/inventoryStatusUtils.ts",
+  "pattern": "InventoryBeanRow",
+  "topFiles": [
+    {
+      "matchCount": 5,
+      "uri": "app/src/inventoryStatusUtils.ts"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll create StatementInventoryLinkModal. I'll create StatementInventoryLinkModal that takes open, onClose, inventoryBeanRows, mode, and activeCompanyId props. When open is false, it returns null. It uses useEffect to lock body scroll when open and generates a unique datalist ID using useId(). Escape key handling is added via useEffect when open. No portal is needed as it's a fixed overlay in the page.
+
+StatementInventoryLinkPage.tsx will be deleted.
+
+In App.tsx, statementInventoryLink references will be removed.
+
+In BeanSalesAnalysisPage:
+- Import StatementInventoryLinkModal
+- Add state isLinkModalOpen</details></think>
+
+_**Agent (default)**_
+
+별도 `명세↔입고` 메뉴를 제거하고, `BeanSalesAnalysisPage`에 모달 컴포넌트로 통합합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add:
+- import StatementInventoryLinkModal</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Insert the modal before the `<style>` tag.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Delete the file StatementInventoryLinkPage.tsx.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="delete_file">
+<details><summary>Tool use: **delete_file**</summary>
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="delete_file"><details>
+<summary>Tool use: **delete_file**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 646 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-B94wrMPU.js   2,584.83 kB │ gzip: 736.45 kB
+
+✓ built in 422ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx",
+  "pattern": "activeCompanyId"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx",
+  "pattern": "activeCompanyId",
+  "topFiles": [
+    {
+      "matchCount": 15,
+      "uri": "app/src/providers/AppRuntimeProvider.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 22
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 반영한 내용
+
+- **왼쪽 메뉴**에서 `명세↔입고` **전용 화면은 제거**했습니다. (`App.tsx`·별도 페이지 삭제)
+- **원두별 매출 분석** 제목 옆에 **`명세↔입고` 버튼**을 두었고, 누르면 **모달**이 뜹니다.
+- UI는 `StatementInventoryLinkModal.tsx`로 옮겼고, **배경 클릭**·**×**·**Esc**로 닫습니다.
+- 저장·읽기 로직은 **그대로** `beanStatementManualMappings`에 두었고, 열면 `load()`로 최신 연결을 불러옵니다.
+- `입고에 맞지 않은 품목` 설명에 **“상단 명세↔입고로 직접 연결”** 문구를 넣었습니다.
+
+`npm run build` 통과했습니다.
+
+---
+
+_**User**_
+
+매칭한 항목에 대해서는 안보이게 못하나? 매칭 안한 항목만 보이게
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The "   " section should only display items that remain unmatched. If an item has been manually matched via the modal, it should no longer appear in the "unmatched" table.  
+The current logic filters by:  
+- `inventoryBeanRows.length > 0 && !allowedInventoryLabels.has(label)`  
+Where `label` comes from `mapStatementItemToInventoryLabel`.  
+
+If manual mapping works correctly, the `label` should now be a valid inventory label like `10. Brazil`, and `allowedInventoryLabels.has(label)` should return true  meaning those records should **not** go to `notInInventoryByStatement`.  
+
+The issue may be:  
+- [ ] The filtering logic isn't properly accounting for manually mapped labels.  
+- [ ] The `allowedInventoryLabels` set might not include the updated label after manual mapping. Manual mapping should be applied before the whitelist check, as `resolveStatementInventoryManual` is already the first step in `mapStatement`.  
+
+The user might also want to hide rows that appear in the "not matched" list due to other reasons, such as showing only items with no successful match at alleven after manual mapping.  
+
+If manual mapping works correctly, the label should be included in the allowed set, preventing those records from appearing in `notIn`.  
+
+The issue may instead be partial displaysome records for the same `itemName` could still show as unmatched if there's an error with specific entries. However, this seems unlikely. The user wants the "" section in the manual mapping modal to only show **unmapped** statement items, not already matched ones.  
+The "   " table should similarly only display items that still fail to map to inventoryeven after manual mapping.  
+If manual mapping works correctly, these items should not appear in the unmatched list anymore. The user wants the "    ()" section to only display items that are still not in the inventory whitelist after mapping. If manual mapping successfully matches an item, it should be removed from this list. This behavior should already occur if `mapStatementItemToInventoryLabel` returns the correct label.  
+
+The " " modal list should not show rows that were successfully matched, as saved connections represent the matches themselves.  
+
+A combined UI listing both matched and unmatched items may also be needed. **Possible bug**: The `allowedInventoryLabels` set might be built from `formatBeanRowLabel(b)`, but manual mappings could return labels with slight mismatches (like spaces or dots), causing them to still appear as "not in inventory".
+
+**Alternative interpretation**: The user may want to exclude from the "unmatched" aggregation any `itemName` that already exists in `readStatementInventoryManuals`  meaning if a manual mapping exists for that exact item, it should not appear in the "problem" table, even if its automatic label is incorrect. That would hide "we have a rule for this" from the error listhowever, if the rule doesnt resolve to a valid label yet, users might still want to see it.  
+Simpler interpretation: **If the final `label` is in `allowedInventoryLabels`, exclude it**this is already handled.
+
+**Alternative interpretation**: Show in "unmatched" only records where:  
+- `mappedLabel` is not in the allowed set, AND  
+- Theres no manual override for that exact `record.itemName`.  
+
+This requires checking: for `record.itemName`, if `readStatementInventoryManuals` has an entry where `from === record.itemName`. The "not in inventory" table should only list statement lines that fail to map to an allowed label.  
+If a manual mapping exists and returns a valid label in `allowedInventoryLabels`, the record should be excluded from this list.  
+Records should be skipped in `notIn` building if `resolveStatementInventoryManual` returns a valid label that matches an allowed one.  
+Items that have been successfully matched should not appear in the "unmatched" list. That's the intended behavior: if a label isn't in the allowed set, the record is skipped and added to `notIn`. Matched items should not appear in `notIn`.
+
+However, edge cases may occur:
+
+- If the same `itemName` appears multiple times in transactions, one matched and one not, it could cause issues.
+- If statement items differ only by invisible characters, one may match manual mapping while another does not, leading to one item appearing in `notIn`. If a manual mapping exists for an item (where `from === record.itemName`), it should be excluded from the "not in inventory" table, even if the target label doesn't exist in the inventory. This ensures that intentionally matched items are not shown as unmatched. When aggregating `notIn`, skip records if a manual mapping exists for the exact item name and the resolved label is in `allowedInventoryLabels`. This prevents showing items in the "" table if they were manually mapped to a valid inventory label. That's already how it's implemented  the same `mapStatementItemToInventoryLabel` function includes manual mappings. The issue likely lies in a label mismatch: for example, the stored `toLabel` might be `10. Brazil`, while `formatBeanRowLabel` generates `10. Brazil` with slightly different spacing or formatting.  
+
+Checking `resolveStatementInventoryManual` reveals it compares `formatRowAsLabel(b) === to` for each row, where `to` is the stored label. If the user selects from a dropdown, the label should match exactly.</details></think>
+
+_**Agent (default)**_
+
+집계 로직 확인: 수동 연결이 있어도 하단 ‘미매칭’에 남는 경우를 제외합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The notIn section is added only when `!allowed.has(label)` is true. Items that are "effectively matched" are excluded from the notIn section, which includes:
+- Items in `allowedInventoryLabels` (already in main sales)
+- Items with successful manual entries for `record.itemName.trim()` where `toLabel` is in `allowedInventoryLabels`
+
+Orphan manual cases where `label` is a stored string not in the set may still be excluded from the "problem" list if `hasManualForItem(record.itemName.trim())` is true. Items are excluded from the notIn section if they are manually resolved to an allowed target in the current inventory. This check skips adding items to notIn if `manualResolvedToAllowed(record.itemName)` returns true.
+
+This differs from `allowed.has(label)` because it specifically checks for manual mappings rather than just checking if a label is in the allowed set. Manual resolution takes precedence over simple label matching. When `mapStatementItemToInventoryLabel` returns a different label than manual, it should not happen since manual runs firstunless there's a bug.
+
+If manual toLabel is valid and resolve returns `{ label, sortKey }` where label equals `to` and is in allowed, then `allowed.has(label)` is true, so we don't enter the notIn branch.
+
+If manual toLabel is invalid (orphan), resolve returns `{ label: to, sortKey: 900_000 }`, and `allowed.has(label)` is false, so we add to notIn. Users do not want to see these if they were matched in the modalbut they are broken. The user's phrase "" is interpreted as a **valid** match only.
+
+**Alternative implementation**: Hide from the **bottom table** any item appearing in the **manual mapping list**, even if orphan. This ensures the "problem" list contains only items with **no** manual row yet.
+
+**Implementation details**:
+- Exclude from notIn if `readStatementInventoryManuals` has an entry with `from === record.itemName.trim()`
+- Once a connection is made in the UI for a string, it disappears from "  ", even if the target is incorrect
+- Users can fix these in the modal
+- The "" metric card will also decrease accordingly Let me add `hasStatementManualForItem` to check for existing manual mappings:
+
+- Function checks if a statement item has a manual mapping
+- Returns true if item exists in `readStatementInventoryManuals` with matching `from` field
+- Used to exclude items from notIn section when they have manual mappings
+
+In BeanSales, when building notIn:
+- Items are excluded from notIn if they have manual mappings
+- This prevents duplicate entries in the problem list
+- Items with manual mappings disappear from the "problem" list even if target is incorrect If a manual mapping exists and its target label is valid (in `allowedInventoryLabels`), the item is excluded from the "problem" list. This prevents showing items that were explicitly matched, even if the automatic mapping was incorrect. The system avoids duplication by skipping items with valid manual mappings, ensuring users only see unmatched or mismatched items. The only scenario where this logic might miss issues is if the automatic mapping and manual mapping diverge or if the mapped label is incorrect for other reasons. The user's message " " / "  " likely refers to showing only unmatched items in the **notIn** table at the bottom of BeanSales. This would remove rows that are now fixed, preventing duplicates in the problem list.
+
+The "problem" list should only include items that are truly unmatched or have incorrect mappings, not those that were manually resolved. Items with valid manual mappings should be excluded from this list to avoid duplication.
+
+This aligns with the current logic where items are excluded from notIn if they have manual mappings in readStatementInventoryManuals. The system avoids showing items that were explicitly matched, even if the automatic mapping was incorrect. Skip adding items to notIn if they have manual mappings with allowed targets or if the exact manual mapping exists for the item. This prevents showing already-resolved items in the "problem" list. Orphan manual cases may be invisible in both the main table and the "problem" list, making them hard to detect. Even though the modal shows saved rows for fixing, orphaned items can still be lost if they aren't in the main sales table or the notIn section.
+
+Implementation details:
+- Use `hasStatementManualForItem` to check for existing manual mappings before adding to notIn
+- If a manual mapping exists for an item, skip adding it to notIn even if the label isn't in allowedInventoryLabels
+- This prevents duplicate entries but could cause orphaned items to become completely invisible if they lack valid manual mappings
+
+The system excludes items from notIn if they have manual mappings, but orphaned items without valid mappings won't appear anywhere, creating a potential visibility issue. That could lead to issues, so only exclude from notIn if the manual toLabel is valid (present in the allowed set).
+
+The function `isStatementManuallyLinkedToInventory` checks if a statement item is manually linked to an inventory label:
+- It retrieves manual mappings and finds the target label (`toLabel`) for the given item
+- Returns true only if the target label exists in the allowed set
+
+In the loop:
+- Items are excluded from notIn if they have valid manual mappings
+- This prevents showing items that were manually matched, even if automatic mapping was incorrect
+- Orphaned items without valid manual mappings remain visible in the problem list
+
+This approach ensures that only properly resolved items are excluded from the problem list, avoiding duplication while maintaining visibility of unresolved items.</details></think>
+
+_**Agent (default)**_
+
+수동으로 ‘명세↔입고’에 연결한 품목은 ‘입고에 맞지 않은 품목’ 표와 상단 누락 카드에서 제외합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+In JavaScript, function hoisting requires that `readStatement` be defined before `hasAnyStatementManualForItem` calls it, so the order of `readStatementInventoryManuals` and `hasAnyStatementManualForItem` needs to be adjusted accordingly.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+hasAny is defined before readStatement in source order  in JavaScript/TypeScript, const declarations are not hoisted, so when hasAny executes at line 30, readStatement is already bound. Only hide statements when manually resolved to allowed labels, not when orphaned. This prevents users from thinking issues are fixed when they're actually still orphaned. Use valid manual toLabel checks only.
+
+- Check if statement is manually resolved
+- Verify resolved label is in allowed set
+- Hide only when both conditions met
+- Don't hide orphaned items to avoid confusion We skip notIn if the label is not allowed but the manual "to" label is allowed. This avoids showing problems for items the user touched in the modal. The logic ensures that if a user manually resolves a statement, it should not be flagged as a problem even if it's orphaned, as long as the resolution is in the allowed set. This matches the intent of "I connected it, stop nagging" for orphaned items.</details></think>
+
+_**Agent (default)**_
+
+수동 연결의 `toLabel`이 현재 입고에 실제로 있을 때만 ‘미매칭’에서 제외합니다. (연결은 했는데 입고 품목이 바뀐 경우엔 하단에 계속 뜨게)
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When manual resolution occurs, the map returns with label=to and is allowed. When `has(label)` is true, we never reach `notIn`. The only scenario where `!allowed.has(label)` applies with a valid manual `to` is due to a mismatch between the stored `to` and `formatBeanRowLabel`, such as when a user edits inventory. In this case, the label may be incorrect. If we skip `notIn` when `allowed.has(manual to)`, we shouldn't require `label === to` from the map. However, since the map returns `to` from manual as the label, if `to` is allowed, `has(label)` becomes true.
+
+Edge case: A manually linked `to` is valid, but `mapStatement` returns something else first. Since manual is prioritized in `mapStatement`, the label should still be `to`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants items that are fully matched to the main table to be excluded from display. If `isStatementManuallyResolved` is true, then `resolveStatementInventoryManual` returns `{label: to}`, making `has(label)` true, so the notIn block is never entered. The only scenario where the notIn block executes is if `readStatement` and `mapStatement` disagree, or if `record.itemName` doesn't match  meaning the manual `from` value differs from the expected string.
+
+- Case: User sets manual from "A" to "10".</details></think>
+
+_**Agent (default)**_
+
+수동으로 한 줄만 넣었을 때(입고 `to`가 잠시 안 맞아도) ‘미매칭’에서 빼는 편이 요청에 가깝습니다. `toLabel`이 입고 집합에 있을 때만 제외하던 걸, **같은 거래 `품목명`에 수동 연결이 있으면** 미매칭에서 제외하도록 바꿉니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 646 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-DY2Kb-Le.js   2,584.94 kB │ gzip: 736.54 kB
+
+✓ built in 403ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "allowedInventoryLabels, mapOptions"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "allowedInventoryLabels, mapOptions",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 동작
+
+`입고에 맞지 않은 품목` / 상단 **누락** 카드는 이제, **같은 거래 품목명**으로 **명세↔입고**에 **한 줄이라도** 저장돼 있으면 **집계에서 제외**합니다. (`hasAnyStatementManualForItem`)
+
+그래서 **이미 수동으로 연결한 품목**은 이 목록에 **안 뜨고**, **아직 손을 안 댄 것·지금도 라벨이 입고에 없는 것**만 보입니다. 모달에서 연결을 저장한 뒤(이벤트로 집계가 갱신되면) 바로 반영됩니다.
+
+안내 문구도: *「명세↔입고에 잡은 품목은 이 목록에 나오지 않는다」*로 맞춰 두었습니다.
+
+---
+
+_**User**_
+
+거래 품목에는 그냥 매칭 안된 거래 품목만 뜨게하면 되는거 아닐까 굳이 입력을 해야하나? 나리노(라미랑드)를 연결했는데 또 뜨잖아
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user is frustrated that:  
+- The system failed to provide a proper summary of the reasoning stream.  
+- The user's request was not clearly understood or executed.  
+- The output did not meet expectations regarding formatting or content. In the " " field, users should only see unmatched statement items, not those already linked to inventory or manually connected.  
+The issue occurs when "()" is connected but still appears in the list, indicating a bug in either exact string matching or the "unmatched" filter logic.  
+
+I need to:
+- Investigate why matched items appear in the unmatched list  
+- Check if string matching is exact or requires trimming/display adjustments  
+- Verify the "unmatched" filter is correctly applied in the modal's datalist In `StatementInventoryLinkModal`, compute the list of unmatched statement item names by filtering out items that are either mapped to allowed inventory labels or already manually linked. Use this filtered list in the "add new link" field's datalist or select element. The user wants to avoid free-typing and prefers a **select** dropdown for " " with only unmatched options and a placeholder like "  ".  
+
+The issue with "()" appearing after linking may stem from:  
+- Key mismatch between user-input `from` and `record.itemName` (e.g., different spacing or Unicode characters)  
+- Exact match logic (`e.from === t`) in `hasAny` not aligning with how the modal stores or processes the `from` value - The datalist may still show all `itemNamesFromStatements` instead of filtering to only unmatched items.  
+- A utility function `getUnmatchedStatementItemNames` will be added/shared to return a sorted array of unmatched item names for UI display.  
+- An item is considered unmatched if:  
+  - Its mapped inventory label is not in the allowed labels, and  
+  - It has no manual links associated with it. Items with matching inventory labels or manual links are excluded from the "need to connect" list.  
+An item is considered unmatched if its not mapped to allowed labels and has no manual links.  
+
+For "()" still appearing, the issue may be due to:  
+- Exact match failure from spacing or Unicode differences  
+- Saving or checking logic not normalizing input (e.g., using `normCompact`)  
+- Suggested fix: Normalize during save or check for matches using `normCompact` for the `from` key The issue stems from inconsistent logic in determining unmatched items. To fix "still shows", use a single source of truth: an item is unmatched if it appears in `notInInventoryByStatement` for some record, based on unique `itemName` keys.  
+
+Algorithm for the suggestion list (and `hasAny` check):  
+- For each unique `itemName` from statements (after trimming/deduplication):  
+  - If the mapped label is in allowed labels  skip  
+  - Else  include in unmatched list  
+
+This ensures consistency between the modal dropdown and the bottom table. - If an item has manual links, skip it; otherwise, include it in the unmatched list.  
+- The modal select should only show unmatched items, with no free-text input.  
+- If no unmatched items exist, display "  " and disable the add row.  
+- For the saved mappings list, decide whether to show all mappings, including those now fully matched. The user wants to avoid seeing "" again in the add dropdown, so the **new link** section should only show unmatched items, while the **saved** section can keep all links for editing.  
+
+- The modals " " suggestions must now use `unmatchedItems` instead of all `itemNamesFromStatements`.  
+- This requires computing `unmatchedItems` in the modal using the same logic as the parent component.  
+- The list of unmatched items should be filtered based on whether the item is mapped to allowed inventory labels or has manual links.  
+- If no unmatched items remain, the add row should be disabled with a placeholder like " ".  
+
+The connection logic needs to ensure that items are properly marked as unmatched using consistent normalization (e.g., `normCompact`) to prevent duplicates or mismatches. 7. **Implementation in StatementInventoryLinkModal.tsx**:
+   - Add required imports for mapping functions and manual link checks
+   - Use `useMemo` to compute `unmatchedItemNames` based on inventory, manual mappings, and mode
+   - Replace the datalist with a select dropdown that only shows unmatched items
+   - Disable the add row when no unmatched items remain, showing a placeholder instead User wants only unmatched items in the dropdownuse a `<select>` for the left side with no free typing (or add an optional " " for edge cases).  
+
+The "   " button should still refresh the unmatched list.  
+
+To prevent items like "()" from reappearing after linking, the saved `from` value must exactly match `record.itemName` (after trimming). The bug likely occurred because `itemNamesFromStatements` included all items and didnt remove linked items from the unmatched list.  
+
+The unmatched list should now filter out items already linked or mapped to allowed inventory labels, ensuring consistency between the modal and the saved mappings list. For **hasAny** to work correctly, the `from` value in storage must exactly match `record.itemName.trim()` to avoid mismatches from datalist selections or hand-typed inputs with subtle differences. To strengthen matching, consider using `normCompact` for deduplication or exact comparisons, though this risks false positives for different items. The safer approach is to stick with exact trim-based matching.
+
+For **find** operations in `notIn`, the key uses `record.itemName` without trimming, which affects aggregation  this needs verification to ensure consistency. itemName trim inconsistencies may cause issueshasAny already uses `itemNameTrimmed.trim()` and `e.from` should match `record.itemName.trim()` for accurate comparison.  
+- Ensure `record.itemName` is trimmed consistently in `notIn` and `hasAny` to avoid grouping by trim differences.  
+- Manual `from` values are trimmed on save, so matching should use `e.from === record.itemName.trim()` for accuracy.  
+- Verify `hasAny` uses `.trim()` for both `itemName` and `e.from` to prevent mismatches from whitespace differences. The `from` value was trimmed on read, which is good.
+
+The reason "" still appears in the list after linking is that the modal's unmatched filter was never implemented  it still shows all items in the datalist. This will be fixed by updating the new connection select to only show unmatched items.
+
+Additionally, after saving, the modal reloads and the unmatched list should recompute. The `mapStatement` function needs to account for manual links, so when `writeStatementInventory` fires an event, the modal should listen and update accordingly.</details></think>
+
+_**Agent (default)**_
+
+미매칭 품목만 드롭다운에 넣고, `mapStatement`+수동 연결을 기준으로 ‘아직 잡을 것’만 보이게 합니다. `나리노(라미랑드)`가 다시 뜨는 건 `datalist`가 전체 품목을 쓰기 때문이었습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll import `mapStatementItemToInventoryLabel` and `hasAnyStatementManualForItem` from their respective locations. 2. `mapOptions` = useMemo `({ mode, companyId: activeCompanyId })`
+3. `allowedSet` = useMemo from inventory + formatBeanRowLabel
+4. Replace `itemNamesFromStatements` with `unmatchedStatementItems` useMemo:
+   - Get unique item names (same as current logic)
+   - For each `name`, if `inventoryBeanRows.length === 0`  all are "unmatched" for manual entry purposes
+   - If no inventory exists, show all item names
+   - If inventory exists, only show unmatched items that need manual processing
+
+Note: The original text appears incomplete or unclear in some parts, particularly around the condition about `inventoryBeanRows.length === 0`. The summary reflects the intended meaning based on context. If `inventoryBeanRows.length === 0`, the allowed set is empty, so all `mapStatement` labels might not be in the set. For simplicity, when no inventory exists, show all names with a warning message. The modal should still function, but display a warning. 
+
+- When no inventory exists, `unmatched = []` and show a message.
+- Filter unmatched items using: `names.filter(n => inventory.length === 0 ? true : false)`
+- For each trimmed name, use `mapStatementItemToInventoryLabel` to get the label from `inventoryBeanRows` and `mapOptions`. If the label exists in `allowedSet` or if there's a manual statement for the item, do not show it in the unmatched dropdown. Otherwise, show it.
+
+The `useMemo` dependencies include `open`, `stmtPickTick`, `inventoryBeanRows`, `mode`, `activeCompanyId`, and `rows`ensuring the list updates when manual entries change.</details></think>
+
+_**Agent (default)**_
+
+미매칭 품목만 셀렉트에 넣고, `mapLabel`+수동 연결이 ‘해결’된 품목은 목록에서 제외합니다. `useId` 제거.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT listener to increment stmtPickTick when an external save occurs. The `rows` dependency updates on save within the same component, but unnecessary re-renders occur on keystrokes. To optimize, remove `rows` from dependencies and instead use `rows.length` or track the specific issue where adding a link causes `rows` to change, making `hasAny` for that name trueunmatched should shrink accordingly. Since `hasAny` reads from localStorage inside the function rather than from `rows` state, and both storage update and `setRows` are called in `saveAll` after `writeStatementInventoryManuals`, this approach avoids redundant updates. The useMemo depends on `rows` to ensure it runs after state updates, even though `rows` creates a new reference each time, which is acceptable.  
+- `rows` is included in dependencies to ensure `hasAny` uses the latest state after a save.  
+- Loading `rows` on open triggers `unmatched` to recalculate, but this is expected behavior.  
+- No circular dependency exists between `unmatched`, `allowedSet`, and `inventoryBeanRows`. When the user selects "A" and adds a link, "A" is removed from unmatched, and the `draftFrom` effect clears it properly.  
+Show the label "   " when `unmatchedItemNames.length === 0`.  
+After adding a link, `unmatched` updates and `draftFrom` is cleared in `addLink`.  
+If a manual row is removed, `rows` changes, `hasAny` becomes false, and the item reappears in unmatched  this works correctly.  
+Listen for the `BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT` to increment `stmtPickTick` when an external save occurs.  
+Add a `useEffect` to handle the event listener and update `stmtPickTick` accordingly.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to verify the file state, as there may be issues.
+- Check file status
+- Identify potential problems</details></think>
+
+_**Agent (default)**_
+
+Checking the file for `stmtPickTick`, `useMemo` for `unmatchedItemNames`, and leftover `listId`/`itemNamesFromStatements`.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx",
+  "pattern": "itemNamesFromStatements|listId|stmtPickTick|unmatchedItemNames"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx",
+  "pattern": "itemNamesFromStatements|listId|stmtPickTick|unmatchedItemNames",
+  "topFiles": [
+    {
+      "matchCount": 7,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 7
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+In saveAll, dispatch or bump stmtPickTick to handle unmatched refreshes. Since hasAny reads from localStorage and setRows updates, the useMemo dependency on `rows` causes it to re-run when rows change during saving.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "contextAfter": 15,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts",
+  "pattern": "hasAnyStatementManualForItem"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts",
+  "pattern": "hasAnyStatementManualForItem",
+  "topFiles": [
+    {
+      "matchCount": 16,
+      "uri": "app/src/beanStatementManualMappings.ts"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- `hasAny` retrieves data from `readStatementInventoryManuals`
+- `readStatementInventoryManuals` utilizes localStorage for data storage</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The implementation appears complete.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 646 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-DwxdQK7b.js   2,585.68 kB │ gzip: 736.70 kB
+
+✓ built in 401ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+.    .</details></think>
+
+_**Agent (default)**_
+
+맞게 이해하신 거예요. **직접 입력(datalist)은 제거**했고, **아직 잡을 필요가 있는 품목만** `select`에 나가도록 맞춰 두었습니다.
+
+### 동작 요약
+
+- **거래 품목** 목록 = `statement-records`에 있는 `itemName`들 중,
+  1. **이미 `명세↔입고`에 한 줄이라도** 있는 쪽(`from`이 **문자 전체**로 일치) → **제외**  
+  2. **자동으로 이미** 어떤 입고 줄과 같은 라벨로 잡히는 쪽 → **제외**  
+- 연결을 저장한 뒤에는 `writeStatementInventoryManuals`가 `bean-statement-mappings-updated`를 쏴서, **목록이 바로 갱신**됩니다(기존 “다시 읽기”도 그대로 씁니다).
+- **미매칭이 없으면** “추가로 잡을 미매칭 품목이 없습니다” 문구를 냅니다.
+
+`StatementInventoryLinkModal` 안의 핵심은 여기입니다.
+
+```51:80:app/src/StatementInventoryLinkModal.tsx
+  /** 자동+수동 합쳐도 아직 ‘입고 한 줄’에 못 올리는(또는 수동이 없는) 품목만 — 직접 타이핑 없음 */
+  const unmatchedItemNames = useMemo(() => {
+    // ... statement items from localStorage ...
+    if (inventoryBeanRows.length === 0) {
+      return []
+    }
+    return [...all]
+      .filter((name) => {
+        if (hasAnyStatementManualForItem(name, mode, activeCompanyId)) {
+          return false
+        }
+        const { label } = mapStatementItemToInventoryLabel(name, inventoryBeanRows, mapOpts)
+        return !allowedSet.has(label)
+      })
+      .sort((a, b) => a.localeCompare(b, 'ko'))
+  }, [open, stmtPickTick, inventoryBeanRows, mapOpts, mode, activeCompanyId, allowedSet, rows])
+```
+
+### “나리노(라미랑드)”를 연결했는데도 또 뜨는 경우
+
+`hasAny`는 **저장된 `from`이 거래 품목 문자열과 완전히 같을 때만** true입니다(앞뒤 공백만 제거).  
+명세에 찍힌 이름이 `나리노(라미랑드)`가 아니라 **다른 띄어쓰기·괄호(전각/반각)·철자**이면, 드롭다운에 보이는 문자열은 그런데 **저장 `from`은** 예전에 손으로 친 값일 수 있어서 **둘 중 하나는 계속 “미매칭”**으로 남을 수 있습니다.
+
+- **해결:** `저장됨` 목록에서 그 줄 **삭제 후**, 드롭다운에 보이는 **정확한** 거래 품목으로 **다시 연결**하거나, `저장됨`에 표시된 `from`이 명세 `itemName`과 같은지 한 번 맞춰보시면 됩니다.
+
+`npm run build`는 통과했습니다.
+
+---
+
+_**User**_
+
+이미 매칭된 항목에 대해서도 수정이 가능하게 해줄래? 매칭이 잘못 됐을 수도 있으니깐
+
+---
+
+_**Agent (default)**_
+
+좋아요. 기존 기본값(미매칭만)은 유지하되, **이미 자동 매칭된 항목도 선택해서 수동으로 덮어쓸 수 있게** 토글을 추가하겠습니다. 모달에서 바로 켜서 수정 가능한 방식으로 바꿔둘게요.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+이제 타입/빌드 에러 없이 동작하는지 바로 확인하겠습니다.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 646 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-E4_ud43Z.js   2,586.19 kB │ gzip: 736.79 kB
+
+✓ built in 431ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+가능하게 바꿔뒀어요.
+
+- 기본 동작은 그대로 **미매칭만 표시**합니다.
+- 대신 모달에 `이미 자동 매칭된 항목도 보기` 체크를 추가해서, 켜면 **자동 매칭된 거래 품목도 드롭다운에서 선택**할 수 있습니다.
+- 그 상태에서 연결하면 수동 매핑이 저장되어, 말씀하신 “자동이 잘못 잡힌 항목”도 **수동으로 덮어쓰기** 가능합니다.
+- 이미 수동으로 저장된 항목은 중복 등록 방지로 기존처럼 새 목록에서는 제외되고, 아래 `저장됨`에서 수정/삭제하면 됩니다.
+
+변경 파일:
+- `app/src/StatementInventoryLinkModal.tsx`
+
+검증:
+- `npm run build` 통과
+- linter 에러 없음
+
+원하면 다음으로, 체크박스가 아닌 “탭(미매칭 / 전체)” 형태로 UI도 바꿔드릴게요.
+
+---
+
+_**User**_
+
+매출 요약에서 수정버튼을 만들어주면 편하겠네 그냥
+
+---
+
+_**Agent (default)**_
+
+좋아요. 매출 요약에서 바로 `수정` 눌러서 해당 품목 연결을 바꿀 수 있게, 요약 테이블에 버튼을 추가하고 `명세↔입고` 모달이 그 품목으로 바로 열리도록 연결하겠습니다. 관련 위치를 확인해서 바로 반영할게요.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "매출 요약|요약|명세↔입고|StatementInventoryLinkModal|입고에 맞지 않은 품목|unmatched"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "매출 요약|요약|명세↔입고|StatementInventoryLinkModal|입고에 맞지 않은 품목|unmatched",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/memoLinkedSources.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.css"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/inventoryStatusUtils.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/monthlyMeetingExcelStyledExport.ts"
+    },
+    {
+      "matchCount": 5,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 3,
+      "uri": "app/src/ExpensePage.tsx"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "matchCount": 11,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 5,
+      "uri": "app/src/expenseExcelStyledExport.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/beanStatementManualMappings.ts"
+    },
+    {
+      "matchCount": 3,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "matchCount": 13,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/StaffPayrollPage.tsx"
+    },
+    {
+      "matchCount": 6,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 14,
+  "totalMatches": 54
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+매출 요약 각 행에서 바로 연결 수정할 수 있도록, `수정` 버튼을 추가하고 클릭 시 모달이 해당 원두 라벨로 미리 맞춰서 열리게 연결하겠습니다. 이어서 빌드로 확인할게요.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 646 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-laRXuj1x.css    143.01 kB │ gzip:  24.00 kB
+dist/assets/index-C3jpKDGQ.js   2,586.84 kB │ gzip: 736.97 kB
+
+✓ built in 410ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+좋아요, 바로 추가해뒀어요.  
+이제 **매출 요약 표에서 각 행마다 `수정` 버튼**으로 바로 매칭 수정 플로우를 열 수 있습니다.
+
+- `매출 요약` 테이블에 `수정` 컬럼 추가
+- 각 행의 `수정` 클릭 시 `명세↔입고` 모달 오픈
+- 모달은 클릭한 행의 원두(`N. 품목` 라벨)를 **입고 대상값으로 미리 선택**
+- 이 경우 자동으로 `이미 자동 매칭된 항목도 보기` 상태로 열려서, 자동 매칭된 거래 품목도 바로 재지정 가능
+- 상단 `명세↔입고` 버튼으로 열 때는 기존처럼 일반 모드(특정 라벨 프리셋 없음)
+
+변경 파일:
+- `app/src/BeanSalesAnalysisPage.tsx`
+- `app/src/StatementInventoryLinkModal.tsx`
+
+검증:
+- `npm run build` 통과
+- linter 에러 없음
+
+원하면 다음으로 `입고에 맞지 않은 품목` 표에도 같은 `수정` 버튼 붙여서, 누락 항목은 한 번에 해당 품목으로 바로 열리게도 맞춰드릴게요.
+
+---
+
+_**User**_
+
+수정 눌렀을때 뭐랑 연결되어있는지도 보이면 좋겠네
+
+---
+
+_**Agent (default)**_
+
+좋아요. `수정`으로 열렸을 때 해당 입고 품목에 **현재 어떤 거래 품목들이 연결되어 있는지**를 모달 상단에 바로 보이게 추가하겠습니다. 수동/자동 구분도 같이 표시해둘게요.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+  ]
+}
+```
+Status: **loading**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
