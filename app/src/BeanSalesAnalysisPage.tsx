@@ -346,6 +346,43 @@ function BeanSalesAnalysisPage() {
       }))
   }, [rowsWithRevenue])
 
+  /** 생두 주문이 있어 이익(추정)이 잡힌 행만 */
+  const rowsWithKnownProfit = useMemo(
+    () => rowsWithRevenue.filter((d) => d.estimatedProfitAmount != null),
+    [rowsWithRevenue],
+  )
+
+  const totalEstimatedProfit = useMemo(
+    () => rowsWithKnownProfit.reduce((s, d) => s + (d.estimatedProfitAmount ?? 0), 0),
+    [rowsWithKnownProfit],
+  )
+
+  const totalPositiveProfit = useMemo(
+    () => rowsWithKnownProfit.reduce((s, d) => s + Math.max(0, d.estimatedProfitAmount ?? 0), 0),
+    [rowsWithKnownProfit],
+  )
+
+  const profitBarChartData = useMemo(() => {
+    return [...rowsWithKnownProfit]
+      .sort((a, b) => (b.estimatedProfitAmount ?? 0) - (a.estimatedProfitAmount ?? 0))
+      .slice(0, BEAN_SALES_CHART_TOP)
+      .map((data) => ({
+        ...data,
+        fill: (data.estimatedProfitAmount ?? 0) >= 0 ? '#1b5e20' : '#b71c1c',
+      }))
+  }, [rowsWithKnownProfit])
+
+  const profitPieChartData = useMemo(() => {
+    return [...rowsWithKnownProfit]
+      .filter((d) => (d.estimatedProfitAmount ?? 0) > 0)
+      .sort((a, b) => (b.estimatedProfitAmount ?? 0) - (a.estimatedProfitAmount ?? 0))
+      .slice(0, BEAN_SALES_CHART_TOP)
+      .map((data, index) => ({
+        ...data,
+        fill: chartColors[index % chartColors.length],
+      }))
+  }, [rowsWithKnownProfit])
+
   const totalRevenue = beanSalesAnalysis.reduce((sum, data) => sum + data.totalRevenue, 0)
   const totalQuantity = beanSalesAnalysis.reduce((sum, data) => sum + data.totalQuantity, 0)
 
@@ -460,6 +497,16 @@ function BeanSalesAnalysisPage() {
           <span>품목 수</span>
           <strong>{rowsWithRevenue.length}개</strong>
         </div>
+        {rowsWithKnownProfit.length > 0 ? (
+          <div className="metric-card">
+            <span>이익(추정) 합</span>
+            <strong
+              className={totalEstimatedProfit >= 0 ? 'bean-sales-metric-profit-pos' : 'bean-sales-metric-profit-neg'}
+            >
+              {formatCurrency(totalEstimatedProfit)}원
+            </strong>
+          </div>
+        ) : null}
         {inventoryBeanRows.length > 0 && notInInventoryByStatement.length > 0 ? (
           <div className="metric-card bean-sales-metric-warn">
             <span>입고에 맞지 않은 품목(누락)</span>
@@ -531,6 +578,96 @@ function BeanSalesAnalysisPage() {
                   <Bar dataKey="totalRevenue" fill="#8884d8" />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="chart-grid bean-sales-chart-grid--profit">
+            <div className="chart-container">
+              <h3>원두별 이익 비율</h3>
+              {rowsWithKnownProfit.length === 0 ? (
+                <p className="bean-sales-chart-empty">생두 주문이 있으면 품목별 이익(추정)을 계산합니다.</p>
+              ) : profitPieChartData.length === 0 ? (
+                <p className="bean-sales-chart-empty">흑자(추정) 품목이 없습니다.</p>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={profitPieChartData}
+                        dataKey="estimatedProfitAmount"
+                        nameKey="beanName"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={58}
+                        outerRadius={94}
+                        paddingAngle={2}
+                        label={false}
+                      >
+                        {profitPieChartData.map((entry, index) => (
+                          <Cell key={`profit-pie-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value) => `${formatCurrency(Number(value))}원`}
+                        labelFormatter={(_, payload) => payload?.[0]?.payload?.beanName ?? ''}
+                        contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="bean-sales-pie-legend" aria-label="원두별 이익(추정) 비율 범례">
+                    {profitPieChartData.map((data) => (
+                      <div key={data.beanName} className="bean-sales-pie-legend__item" title={data.beanName}>
+                        <span className="bean-sales-pie-legend__dot" style={{ background: data.fill }} />
+                        <span className="bean-sales-pie-legend__name">{shortenBeanName(data.beanName, 16)}</span>
+                        <span className="bean-sales-pie-legend__value">
+                          {totalPositiveProfit > 0
+                            ? ((data.estimatedProfitAmount ?? 0) / totalPositiveProfit * 100).toFixed(1)
+                            : '0.0'}
+                          %
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="chart-container">
+              <h3>원두별 이익 금액</h3>
+              {rowsWithKnownProfit.length === 0 ? (
+                <p className="bean-sales-chart-empty">생두 주문이 있으면 품목별 이익(추정)을 계산합니다.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={profitBarChartData}
+                    layout="vertical"
+                    margin={{ top: 4, right: 8, bottom: 4, left: 8 }}
+                  >
+                    <CartesianGrid strokeDasharray="2 4" horizontal={false} />
+                    <XAxis
+                      type="number"
+                      tickFormatter={(value) => `${Math.round(value / 10000)}만`}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="beanName"
+                      width={116}
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => shortenBeanName(String(value), 10)}
+                    />
+                    <Tooltip
+                      formatter={(value) => {
+                        const n = Number(value)
+                        return `${n >= 0 ? '' : '−'}${formatCurrency(Math.abs(n))}원`
+                      }}
+                      labelFormatter={(label) => String(label)}
+                      contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
+                    />
+                    <Bar dataKey="estimatedProfitAmount" fill="#1b5e20" radius={[0, 2, 2, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 
@@ -886,6 +1023,31 @@ function BeanSalesAnalysisPage() {
           font-weight: 700;
           letter-spacing: -0.01em;
         }
+
+        .bean-sales-chart-grid--profit {
+          margin-top: 6px;
+        }
+
+        .bean-sales-chart-empty {
+          min-height: 200px;
+          margin: 0;
+          padding: 32px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          font-size: 14px;
+          color: #6c757d;
+          line-height: 1.5;
+        }
+
+        .metric-card strong.bean-sales-metric-profit-pos {
+          color: #1b5e20;
+        }
+        .metric-card strong.bean-sales-metric-profit-neg {
+          color: #b71c1c;
+        }
+
         .bean-sales-pie-legend {
           margin-top: 10px;
           display: grid;

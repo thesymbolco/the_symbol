@@ -1,5 +1,12 @@
 import { resolveStatementInventoryManual } from './beanStatementManualMappings'
-import { GREEN_BEAN_ORDER_INVENTORY_ALIASES } from './greenBeanOrderInventoryAliases'
+import {
+  coreFromName,
+  findByExactName,
+  findLongestSubstringRow,
+  normCompact,
+  resolveAliasedTarget,
+} from './beanNameResolve'
+import { getEffectiveGreenBeanOrderAliases } from './beanNameAliasStore'
 import { canonicalBlendDisplayName } from './inventoryBlendRecipes'
 import type { InventoryBeanRow } from './inventoryStatusUtils'
 
@@ -7,8 +14,6 @@ export type MapStatementItemToInventoryOptions = {
   mode?: 'local' | 'cloud'
   companyId?: string | null
 }
-
-const normCompact = (s: string) => s.trim().toLowerCase().replace(/\s/g, '')
 
 const normSpaced = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
 
@@ -26,8 +31,6 @@ export const stripParensForMatch = (s: string): string => {
   return t.replace(/\s+/g, ' ').replace(/[-–—]+/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-const coreFromName = (name: string) => name.replace(/^\d+(?:\.\s*|\s+)/, '').trim()
-
 /**
  * 입출고와 동일한 표기: `11. Decaf 세라도 NY2FC`
  * (InventoryStatusPage: `{bean.no}. {bean.name}`)
@@ -37,53 +40,6 @@ export const formatBeanRowLabel = (bean: Pick<InventoryBeanRow, 'no' | 'name'>):
     return `${bean.no}. ${bean.name}`
   }
   return bean.name
-}
-
-const findByExactName = (name: string, rows: readonly InventoryBeanRow[]): InventoryBeanRow | null => {
-  const t = normCompact(name)
-  for (const b of rows) {
-    if (normCompact(b.name) === t) {
-      return b
-    }
-    if (normCompact(coreFromName(b.name)) === t) {
-      return b
-    }
-  }
-  return null
-}
-
-const findLongestSubstringRow = (cleanCompact: string, rows: readonly InventoryBeanRow[]): InventoryBeanRow | null => {
-  let best: InventoryBeanRow | null = null
-  let bestLen = 0
-  for (const b of rows) {
-    for (const frag of [b.name, coreFromName(b.name)]) {
-      const f = normCompact(frag)
-      if (f.length < 2) {
-        continue
-      }
-      if (cleanCompact.includes(f) && f.length > bestLen) {
-        best = b
-        bestLen = f.length
-      }
-    }
-  }
-  return best
-}
-
-/**
- * `GREEN_BEAN_ORDER_INVENTORY_ALIASES`의 오른쪽 값이 실제 `bean.name`과 다를 수 있어(예: Colombia Narino)
- * `findByExactName` / 부분일치로 입출고 행에 연결한다.
- */
-const resolveAliasedTarget = (targetFromAlias: string, rows: readonly InventoryBeanRow[]): InventoryBeanRow | null => {
-  const exact = findByExactName(targetFromAlias, rows)
-  if (exact) {
-    return exact
-  }
-  const t = normCompact(targetFromAlias)
-  if (t.length < 2) {
-    return null
-  }
-  return findLongestSubstringRow(t, rows)
 }
 
 /**
@@ -270,6 +226,7 @@ export function mapStatementItemToInventoryLabel(
   const forMatch = stripParensForMatch(blended)
   const forMatchSpaced = normSpaced(forMatch)
   const forMatchCompact = normCompact(forMatch)
+  const aliases = getEffectiveGreenBeanOrderAliases()
 
   /** 더치는 입출고 생두 행이 아닐 수 있어 별도 표기 */
   if (/디카페인.*더치|더치.*디카/i.test(raw) || /디카.*더치|더치.*디카/i.test(forMatch)) {
@@ -338,7 +295,7 @@ export function mapStatementItemToInventoryLabel(
         return { label: target, sortKey: 900_000, matched: true }
       }
     }
-    for (const [from, to] of GREEN_BEAN_ORDER_INVENTORY_ALIASES) {
+    for (const [from, to] of aliases) {
       if (forMatchCompact.includes(normCompact(from)) || normCompact(from) === forMatchCompact) {
         return {
           label: keywordTargetForDisplay([to, forMatch, raw]) ?? to,
@@ -374,7 +331,7 @@ export function mapStatementItemToInventoryLabel(
     }
   }
   // 3) 생두주문-재고 별칭(괄호·매장명 제거 뒤 문자열만 — forMatch)
-  for (const [from, to] of GREEN_BEAN_ORDER_INVENTORY_ALIASES) {
+  for (const [from, to] of aliases) {
     if (forMatchCompact.includes(normCompact(from)) || normCompact(from) === forMatchCompact) {
       // 알마 등에서 "브라질 세라도 NY2FC" 가 한 가지 품목명이면, 입고에 `Decaf 세라도 NY2FC` 가 따로 있을 때(블렌딩·단가) Brazil 별칭이면
       // 주문가가 `10. Brazil`에만 쌓이고 레시피의 디카 행 키와 달라진다. 디카 입고 행이 있으면 그 라벨로 먼저 잡는다.

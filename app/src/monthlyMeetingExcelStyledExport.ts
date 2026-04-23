@@ -29,10 +29,10 @@ const classifyRow = (row: (string | number)[]): RowKind => {
   if (a === '회의 요약' || a === '다음 액션') {
     return 'notes'
   }
-  if (/^(1\.|1-1\.|1-2\.|1-3\.|2\.|3\.|4\.|5\.)/.test(a)) {
+  if (/^(1\.|1-1\.|1-4\.|1-2\.|1-3\.|2\.|3\.|4\.|5\.)/.test(a)) {
     return 'section'
   }
-  if (a === '항목' || a === '거래처명') {
+  if (a === '항목' || a === '거래처명' || (a === '번호' && (cells[1] === '항목' || cells[1] === '거래처명'))) {
     return 'tableHead'
   }
   if (a === '월' && cells.length > 4) {
@@ -108,11 +108,13 @@ export const exportStyledMeetingMonthExcel = async (
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } }
         cell.alignment = { vertical: 'middle', horizontal: 'left' }
       } else if (kind === 'tableHead') {
+        const headCells = row.map(cellStr)
+        const isNumberedHead = headCells[0]?.trim() === '번호'
         cell.font = { bold: true, size: 10, color: { argb: 'FF334155' } }
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } }
         cell.alignment = {
           vertical: 'middle',
-          horizontal: c === 0 ? 'left' : 'right',
+          horizontal: isNumberedHead && c === 0 ? 'center' : c === 0 ? 'left' : 'right',
         }
       } else if (kind === 'meta') {
         cell.font = { size: 10, color: { argb: 'FF475569' } }
@@ -129,8 +131,15 @@ export const exportStyledMeetingMonthExcel = async (
       } else if (kind === 'empty') {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
       } else {
+        const s0 = cellStr(row[0]).trim()
+        const isLikelyIndexCol =
+          c === 0 &&
+          (s0 === '—' || /^[①-⑳]$/.test(s0) || /^\d+\.$/.test(s0))
         cell.font = { size: 10, color: { argb: 'FF0F172A' } }
-        cell.alignment = { vertical: 'middle', horizontal: c === 0 ? 'left' : 'right' }
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: isLikelyIndexCol ? 'center' : c === 0 ? 'left' : 'right',
+        }
         if (dataStripe % 2 === 1) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } }
         }

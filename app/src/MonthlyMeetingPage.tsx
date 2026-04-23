@@ -23,11 +23,16 @@ import {
   GREEN_BEAN_ORDER_SAVED_EVENT,
   GREEN_BEAN_ORDER_STORAGE_KEY,
 } from './GreenBeanOrderPage'
-import { INVENTORY_STATUS_STORAGE_KEY } from './InventoryStatusPage'
+import {
+  INVENTORY_STATUS_CACHE_EVENT,
+  INVENTORY_STATUS_STORAGE_KEY,
+  inventoryPageScopedKey,
+} from './InventoryStatusPage'
 import { exportStyledMeetingMonthExcel, sanitizeExcelFileBaseName } from './monthlyMeetingExcelStyledExport'
 import { dayIndexForReferenceDate } from './inventoryStatusUtils'
 import {
   monthlyMeetingData,
+  type MeetingMonthlyRow,
   type MeetingProductionRow,
   type MeetingStoreSalesRow,
   type MeetingValueRow,
@@ -97,8 +102,6 @@ type MonthlyMeetingNotes = {
 type MonthlyMeetingMonthState = {
   currentMonthSales: MeetingValueRow[]
   currentMonthCosts: MeetingValueRow[]
-  materialCostDetails: MeetingValueRow[]
-  otherCostDetails: MeetingValueRow[]
   storeSales: MeetingStoreSalesRow
   productionRow: MeetingProductionRow
   inventoryRow: MeetingProductionRow
@@ -264,12 +267,235 @@ const formatYmKorean = (ym: string) => {
   const parsed = parseYm(ym)
   return parsed ? `${parsed.y}년 ${parsed.m}월` : ym.trim()
 }
-const isComputedSalesRow = (label: string) => label === '⑧총매출' || label === '⑨순이익'
-const isComputedCostRow = (label: string) => label === '⑨비용계'
-const isComputedDetailRow = (label: string) => label === '비용계'
-const isComputedRoastingRow = (label: string) => label === '합 계' || label === '순이익'
-/** 로스팅 표에서 거래처 매출 블록 아래에 오는 집계·비용·손익 행 */
-const ROASTING_SUMMARY_BLOCK_LABELS = new Set(['합 계', '생두비용', '순이익'])
+/** `label`은 사용자가 바꿀 수 있음 — 집계는 `role` / 구(레거시) `label`로 식별 */
+const isSalesTotalRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) =>
+  r.role === 'salesTotal' || r.label === '⑧총매출'
+const isSalesNetRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) =>
+  r.role === 'salesNet' || r.label === '⑨순이익'
+const isComputedSalesRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) => isSalesTotalRow(r) || isSalesNetRow(r)
+
+const isCostGrandRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) =>
+  r.role === 'costsGrand' || r.label === '⑨비용계'
+
+const isRoastSubtotalRow = (r: Pick<MeetingMonthlyRow, 'label' | 'roastRole'>) =>
+  r.roastRole === 'subtotal' || r.label === '합 계' || r.label === '합계'
+const isRoastNetRow = (r: Pick<MeetingMonthlyRow, 'label' | 'roastRole'>) =>
+  r.roastRole === 'net' || r.label === '순이익'
+const isRoastBeanCostRow = (r: Pick<MeetingMonthlyRow, 'label' | 'roastRole'>) =>
+  r.roastRole === 'beanCost' || r.label === '생두비용'
+const isRoastFixedBlockRow = (r: Pick<MeetingMonthlyRow, 'label' | 'roastRole'>) =>
+  isRoastSubtotalRow(r) || isRoastNetRow(r) || isRoastBeanCostRow(r)
+const isRoastClientRow = (r: Pick<MeetingMonthlyRow, 'label' | 'roastRole'>) =>
+  r.roastRole === 'client' || (!r.roastRole && !isRoastFixedBlockRow(r))
+/** 집계·순익: 금액 셀 읽기전용(배지와 동일) */
+const isRoastReadonlyAmountRow = (r: Pick<MeetingMonthlyRow, 'label' | 'roastRole'>) =>
+  isRoastSubtotalRow(r) || isRoastNetRow(r)
+
+const costRowKey = (r: Pick<MeetingValueRow, 'label' | 'expenseKey' | 'role'>) => r.expenseKey ?? r.label
+
+const pickCostLineAmount = (rows: MeetingValueRow[], key: string) =>
+  rows.find((row) => costRowKey(row) === key)?.amount ?? 0
+
+const meetingValueRowsSignature = (rows: MeetingValueRow[]) =>
+  JSON.stringify(
+    rows.map((r) => ({ label: r.label, amount: r.amount, role: r.role, expenseKey: r.expenseKey })),
+  )
+
+/** ①…⑳ — 인덱스는 화면/엑셀에만 쓰고, 저장된 `label`에는 넣지 않습니다. */
+const CIRCLED_1_20 = ['', '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳'] as const
+
+const circledOrPlain = (n: number): string => {
+  if (n >= 1 && n < CIRCLED_1_20.length) {
+    return CIRCLED_1_20[n]!
+  }
+  if (n > 0) {
+    return `${n}.`
+  }
+  return '—'
+}
+
+/** 항목 입력에서 선행 ①…⑳ 또는 `1. ` 형태의 번호를 제거합니다(여러 겹이면 반복). */
+const stripLeadingIndexFromLabel = (label: string): string => {
+  const orig = label.trim()
+  let s = orig
+  for (let pass = 0; pass < 6; pass += 1) {
+    let changed = false
+    for (const c of CIRCLED_1_20) {
+      if (c && s.startsWith(c)) {
+        s = s.slice(c.length).trim()
+        changed = true
+        break
+      }
+    }
+    if (changed) {
+      continue
+    }
+    const numMatch = s.match(/^\d{1,2}[\s.)-]+/)
+    if (numMatch) {
+      s = s.slice(numMatch[0]!.length).trim()
+      continue
+    }
+    break
+  }
+  if (!s) {
+    return orig
+  }
+  return s
+}
+
+const isValueRowIndexSkipped = (r: MeetingValueRow, kind: 'sales' | 'costs'): boolean =>
+  kind === 'sales' ? isComputedSalesRow(r) : isCostGrandRow(r)
+
+const meetingValueRowIndexText = (rows: MeetingValueRow[], index: number, kind: 'sales' | 'costs'): string => {
+  const row = rows[index]!
+  if (isValueRowIndexSkipped(row, kind)) {
+    return '—'
+  }
+  let n = 0
+  for (let i = 0; i <= index; i += 1) {
+    if (!isValueRowIndexSkipped(rows[i]!, kind)) {
+      n += 1
+    }
+  }
+  return circledOrPlain(n)
+}
+
+const meetingRoastRowIndexText = (rows: MonthlyMeetingData['roastingSales'], index: number): string => {
+  const row = rows[index]!
+  if (isRoastFixedBlockRow(row)) {
+    return '—'
+  }
+  let n = 0
+  for (let i = 0; i <= index; i += 1) {
+    if (isRoastClientRow(rows[i]!)) {
+      n += 1
+    }
+  }
+  return circledOrPlain(n)
+}
+
+/** 보기 모드에서 거래처가 일부만 보일 때도 ①②③이 연속이 되도록 표시 순서 기준으로 번호를 냅니다. */
+const meetingRoastDisplayIndexText = (
+  display: { row: Pick<MeetingMonthlyRow, 'label' | 'roastRole'> }[],
+  displayIndex: number,
+): string => {
+  const row = display[displayIndex]!.row
+  if (!isRoastClientRow(row)) {
+    return '—'
+  }
+  let n = 0
+  for (let i = 0; i <= displayIndex; i += 1) {
+    if (isRoastClientRow(display[i]!.row)) {
+      n += 1
+    }
+  }
+  return circledOrPlain(n)
+}
+
+/** 1. 요약 — 매출·비용·재료·기타 4칸(동일 UI, 집계 행·점유비 열 유무만 다름) */
+const MeetingSummaryValueCard = (props: {
+  tableId: string
+  title: string
+  newRowButtonLabel: string
+  rows: MeetingValueRow[]
+  showShareColumn: boolean
+  editMode: boolean
+  indexKind: 'sales' | 'costs'
+  isAmountReadonly: (r: MeetingValueRow) => boolean
+  onAddRow: () => void
+  onLabelChange: (rowIndex: number, value: string) => void
+  onValueChange: (rowIndex: number, value: string) => void
+  onRemoveRow: (rowIndex: number) => void
+}) => {
+  const {
+    tableId,
+    title,
+    newRowButtonLabel,
+    rows,
+    showShareColumn,
+    editMode,
+    indexKind,
+    isAmountReadonly,
+    onAddRow,
+    onLabelChange,
+    onValueChange,
+    onRemoveRow,
+  } = props
+  return (
+    <article className="meeting-card">
+      <div className="meeting-card-header">
+        <h3>{title}</h3>
+        {editMode ? (
+          <button type="button" className="ghost-button meeting-mini-button" onClick={onAddRow}>
+            {newRowButtonLabel}
+          </button>
+        ) : null}
+      </div>
+      <table className="meeting-table meeting-table-compact">
+        <thead>
+          <tr>
+            <th className="meeting-col-idx">번호</th>
+            <th>항목</th>
+            <th>금액</th>
+            {showShareColumn ? <th>점유비</th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, rowIndex) => (
+            <tr key={`${tableId}-${rowIndex}`}>
+              <td className="meeting-col-idx" title="자동">
+                {meetingValueRowIndexText(rows, rowIndex, indexKind)}
+              </td>
+              <td>
+                {editMode ? (
+                  <div className="meeting-header-edit-row">
+                    <input
+                      className="meeting-header-input"
+                      type="text"
+                      value={row.label}
+                      onChange={(event) => onLabelChange(rowIndex, event.target.value)}
+                    />
+                    {!isAmountReadonly(row) ? (
+                      <button type="button" className="meeting-icon-button" onClick={() => onRemoveRow(rowIndex)}>
+                        -
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  row.label
+                )}
+              </td>
+              <td>
+                <input
+                  className={
+                    isAmountReadonly(row) ? 'meeting-cell-input meeting-cell-input-readonly' : 'meeting-cell-input'
+                  }
+                  type="text"
+                  inputMode="numeric"
+                  value={formatAmountForInput(row.amount)}
+                  readOnly={isAmountReadonly(row)}
+                  onChange={(event) => onValueChange(rowIndex, event.target.value)}
+                />
+              </td>
+              {showShareColumn ? (
+                <td>
+                  <input
+                    className="meeting-cell-input meeting-cell-input-readonly"
+                    type="text"
+                    inputMode="decimal"
+                    value={formatSharePercent(row.share)}
+                    readOnly
+                  />
+                </td>
+              ) : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </article>
+  )
+}
+
 const parseMonthLabel = (value: unknown) => {
   if (typeof value !== 'string') {
     return null
@@ -357,11 +583,10 @@ const mergeRoastingSalesWithStatementAggregates = (
   roastingSales: MonthlyMeetingData['roastingSales'],
   aggregates: Map<string, { november: number; december: number; january: number }>,
 ): MonthlyMeetingData['roastingSales'] => {
-  const computedLabels = new Set(['합 계', '순이익', '생두비용'])
   const norm = (label: string) => normalizeClientLabel(label)
 
   const updated = roastingSales.map((row) => {
-    if (computedLabels.has(row.label)) {
+    if (isRoastFixedBlockRow(row)) {
       return row
     }
     const agg = aggregates.get(norm(row.label))
@@ -378,10 +603,10 @@ const mergeRoastingSalesWithStatementAggregates = (
   })
 
   const existingKeys = new Set(
-    updated.filter((row) => !computedLabels.has(row.label)).map((row) => norm(row.label)),
+    updated.filter((row) => isRoastClientRow(row)).map((row) => norm(row.label)),
   )
 
-  const insertIndex = updated.findIndex((row) => row.label === '합 계')
+  const insertIndex = updated.findIndex((row) => isRoastSubtotalRow(row))
   const insertAt = insertIndex === -1 ? updated.length : insertIndex
   const extras: MonthlyMeetingData['roastingSales'] = []
 
@@ -393,6 +618,7 @@ const mergeRoastingSalesWithStatementAggregates = (
         december: agg.december,
         january: agg.january,
         share: null,
+        roastRole: 'client',
       })
       existingKeys.add(client)
     }
@@ -513,25 +739,70 @@ const getInventoryBeanStockSummaries = (
     .filter((item) => item.name.length > 0)
 }
 
+/** 보기 모드: 가로로 긴 한 줄 표를 세로(품목 | kg)로 풀어 읽기 쉽게 함. 동일 품목명이 여러 열에 있으면 kg을 합쳐 한 줄로 표시(입출고 동기화로 생긴 중복 열 정리). */
+type MeetingKgReadRow = { displayLabel: string; kg: number; merged: boolean }
+const buildMeetingKgReadRows = (
+  columnLabels: string[],
+  values: Array<number | null | undefined>,
+  options: { hideZero: boolean; aggregateColumnIndex: number },
+): MeetingKgReadRow[] => {
+  const { hideZero, aggregateColumnIndex } = options
+  const mergeBuckets = new Map<string, { kg: number; colCount: number }>()
+  for (let i = 0; i < columnLabels.length; i++) {
+    const v = values[i]
+    const kg = typeof v === 'number' && Number.isFinite(v) ? v : 0
+    if (hideZero && kg === 0) {
+      continue
+    }
+    const raw = columnLabels[i] ?? ''
+    const trimmed = raw.trim()
+    const mergeKey = trimmed.length > 0 ? `name:${trimmed}` : `idx:${i}`
+    const prev = mergeBuckets.get(mergeKey) ?? { kg: 0, colCount: 0 }
+    prev.kg += kg
+    prev.colCount += 1
+    mergeBuckets.set(mergeKey, prev)
+  }
+  const rows: MeetingKgReadRow[] = []
+  for (const [mergeKey, { kg, colCount }] of mergeBuckets) {
+    if (mergeKey.startsWith('idx:')) {
+      const i = Number(mergeKey.slice(4))
+      const raw = columnLabels[i] ?? ''
+      const displayLabel = raw.trim() || `열 ${i + 1}`
+      rows.push({ displayLabel, kg, merged: false })
+    } else {
+      const name = mergeKey.slice('name:'.length)
+      rows.push({ displayLabel: name, kg, merged: colCount > 1 })
+    }
+  }
+  const promote =
+    aggregateColumnIndex >= 0 ? (columnLabels[aggregateColumnIndex] ?? '').trim() : ''
+  if (promote) {
+    const pr = rows.find((r) => r.displayLabel === promote)
+    const others = rows.filter((r) => r.displayLabel !== promote).sort((a, b) => b.kg - a.kg)
+    return pr ? [pr, ...others] : others
+  }
+  return [...rows].sort((a, b) => b.kg - a.kg)
+}
+
 const computeCurrentMonthCosts = (rows: MeetingValueRow[]) => {
-  const totalCosts = sumValues(rows.filter((row) => row.label !== '⑨비용계').map((row) => row.amount))
+  const totalCosts = sumValues(rows.filter((row) => !isCostGrandRow(row)).map((row) => row.amount))
 
   return rows.map((row) =>
-    row.label === '⑨비용계'
+    isCostGrandRow(row)
       ? { ...row, amount: totalCosts, share: null }
       : { ...row, share: totalCosts > 0 && row.amount !== null ? row.amount / totalCosts : null },
   )
 }
 
 const computeCurrentMonthSales = (sales: MeetingValueRow[], costs: MeetingValueRow[]) => {
-  const totalSales = sumValues(sales.filter((row) => !isComputedSalesRow(row.label)).map((row) => row.amount))
-  const totalCosts = costs.find((row) => row.label === '⑨비용계')?.amount ?? 0
+  const totalSales = sumValues(sales.filter((row) => !isComputedSalesRow(row)).map((row) => row.amount))
+  const totalCosts = costs.find((row) => isCostGrandRow(row))?.amount ?? 0
 
   return sales.map((row) => {
-    if (row.label === '⑧총매출') {
+    if (isSalesTotalRow(row)) {
       return { ...row, amount: totalSales, share: null }
     }
-    if (row.label === '⑨순이익') {
+    if (isSalesNetRow(row)) {
       return { ...row, amount: totalSales - totalCosts, share: null }
     }
 
@@ -540,22 +811,6 @@ const computeCurrentMonthSales = (sales: MeetingValueRow[], costs: MeetingValueR
       share: totalSales > 0 && row.amount !== null ? row.amount / totalSales : null,
     }
   })
-}
-
-const computeDetailRows = (rows: MeetingValueRow[]) => {
-  const total = sumValues(rows.filter((row) => !isComputedDetailRow(row.label)).map((row) => row.amount))
-
-  return rows.map((row) =>
-    isComputedDetailRow(row.label)
-      ? { ...row, amount: total, share: null }
-      : { ...row, share: total > 0 && row.amount !== null ? row.amount / total : null },
-  )
-}
-
-const computeOtherDetailRows = (rows: MeetingValueRow[]) => {
-  const total = sumValues(rows.filter((row) => !isComputedDetailRow(row.label)).map((row) => row.amount))
-
-  return rows.map((row) => (isComputedDetailRow(row.label) ? { ...row, amount: total } : row))
 }
 
 const EXPENSE_CATEGORY_TO_MEETING_COST_LABEL: Array<{
@@ -630,13 +885,14 @@ const buildMeetingCostsFromExpenses = (records: ExpenseRecord[], ym: string, bas
     map.set(meetingLabel, (map.get(meetingLabel) ?? 0) + amt)
   }
   return base.map((row) => {
-    if (row.label === '⑨비용계') {
+    if (isCostGrandRow(row)) {
       return row
     }
-    if (!map.has(row.label)) {
+    const key = costRowKey(row)
+    if (!map.has(key)) {
       return { ...row, amount: null }
     }
-    return { ...row, amount: Math.round(map.get(row.label) ?? 0) }
+    return { ...row, amount: Math.round(map.get(key) ?? 0) }
   })
 }
 
@@ -673,13 +929,13 @@ const haystackToSalesPatchKey = (hay: string): MeetingSalesPatchKey | null => {
 
 const salesRowLabelToPatchKey = (label: string): MeetingSalesPatchKey | null => {
   const t = label.trim()
-  if (/(⑤|배달|민족|배민)/.test(t)) {
+  if (/배달의민족|배민|우아한|woowahans/i.test(t) || /배달의\s*민족/.test(t)) {
     return 'baemin'
   }
-  if (/(⑥|쿠팡)/.test(t)) {
+  if (/쿠팡이츠|쿠팡/i.test(t)) {
     return 'coupang'
   }
-  if (/(⑦|땡겨요|요기요)/.test(t)) {
+  if (/땡겨요|요기요/.test(t)) {
     return 'quick'
   }
   if (/영수증/.test(t)) {
@@ -695,14 +951,6 @@ const salesRowLabelToPatchKey = (label: string): MeetingSalesPatchKey | null => 
     return 'card'
   }
   return null
-}
-
-const mergeSalesPatchMaps = (a: Map<MeetingSalesPatchKey, number>, b: Map<MeetingSalesPatchKey, number>) => {
-  const out = new Map(a)
-  for (const [k, v] of b) {
-    out.set(k, (out.get(k) ?? 0) + v)
-  }
-  return out
 }
 
 const aggregateExpenseSalesPatches = (records: ExpenseRecord[], ym: string): Map<MeetingSalesPatchKey, number> => {
@@ -727,27 +975,6 @@ const aggregateExpenseSalesPatches = (records: ExpenseRecord[], ym: string): Map
   return map
 }
 
-const aggregateDetailLabelSalesPatches = (
-  materialRows: MeetingValueRow[],
-  otherRows: MeetingValueRow[],
-): Map<MeetingSalesPatchKey, number> => {
-  const map = new Map<MeetingSalesPatchKey, number>()
-  for (const row of [...materialRows, ...otherRows]) {
-    if (isComputedDetailRow(row.label)) {
-      continue
-    }
-    if (row.amount === null || row.amount === 0) {
-      continue
-    }
-    const key = haystackToSalesPatchKey(row.label)
-    if (!key) {
-      continue
-    }
-    map.set(key, (map.get(key) ?? 0) + row.amount)
-  }
-  return map
-}
-
 const applySalesPatchesFromMap = (
   sales: MeetingValueRow[],
   patches: Map<MeetingSalesPatchKey, number>,
@@ -757,7 +984,7 @@ const applySalesPatchesFromMap = (
   }
   const consumed = new Set<MeetingSalesPatchKey>()
   return sales.map((row) => {
-    if (isComputedSalesRow(row.label)) {
+    if (isComputedSalesRow(row)) {
       return row
     }
     const pk = salesRowLabelToPatchKey(row.label)
@@ -791,7 +1018,7 @@ const computeInventoryRow = (row: MeetingProductionRow): MeetingProductionRow =>
 })
 
 const computeRoastingSales = (rows: MonthlyMeetingData['roastingSales']) => {
-  const targetRows = rows.filter((row) => !['합 계', '생두비용', '순이익'].includes(row.label))
+  const targetRows = rows.filter((row) => isRoastClientRow(row))
   const totalNovember = sumValues(targetRows.map((row) => row.november))
   const totalDecember = sumValues(targetRows.map((row) => row.december))
   const totalJanuary = sumValues(targetRows.map((row) => row.january))
@@ -799,7 +1026,7 @@ const computeRoastingSales = (rows: MonthlyMeetingData['roastingSales']) => {
   const totalClosingMonth = totalJanuary
 
   return rows.map((row) => {
-    if (row.label === '합 계') {
+    if (isRoastSubtotalRow(row)) {
       return {
         ...row,
         november: totalNovember,
@@ -809,8 +1036,8 @@ const computeRoastingSales = (rows: MonthlyMeetingData['roastingSales']) => {
       }
     }
 
-    if (row.label === '순이익') {
-      const beanCost = rows.find((item) => item.label === '생두비용')
+    if (isRoastNetRow(row)) {
+      const beanCost = rows.find((item) => isRoastBeanCostRow(item))
       return {
         ...row,
         november: totalNovember - (beanCost?.november ?? 0),
@@ -820,7 +1047,7 @@ const computeRoastingSales = (rows: MonthlyMeetingData['roastingSales']) => {
       }
     }
 
-    if (row.label === '생두비용') {
+    if (isRoastBeanCostRow(row)) {
       return {
         ...row,
         share: null,
@@ -837,8 +1064,7 @@ const computeRoastingSales = (rows: MonthlyMeetingData['roastingSales']) => {
   })
 }
 
-/** 출금 요약: 비용현황 ①②는 세부와 중복이므로 제외, ⑨는 합계 행으로만 사용 */
-const MEETING_OUTBOUND_COST_FOR_DETAIL_SKIP = new Set(['①재료비', '②기타', '⑨비용계'])
+/** 출금: 「비용 현황」에서 ⑨(비용 합계)를 제외한 항목 + (별도인 경우) 생두비용. */
 
 type MeetingCashflowAmountLine = {
   label: string
@@ -869,11 +1095,11 @@ const buildMeetingInboundCashflowParts = (
   storeComputed: ReturnType<typeof computeStoreSales>,
 ) => {
   const channelPart: MeetingCashflowAmountLine[] = computedSales
-    .filter((r) => !isComputedSalesRow(r.label))
+    .filter((r) => !isComputedSalesRow(r))
     .map((r) => ({ label: r.label, amount: r.amount, share: null }))
 
   const roastingLines: MeetingCashflowAmountLine[] = roastingComputed
-    .filter((r) => !['합 계', '생두비용', '순이익'].includes(r.label))
+    .filter((r) => isRoastClientRow(r))
     .filter((r) => (r.january ?? 0) !== 0)
     .map((r) => ({
       label: `로스팅 · ${r.label}`,
@@ -907,13 +1133,9 @@ const buildMeetingInboundCashflowParts = (
 
 const getMeetingOutboundCashflow = (
   computedCosts: MeetingValueRow[],
-  materialDetails: MeetingValueRow[],
-  otherDetails: MeetingValueRow[],
   roastingComputed: ReturnType<typeof computeRoastingSales>,
 ) => {
-  const materialLines = materialDetails.filter((r) => !isComputedDetailRow(r.label))
-  const otherLines = otherDetails.filter((r) => !isComputedDetailRow(r.label))
-  const beanRaw = roastingComputed.find((r) => r.label === '생두비용')?.january
+  const beanRaw = roastingComputed.find((r) => isRoastBeanCostRow(r))?.january
   const beanN = typeof beanRaw === 'number' && Number.isFinite(beanRaw) ? beanRaw : 0
   const hasRoastingBean = beanN !== 0
   const roastingBeanCost: MeetingCashflowAmountLine | null = hasRoastingBean
@@ -921,21 +1143,16 @@ const getMeetingOutboundCashflow = (
     : null
 
   const extraCostLines = computedCosts.filter((r) => {
-    if (MEETING_OUTBOUND_COST_FOR_DETAIL_SKIP.has(r.label)) {
+    if (isCostGrandRow(r)) {
       return false
     }
-    if (hasRoastingBean && r.label === '⑨로스팅실원두') {
+    if (hasRoastingBean && (costRowKey(r) === '⑨로스팅실원두' || r.label === '⑨로스팅실원두')) {
       return false
     }
     return true
   })
-  /** 표에 나열한 줄과 동일하게 맞춤(로스팅 생두비용이 비용표 ⑨에 없을 때도 포함) */
-  const totalOut =
-    sumValues(materialLines.map((r) => r.amount)) +
-    sumValues(otherLines.map((r) => r.amount)) +
-    (roastingBeanCost?.amount ?? 0) +
-    sumValues(extraCostLines.map((r) => r.amount))
-  return { materialLines, otherLines, roastingBeanCost, extraCostLines, totalOut }
+  const totalOut = sumValues(extraCostLines.map((r) => r.amount)) + (roastingBeanCost?.amount ?? 0)
+  return { roastingBeanCost, extraCostLines, totalOut }
 }
 
 const getMeetingCashflowPl = (extendedTotalIn: number, extendedTotalOut: number) => ({
@@ -979,18 +1196,6 @@ const buildOutboundCashflowExcelRows = (parts: MeetingOutboundCashflowParts): (s
     ['1-5. 출금액 요약', '', '', ''],
     ['항목', '금액', '', ''],
   ]
-  if (parts.materialLines.length > 0) {
-    rows.push(['〈재료비 세부〉', '', '', ''])
-    for (const row of parts.materialLines) {
-      rows.push([row.label, excelCellAmount(row.amount), '', ''])
-    }
-  }
-  if (parts.otherLines.length > 0) {
-    rows.push(['〈기타 세부〉', '', '', ''])
-    for (const row of parts.otherLines) {
-      rows.push([row.label, excelCellAmount(row.amount), '', ''])
-    }
-  }
   if (parts.roastingBeanCost) {
     rows.push(['〈로스팅실 생두비용〉', '', '', ''])
     rows.push([
@@ -1000,7 +1205,7 @@ const buildOutboundCashflowExcelRows = (parts: MeetingOutboundCashflowParts): (s
       '',
     ])
   }
-  rows.push(['〈비용현황(①② 제외)〉', '', '', ''])
+  rows.push(['〈비용 현황(⑨ 제외)〉', '', '', ''])
   for (const row of parts.extraCostLines) {
     rows.push([row.label, excelCellAmount(row.amount), '', ''])
   }
@@ -1025,6 +1230,7 @@ const createEmptyRoastingRow = (label: string): MonthlyMeetingData['roastingSale
   december: null,
   january: null,
   share: null,
+  roastRole: 'client',
 })
 
 const createEmptyStoreRow = (month: string): MeetingStoreSalesRow => ({
@@ -1051,8 +1257,6 @@ const createMonthStates = (data: MonthlyMeetingData) =>
     result[month] = {
       currentMonthSales: cloneValueRows(data.currentMonthSales),
       currentMonthCosts: cloneValueRows(data.currentMonthCosts),
-      materialCostDetails: cloneValueRows(data.materialCostDetails),
-      otherCostDetails: cloneValueRows(data.otherCostDetails),
       storeSales: cloneStoreRow(
         data.storeSales.find((row) => row.month === month) ?? createEmptyStoreRow(month),
       ),
@@ -1081,13 +1285,73 @@ const createDefaultState = (): MonthlyMeetingPageState => ({
   monthStatesByMonth: createMonthStates(monthlyMeetingData),
 })
 
+const migrateMeetingValueRow = (r: MeetingValueRow, ctx: 'sales' | 'costs'): MeetingValueRow => {
+  const out: MeetingValueRow = { ...r }
+  if (!out.role) {
+    if (out.label === '⑧총매출') {
+      out.role = 'salesTotal'
+    } else if (out.label === '⑨순이익') {
+      out.role = 'salesNet'
+    } else if (out.label === '⑨비용계') {
+      out.role = 'costsGrand'
+    }
+  }
+  if (ctx === 'costs' && (out.expenseKey == null || out.expenseKey === '') && /^[①②③④⑥⑦⑧⑨]/.test(out.label)) {
+    out.expenseKey = out.label
+  }
+  out.label = stripLeadingIndexFromLabel(out.label)
+  return out
+}
+
+const migrateRoastRow = (r: MeetingMonthlyRow): MeetingMonthlyRow => {
+  let out: MeetingMonthlyRow
+  if (r.roastRole) {
+    out = { ...r }
+  } else if (r.label === '합 계' || r.label === '합계') {
+    out = { ...r, roastRole: 'subtotal' }
+  } else if (r.label === '생두비용') {
+    out = { ...r, roastRole: 'beanCost' }
+  } else if (r.label === '순이익') {
+    out = { ...r, roastRole: 'net' }
+  } else {
+    out = { ...r, roastRole: 'client' }
+  }
+  if (isRoastClientRow(out)) {
+    return { ...out, label: stripLeadingIndexFromLabel(out.label) }
+  }
+  return out
+}
+
+const migrateMeetingTemplateData = (d: MonthlyMeetingData): MonthlyMeetingData => ({
+  title: d.title,
+  storeName: d.storeName,
+  monthLabel: d.monthLabel,
+  months: d.months,
+  currentMonthSales: d.currentMonthSales.map((row) => migrateMeetingValueRow(row, 'sales')),
+  currentMonthCosts: d.currentMonthCosts.map((row) => migrateMeetingValueRow(row, 'costs')),
+  roastingSales: d.roastingSales.map(migrateRoastRow),
+  storeSales: d.storeSales,
+  productionColumns: d.productionColumns,
+  productionRows: d.productionRows,
+  inventoryColumns: d.inventoryColumns,
+  inventoryRows: d.inventoryRows,
+})
+
+const migrateMonthState = (s: MonthlyMeetingMonthState): MonthlyMeetingMonthState => ({
+  currentMonthSales: s.currentMonthSales.map((row) => migrateMeetingValueRow(row, 'sales')),
+  currentMonthCosts: s.currentMonthCosts.map((row) => migrateMeetingValueRow(row, 'costs')),
+  storeSales: s.storeSales,
+  productionRow: s.productionRow,
+  inventoryRow: s.inventoryRow,
+})
+
 const normalizeMonthlyMeetingPageState = (raw: unknown): MonthlyMeetingPageState => {
   const parsed = (raw && typeof raw === 'object' ? raw : null) as Partial<MonthlyMeetingPageState> | null
   const parsedData = (parsed?.data as MonthlyMeetingData | undefined) ?? monthlyMeetingData
-  const data = {
+  const data = migrateMeetingTemplateData({
     ...parsedData,
     title: normalizeMeetingTitle(parsedData.title ?? monthlyMeetingData.title, parsedData.months),
-  }
+  })
 
   return migrateProductionHeaderToOutbound(
     stripInventoryTotalAmountColumn({
@@ -1099,7 +1363,9 @@ const normalizeMonthlyMeetingPageState = (raw: unknown): MonthlyMeetingPageState
       },
       monthStatesByMonth: {
         ...createMonthStates(data),
-        ...(parsed?.monthStatesByMonth ?? {}),
+        ...Object.fromEntries(
+          Object.entries(parsed?.monthStatesByMonth ?? {}).map(([k, st]) => [k, migrateMonthState(st as MonthlyMeetingMonthState)]),
+        ),
       },
     }),
   )
@@ -1185,6 +1451,8 @@ const migrateProductionHeaderToOutbound = (state: MonthlyMeetingPageState): Mont
 
 function MonthlyMeetingPage() {
   const { mode, activeCompanyId, user } = useAppRuntime()
+  /** 입출고 페이지와 동일한 localStorage 키 + 캐시 갱신 시 4번 출고·재고 표를 다시 읽음 */
+  const [inventoryLinkTick, setInventoryLinkTick] = useState(0)
   const [pageState, setPageState] = useState<MonthlyMeetingPageState>(createDefaultState)
   const [sectionEditModes, setSectionEditModes] = useState<Record<MeetingSectionEditKey, boolean>>(
     readStoredSectionEditModes,
@@ -1222,6 +1490,8 @@ function MonthlyMeetingPage() {
   const [expensePageStorageRev, setExpensePageStorageRev] = useState(0)
   const [outboundShareChartOpen, setOutboundShareChartOpen] = useState(true)
   const [outboundPieHoveredSliceIndex, setOutboundPieHoveredSliceIndex] = useState<number | null>(null)
+  /** 출고·재고 세부 표는 모달에서만 표시 */
+  const [piTableModal, setPiTableModal] = useState<null | 'outbound' | 'inventory'>(null)
   const outboundPieGfxId = useId().replace(/:/g, '')
   const outboundPieFilterId = `meetingOutboundPieDepth-${outboundPieGfxId}`
   const outboundPieGradId = (index: number) => `meetingOutboundPieGrad-${outboundPieGfxId}-${index}`
@@ -1244,7 +1514,7 @@ function MonthlyMeetingPage() {
         data: {
           ...current.data,
           roastingSales: current.data.roastingSales.map((row) =>
-            row.label === '생두비용' ? { ...row, january: null } : row,
+            isRoastBeanCostRow(row) ? { ...row, january: null } : row,
           ),
         },
       }))
@@ -1258,7 +1528,7 @@ function MonthlyMeetingPage() {
       data: {
         ...current.data,
         roastingSales: current.data.roastingSales.map((row) =>
-          row.label === '생두비용' ? { ...row, january: agg.sumMoney } : row,
+          isRoastBeanCostRow(row) ? { ...row, january: agg.sumMoney } : row,
         ),
       },
     }))
@@ -1294,6 +1564,23 @@ function MonthlyMeetingPage() {
       window.removeEventListener('storage', onStorage)
     }
   }, [])
+
+  useEffect(() => {
+    const bump = () => setInventoryLinkTick((n) => n + 1)
+    window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, bump)
+    return () => window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, bump)
+  }, [])
+
+  useEffect(() => {
+    const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === key) {
+        setInventoryLinkTick((n) => n + 1)
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [mode, activeCompanyId])
 
   /** 거래명세 납품일(집계 월) 기준으로 2번 표 거래처명 행의 매출 열을 자동 반영 */
   useEffect(() => {
@@ -1340,7 +1627,7 @@ function MonthlyMeetingPage() {
     const next = agg.sumMoney
     setPageState((current) => {
       const rows = current.data.roastingSales
-      const idx = rows.findIndex((r) => r.label === '생두비용')
+      const idx = rows.findIndex((r) => isRoastBeanCostRow(r))
       if (idx === -1) {
         return current
       }
@@ -1367,9 +1654,6 @@ function MonthlyMeetingPage() {
       const fallbackStates = createMonthStates(current.data)
       let nextMonthStates = { ...current.monthStatesByMonth }
       let changed = false
-      const valueRowsSignature = (rows: MeetingValueRow[]) =>
-        JSON.stringify(rows.map((r) => ({ label: r.label, amount: r.amount })))
-
       for (const monthLabel of current.data.months) {
         const ym = meetingMonthLabelToExpenseYm(monthLabel, records)
         if (!ym) {
@@ -1377,16 +1661,12 @@ function MonthlyMeetingPage() {
         }
         const base = nextMonthStates[monthLabel] ?? fallbackStates[monthLabel]!
         const nextCosts = computeCurrentMonthCosts(buildMeetingCostsFromExpenses(records, ym, base.currentMonthCosts))
-        const salesPatchMap = mergeSalesPatchMaps(
-          aggregateExpenseSalesPatches(records, ym),
-          aggregateDetailLabelSalesPatches(base.materialCostDetails, base.otherCostDetails),
-        )
+        const salesPatchMap = aggregateExpenseSalesPatches(records, ym)
         const nextSalesRaw = applySalesPatchesFromMap(base.currentMonthSales, salesPatchMap)
 
         const costsUnchanged =
-          valueRowsSignature(nextCosts) ===
-          valueRowsSignature(computeCurrentMonthCosts(base.currentMonthCosts))
-        const salesUnchanged = valueRowsSignature(nextSalesRaw) === valueRowsSignature(base.currentMonthSales)
+          meetingValueRowsSignature(nextCosts) === meetingValueRowsSignature(computeCurrentMonthCosts(base.currentMonthCosts))
+        const salesUnchanged = meetingValueRowsSignature(nextSalesRaw) === meetingValueRowsSignature(base.currentMonthSales)
 
         if (costsUnchanged && salesUnchanged) {
           continue
@@ -1536,7 +1816,29 @@ function MonthlyMeetingPage() {
   }, [sectionEditModes])
 
   useEffect(() => {
-    const inventoryRaw = window.localStorage.getItem(INVENTORY_STATUS_STORAGE_KEY)
+    if (!piTableModal) {
+      return
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPiTableModal(null)
+      }
+    }
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [piTableModal])
+
+  useEffect(() => {
+    if (!isStorageReady) {
+      return
+    }
+    const inventoryKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
+    const inventoryRaw = window.localStorage.getItem(inventoryKey)
     if (!inventoryRaw) {
       return
     }
@@ -1701,7 +2003,7 @@ function MonthlyMeetingPage() {
     } catch {
       // Ignore malformed storage payloads.
     }
-  }, [pageState.activeMonth])
+  }, [pageState.activeMonth, mode, activeCompanyId, inventoryLinkTick, isStorageReady])
 
   const { data, activeMonth, notesByMonth, monthStatesByMonth } = pageState
   const roastingSalesMonthHeaderLabel = formatYmKorean(roastingSalesReferenceYm)
@@ -1746,16 +2048,6 @@ function MonthlyMeetingPage() {
     [activeMonthState.currentMonthSales, computedCurrentMonthCosts],
   )
 
-  const computedMaterialCostDetails = useMemo(
-    () => computeDetailRows(activeMonthState.materialCostDetails),
-    [activeMonthState.materialCostDetails],
-  )
-
-  const computedOtherCostDetails = useMemo(
-    () => computeOtherDetailRows(activeMonthState.otherCostDetails),
-    [activeMonthState.otherCostDetails],
-  )
-
   const computedStoreSales = useMemo(
     () => computeStoreSales(activeMonthState.storeSales),
     [activeMonthState.storeSales],
@@ -1778,18 +2070,8 @@ function MonthlyMeetingPage() {
 
   const outboundCashflow = useMemo(
     () =>
-      getMeetingOutboundCashflow(
-        computedCurrentMonthCosts,
-        computedMaterialCostDetails,
-        computedOtherCostDetails,
-        computedRoastingSales,
-      ),
-    [
-      computedCurrentMonthCosts,
-      computedMaterialCostDetails,
-      computedOtherCostDetails,
-      computedRoastingSales,
-    ],
+      getMeetingOutboundCashflow(computedCurrentMonthCosts, computedRoastingSales),
+    [computedCurrentMonthCosts, computedRoastingSales],
   )
 
   const cashflowPl = useMemo(
@@ -1805,6 +2087,37 @@ function MonthlyMeetingPage() {
   const outboundAggregateColumnIndex = useMemo(
     () => findOutboundAggregateColumnIndex(data.productionColumns),
     [data.productionColumns],
+  )
+
+  const productionReadRows = useMemo(
+    () =>
+      buildMeetingKgReadRows(data.productionColumns, activeMonthState.productionRow.values, {
+        hideZero: true,
+        aggregateColumnIndex: outboundAggregateColumnIndex,
+      }),
+    [data.productionColumns, activeMonthState.productionRow.values, outboundAggregateColumnIndex],
+  )
+
+  const inventoryReadRows = useMemo(
+    () =>
+      buildMeetingKgReadRows(data.inventoryColumns, computedInventoryRow.values, {
+        hideZero: true,
+        aggregateColumnIndex: -1,
+      }),
+    [data.inventoryColumns, computedInventoryRow.values],
+  )
+
+  const outboundSummaryKg = useMemo(() => {
+    if (outboundAggregateColumnIndex >= 0) {
+      const v = activeMonthState.productionRow.values[outboundAggregateColumnIndex]
+      return typeof v === 'number' && Number.isFinite(v) ? v : 0
+    }
+    return sumValues(activeMonthState.productionRow.values)
+  }, [activeMonthState.productionRow.values, outboundAggregateColumnIndex])
+
+  const inventoryTotalKg = useMemo(
+    () => sumValues(computedInventoryRow.values),
+    [computedInventoryRow.values],
   )
 
   /** 추이는 표의 「출고 합계」 한 칸만 사용(생두별 열은 합계에 이미 포함되므로 전체 합산 시 이중 계산됨). */
@@ -1885,7 +2198,7 @@ function MonthlyMeetingPage() {
       return indexed
     }
     return indexed.filter(({ row }) => {
-      if (isComputedRoastingRow(row.label) || row.label === '생두비용') {
+      if (isRoastFixedBlockRow(row)) {
         return true
       }
       const v = row.january
@@ -1893,47 +2206,56 @@ function MonthlyMeetingPage() {
     })
   }, [computedRoastingSales, sectionEditModes.roasting])
 
-  const activeOverview = useMemo(
-    () => [
-      {
-        label: `${activeMonth} 입금 합계`,
-        value: inboundCashflow.totalIn,
-        unit: 'won' as const,
-      },
-      {
-        label: `${activeMonth} 입출금 순손익`,
-        value: cashflowPl.net,
-        unit: 'won' as const,
-      },
-      {
-        label: `${activeMonth} 비용계`,
-        value: computedCurrentMonthCosts.find((row) => row.label === '⑨비용계')?.amount ?? 0,
-        unit: 'won' as const,
-      },
-      {
-        label: `${activeMonth} 재료비`,
-        value: computedCurrentMonthCosts.find((row) => row.label === '①재료비')?.amount ?? 0,
-        unit: 'won' as const,
-      },
-      {
-        label: `${activeMonth} 인건비`,
-        value: computedCurrentMonthCosts.find((row) => row.label === '⑧인건비')?.amount ?? 0,
-        unit: 'won' as const,
-      },
-      {
-        label: `${activeMonth} 재고 합계`,
-        value: sumValues(computedInventoryRow.values),
-        unit: 'kg' as const,
-      },
-    ],
-    [
-      activeMonth,
-      cashflowPl.net,
-      computedCurrentMonthCosts,
-      computedInventoryRow,
-      inboundCashflow.totalIn,
-    ],
-  )
+  /**
+   * 입출고 상단「기말 합」과 맞춤: 기준일·원두별 stock 합(저장된 beanRows 기준).
+   * 재고현황 표에는 수동 열·생두 열이 같이 있어 `values` 전체 합은 생두 합과 달랐음.
+   */
+  const inventoryStockTotalKgForOverview = useMemo(() => {
+    try {
+      const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
+      const inventoryRaw = window.localStorage.getItem(key)
+      if (!inventoryRaw) {
+        return null
+      }
+      const parsed = JSON.parse(inventoryRaw) as InventoryStorageState
+      const inventoryMonth = parseMonthLabel(parsed.referenceDate)
+      if (!inventoryMonth || inventoryMonth !== activeMonth) {
+        return null
+      }
+      const refDate = typeof parsed.referenceDate === 'string' ? parsed.referenceDate : ''
+      if (refDate.length < 10) {
+        return null
+      }
+      const rows = getInventoryBeanStockSummaries(parsed.beanRows, parsed.days, refDate)
+      if (rows.length === 0) {
+        return null
+      }
+      return sumValues(rows.map((r) => r.stockAtReference))
+    } catch {
+      return null
+    }
+  }, [activeMonth, mode, activeCompanyId, inventoryLinkTick])
+
+  const activeOverview = useMemo(() => {
+    const costs = computedCurrentMonthCosts
+    const costGrand = costs.find((row) => isCostGrandRow(row))?.amount ?? 0
+    const inventoryTotalKg = inventoryStockTotalKgForOverview ?? sumValues(computedInventoryRow.values)
+    return [
+      { label: `${activeMonth} 입금 합계`, value: inboundCashflow.totalIn, unit: 'won' as const },
+      { label: `${activeMonth} 입출금 순손익`, value: cashflowPl.net, unit: 'won' as const },
+      { label: `${activeMonth} 비용계`, value: costGrand, unit: 'won' as const },
+      { label: `${activeMonth} 재료비`, value: pickCostLineAmount(costs, '①재료비'), unit: 'won' as const },
+      { label: `${activeMonth} 인건비`, value: pickCostLineAmount(costs, '⑧인건비'), unit: 'won' as const },
+      { label: `${activeMonth} 재고 합계`, value: inventoryTotalKg, unit: 'kg' as const },
+    ]
+  }, [
+    activeMonth,
+    cashflowPl.net,
+    computedCurrentMonthCosts,
+    computedInventoryRow,
+    inboundCashflow.totalIn,
+    inventoryStockTotalKgForOverview,
+  ])
 
   const updateData = (updater: (current: MonthlyMeetingData) => MonthlyMeetingData) => {
     setPageState((current) => ({
@@ -1943,11 +2265,7 @@ function MonthlyMeetingPage() {
   }
 
   const updateValueRow = (
-    section:
-      | 'currentMonthSales'
-      | 'currentMonthCosts'
-      | 'materialCostDetails'
-      | 'otherCostDetails',
+    section: 'currentMonthSales' | 'currentMonthCosts',
     rowIndex: number,
     value: string,
   ) => {
@@ -2013,18 +2331,15 @@ function MonthlyMeetingPage() {
   }
 
   const updateMonthStateLabel = (
-    section:
-      | 'currentMonthSales'
-      | 'currentMonthCosts'
-      | 'materialCostDetails'
-      | 'otherCostDetails',
+    section: 'currentMonthSales' | 'currentMonthCosts',
     rowIndex: number,
     value: string,
   ) => {
+    const next = stripLeadingIndexFromLabel(value)
     updateMonthState((current) => ({
       ...current,
       [section]: current[section].map((row, index) =>
-        index === rowIndex ? { ...row, label: value } : row,
+        index === rowIndex ? { ...row, label: next } : row,
       ),
     }))
   }
@@ -2034,30 +2349,22 @@ function MonthlyMeetingPage() {
     rowIndex: number,
     value: string,
   ) => {
+    const next = stripLeadingIndexFromLabel(value)
     updateData((current) => ({
       ...current,
       [section]: current[section].map((row, index) =>
-        index === rowIndex ? { ...row, label: value } : row,
+        index === rowIndex ? { ...row, label: next } : row,
       ),
     }))
   }
 
-  const addMonthStateRow = (
-    section:
-      | 'currentMonthSales'
-      | 'currentMonthCosts'
-      | 'materialCostDetails'
-      | 'otherCostDetails',
-    label: string,
-  ) => {
+  const addMonthStateRow = (section: 'currentMonthSales' | 'currentMonthCosts', label: string) => {
     updateMonthState((current) => {
       const rows = current[section]
       const insertIndex =
         section === 'currentMonthSales'
-          ? rows.findIndex((row) => isComputedSalesRow(row.label))
-          : section === 'currentMonthCosts'
-            ? rows.findIndex((row) => isComputedCostRow(row.label))
-            : rows.findIndex((row) => isComputedDetailRow(row.label))
+          ? rows.findIndex((row) => isComputedSalesRow(row))
+          : rows.findIndex((row) => isCostGrandRow(row))
 
       const nextRows = [...rows]
       nextRows.splice(insertIndex === -1 ? nextRows.length : insertIndex, 0, createEmptyValueRow(label))
@@ -2069,14 +2376,7 @@ function MonthlyMeetingPage() {
     })
   }
 
-  const removeMonthStateRow = (
-    section:
-      | 'currentMonthSales'
-      | 'currentMonthCosts'
-      | 'materialCostDetails'
-      | 'otherCostDetails',
-    rowIndex: number,
-  ) => {
+  const removeMonthStateRow = (section: 'currentMonthSales' | 'currentMonthCosts', rowIndex: number) => {
     updateMonthState((current) => ({
       ...current,
       [section]: current[section].filter((_, index) => index !== rowIndex),
@@ -2085,7 +2385,7 @@ function MonthlyMeetingPage() {
 
   const addRoastingSalesRow = () => {
     updateData((current) => {
-      const insertIndex = current.roastingSales.findIndex((row) => row.label === '합 계')
+      const insertIndex = current.roastingSales.findIndex((row) => isRoastSubtotalRow(row))
       const nextRows = [...current.roastingSales]
       nextRows.splice(insertIndex === -1 ? nextRows.length : insertIndex, 0, createEmptyRoastingRow('새 거래처'))
       return {
@@ -2180,8 +2480,6 @@ function MonthlyMeetingPage() {
       const monthState = monthStatesByMonth[month] ?? createMonthStates(data)[month]
       const monthCosts = computeCurrentMonthCosts(monthState.currentMonthCosts)
       const monthSales = computeCurrentMonthSales(monthState.currentMonthSales, monthCosts)
-      const materialDetails = computeDetailRows(monthState.materialCostDetails)
-      const otherDetails = computeOtherDetailRows(monthState.otherCostDetails)
       const storeSales = computeStoreSales(monthState.storeSales)
       const roastingComputedExport = computeRoastingSales(data.roastingSales)
       const inboundParts = buildMeetingInboundCashflowParts(
@@ -2189,12 +2487,7 @@ function MonthlyMeetingPage() {
         roastingComputedExport,
         storeSales,
       )
-      const outboundCf = getMeetingOutboundCashflow(
-        monthCosts,
-        materialDetails,
-        otherDetails,
-        roastingComputedExport,
-      )
+      const outboundCf = getMeetingOutboundCashflow(monthCosts, roastingComputedExport)
       const plCf = getMeetingCashflowPl(inboundParts.totalIn, outboundCf.totalOut)
       const inventoryRow = computeInventoryRow(monthState.inventoryRow)
       const notes = notesByMonth[month] ?? { summary: '', actions: '' }
@@ -2205,8 +2498,9 @@ function MonthlyMeetingPage() {
         ['월', month, '', ''],
         [],
         ['1. 당월 매출', '', '', ''],
-        ['항목', '금액', '점유비', ''],
-        ...monthSales.map((row) => [
+        ['번호', '항목', '금액', '점유비', ''],
+        ...monthSales.map((row, rowIndex) => [
+          meetingValueRowIndexText(monthSales, rowIndex, 'sales'),
           row.label,
           excelCellAmount(row.amount),
           excelCellShare(row.share),
@@ -2214,40 +2508,29 @@ function MonthlyMeetingPage() {
         ]),
         [],
         ['1-1. 당월 비용현황', '', '', ''],
-        ['항목', '금액', '점유비', ''],
-        ...monthCosts.map((row) => [
+        ['번호', '항목', '금액', '점유비', ''],
+        ...monthCosts.map((row, rowIndex) => [
+          meetingValueRowIndexText(monthCosts, rowIndex, 'costs'),
           row.label,
           excelCellAmount(row.amount),
           excelCellShare(row.share),
           '',
         ]),
-        [],
-        ['1-2. 재료비 세부사항', '', '', ''],
-        ['항목', '금액', '점유비', ''],
-        ...materialDetails.map((row) => [
-          row.label,
-          excelCellAmount(row.amount),
-          excelCellShare(row.share),
-          '',
-        ]),
-        [],
-        ['1-3. 기타 세부사항', '', '', ''],
-        ['항목', '금액', '', ''],
-        ...otherDetails.map((row) => [row.label, excelCellAmount(row.amount), '', '']),
         [],
         ...buildInboundCashflowExcelRows(inboundParts),
         [],
         ...buildOutboundCashflowExcelRows(outboundCf),
         [],
-        ['1-6. 입출금·손익 요약', '', '', ''],
+        ['1-4. 입출금·손익 요약', '', '', ''],
         ['구분', '금액', '', ''],
         ['입금 합계', excelCellAmount(plCf.totalIn), '', ''],
         ['출금 합계', excelCellAmount(plCf.totalOut), '', ''],
         ['입출금 순손익 (입금 합계 − 출금 합계)', excelCellAmount(plCf.net), '', ''],
         [],
         ['2. 로스팅실 매출 및 생두비용현황', '', '', ''],
-        ['거래처명', roastingSalesMonthHeaderLabel, '점유비'],
-        ...computeRoastingSales(data.roastingSales).map((row) => [
+        ['번호', '거래처명', roastingSalesMonthHeaderLabel, '점유비'],
+        ...computeRoastingSales(data.roastingSales).map((row, rowIndex) => [
+          meetingRoastRowIndexText(data.roastingSales, rowIndex),
           row.label,
           excelCellAmount(row.january),
           excelCellShare(row.share),
@@ -2321,8 +2604,6 @@ function MonthlyMeetingPage() {
           [copyTargetMonth]: {
             currentMonthSales: cloneValueRows(sourceState.currentMonthSales),
             currentMonthCosts: cloneValueRows(sourceState.currentMonthCosts),
-            materialCostDetails: cloneValueRows(sourceState.materialCostDetails),
-            otherCostDetails: cloneValueRows(sourceState.otherCostDetails),
             storeSales: {
               ...cloneStoreRow(sourceState.storeSales),
               month: copyTargetMonth,
@@ -2379,6 +2660,212 @@ function MonthlyMeetingPage() {
             .map((_, index) => index)
             .filter((index) => (activeMonthState.productionRow.values[index] ?? 0) !== 0),
     [activeMonthState.productionRow.values, data.productionColumns, productionInventoryEditMode],
+  )
+
+  const closePiTableModal = () => setPiTableModal(null)
+
+  const renderOutboundDataTable = () => (
+    <>
+      {productionInventoryEditMode ? (
+        <div className="meeting-pi-wide-table-in-modal">
+          <table className="meeting-table meeting-table-compact">
+            <thead>
+              <tr>
+                <th>월</th>
+                {visibleOutboundColumnIndices.map((index) => {
+                  const column = data.productionColumns[index]
+                  return (
+                    <th key={`modal-production-column-${index}`}>
+                      <div className="meeting-header-edit-column">
+                        <input
+                          className="meeting-header-input"
+                          type="text"
+                          value={column}
+                          onChange={(event) =>
+                            updateColumnLabel('productionColumns', index, event.target.value)
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="meeting-icon-button"
+                          onClick={() => removeStructuredColumn('productionColumns', index)}
+                        >
+                          -
+                        </button>
+                      </div>
+                    </th>
+                  )
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{activeMonth}</td>
+                {visibleOutboundColumnIndices.map((index) => {
+                  const value = activeMonthState.productionRow.values[index]
+                  return (
+                    <td key={`modal-${activeMonth}-production-${index}`}>
+                      <input
+                        className="meeting-cell-input"
+                        type="text"
+                        inputMode="numeric"
+                        value={formatOutboundAmountForInput(value)}
+                        onChange={(event) =>
+                          updateProductionRow('productionRow', index, event.target.value)
+                        }
+                      />
+                    </td>
+                  )
+                })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="meeting-kg-read-list meeting-kg-read-list--in-modal">
+          <p className="meeting-kg-read-month-label muted tiny">{activeMonth} 출고(kg)</p>
+          {productionReadRows.length === 0 ? (
+            <p className="muted tiny">0이 아닌 출고가 없습니다.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>품목</th>
+                  <th className="meeting-kg-read-amount">kg</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productionReadRows.map((row) => (
+                  <tr
+                    key={`out-modal-read-${row.displayLabel}`}
+                    title={
+                      row.merged
+                        ? '이름이 같은 열이 여러 개 있어 읽기 화면에서만 합친 수치입니다.'
+                        : undefined
+                    }
+                  >
+                    <td>
+                      {row.displayLabel}
+                      {row.merged ? (
+                        <span
+                          className="meeting-kg-read-merge-mark"
+                          title="같은 이름 열을 합침"
+                          aria-label="(합침)"
+                        >
+                          *
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="meeting-kg-read-amount">
+                      {meetingAmountDisplayFormatter.format(row.kg)} kg
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </>
+  )
+
+  const renderInventoryDataTable = () => (
+    <>
+      {productionInventoryEditMode ? (
+        <div className="meeting-pi-wide-table-in-modal">
+          <table className="meeting-table meeting-table-compact">
+            <thead>
+              <tr>
+                <th>월</th>
+                {data.inventoryColumns.map((column, index) => (
+                  <th key={`modal-inventory-column-${index}`}>
+                    <div className="meeting-header-edit-column">
+                      <input
+                        className="meeting-header-input"
+                        type="text"
+                        value={column}
+                        onChange={(event) =>
+                          updateColumnLabel('inventoryColumns', index, event.target.value)
+                        }
+                      />
+                      <button
+                        type="button"
+                        className="meeting-icon-button"
+                        onClick={() => removeStructuredColumn('inventoryColumns', index)}
+                      >
+                        -
+                      </button>
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{activeMonth}</td>
+                {computedInventoryRow.values.map((value, index) => (
+                  <td key={`modal-${activeMonth}-inventory-${index}`}>
+                    <input
+                      className="meeting-cell-input"
+                      type="text"
+                      inputMode="numeric"
+                      value={formatAmountForInput(value)}
+                      onChange={(event) =>
+                        updateProductionRow('inventoryRow', index, event.target.value)
+                      }
+                    />
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="meeting-kg-read-list meeting-kg-read-list--in-modal">
+          <p className="meeting-kg-read-month-label muted tiny">{activeMonth} 재고(kg)</p>
+          {inventoryReadRows.length === 0 ? (
+            <p className="muted tiny">0이 아닌 재고가 없습니다.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>품목</th>
+                  <th className="meeting-kg-read-amount">kg</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inventoryReadRows.map((row) => (
+                  <tr
+                    key={`inv-modal-read-${row.displayLabel}`}
+                    title={
+                      row.merged
+                        ? '이름이 같은 열이 여러 개 있어 읽기 화면에서만 합친 수치입니다.'
+                        : undefined
+                    }
+                  >
+                    <td>
+                      {row.displayLabel}
+                      {row.merged ? (
+                        <span
+                          className="meeting-kg-read-merge-mark"
+                          title="같은 이름 열을 합침"
+                          aria-label="(합침)"
+                        >
+                          *
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="meeting-kg-read-amount">
+                      {meetingAmountDisplayFormatter.format(row.kg)} kg
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </>
   )
 
   return (
@@ -2513,323 +3000,43 @@ function MonthlyMeetingPage() {
           {!collapsedSections.summary ? (
             <>
               <div className="meeting-grid meeting-grid-2">
-            <article className="meeting-card">
-              <div className="meeting-card-header">
-                <h3>매출</h3>
-                {summaryEditMode ? (
-                  <button
-                    type="button"
-                    className="ghost-button meeting-mini-button"
-                    onClick={() => addMonthStateRow('currentMonthSales', '새 매출 항목')}
-                  >
-                    항목 추가
-                  </button>
-                ) : null}
-              </div>
-              <table className="meeting-table meeting-table-compact">
-                <thead>
-                  <tr>
-                    <th>항목</th>
-                    <th>금액</th>
-                    <th>점유비</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {computedCurrentMonthSales.map((row, rowIndex) => (
-                    <tr key={`current-month-sales-${rowIndex}`}>
-                      <td>
-                        {summaryEditMode ? (
-                          <div className="meeting-header-edit-row">
-                            <input
-                              className="meeting-header-input"
-                              type="text"
-                              value={row.label}
-                              onChange={(event) =>
-                                updateMonthStateLabel('currentMonthSales', rowIndex, event.target.value)
-                              }
-                            />
-                            {!isComputedSalesRow(row.label) ? (
-                              <button
-                                type="button"
-                                className="meeting-icon-button"
-                                onClick={() => removeMonthStateRow('currentMonthSales', rowIndex)}
-                              >
-                                -
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : (
-                          row.label
-                        )}
-                      </td>
-                      <td>
-                        <input
-                          className={
-                            isComputedSalesRow(row.label)
-                              ? 'meeting-cell-input meeting-cell-input-readonly'
-                              : 'meeting-cell-input'
-                          }
-                          type="text"
-                          inputMode="numeric"
-                          value={formatAmountForInput(row.amount)}
-                          readOnly={isComputedSalesRow(row.label)}
-                          onChange={(event) =>
-                            updateValueRow('currentMonthSales', rowIndex, event.target.value)
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="meeting-cell-input meeting-cell-input-readonly"
-                          type="text"
-                          inputMode="decimal"
-                          value={formatSharePercent(row.share)}
-                          readOnly
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </article>
+            <MeetingSummaryValueCard
+              tableId="summary-sales"
+              title="매출"
+              newRowButtonLabel="항목 추가"
+              rows={computedCurrentMonthSales}
+              showShareColumn
+              editMode={summaryEditMode}
+              indexKind="sales"
+              isAmountReadonly={isComputedSalesRow}
+              onAddRow={() => addMonthStateRow('currentMonthSales', '새 매출 항목')}
+              onLabelChange={(i, v) => updateMonthStateLabel('currentMonthSales', i, v)}
+              onValueChange={(i, v) => updateValueRow('currentMonthSales', i, v)}
+              onRemoveRow={(i) => removeMonthStateRow('currentMonthSales', i)}
+            />
+            <MeetingSummaryValueCard
+              tableId="summary-costs"
+              title="비용 현황"
+              newRowButtonLabel="항목 추가"
+              rows={computedCurrentMonthCosts}
+              showShareColumn
+              editMode={summaryEditMode}
+              indexKind="costs"
+              isAmountReadonly={isCostGrandRow}
+              onAddRow={() => addMonthStateRow('currentMonthCosts', '새 비용 항목')}
+              onLabelChange={(i, v) => updateMonthStateLabel('currentMonthCosts', i, v)}
+              onValueChange={(i, v) => updateValueRow('currentMonthCosts', i, v)}
+              onRemoveRow={(i) => removeMonthStateRow('currentMonthCosts', i)}
+            />
+          </div>
 
-            <article className="meeting-card">
-              <div className="meeting-card-header">
-                <h3>비용 현황</h3>
-                {summaryEditMode ? (
-                  <button
-                    type="button"
-                    className="ghost-button meeting-mini-button"
-                    onClick={() => addMonthStateRow('currentMonthCosts', '새 비용 항목')}
-                  >
-                    항목 추가
-                  </button>
-                ) : null}
-              </div>
-              <table className="meeting-table meeting-table-compact">
-                <thead>
-                  <tr>
-                    <th>항목</th>
-                    <th>금액</th>
-                    <th>점유비</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {computedCurrentMonthCosts.map((row, rowIndex) => (
-                    <tr key={`current-month-costs-${rowIndex}`}>
-                      <td>
-                        {summaryEditMode ? (
-                          <div className="meeting-header-edit-row">
-                            <input
-                              className="meeting-header-input"
-                              type="text"
-                              value={row.label}
-                              onChange={(event) =>
-                                updateMonthStateLabel('currentMonthCosts', rowIndex, event.target.value)
-                              }
-                            />
-                            {!isComputedCostRow(row.label) ? (
-                              <button
-                                type="button"
-                                className="meeting-icon-button"
-                                onClick={() => removeMonthStateRow('currentMonthCosts', rowIndex)}
-                              >
-                                -
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : (
-                          row.label
-                        )}
-                      </td>
-                      <td>
-                        <input
-                          className={
-                            isComputedCostRow(row.label)
-                              ? 'meeting-cell-input meeting-cell-input-readonly'
-                              : 'meeting-cell-input'
-                          }
-                          type="text"
-                          inputMode="numeric"
-                          value={formatAmountForInput(row.amount)}
-                          readOnly={isComputedCostRow(row.label)}
-                          onChange={(event) =>
-                            updateValueRow('currentMonthCosts', rowIndex, event.target.value)
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="meeting-cell-input meeting-cell-input-readonly"
-                          type="text"
-                          inputMode="decimal"
-                          value={formatSharePercent(row.share)}
-                          readOnly
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </article>
-
-            <article className="meeting-card">
-              <div className="meeting-card-header">
-                <h3>재료비 세부사항</h3>
-                {summaryEditMode ? (
-                  <button
-                    type="button"
-                    className="ghost-button meeting-mini-button"
-                    onClick={() => addMonthStateRow('materialCostDetails', '새 재료비 항목')}
-                  >
-                    항목 추가
-                  </button>
-                ) : null}
-              </div>
-              <table className="meeting-table meeting-table-compact">
-                <thead>
-                  <tr>
-                    <th>항목</th>
-                    <th>금액</th>
-                    <th>점유비</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {computedMaterialCostDetails.map((row, rowIndex) => (
-                    <tr key={`material-cost-details-${rowIndex}`}>
-                      <td>
-                        {summaryEditMode ? (
-                          <div className="meeting-header-edit-row">
-                            <input
-                              className="meeting-header-input"
-                              type="text"
-                              value={row.label}
-                              onChange={(event) =>
-                                updateMonthStateLabel('materialCostDetails', rowIndex, event.target.value)
-                              }
-                            />
-                            {!isComputedDetailRow(row.label) ? (
-                              <button
-                                type="button"
-                                className="meeting-icon-button"
-                                onClick={() => removeMonthStateRow('materialCostDetails', rowIndex)}
-                              >
-                                -
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : (
-                          row.label
-                        )}
-                      </td>
-                      <td>
-                        <input
-                          className={
-                            isComputedDetailRow(row.label)
-                              ? 'meeting-cell-input meeting-cell-input-readonly'
-                              : 'meeting-cell-input'
-                          }
-                          type="text"
-                          inputMode="numeric"
-                          value={formatAmountForInput(row.amount)}
-                          readOnly={isComputedDetailRow(row.label)}
-                          onChange={(event) =>
-                            updateValueRow('materialCostDetails', rowIndex, event.target.value)
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="meeting-cell-input meeting-cell-input-readonly"
-                          type="text"
-                          inputMode="decimal"
-                          value={formatSharePercent(row.share)}
-                          readOnly
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </article>
-
-            <article className="meeting-card">
-              <div className="meeting-card-header">
-                <h3>기타 세부사항</h3>
-                {summaryEditMode ? (
-                  <button
-                    type="button"
-                    className="ghost-button meeting-mini-button"
-                    onClick={() => addMonthStateRow('otherCostDetails', '새 기타 항목')}
-                  >
-                    항목 추가
-                  </button>
-                ) : null}
-              </div>
-              <table className="meeting-table meeting-table-compact">
-                <thead>
-                  <tr>
-                    <th>항목</th>
-                    <th>금액</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {computedOtherCostDetails.map((row, rowIndex) => (
-                    <tr key={`other-cost-details-${rowIndex}`}>
-                      <td>
-                        {summaryEditMode ? (
-                          <div className="meeting-header-edit-row">
-                            <input
-                              className="meeting-header-input"
-                              type="text"
-                              value={row.label}
-                              onChange={(event) =>
-                                updateMonthStateLabel('otherCostDetails', rowIndex, event.target.value)
-                              }
-                            />
-                            {!isComputedDetailRow(row.label) ? (
-                              <button
-                                type="button"
-                                className="meeting-icon-button"
-                                onClick={() => removeMonthStateRow('otherCostDetails', rowIndex)}
-                              >
-                                -
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : (
-                          row.label
-                        )}
-                      </td>
-                      <td>
-                        <input
-                          className={
-                            isComputedDetailRow(row.label)
-                              ? 'meeting-cell-input meeting-cell-input-readonly'
-                              : 'meeting-cell-input'
-                          }
-                          type="text"
-                          inputMode="numeric"
-                          value={formatAmountForInput(row.amount)}
-                          readOnly={isComputedDetailRow(row.label)}
-                          onChange={(event) =>
-                            updateValueRow('otherCostDetails', rowIndex, event.target.value)
-                          }
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </article>
-              </div>
-
-              <div className="meeting-summary-cashflow">
+          <div className="meeting-summary-cashflow">
                 <p className="meeting-cashflow-hint">
                   당월 매출(결제), 로스팅실 집계 월 거래처 매출, 매장 전체 판매(홀·배달·간편배달)을 합산한 입금
                   합계입니다. 점유비는 각 구간 안에서만 나눈 비율입니다(당월 결제끼리, 로스팅 거래처끼리, 매장 채널끼리 합이
-                  100%). 출금에는 재료비·기타 세부, 로스팅실 생두비용, 비용현황(①·② 제외)이 반영되며, 맨 아래 출금
-                  합계는 위 표에 나온 금액을 모두 더한 값입니다(생두비용이 비용 표 ⑨와 별도일 때도 포함).
+                  100%). 출금은 위 「비용 현황」표의 ⑨(비용 합계)를 제외한 각 항목 금액, 로스팅실 생두비용(별도 반영
+                  시)을 더한 값이며, 맨 아래 출금 합계에 표시됩니다(생두비용이 비용 표 ⑨에 이미 포함되면 이중 합산되지
+                  않도록 한 줄을 생략합니다).
                 </p>
                 <div className="meeting-cashflow-columns">
                   <article className="meeting-card meeting-cashflow-card">
@@ -2908,32 +3115,6 @@ function MonthlyMeetingPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {outboundCashflow.materialLines.length > 0 ? (
-                          <>
-                            <tr className="meeting-cashflow-section-row">
-                              <td colSpan={2}>재료비 세부</td>
-                            </tr>
-                            {outboundCashflow.materialLines.map((row, idx) => (
-                              <tr key={`out-m-${idx}-${row.label}`}>
-                                <td>{row.label}</td>
-                                <td>{formatMoney(row.amount)}</td>
-                              </tr>
-                            ))}
-                          </>
-                        ) : null}
-                        {outboundCashflow.otherLines.length > 0 ? (
-                          <>
-                            <tr className="meeting-cashflow-section-row">
-                              <td colSpan={2}>기타 세부</td>
-                            </tr>
-                            {outboundCashflow.otherLines.map((row, idx) => (
-                              <tr key={`out-o-${idx}-${row.label}`}>
-                                <td>{row.label}</td>
-                                <td>{formatMoney(row.amount)}</td>
-                              </tr>
-                            ))}
-                          </>
-                        ) : null}
                         {outboundCashflow.roastingBeanCost ? (
                           <>
                             <tr className="meeting-cashflow-section-row">
@@ -2946,7 +3127,7 @@ function MonthlyMeetingPage() {
                           </>
                         ) : null}
                         <tr className="meeting-cashflow-section-row">
-                          <td colSpan={2}>비용현황 (①재료비·②기타 제외)</td>
+                          <td colSpan={2}>비용 현황 (⑨ 비용 합계 제외)</td>
                         </tr>
                         {outboundCashflow.extraCostLines.map((row, idx) => (
                           <tr key={`out-c-${idx}-${row.label}`}>
@@ -3055,6 +3236,7 @@ function MonthlyMeetingPage() {
                 <table className="meeting-table meeting-table-compact">
                   <thead>
                     <tr>
+                      <th className="meeting-col-idx">번호</th>
                       <th>거래처명</th>
                       <th>{roastingSalesMonthHeaderLabel}</th>
                       <th>점유비</th>
@@ -3064,13 +3246,16 @@ function MonthlyMeetingPage() {
                     {roastingSalesDisplayRows.map(({ row, rowIndex }, displayIdx) => (
                       <Fragment key={`roasting-sales-block-${rowIndex}`}>
                         {displayIdx > 0 &&
-                        ROASTING_SUMMARY_BLOCK_LABELS.has(row.label) &&
-                        !ROASTING_SUMMARY_BLOCK_LABELS.has(roastingSalesDisplayRows[displayIdx - 1]!.row.label) ? (
+                        isRoastFixedBlockRow(row) &&
+                        !isRoastFixedBlockRow(roastingSalesDisplayRows[displayIdx - 1]!.row) ? (
                           <tr className="meeting-cashflow-section-row">
-                            <td colSpan={3}>집계 · 생두 · 손익</td>
+                            <td colSpan={4}>집계 · 생두 · 손익</td>
                           </tr>
                         ) : null}
                         <tr>
+                        <td className="meeting-col-idx" title="자동">
+                          {meetingRoastDisplayIndexText(roastingSalesDisplayRows, displayIdx)}
+                        </td>
                         <td>
                           {roastingEditMode ? (
                             <div className="meeting-header-edit-row">
@@ -3082,7 +3267,7 @@ function MonthlyMeetingPage() {
                                   updateRowLabel('roastingSales', rowIndex, event.target.value)
                                 }
                               />
-                              {!isComputedRoastingRow(row.label) && row.label !== '생두비용' ? (
+                              {isRoastClientRow(row) ? (
                                 <button
                                   type="button"
                                   className="meeting-icon-button"
@@ -3099,14 +3284,14 @@ function MonthlyMeetingPage() {
                         <td>
                           <input
                             className={
-                              isComputedRoastingRow(row.label)
+                              isRoastReadonlyAmountRow(row)
                                 ? 'meeting-cell-input meeting-cell-input-readonly'
                                 : 'meeting-cell-input'
                             }
                             type="text"
                             inputMode="numeric"
                             value={formatAmountForInput(row.january)}
-                            readOnly={isComputedRoastingRow(row.label)}
+                            readOnly={isRoastReadonlyAmountRow(row)}
                             onChange={(event) =>
                               updateRoastingSales(rowIndex, 'january', event.target.value)
                             }
@@ -3294,80 +3479,35 @@ function MonthlyMeetingPage() {
 
           {!collapsedSections.productionInventory ? <div className="meeting-grid">
             <p className="muted tiny meeting-roasting-statement-hint meeting-production-inventory-sync-hint">
-              입출고 현황의 <strong>기준일</strong> 월이 위에서 고른 <strong>{activeMonth}</strong>와 같으면 출고·재고
-              표가 자동으로 맞춰집니다. 출고 표 첫 열은 생두별 출고 합, 이어서 품목(생두)별 출고 합이 붙고, 재고 표 끝에는
-              품목(생두)별 기준일 재고 열이 붙습니다.
+              입출고 <strong>기준일</strong>이 <strong>{activeMonth}</strong>이면 수치가 맞춰집니다. 품목별 세부는{' '}
+              <strong>출고 표 보기 / 재고 표 보기</strong>를 눌러 모달에서 확인하세요.
             </p>
-            <article className="meeting-card">
+            <article className="meeting-card meeting-pi-article">
               <div className="meeting-card-header">
                 <h3>{activeMonth} 출고현황</h3>
-                {productionInventoryEditMode ? (
-                  <button
-                    type="button"
-                    className="ghost-button meeting-mini-button"
-                    onClick={() => addStructuredColumn('productionColumns')}
-                  >
-                    품목 추가
-                  </button>
-                ) : null}
               </div>
-              <div className="table-wrapper">
-                <table className="meeting-table meeting-table-compact">
-                  <thead>
-                    <tr>
-                      <th>월</th>
-                      {visibleOutboundColumnIndices.map((index) => {
-                        const column = data.productionColumns[index]
-                        return (
-                        <th key={`production-column-${index}`}>
-                          {productionInventoryEditMode ? (
-                            <div className="meeting-header-edit-column">
-                              <input
-                                className="meeting-header-input"
-                                type="text"
-                                value={column}
-                                onChange={(event) =>
-                                  updateColumnLabel('productionColumns', index, event.target.value)
-                                }
-                              />
-                              <button
-                                type="button"
-                                className="meeting-icon-button"
-                                onClick={() => removeStructuredColumn('productionColumns', index)}
-                              >
-                                -
-                              </button>
-                            </div>
-                          ) : (
-                            column
-                          )}
-                        </th>
-                        )
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>{activeMonth}</td>
-                      {visibleOutboundColumnIndices.map((index) => {
-                        const value = activeMonthState.productionRow.values[index]
-                        return (
-                        <td key={`${activeMonth}-production-${index}`}>
-                          <input
-                            className="meeting-cell-input"
-                            type="text"
-                            inputMode="numeric"
-                            value={formatOutboundAmountForInput(value)}
-                            onChange={(event) =>
-                              updateProductionRow('productionRow', index, event.target.value)
-                            }
-                          />
-                        </td>
-                        )
-                      })}
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="meeting-pi-surface" aria-label={`${activeMonth} 출고 요약`}>
+                <div className="meeting-pi-surface-row">
+                  <div className="meeting-pi-surface-metric">
+                    <span className="meeting-pi-surface-metric-label">출고 합계(첫 열·합계 기준)</span>
+                    <span className="meeting-pi-surface-metric-value">
+                      {meetingAmountDisplayFormatter.format(outboundSummaryKg)} kg
+                    </span>
+                  </div>
+                  {!productionInventoryEditMode && productionReadRows.length > 0 ? (
+                    <div className="meeting-pi-surface-metric">
+                      <span className="meeting-pi-surface-metric-label">0제외 품목(읽기)</span>
+                      <span className="meeting-pi-surface-metric-value">{productionReadRows.length}건</span>
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  className="meeting-pi-open-table-button"
+                  onClick={() => setPiTableModal('outbound')}
+                >
+                  출고 {productionInventoryEditMode ? '입력' : '표'} 열기
+                </button>
               </div>
               <div className="meeting-production-inventory-charts">
                 <p className="meeting-mini-chart-caption meeting-mini-chart-caption--trend">
@@ -3590,70 +3730,32 @@ function MonthlyMeetingPage() {
               </div>
             </article>
 
-            <article className="meeting-card">
+            <article className="meeting-card meeting-pi-article">
               <div className="meeting-card-header">
                 <h3>{activeMonth} 재고현황</h3>
-                {productionInventoryEditMode ? (
-                  <button
-                    type="button"
-                    className="ghost-button meeting-mini-button"
-                    onClick={() => addStructuredColumn('inventoryColumns')}
-                  >
-                    항목 추가
-                  </button>
-                ) : null}
               </div>
-              <div className="table-wrapper">
-                <table className="meeting-table meeting-table-compact">
-                  <thead>
-                    <tr>
-                      <th>월</th>
-                      {data.inventoryColumns.map((column, index) => (
-                        <th key={`inventory-column-${index}`}>
-                          {productionInventoryEditMode ? (
-                            <div className="meeting-header-edit-column">
-                              <input
-                                className="meeting-header-input"
-                                type="text"
-                                value={column}
-                                onChange={(event) =>
-                                  updateColumnLabel('inventoryColumns', index, event.target.value)
-                                }
-                              />
-                              <button
-                                type="button"
-                                className="meeting-icon-button"
-                                onClick={() => removeStructuredColumn('inventoryColumns', index)}
-                              >
-                                -
-                              </button>
-                            </div>
-                          ) : (
-                            column
-                          )}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>{activeMonth}</td>
-                      {computedInventoryRow.values.map((value, index) => (
-                        <td key={`${activeMonth}-inventory-${index}`}>
-                          <input
-                            className="meeting-cell-input"
-                            type="text"
-                            inputMode="numeric"
-                            value={formatAmountForInput(value)}
-                            onChange={(event) =>
-                              updateProductionRow('inventoryRow', index, event.target.value)
-                            }
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="meeting-pi-surface" aria-label={`${activeMonth} 재고 요약`}>
+                <div className="meeting-pi-surface-row">
+                  <div className="meeting-pi-surface-metric">
+                    <span className="meeting-pi-surface-metric-label">재고 열 합(참고)</span>
+                    <span className="meeting-pi-surface-metric-value">
+                      {meetingAmountDisplayFormatter.format(inventoryTotalKg)} kg
+                    </span>
+                  </div>
+                  {!productionInventoryEditMode && inventoryReadRows.length > 0 ? (
+                    <div className="meeting-pi-surface-metric">
+                      <span className="meeting-pi-surface-metric-label">0제외 품목(읽기)</span>
+                      <span className="meeting-pi-surface-metric-value">{inventoryReadRows.length}건</span>
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  className="meeting-pi-open-table-button"
+                  onClick={() => setPiTableModal('inventory')}
+                >
+                  재고 {productionInventoryEditMode ? '입력' : '표'} 열기
+                </button>
               </div>
             </article>
           </div> : null}
@@ -3699,6 +3801,91 @@ function MonthlyMeetingPage() {
           </div> : null}
         </section>
       </main>
+
+      {piTableModal ? (
+        <div
+          className="meeting-pi-table-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={
+            piTableModal === 'outbound' ? 'meeting-pi-modal-outbound-title' : 'meeting-pi-modal-inventory-title'
+          }
+          onClick={closePiTableModal}
+        >
+          <div
+            className="meeting-pi-table-modal"
+            onClick={(event) => {
+              event.stopPropagation()
+            }}
+          >
+            {piTableModal === 'outbound' ? (
+              <>
+                <div className="meeting-pi-table-modal-top">
+                  <h2 className="meeting-pi-table-modal-title" id="meeting-pi-modal-outbound-title">
+                    {activeMonth} 출고현황
+                  </h2>
+                  <div className="meeting-pi-table-modal-actions">
+                    {productionInventoryEditMode ? (
+                      <button
+                        type="button"
+                        className="ghost-button meeting-mini-button"
+                        onClick={() => addStructuredColumn('productionColumns')}
+                      >
+                        품목 추가
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="meeting-pi-table-modal-close"
+                      onClick={closePiTableModal}
+                      aria-label="닫기"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                </div>
+                <p className="muted tiny meeting-pi-table-modal-hint">
+                  첫 열은 출고 합계, 이어서 품목(생두)별 출고가 붙습니다. 입출고 동기면 재고·생두 열이 겹쳐 보일 수 있어,
+                  읽기에서는 같은 이름 열의 kg을 한 줄로 합칩니다. 열을 나누려면 <strong>수정</strong>에서 이름을 구분하세요.
+                </p>
+                <div className="meeting-pi-table-modal-body">{renderOutboundDataTable()}</div>
+              </>
+            ) : (
+              <>
+                <div className="meeting-pi-table-modal-top">
+                  <h2 className="meeting-pi-table-modal-title" id="meeting-pi-modal-inventory-title">
+                    {activeMonth} 재고현황
+                  </h2>
+                  <div className="meeting-pi-table-modal-actions">
+                    {productionInventoryEditMode ? (
+                      <button
+                        type="button"
+                        className="ghost-button meeting-mini-button"
+                        onClick={() => addStructuredColumn('inventoryColumns')}
+                      >
+                        항목 추가
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="meeting-pi-table-modal-close"
+                      onClick={closePiTableModal}
+                      aria-label="닫기"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                </div>
+                <p className="muted tiny meeting-pi-table-modal-hint">
+                  끝 열에 품목(생두)별 기준일 재고가 붙을 수 있습니다. 읽기에서는 0kg 열을 숨기고, 같은 품목명이면 kg만
+                  합칩니다.
+                </p>
+                <div className="meeting-pi-table-modal-body">{renderInventoryDataTable()}</div>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
     </>
   )
 }

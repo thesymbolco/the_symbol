@@ -1,8 +1,18 @@
+export type MeetingValueRowRole = 'salesTotal' | 'salesNet' | 'costsGrand'
+
+/**
+ * `label`은 자유(표에 보이는 이름). 집계·지출 자동칸은 `role` / `expenseKey`로 구분.
+ */
 export type MeetingValueRow = {
   label: string
   amount: number | null
   share?: number | null
+  role?: MeetingValueRowRole
+  /** 지출표 → 비용행 자동 값: 없으면 `label` 문자열로 매칭(구 데이터 호환) */
+  expenseKey?: string | null
 }
+
+export type MeetingRoastRowRole = 'client' | 'subtotal' | 'beanCost' | 'net'
 
 export type MeetingMonthlyRow = {
   label: string
@@ -10,6 +20,8 @@ export type MeetingMonthlyRow = {
   december: number | null
   january: number | null
   share?: number | null
+  /** 거래처 `client` / 집계·고정(합계·생두·순이익) */
+  roastRole?: MeetingRoastRowRole
 }
 
 export type MeetingStoreSalesRow = {
@@ -35,8 +47,6 @@ export type MonthlyMeetingData = {
   months: string[]
   currentMonthSales: MeetingValueRow[]
   currentMonthCosts: MeetingValueRow[]
-  materialCostDetails: MeetingValueRow[]
-  otherCostDetails: MeetingValueRow[]
   roastingSales: MeetingMonthlyRow[]
   storeSales: MeetingStoreSalesRow[]
   productionColumns: string[]
@@ -48,57 +58,30 @@ export type MonthlyMeetingData = {
 const months = Array.from({ length: 12 }, (_, index) => `${index + 1}월`)
 const currentMonthLabel = `${new Date().getMonth() + 1}월`
 
+/** 열 1칸(이름·열 추가로 늘림) — 품목·열 전부 사용자가 편집 */
+const singleEmptyColumn: string[] = ['']
+
+const emptyProductionRowFor = (label: string, colCount: number) => ({
+  label,
+  values: Array.from({ length: Math.max(1, colCount) }, () => null as number | null),
+})
+
 export const monthlyMeetingData: MonthlyMeetingData = {
   title: '월 마감 보고회의',
   storeName: '',
   monthLabel: currentMonthLabel,
   months,
   currentMonthSales: [
-    { label: '①현금', amount: null, share: null },
-    { label: '②현금영수증', amount: null, share: null },
-    { label: '③계좌이체', amount: null, share: null },
-    { label: '④카드', amount: null, share: null },
-    { label: '⑤배달의 민족', amount: null, share: null },
-    { label: '⑥쿠팡', amount: null, share: null },
-    { label: '⑦땡겨요', amount: null, share: null },
-    { label: '⑧총매출', amount: null, share: null },
-    { label: '⑨순이익', amount: null, share: null },
+    { label: '총매출', amount: null, share: null, role: 'salesTotal' },
+    { label: '순이익(매출−비용)', amount: null, share: null, role: 'salesNet' },
   ],
   currentMonthCosts: [
-    { label: '①재료비', amount: null, share: null },
-    { label: '②기타', amount: null, share: null },
-    { label: '③임대료', amount: null, share: null },
-    { label: '④관리비', amount: null, share: null },
-    { label: '⑥전기세', amount: null, share: null },
-    { label: '⑦세금과공과', amount: null, share: null },
-    { label: '⑧인건비', amount: null, share: null },
-    { label: '⑨로스팅실원두', amount: null, share: null },
-    { label: '⑨비용계', amount: null, share: null },
-  ],
-  materialCostDetails: [
-    { label: '①경성물류', amount: null, share: null },
-    { label: '②매장음료,재료', amount: null, share: null },
-    { label: '③디저트재료', amount: null, share: null },
-    { label: '비용계', amount: null, share: null },
-  ],
-  otherCostDetails: [
-    { label: '①생각대로 배달료', amount: null },
-    { label: '②택배비', amount: null },
-    { label: '③프린터 잉크', amount: null },
-    { label: '④그랜드타이어 머신기', amount: null },
-    { label: '비용계', amount: null },
+    { label: '비용 합계', amount: null, share: null, role: 'costsGrand' },
   ],
   roastingSales: [
-    { label: '라미랑드', november: null, december: null, january: null, share: null },
-    { label: '길 브런치(전체)', november: null, december: null, january: null, share: null },
-    { label: '메리본', november: null, december: null, january: null, share: null },
-    { label: '팜에이트', november: null, december: null, january: null, share: null },
-    { label: '카푸치노', november: null, december: null, january: null, share: null },
-    { label: '브릿지로지스틱스', november: null, december: null, january: null, share: null },
-    { label: '그랜드타이어 전체', november: null, december: null, january: null, share: null },
-    { label: '합 계', november: null, december: null, january: null, share: null },
-    { label: '생두비용', november: null, december: null, january: null, share: null },
-    { label: '순이익', november: null, december: null, january: null, share: null },
+    { label: '합계', november: null, december: null, january: null, share: null, roastRole: 'subtotal' },
+    { label: '생두비용', november: null, december: null, january: null, share: null, roastRole: 'beanCost' },
+    { label: '순이익', november: null, december: null, january: null, share: null, roastRole: 'net' },
   ],
   storeSales: months.map((month) => ({
     month,
@@ -110,25 +93,8 @@ export const monthlyMeetingData: MonthlyMeetingData = {
     quickShare: null,
     total: null,
   })),
-  productionColumns: [
-    '출고 합계(KG)',
-    '더치(L)',
-    '조각케이크',
-    '휘낭시에',
-    '스콘',
-    '에그타르트',
-    '까눌레',
-    '마카롱',
-    '브라우니',
-    '주문케이크',
-  ],
-  productionRows: months.map((month) => ({
-    label: month,
-    values: Array.from({ length: 10 }, () => null),
-  })),
-  inventoryColumns: ['생두', '원두', '더치', '디저트', '디저트재료', '더치용 싱글 재고'],
-  inventoryRows: months.map((month) => ({
-    label: month,
-    values: Array.from({ length: 6 }, () => null),
-  })),
+  productionColumns: singleEmptyColumn,
+  productionRows: months.map((month) => emptyProductionRowFor(month, singleEmptyColumn.length)),
+  inventoryColumns: singleEmptyColumn,
+  inventoryRows: months.map((month) => emptyProductionRowFor(month, singleEmptyColumn.length)),
 }

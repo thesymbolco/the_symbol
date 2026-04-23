@@ -4,6 +4,7 @@ export const COMPANY_DOCUMENT_KEYS = {
   expensePage: 'expense-page',
   statementPage: 'statement-page',
   inventoryPage: 'inventory-page',
+  beanNameAliases: 'bean-name-aliases',
   greenBeanOrderPage: 'green-bean-order-page',
   staffPayrollPage: 'staff-payroll-page',
   memoPage: 'memo-page',

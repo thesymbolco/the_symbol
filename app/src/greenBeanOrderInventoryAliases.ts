@@ -4,6 +4,8 @@
  *
  * 정확히 같은 이름이 이미 입출고에 있으면 그 값이 우선이고, 별칭은 그때 덮어쓰지 않습니다.
  * 새 품목은 이 배열에 한 줄 추가하면 됩니다.
+ *
+ * (여기는 데이터만. 매칭 로직·거래명세는 `beanNameResolve` / `beanNamePublic` 참고)
  */
 export const GREEN_BEAN_ORDER_INVENTORY_ALIASES: ReadonlyArray<readonly [string, string]> = [
   // --- 주문 한글 풀네임(알마·GSC 견적 등) ↔ 로스팅/입출고 짧은 영문명 ---
@@ -18,7 +20,6 @@ export const GREEN_BEAN_ORDER_INVENTORY_ALIASES: ReadonlyArray<readonly [string,
   ['과테말라 안티구아 디카페인', 'Decaf Antigua SHB'],
   ['콜롬비아 나리노 수프리모', 'Colombia Narino'],
   ['브라질 세라도 NY2 FC', 'Brazil'],
-  ['브라질 세라도 NY2FC', 'Brazil'],
   ['에티오피아 시다모 G4', 'Sidamo G4'],
   ['브라질 산토스 슈가케인 디카페인', 'Decaf Brazil 슈가케인'],
   ['블라질 산토스 슈가케인 디카페인', 'Decaf Brazil 슈가케인'],

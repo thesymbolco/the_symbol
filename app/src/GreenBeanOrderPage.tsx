@@ -15,6 +15,15 @@ import PageSaveStatus from './components/PageSaveStatus'
 import { exportStyledGreenBeanOrderExcel } from './greenBeanOrderExcelExport'
 import { dayIndexForReferenceDate, normalizeInventoryStatusState } from './inventoryStatusUtils'
 import { INVENTORY_STATUS_STORAGE_KEY } from './InventoryStatusPage'
+import {
+  BEAN_NAME_ALIASES_STORAGE_KEY,
+  BEAN_NAME_ALIASES_UPDATED_EVENT,
+  getEffectiveGreenBeanOrderAliases,
+  normalizeBeanNameAliases,
+  readCustomBeanNameAliases,
+  writeCustomBeanNameAliases,
+  type BeanNameAliasEntry,
+} from './beanNameAliasStore'
 import { GREEN_BEAN_ORDER_INVENTORY_ALIASES } from './greenBeanOrderInventoryAliases'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
@@ -319,8 +328,9 @@ type ReadInventoryStockLinkResult = {
 function attachAliasStockKeys(
   map: Map<string, GreenBeanInventoryStockMatch>,
   normalizeKey: (value: string) => string,
+  aliases: ReadonlyArray<readonly [string, string]>,
 ) {
-  for (const [orderLabel, inventoryName] of GREEN_BEAN_ORDER_INVENTORY_ALIASES) {
+  for (const [orderLabel, inventoryName] of aliases) {
     const orderK = normalizeKey(orderLabel)
     const invK = normalizeKey(inventoryName)
     if (!orderK || !invK) {
@@ -336,7 +346,10 @@ function attachAliasStockKeys(
   }
 }
 
-function readInventoryStockFromStorage(normalizeKey: (value: string) => string): ReadInventoryStockLinkResult {
+function readInventoryStockFromStorage(
+  normalizeKey: (value: string) => string,
+  aliases: ReadonlyArray<readonly [string, string]>,
+): ReadInventoryStockLinkResult {
   const empty = (): ReadInventoryStockLinkResult => ({
     byItemKey: new Map(),
     byInventoryLinkKey: new Map(),
@@ -373,7 +386,7 @@ function readInventoryStockFromStorage(normalizeKey: (value: string) => string):
       map.set(k, match)
       byInventoryLinkKey.set(inventoryLinkKey, match)
     }
-    attachAliasStockKeys(map, normalizeKey)
+    attachAliasStockKeys(map, normalizeKey, aliases)
     const ref =
       typeof parsed.referenceDate === 'string' && parsed.referenceDate.trim().length >= 10
         ? parsed.referenceDate.trim().slice(0, 10)
@@ -1349,6 +1362,9 @@ export default function GreenBeanOrderPage() {
   >({})
   /** 입출고 저장소와 동기화할 때마다 증가(다른 탭·다시 보기 시 재조회) */
   const [inventoryHintsTick, setInventoryHintsTick] = useState(0)
+  const [aliasDraftOpen, setAliasDraftOpen] = useState(false)
+  const [aliasDraftRows, setAliasDraftRows] = useState<BeanNameAliasEntry[]>(() => readCustomBeanNameAliases())
+  const [aliasRevision, setAliasRevision] = useState(0)
   const isAlmaRefreshAvailable = import.meta.env.DEV
 
   useEffect(() => {
@@ -1400,6 +1416,46 @@ export default function GreenBeanOrderPage() {
       cancelled = true
     }
   }, [activeCompanyId, mode, resetDocumentSaveUi])
+
+  useEffect(() => {
+    let cancelled = false
+    const applyAliasRows = (rows: BeanNameAliasEntry[]) => {
+      if (cancelled) {
+        return
+      }
+      writeCustomBeanNameAliases(rows)
+      setAliasDraftRows(readCustomBeanNameAliases())
+      setAliasRevision((n) => n + 1)
+      setInventoryHintsTick((n) => n + 1)
+    }
+
+    const loadAliasRows = async () => {
+      const localAliases = readCustomBeanNameAliases()
+      if (mode !== 'cloud' || !activeCompanyId) {
+        applyAliasRows(localAliases)
+        return
+      }
+      try {
+        const remoteAliases = await loadCompanyDocument<BeanNameAliasEntry[]>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.beanNameAliases,
+        )
+        if (Array.isArray(remoteAliases)) {
+          applyAliasRows(remoteAliases)
+          return
+        }
+        applyAliasRows(localAliases)
+      } catch (error) {
+        console.error('원두 별칭 클라우드 문서를 읽지 못했습니다.', error)
+        applyAliasRows(localAliases)
+      }
+    }
+
+    void loadAliasRows()
+    return () => {
+      cancelled = true
+    }
+  }, [activeCompanyId, mode])
 
   useEffect(() => {
     itemNameUnlockedRowIdRef.current = itemNameUnlockedRowId
@@ -1561,9 +1617,30 @@ export default function GreenBeanOrderPage() {
     }
   }, [])
 
+  useEffect(() => {
+    const syncAliasDraft = () => {
+      setAliasDraftRows(readCustomBeanNameAliases())
+      setAliasRevision((n) => n + 1)
+      setInventoryHintsTick((n) => n + 1)
+    }
+    const onStorage = (event: StorageEvent) => {
+      if (event.key && event.key !== BEAN_NAME_ALIASES_STORAGE_KEY) {
+        return
+      }
+      syncAliasDraft()
+    }
+    window.addEventListener(BEAN_NAME_ALIASES_UPDATED_EVENT, syncAliasDraft)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener(BEAN_NAME_ALIASES_UPDATED_EVENT, syncAliasDraft)
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [])
+
+  const effectiveBeanAliases = useMemo(() => getEffectiveGreenBeanOrderAliases(), [aliasRevision])
   const inventoryOrderHints = useMemo(
-    () => readInventoryStockFromStorage(normalizeItemKey),
-    [inventoryHintsTick],
+    () => readInventoryStockFromStorage(normalizeItemKey, effectiveBeanAliases),
+    [inventoryHintsTick, effectiveBeanAliases],
   )
 
   const inventoryHintBanner = useMemo(() => {
@@ -1576,7 +1653,7 @@ export default function GreenBeanOrderPage() {
     const ref = inventoryOrderHints.referenceDateLabel
     const n = inventoryOrderHints.inventoryBeanRowCount
     if (ref && n > 0) {
-      return `입출고 저장(기준일 ${ref})의 생두 ${n}행과 연결합니다. 이름이 같거나, greenBeanOrderInventoryAliases.ts 별칭이면 기준일 재고(kg)를 보여 줍니다.`
+      return `입출고 저장(기준일 ${ref})의 생두 ${n}행과 연결합니다. 이름이 같거나, 아래 "원두명 별칭 관리"에 등록한 별칭이면 기준일 재고(kg)를 보여 줍니다.`
     }
     return '입출고 품목을 불러왔습니다. 주문 품목명이 입출고와 같거나 별칭에 있으면 열에 값이 나옵니다.'
   }, [inventoryOrderHints])
@@ -2006,6 +2083,55 @@ export default function GreenBeanOrderPage() {
 
   const hasRecordForSelectedDate = persisted.orderSnapshots.some((p) => p.orderDate === recordDate)
 
+  const upsertAliasDraft = (index: number, key: 'from' | 'to', value: string) => {
+    setAliasDraftRows((rows) =>
+      rows.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              [key]: value,
+            }
+          : row,
+      ),
+    )
+  }
+
+  const addAliasDraftRow = () => {
+    setAliasDraftRows((rows) => [...rows, { from: '', to: '' }])
+  }
+
+  const removeAliasDraftRow = (index: number) => {
+    setAliasDraftRows((rows) => rows.filter((_, i) => i !== index))
+  }
+
+  const saveAliasDraftRows = async () => {
+    const cleaned = normalizeBeanNameAliases(aliasDraftRows)
+    writeCustomBeanNameAliases(cleaned)
+    if (mode === 'cloud' && activeCompanyId) {
+      try {
+        await saveCompanyDocument(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.beanNameAliases,
+          cleaned,
+          user?.id,
+        )
+        setStatusMessage(`원두 별칭 ${cleaned.length}건을 클라우드에 저장했습니다.`)
+      } catch (error) {
+        console.error('원두 별칭 클라우드 저장에 실패했습니다.', error)
+        setStatusMessage(
+          `원두 별칭 ${cleaned.length}건을 브라우저에 저장했습니다. 클라우드 저장은 실패해 다시 시도해 주세요.`,
+        )
+      }
+      return
+    }
+    setStatusMessage(`원두 별칭 ${cleaned.length}건을 저장했습니다.`)
+  }
+
+  const resetAliasDraftRows = () => {
+    setAliasDraftRows(readCustomBeanNameAliases())
+    setStatusMessage('저장된 원두 별칭으로 되돌렸습니다.')
+  }
+
   const updateRow = (id: string, patch: Partial<GreenBeanOrderRow>) => {
     if (patch.itemName !== undefined) {
       setAlmaRefreshChanges((ch) => {
@@ -2424,6 +2550,97 @@ export default function GreenBeanOrderPage() {
           <PageSaveStatus mode={mode} saveState={saveState} lastSavedAt={lastSavedAt} />
         </div>
         <p className="muted tiny green-bean-inventory-hint-banner">{inventoryHintBanner}</p>
+        <div className="green-bean-alias-admin no-print">
+          <button
+            type="button"
+            className="ghost-button small-hit green-bean-alias-admin-toggle"
+            onClick={() => setAliasDraftOpen((v) => !v)}
+          >
+            {aliasDraftOpen ? '원두명 별칭 관리 닫기' : '원두명 별칭 관리'}
+          </button>
+          {aliasDraftOpen ? (
+            <div className="green-bean-alias-admin-panel">
+              <p className="muted tiny">
+                주문표 품목명(왼쪽)과 입출고 생두명(오른쪽)이 다를 때 연결용으로 씁니다. 아래 첫 표는 기존 기본 별칭(코드),
+                두 번째 표는 직접 추가/수정하는 별칭입니다. 저장하면 이 화면과 거래명세 매핑에서 같이 사용됩니다.
+              </p>
+              <div className="green-bean-alias-admin-default-block">
+                <div className="muted tiny green-bean-alias-admin-subtitle">
+                  기본 별칭(읽기 전용) {GREEN_BEAN_ORDER_INVENTORY_ALIASES.length}건
+                </div>
+                <table className="green-bean-alias-admin-table green-bean-alias-admin-table--readonly">
+                  <thead>
+                    <tr>
+                      <th>주문표 이름(왼쪽)</th>
+                      <th>입출고 생두명(오른쪽)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {GREEN_BEAN_ORDER_INVENTORY_ALIASES.map(([from, to], index) => (
+                      <tr key={`default-alias-row-${index}`}>
+                        <td>{from}</td>
+                        <td>{to}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="muted tiny green-bean-alias-admin-subtitle">사용자 별칭(편집 가능)</div>
+              <table className="green-bean-alias-admin-table">
+                <thead>
+                  <tr>
+                    <th>주문표 이름(왼쪽)</th>
+                    <th>입출고 생두명(오른쪽)</th>
+                    <th className="green-bean-alias-admin-remove-col" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {aliasDraftRows.map((row, index) => (
+                    <tr key={`alias-row-${index}`}>
+                      <td>
+                        <input
+                          className="inventory-cell-input"
+                          value={row.from}
+                          onChange={(e) => upsertAliasDraft(index, 'from', e.target.value)}
+                          placeholder="예: 케냐 아이히더 AA PLUS"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="inventory-cell-input"
+                          value={row.to}
+                          onChange={(e) => upsertAliasDraft(index, 'to', e.target.value)}
+                          placeholder="예: Kenya"
+                        />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="green-bean-row-remove"
+                          onClick={() => removeAliasDraftRow(index)}
+                          aria-label={`별칭 ${index + 1} 삭제`}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="green-bean-alias-admin-actions">
+                <button type="button" className="ghost-button small-hit" onClick={addAliasDraftRow}>
+                  행 추가
+                </button>
+                <button type="button" className="ghost-button small-hit" onClick={resetAliasDraftRows}>
+                  되돌리기
+                </button>
+                <button type="button" className="ghost-button small-hit active" onClick={saveAliasDraftRows}>
+                  별칭 저장
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         <div className="green-bean-table-wrap">
           <div className="green-bean-supplier-header-toolbar">
