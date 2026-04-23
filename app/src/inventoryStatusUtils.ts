@@ -50,6 +50,9 @@ export type InventoryStatusState = {
   /** 일자별 Blending-Light 로스팅 사이클 횟수 */
   blendingLightCycles: number[]
   blendingLightRecipe: BlendingRecipe
+  /** 일자별 Blending-Decaffeine 로스팅 사이클 횟수 */
+  blendingDecaffeineCycles: number[]
+  blendingDecaffeineRecipe: BlendingRecipe
   /**
    * true: 엑셀을 방금 불러온 뒤 재고를 자동 연쇄로 다시 계산해 덮어쓰지 않고, 시트에 있던 값 그대로 표시
    */
@@ -66,6 +69,11 @@ export const DEFAULT_BLENDING_DARK_RECIPE: BlendingRecipe = {
 }
 
 export const DEFAULT_BLENDING_LIGHT_RECIPE: BlendingRecipe = {
+  components: [],
+  roastedPerCycle: 0,
+}
+
+export const DEFAULT_BLENDING_DECAFFEINE_RECIPE: BlendingRecipe = {
   components: [],
   roastedPerCycle: 0,
 }
@@ -143,6 +151,19 @@ const toNumber = (value: unknown) => {
 
   return 0
 }
+
+/** 엑셀 가져오기 등으로 표 데이터만 바뀔 때 기존 블렌딩 설정을 붙여 쓰기 위한 복제 */
+export const cloneBlendingRecipe = (r: BlendingRecipe): BlendingRecipe => ({
+  components: r.components.map((c) => ({
+    beanName: String(c.beanName ?? ''),
+    rawPerCycle: Math.max(0, toNumber(c.rawPerCycle)),
+  })),
+  roastedPerCycle: Math.max(0, toNumber(r.roastedPerCycle)),
+})
+
+/** 월 일수( `days` 길이 )가 바뀌면 사이클 배열을 맞춤(부족분은 0, 남는 칸은 버림) */
+export const resizeBlendingCyclesToDayCount = (cycles: readonly number[] | undefined, dayCount: number): number[] =>
+  Array.from({ length: dayCount }, (_, i) => Math.max(0, Math.round(toNumber(cycles?.[i]))))
 
 const roundToTwoDecimals = (n: number) => {
   if (!Number.isFinite(n)) {
@@ -239,6 +260,18 @@ const cloneState = (state: InventoryStatusState): InventoryStatusState => ({
         components: DEFAULT_BLENDING_LIGHT_RECIPE.components.map((c) => ({ ...c })),
         roastedPerCycle: DEFAULT_BLENDING_LIGHT_RECIPE.roastedPerCycle,
       },
+  blendingDecaffeineCycles: state.blendingDecaffeineCycles
+    ? [...state.blendingDecaffeineCycles]
+    : Array.from({ length: state.days.length }, () => 0),
+  blendingDecaffeineRecipe: state.blendingDecaffeineRecipe
+    ? {
+        components: state.blendingDecaffeineRecipe.components.map((c) => ({ ...c })),
+        roastedPerCycle: state.blendingDecaffeineRecipe.roastedPerCycle,
+      }
+    : {
+        components: DEFAULT_BLENDING_DECAFFEINE_RECIPE.components.map((c) => ({ ...c })),
+        roastedPerCycle: DEFAULT_BLENDING_DECAFFEINE_RECIPE.roastedPerCycle,
+      },
   skipAutoStockDisplay: state.skipAutoStockDisplay ?? false,
 })
 
@@ -281,6 +314,7 @@ export const createZeroedInventoryStatusFrom = (current: InventoryStatusState): 
     })),
     blendingDarkCycles: base.blendingDarkCycles.map(() => 0),
     blendingLightCycles: base.blendingLightCycles.map(() => 0),
+    blendingDecaffeineCycles: base.blendingDecaffeineCycles.map(() => 0),
     skipAutoStockDisplay: false,
   }
 }
@@ -316,6 +350,11 @@ export const createDefaultInventoryStatusState = (): InventoryStatusState => {
     blendingLightRecipe: {
       components: DEFAULT_BLENDING_LIGHT_RECIPE.components.map((c) => ({ ...c })),
       roastedPerCycle: DEFAULT_BLENDING_LIGHT_RECIPE.roastedPerCycle,
+    },
+    blendingDecaffeineCycles: Array.from({ length: inventoryStatusData.days.length }, () => 0),
+    blendingDecaffeineRecipe: {
+      components: DEFAULT_BLENDING_DECAFFEINE_RECIPE.components.map((c) => ({ ...c })),
+      roastedPerCycle: DEFAULT_BLENDING_DECAFFEINE_RECIPE.roastedPerCycle,
     },
     skipAutoStockDisplay: false,
   })
@@ -418,6 +457,14 @@ export const normalizeInventoryStatusState = (value: unknown): InventoryStatusSt
       blendingLightRecipe: normalizeRecipe(
         (source as Partial<InventoryStatusState>).blendingLightRecipe,
         DEFAULT_BLENDING_LIGHT_RECIPE,
+      ),
+      blendingDecaffeineCycles: normalizeCyclesArray(
+        (source as Partial<InventoryStatusState>).blendingDecaffeineCycles,
+        source.days,
+      ),
+      blendingDecaffeineRecipe: normalizeRecipe(
+        (source as Partial<InventoryStatusState>).blendingDecaffeineRecipe,
+        DEFAULT_BLENDING_DECAFFEINE_RECIPE,
       ),
       skipAutoStockDisplay: source.skipAutoStockDisplay === true,
     }
@@ -566,6 +613,11 @@ export const parseInventoryWorkbook = (workbook: XLSX.WorkBook): InventoryStatus
     blendingLightRecipe: {
       components: DEFAULT_BLENDING_LIGHT_RECIPE.components.map((c) => ({ ...c })),
       roastedPerCycle: DEFAULT_BLENDING_LIGHT_RECIPE.roastedPerCycle,
+    },
+    blendingDecaffeineCycles: Array.from({ length: defaultState.days.length }, () => 0),
+    blendingDecaffeineRecipe: {
+      components: DEFAULT_BLENDING_DECAFFEINE_RECIPE.components.map((c) => ({ ...c })),
+      roastedPerCycle: DEFAULT_BLENDING_DECAFFEINE_RECIPE.roastedPerCycle,
     },
     skipAutoStockDisplay: false,
   }

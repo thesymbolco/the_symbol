@@ -12,20 +12,25 @@ import * as XLSX from 'xlsx'
 import PageSaveStatus from './components/PageSaveStatus'
 import {
   BLENDING_DARK_BEAN_NAME,
+  BLENDING_DECAFFEINE_BEAN_NAME,
   BLENDING_LIGHT_BEAN_NAME,
   canonicalBlendDisplayName,
   isBlendingDarkBeanRow,
+  isBlendingDecaffeineBeanRow,
   isBlendingLightBeanRow,
   isBlendingLineBeanRow,
   isBlendingOutboundAdjustsStockRow,
   productionForAutoStock,
+  roastingColumnMatchesBeanRow,
 } from './inventoryBlendRecipes'
 import {
+  cloneBlendingRecipe,
   createDefaultInventoryStatusState,
   createZeroedInventoryStatusFrom,
   dayIndexForReferenceDate,
   normalizeInventoryStatusState,
   parseInventoryWorkbook,
+  resizeBlendingCyclesToDayCount,
   todayLocalIsoDateString,
   type BlendingRecipe,
   type BlendingRecipeComponent,
@@ -33,7 +38,7 @@ import {
   type InventoryStatusState,
 } from './inventoryStatusUtils'
 
-type BlendTarget = 'dark' | 'light'
+type BlendTarget = 'dark' | 'light' | 'decaf'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
@@ -459,6 +464,11 @@ const syncRoastingRowsFromBeanProduction = (state: InventoryStatusState): Invent
       recipe: state.blendingLightRecipe,
       cycles: state.blendingLightCycles ?? [],
     },
+    {
+      beanKey: normalizeNameKey(BLENDING_DECAFFEINE_BEAN_NAME),
+      recipe: state.blendingDecaffeineRecipe,
+      cycles: state.blendingDecaffeineCycles ?? [],
+    },
   ]
 
   // 각 블렌드별 구성 원두(bean key → 사이클 1회당 raw 합)
@@ -489,12 +499,12 @@ const syncRoastingRowsFromBeanProduction = (state: InventoryStatusState): Invent
       }
       // 매칭되는 bean.production(생두 kg)에서, 그날 그 원두에 대한 블렌딩 raw 기여분을 뺀
       // 단독(수동) 생산(사용)분을 일별 셀에 그대로 표시한다(환산·수율 없음).
-      // Blending-Dark/Light 행은 구성원이 아니어서 여기서는 0; 구성원 원두는 사이클·레시피로 production에 누적됨.
+      // Blending-Dark/Light/Decaf 행은 구성원이 아니어서 여기서는 0; 구성원 원두는 사이클·레시피로 production에 누적됨.
       return state.beanRows.reduce((sum, bean) => {
-        const beanKey = normalizeNameKey(bean.name)
-        if (beanKey !== normalized) {
+        if (!roastingColumnMatchesBeanRow(colName, bean.name)) {
           return sum
         }
+        const beanKey = normalizeNameKey(bean.name)
         const blendingRaw = blends.reduce((s, _blend, i) => {
           const perCycleRaw = blendRawByBeanKey[i].get(beanKey) ?? 0
           return s + perCycleRaw * dayCyclesByBlend[i]
@@ -853,6 +863,8 @@ type DailyRoastingJournalProps = {
   blendingDarkRecipe: BlendingRecipe
   blendingLightCycles: number[]
   blendingLightRecipe: BlendingRecipe
+  blendingDecaffeineCycles: number[]
+  blendingDecaffeineRecipe: BlendingRecipe
   beanNameOptions: string[]
   onChangeBlendingCycles: (target: BlendTarget, day: number, nextCycles: number) => void
   onChangeRecipeComponent: (
@@ -884,6 +896,8 @@ function DailyRoastingJournal({
   blendingDarkRecipe,
   blendingLightCycles,
   blendingLightRecipe,
+  blendingDecaffeineCycles,
+  blendingDecaffeineRecipe,
   beanNameOptions,
   onChangeBlendingCycles,
   onChangeRecipeComponent,
@@ -912,6 +926,10 @@ function DailyRoastingJournal({
     () => blendingLightRecipe.components.reduce((sum, c) => sum + c.rawPerCycle, 0),
     [blendingLightRecipe],
   )
+  const totalDecafRawPerCycle = useMemo(
+    () => blendingDecaffeineRecipe.components.reduce((sum, c) => sum + c.rawPerCycle, 0),
+    [blendingDecaffeineRecipe],
+  )
   const totalMonthDarkCycles = useMemo(
     () => blendingDarkCycles.reduce((sum, v) => sum + (v || 0), 0),
     [blendingDarkCycles],
@@ -919,6 +937,10 @@ function DailyRoastingJournal({
   const totalMonthLightCycles = useMemo(
     () => blendingLightCycles.reduce((sum, v) => sum + (v || 0), 0),
     [blendingLightCycles],
+  )
+  const totalMonthDecafCycles = useMemo(
+    () => blendingDecaffeineCycles.reduce((sum, v) => sum + (v || 0), 0),
+    [blendingDecaffeineCycles],
   )
 
   const year = referenceDate.slice(0, 4)
@@ -950,7 +972,8 @@ function DailyRoastingJournal({
       const total = items.reduce((sum, item) => sum + item.kg, 0)
       const darkCycles = blendingDarkCycles[dayIndex] ?? 0
       const lightCycles = blendingLightCycles[dayIndex] ?? 0
-      return { day, total, items, darkCycles, lightCycles }
+      const decafCycles = blendingDecaffeineCycles[dayIndex] ?? 0
+      return { day, total, items, darkCycles, lightCycles, decafCycles }
     })
     return entries
   }, [
@@ -961,13 +984,18 @@ function DailyRoastingJournal({
     columnDisplayNo,
     blendingDarkCycles,
     blendingLightCycles,
+    blendingDecaffeineCycles,
   ])
 
   const visibleEntries = useMemo(() => {
     const filtered = showEmptyDays
       ? dayEntries
       : dayEntries.filter(
-          (entry) => entry.total > 0 || entry.darkCycles > 0 || entry.lightCycles > 0,
+          (entry) =>
+            entry.total > 0 ||
+            entry.darkCycles > 0 ||
+            entry.lightCycles > 0 ||
+            entry.decafCycles > 0,
         )
     return [...filtered].sort((a, b) => b.day - a.day)
   }, [dayEntries, showEmptyDays])
@@ -1039,7 +1067,9 @@ function DailyRoastingJournal({
     const existing =
       cycleQuickTarget === 'dark'
         ? blendingDarkCycles[dayIndex] ?? 0
-        : blendingLightCycles[dayIndex] ?? 0
+        : cycleQuickTarget === 'light'
+          ? blendingLightCycles[dayIndex] ?? 0
+          : blendingDecaffeineCycles[dayIndex] ?? 0
     onChangeBlendingCycles(cycleQuickTarget, day, existing + additional)
     setCycleQuickCount('1')
   }
@@ -1113,6 +1143,15 @@ function DailyRoastingJournal({
                 )}kg
               </em>
             </span>
+            <span className="inventory-daily-journal-metric-decaf">
+              디카페인 {totalMonthDecafCycles}회
+              <em>
+                {' · '}
+                {formatTwoDecimals(
+                  totalMonthDecafCycles * blendingDecaffeineRecipe.roastedPerCycle,
+                )}kg
+              </em>
+            </span>
           </strong>
         </div>
         {topBeans.length > 0 ? (
@@ -1149,6 +1188,13 @@ function DailyRoastingJournal({
               recipe: blendingLightRecipe,
               rawTotal: totalLightRawPerCycle,
               className: 'is-light',
+            },
+            {
+              target: 'decaf' as BlendTarget,
+              label: '블렌딩-디카페인',
+              recipe: blendingDecaffeineRecipe,
+              rawTotal: totalDecafRawPerCycle,
+              className: 'is-decaf',
             },
           ]).map(({ target, label, recipe, rawTotal, className }) => (
             <div
@@ -1328,6 +1374,13 @@ function DailyRoastingJournal({
             >
               라이트
             </button>
+            <button
+              type="button"
+              className={cycleQuickTarget === 'decaf' ? 'is-active is-decaf' : 'is-decaf'}
+              onClick={() => setCycleQuickTarget('decaf')}
+            >
+              디카페인
+            </button>
           </div>
           <select
             className="inventory-daily-journal-select"
@@ -1361,7 +1414,7 @@ function DailyRoastingJournal({
           <button
             type="button"
             className={`primary-button inventory-daily-journal-commit inventory-daily-journal-commit-cycle ${
-              cycleQuickTarget === 'light' ? 'is-light' : ''
+              cycleQuickTarget === 'light' ? 'is-light' : cycleQuickTarget === 'decaf' ? 'is-decaf' : ''
             }`}
             onClick={commitCycleQuickAdd}
             disabled={
@@ -1371,7 +1424,9 @@ function DailyRoastingJournal({
               Math.max(0, Math.round(Number(cycleQuickCount) || 0)) *
                 (cycleQuickTarget === 'dark'
                   ? blendingDarkRecipe.roastedPerCycle
-                  : blendingLightRecipe.roastedPerCycle),
+                  : cycleQuickTarget === 'light'
+                    ? blendingLightRecipe.roastedPerCycle
+                    : blendingDecaffeineRecipe.roastedPerCycle),
             )}kg`}
           >
             사이클 추가
@@ -1381,7 +1436,9 @@ function DailyRoastingJournal({
               ? `현재 ${
                   (cycleQuickTarget === 'dark'
                     ? blendingDarkCycles
-                    : blendingLightCycles)[days.findIndex((d) => d === cycleQuickDay)] ?? 0
+                    : cycleQuickTarget === 'light'
+                      ? blendingLightCycles
+                      : blendingDecaffeineCycles)[days.findIndex((d) => d === cycleQuickDay)] ?? 0
                 }회`
               : '일자를 먼저 고르세요'}
           </span>
@@ -1412,7 +1469,7 @@ function DailyRoastingJournal({
                       {wd ? `(${wd})` : ''}
                     </span>
                   </div>
-                  {(entry.darkCycles > 0 || entry.lightCycles > 0) ? (
+                  {(entry.darkCycles > 0 || entry.lightCycles > 0 || entry.decafCycles > 0) ? (
                     <div className="inventory-daily-journal-card-cycles is-readonly">
                       {entry.darkCycles > 0 ? (
                         <span className="inventory-daily-journal-card-cycle-badge is-dark">
@@ -1422,6 +1479,11 @@ function DailyRoastingJournal({
                       {entry.lightCycles > 0 ? (
                         <span className="inventory-daily-journal-card-cycle-badge is-light">
                           라이트 {entry.lightCycles}c
+                        </span>
+                      ) : null}
+                      {entry.decafCycles > 0 ? (
+                        <span className="inventory-daily-journal-card-cycle-badge is-decaf">
+                          디카페인 {entry.decafCycles}c
                         </span>
                       ) : null}
                     </div>
@@ -1576,6 +1638,8 @@ function InventoryStatusPage() {
   const [inventoryState, setInventoryState] = useState<InventoryStatusState>(() =>
     createDefaultInventoryStatusState(),
   )
+  const inventoryStateRef = useRef(inventoryState)
+  inventoryStateRef.current = inventoryState
   const [baselineState, setBaselineState] = useState<InventoryStatusState>(() =>
     createDefaultInventoryStatusState(),
   )
@@ -2080,18 +2144,22 @@ function InventoryStatusPage() {
     const maxTotal = Math.max(...computedRoastingTotals, 0)
     const totalForShare = inventoryState.roastingColumns.reduce((sum, column, index) => {
       const roastedTotal = computedRoastingTotals[index] ?? 0
-      return canonicalBlendDisplayName(column.trim()) === BLENDING_DARK_BEAN_NAME ? sum : sum + roastedTotal
+      const c = canonicalBlendDisplayName(column.trim())
+      const skipBlendColumn = c === BLENDING_DARK_BEAN_NAME || c === BLENDING_DECAFFEINE_BEAN_NAME
+      return skipBlendColumn ? sum : sum + roastedTotal
     }, 0)
     const rows = inventoryState.roastingColumns.map((column, index) => {
       const roastedTotal = computedRoastingTotals[index] ?? 0
-      const isBlendingDark = canonicalBlendDisplayName(column.trim()) === BLENDING_DARK_BEAN_NAME
+      const c = canonicalBlendDisplayName(column.trim())
+      const isBlendingDark = c === BLENDING_DARK_BEAN_NAME
+      const isBlendingDecaf = c === BLENDING_DECAFFEINE_BEAN_NAME
       const displayNo = roastingColumnIndexToDisplayNo.get(index) ?? null
       return {
         name: column,
         columnIndex: index,
         displayNo,
         roastedTotal,
-        share: isBlendingDark ? null : totalForShare > 0 ? roastedTotal / totalForShare : null,
+        share: isBlendingDark || isBlendingDecaf ? null : totalForShare > 0 ? roastedTotal / totalForShare : null,
         heatLevel: getHeatLevel(roastedTotal, maxTotal),
       }
     })
@@ -2520,6 +2588,7 @@ function InventoryStatusPage() {
     }
     addBlendContribution(current.blendingDarkRecipe, current.blendingDarkCycles ?? [])
     addBlendContribution(current.blendingLightRecipe, current.blendingLightCycles ?? [])
+    addBlendContribution(current.blendingDecaffeineRecipe, current.blendingDecaffeineCycles ?? [])
 
     roastingDailyRows.forEach((row) => {
       const dayIndex = current.days.findIndex((d) => d === row.day)
@@ -2535,7 +2604,7 @@ function InventoryStatusPage() {
         const blendingRaw = blendRawByBeanKey.get(colKey)?.[dayIndex] ?? 0
         const rawValue = (roastedValue ?? 0) + blendingRaw
         nextBeanRows.forEach((bean) => {
-          if (bean.name.trim() !== colName) {
+          if (!roastingColumnMatchesBeanRow(colName, bean.name)) {
             return
           }
           if ((bean.production[dayIndex] ?? 0) !== rawValue) {
@@ -2590,7 +2659,8 @@ function InventoryStatusPage() {
         return current
       }
 
-      const targetColumnName = normalizeNameKey(current.roastingColumns[valueIndex] ?? '')
+      const targetColRaw = (current.roastingColumns[valueIndex] ?? '').trim()
+      const targetColumnName = normalizeNameKey(targetColRaw)
       const previousRawByRow = current.beanRows.map((b) => [...b.production])
       const nextRaw = parsedRoasted
 
@@ -2600,6 +2670,7 @@ function InventoryStatusPage() {
         const blends = [
           { recipe: current.blendingDarkRecipe, cycles: current.blendingDarkCycles },
           { recipe: current.blendingLightRecipe, cycles: current.blendingLightCycles },
+          { recipe: current.blendingDecaffeineRecipe, cycles: current.blendingDecaffeineCycles },
         ]
         return blends.reduce((sum, b) => {
           if (!b.recipe) return sum
@@ -2613,7 +2684,7 @@ function InventoryStatusPage() {
 
       const nextBeanRows = current.beanRows.map((bean) => {
         const beanKey = normalizeNameKey(bean.name)
-        if (!targetColumnName || beanKey !== targetColumnName) {
+        if (!targetColumnName || !roastingColumnMatchesBeanRow(targetColRaw, bean.name)) {
           return bean
         }
         const nextProduction = [...bean.production]
@@ -2664,12 +2735,24 @@ function InventoryStatusPage() {
       if (dayIndex < 0) {
         return current
       }
-      const cyclesKey: 'blendingDarkCycles' | 'blendingLightCycles' =
-        target === 'dark' ? 'blendingDarkCycles' : 'blendingLightCycles'
+      const cyclesKey: 'blendingDarkCycles' | 'blendingLightCycles' | 'blendingDecaffeineCycles' =
+        target === 'dark'
+          ? 'blendingDarkCycles'
+          : target === 'light'
+            ? 'blendingLightCycles'
+            : 'blendingDecaffeineCycles'
       const recipe =
-        target === 'dark' ? current.blendingDarkRecipe : current.blendingLightRecipe
+        target === 'dark'
+          ? current.blendingDarkRecipe
+          : target === 'light'
+            ? current.blendingLightRecipe
+            : current.blendingDecaffeineRecipe
       const blendBeanKey = normalizeNameKey(
-        target === 'dark' ? BLENDING_DARK_BEAN_NAME : BLENDING_LIGHT_BEAN_NAME,
+        target === 'dark'
+          ? BLENDING_DARK_BEAN_NAME
+          : target === 'light'
+            ? BLENDING_LIGHT_BEAN_NAME
+            : BLENDING_DECAFFEINE_BEAN_NAME,
       )
 
       const currentCycles = current[cyclesKey][dayIndex] ?? 0
@@ -2745,7 +2828,11 @@ function InventoryStatusPage() {
   }
 
   const recipeKeyFor = (target: BlendTarget) =>
-    target === 'dark' ? 'blendingDarkRecipe' : 'blendingLightRecipe'
+    target === 'dark'
+      ? 'blendingDarkRecipe'
+      : target === 'light'
+        ? 'blendingLightRecipe'
+        : 'blendingDecaffeineRecipe'
 
   const updateBlendingRecipeComponent = (
     target: BlendTarget,
@@ -2839,18 +2926,26 @@ function InventoryStatusPage() {
       const buffer = await file.arrayBuffer()
       const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
       const parsedState = parseInventoryWorkbook(workbook)
-      // 엑셀 `생산` 행은 생두 사용(차감) kg 그대로 반영(수율 환산 없음). 재고·입고·출고·로스팅도 셀 값(소수 둘째 자리) 그대로 쓰고 자동 연채는 적용하지 않음.
+      const dayCount = parsedState.days.length
+      // 엑셀 시트에는 블렌딩 레시피/사이클이 없어, parse 결과만 쓰면 매번 빈(기본) 레시피로 덮어쓴다(디카·라이트 등이 "사라짐"처럼 보임). 임포트 직전 화면의 입출고 state에서 블렌딩만 이어 붙인다(클라우드 `company_documents`는 inventory 전체 JSON을 저장하나, 엑셀 다시 올릴 때 이 덮어쓰기가 먼저 흔한 원인).
+      const prev = inventoryStateRef.current
       const nextState: InventoryStatusState = {
         ...parsedState,
         skipAutoStockDisplay: true,
+        blendingDarkRecipe: cloneBlendingRecipe(prev.blendingDarkRecipe),
+        blendingLightRecipe: cloneBlendingRecipe(prev.blendingLightRecipe),
+        blendingDecaffeineRecipe: cloneBlendingRecipe(prev.blendingDecaffeineRecipe),
+        blendingDarkCycles: resizeBlendingCyclesToDayCount(prev.blendingDarkCycles, dayCount),
+        blendingLightCycles: resizeBlendingCyclesToDayCount(prev.blendingLightCycles, dayCount),
+        blendingDecaffeineCycles: resizeBlendingCyclesToDayCount(prev.blendingDecaffeineCycles, dayCount),
       }
-      setTemplateBase64(arrayBufferToBase64(buffer))
-      setTemplateFileName(file.name)
       setInventoryState(nextState)
       setBaselineState(nextState)
+      setTemplateBase64(arrayBufferToBase64(buffer))
+      setTemplateFileName(file.name)
       setSelectedBeanName(nextState.beanRows[0]?.name ?? '')
       setStatusMessage(
-        `엑셀 반영: ${file.name} (kg 소수 둘째 자리, 재고·수치는 시트 그대로 / 셀 수정 시 자동 연채) · 복원 기준 저장`,
+        `엑셀 반영: ${file.name} (kg 소수 둘째 자리, 재고·수치는 시트 그대로) · 다크/라이트/디카 블렌딩 레시피·사이클은 엑셀에 없어 이전 설정을 유지했습니다. · 복원 기준 저장`,
       )
     } catch (error) {
       const message = error instanceof Error ? error.message : '엑셀 파일을 읽는 중 오류가 발생했습니다.'
@@ -3451,6 +3546,13 @@ function InventoryStatusPage() {
                       {BLENDING_LIGHT_BEAN_NAME}도 동일합니다. 입고 없이, 생산이 더해지고 출고가 빠집니다.
                     </p>
                   ) : null}
+                  {isBlendingDecaffeineBeanRow(selectedBean) ? (
+                    <p className="muted tiny inventory-blend-dark-hint">
+                      {BLENDING_DECAFFEINE_BEAN_NAME}: 일반 생두와 같이 입고·생산·출고·재고가 이어집니다. 일자별 로스팅
+                      현황에서 <strong>디카페인 블렌딩 레시피·사이클</strong>을 쓰면 구성 원두 사용량이 생산(사용)에
+                      같이 반영됩니다.
+                    </p>
+                  ) : null}
                   <div ref={beanDailyScrollRef} className="inventory-bean-daily-x-scroll">
                     <table className="meeting-table inventory-table">
                       <thead>
@@ -3764,6 +3866,8 @@ function InventoryStatusPage() {
                 blendingDarkRecipe={inventoryState.blendingDarkRecipe}
                 blendingLightCycles={inventoryState.blendingLightCycles}
                 blendingLightRecipe={inventoryState.blendingLightRecipe}
+                blendingDecaffeineCycles={inventoryState.blendingDecaffeineCycles}
+                blendingDecaffeineRecipe={inventoryState.blendingDecaffeineRecipe}
                 beanNameOptions={inventoryState.beanRows.map((b) => b.name)}
                 onChangeBlendingCycles={updateBlendingCyclesForDay}
                 onChangeRecipeComponent={updateBlendingRecipeComponent}

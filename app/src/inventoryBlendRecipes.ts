@@ -25,6 +25,21 @@ const blendLineCoreName = (name: string): string => {
   return c.replace(/^\d+(?:\.\s*|\s+)/, '').trim()
 }
 
+/**
+ * 로스팅 열 표기(예: `DECAFFEINE BLEND`)와 생두 행 표기(예: `15. DECAFFEINE BLEND`)를 같은 품목으로 본다.
+ * 번호·공백만 다른 경우 `normalizeNameKey`로는 맞지 않으므로 코어 명으로 비교한다.
+ */
+export const roastingColumnMatchesBeanRow = (columnLabel: string, beanRowName: string): boolean => {
+  const a = columnLabel.trim().toLowerCase()
+  const b = beanRowName.trim().toLowerCase()
+  if (a === b) {
+    return true
+  }
+  const ca = blendLineCoreName(columnLabel)
+  const cb = blendLineCoreName(beanRowName)
+  return ca.length > 0 && ca.toLowerCase() === cb.toLowerCase()
+}
+
 const isBlendCore = (name: string, core: 'DARK BLEND' | 'LIGHT BLEND' | 'DECAFFEINE BLEND') =>
   blendLineCoreName(name).toLowerCase() === core.toLowerCase()
 

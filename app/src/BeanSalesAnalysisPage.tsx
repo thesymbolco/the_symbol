@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import {
   INVENTORY_STATUS_CACHE_EVENT,
   INVENTORY_STATUS_STORAGE_KEY,
   inventoryPageScopedKey,
 } from './InventoryStatusPage'
+import { BLEND_WON_OVERRIDES_SAVED_EVENT } from './beanBlendWonOverrides'
 import { getLatestGreenOrderWonPerKgByInventoryLabel } from './beanSalesGreenOrderUnitPrice'
 import { GREEN_BEAN_ORDER_SAVED_EVENT } from './GreenBeanOrderPage'
 import { BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, hasAnyStatementManualForItem } from './beanStatementManualMappings'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
-import { normalizeInventoryStatusState } from './inventoryStatusUtils'
+import { normalizeInventoryStatusState, type BlendingRecipe } from './inventoryStatusUtils'
+import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'
+import { STATEMENT_RECORDS_SAVED_EVENT } from './MonthlyMeetingPage'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 import StatementInventoryLinkModal from './StatementInventoryLinkModal'
 
@@ -55,9 +58,16 @@ type BeanSalesData = {
   latestGreenOrderDate: string | null
   /** 거래명세 평균단가(원) − 최근 주문가(원/kg) — 1/KG·비교 가능할 때만 참고 */
   spreadVsGreenOrder: number | null
+  /** 최근 주문 원가(원/kg) × 판매수량 */
+  estimatedCostAmount: number | null
+  /** 매출액 − 추정 원가액 */
+  estimatedProfitAmount: number | null
 }
 
 const STATEMENT_RECORDS_KEY = 'statement-records-v1'
+
+/** 파이/막대/범례 공통: 매출 0 제외 뒤 상위 N (동일 값 유지) */
+const BEAN_SALES_CHART_TOP = 10
 
 const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('ko-KR').format(Math.round(value))
@@ -65,6 +75,11 @@ const formatCurrency = (value: number): string => {
 
 const formatNumber = (value: number): string => {
   return new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 2 }).format(value)
+}
+
+const shortenBeanName = (name: string, max = 14): string => {
+  if (name.length <= max) return name
+  return `${name.slice(0, max)}…`
 }
 
 function BeanSalesAnalysisPage() {
@@ -81,18 +96,25 @@ function BeanSalesAnalysisPage() {
   const [sortBy, setSortBy] = useState<'inventory' | 'revenue' | 'quantity'>('inventory')
   const [linkModalOpen, setLinkModalOpen] = useState(false)
   const [linkModalPreferredToLabel, setLinkModalPreferredToLabel] = useState<string | null>(null)
+  const [statementRecordsTick, setStatementRecordsTick] = useState(0)
 
   useEffect(() => {
     const onInv = () => setInventoryReadTick((n) => n + 1)
     const onGbo = () => setGreenOrderReadTick((n) => n + 1)
     const onManual = () => setManualMappingTick((n) => n + 1)
+    const onBlendOvr = () => setGreenOrderReadTick((n) => n + 1)
+    const onStatement = () => setStatementRecordsTick((n) => n + 1)
     window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, onInv)
     window.addEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, onGbo)
     window.addEventListener(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, onManual)
+    window.addEventListener(BLEND_WON_OVERRIDES_SAVED_EVENT, onBlendOvr)
+    window.addEventListener(STATEMENT_RECORDS_SAVED_EVENT, onStatement)
     return () => {
       window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, onInv)
       window.removeEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, onGbo)
       window.removeEventListener(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, onManual)
+      window.removeEventListener(BLEND_WON_OVERRIDES_SAVED_EVENT, onBlendOvr)
+      window.removeEventListener(STATEMENT_RECORDS_SAVED_EVENT, onStatement)
     }
   }, [])
 
@@ -107,42 +129,77 @@ function BeanSalesAnalysisPage() {
     } catch {
       return []
     }
-  }, [selectedYear])
+  }, [selectedYear, statementRecordsTick])
 
   const inventoryBeanRows = useMemo(() => {
-    const readBeanRows = (key: string) => {
+    const readInventoryState = (key: string) => {
       try {
         const raw = window.localStorage.getItem(key)
         if (!raw) {
           return null
         }
         const st = normalizeInventoryStatusState(JSON.parse(raw))
-        const rows = st?.beanRows
-        if (!Array.isArray(rows) || rows.length === 0) {
+        if (!st || !Array.isArray(st.beanRows) || st.beanRows.length === 0) {
           return null
         }
-        return rows
+        return st
       } catch {
         return null
       }
     }
     const primaryKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
-    const fromPrimary = readBeanRows(primaryKey)
+    const fromPrimary = readInventoryState(primaryKey)
     if (fromPrimary) {
-      return fromPrimary
+      return fromPrimary.beanRows
     }
     if (primaryKey !== INVENTORY_STATUS_STORAGE_KEY) {
-      const fromLegacy = readBeanRows(INVENTORY_STATUS_STORAGE_KEY)
+      const fromLegacy = readInventoryState(INVENTORY_STATUS_STORAGE_KEY)
       if (fromLegacy) {
-        return fromLegacy
+        return fromLegacy.beanRows
       }
     }
     return []
   }, [statementRecords, mode, activeCompanyId, inventoryReadTick])
 
+  const blendRecipeSnapshot = useMemo(() => {
+    const readBlendRecipes = (
+      key: string,
+    ): { dark: BlendingRecipe | null; light: BlendingRecipe | null; decaf: BlendingRecipe | null } | null => {
+      try {
+        const raw = window.localStorage.getItem(key)
+        if (!raw) {
+          return null
+        }
+        const st = normalizeInventoryStatusState(JSON.parse(raw))
+        if (!st) {
+          return null
+        }
+        return {
+          dark: st.blendingDarkRecipe ?? null,
+          light: st.blendingLightRecipe ?? null,
+          decaf: st.blendingDecaffeineRecipe ?? null,
+        }
+      } catch {
+        return null
+      }
+    }
+    const primaryKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
+    const primary = readBlendRecipes(primaryKey)
+    if (primary) {
+      return primary
+    }
+    if (primaryKey !== INVENTORY_STATUS_STORAGE_KEY) {
+      const legacy = readBlendRecipes(INVENTORY_STATUS_STORAGE_KEY)
+      if (legacy) {
+        return legacy
+      }
+    }
+    return { dark: null, light: null, decaf: null }
+  }, [mode, activeCompanyId, inventoryReadTick])
+
   const latestGreenWonByLabel = useMemo(
-    () => getLatestGreenOrderWonPerKgByInventoryLabel(inventoryBeanRows, mapOptions),
-    [inventoryBeanRows, greenOrderReadTick, mapOptions, manualMappingTick],
+    () => getLatestGreenOrderWonPerKgByInventoryLabel(inventoryBeanRows, mapOptions, blendRecipeSnapshot),
+    [inventoryBeanRows, greenOrderReadTick, mapOptions, manualMappingTick, blendRecipeSnapshot],
   )
 
   /** 입출고 생두 표에 없는 품목(키워드만 맞는 영문·더치·미매칭 원문)은 집계에서 제외 */
@@ -197,6 +254,8 @@ function BeanSalesAnalysisPage() {
           latestGreenWonPerKg: null,
           latestGreenOrderDate: null,
           spreadVsGreenOrder: null,
+          estimatedCostAmount: null,
+          estimatedProfitAmount: null,
         })
       } else {
         const prev = salesMap.get(beanName)!
@@ -228,10 +287,14 @@ function BeanSalesAnalysisPage() {
         data.latestGreenWonPerKg = g.wonPerKg
         data.latestGreenOrderDate = g.orderDate
         data.spreadVsGreenOrder = data.avgUnitPrice - g.wonPerKg
+        data.estimatedCostAmount = g.wonPerKg * data.totalQuantity
+        data.estimatedProfitAmount = data.totalRevenue - data.estimatedCostAmount
       } else {
         data.latestGreenWonPerKg = null
         data.latestGreenOrderDate = null
         data.spreadVsGreenOrder = null
+        data.estimatedCostAmount = null
+        data.estimatedProfitAmount = null
       }
     })
 
@@ -262,24 +325,66 @@ function BeanSalesAnalysisPage() {
     return { beanSalesAnalysis: sorted, notInInventoryByStatement: notInList, excludedRevenueNotInInventory: excludedSum }
   }, [statementRecords, sortBy, inventoryBeanRows, latestGreenWonByLabel, allowedInventoryLabels, mapOptions, manualMappingTick])
 
+  /** 매출 요약 표·차트·엑셀(요약 시트)과 동일: 매출액 0인 품목 제외 */
+  const rowsWithRevenue = useMemo(
+    () => beanSalesAnalysis.filter((d) => d.totalRevenue > 0),
+    [beanSalesAnalysis],
+  )
+
   const chartColors = [
     '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1',
     '#d084d0', '#ffb366', '#95d5b2', '#ffd93d', '#c9c9c9'
   ]
 
   const revenueChartData = useMemo(() => {
-    return [...beanSalesAnalysis]
-      .filter((data) => data.totalRevenue > 0)
+    return [...rowsWithRevenue]
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
-      .slice(0, 10)
+      .slice(0, BEAN_SALES_CHART_TOP)
       .map((data, index) => ({
         ...data,
         fill: chartColors[index % chartColors.length]
       }))
-  }, [beanSalesAnalysis])
+  }, [rowsWithRevenue])
 
   const totalRevenue = beanSalesAnalysis.reduce((sum, data) => sum + data.totalRevenue, 0)
   const totalQuantity = beanSalesAnalysis.reduce((sum, data) => sum + data.totalQuantity, 0)
+
+  const handleExportBeanSalesExcel = useCallback(async () => {
+    const sortByLabel =
+      sortBy === 'inventory' ? '입출고 순(번호)' : sortBy === 'revenue' ? '매출순' : '수량순'
+    const sRev = rowsWithRevenue.reduce((s, d) => s + d.totalRevenue, 0)
+    const sQty = rowsWithRevenue.reduce((s, d) => s + d.totalQuantity, 0)
+    const summaryRows = rowsWithRevenue.map((d) => ({
+      beanName: d.beanName,
+      totalRevenue: d.totalRevenue,
+      sharePct: sRev > 0 ? (d.totalRevenue / sRev) * 100 : 0,
+      totalQuantity: d.totalQuantity,
+      avgUnitPrice: d.avgUnitPrice,
+      latestGreenWonPerKg: d.latestGreenWonPerKg,
+      estimatedCostAmount: d.estimatedCostAmount,
+      estimatedProfitAmount: d.estimatedProfitAmount,
+      spreadVsGreenOrder: d.spreadVsGreenOrder,
+      clientCount: d.clientCount,
+      transactionCount: d.transactionCount,
+    }))
+    const clientLines = rowsWithRevenue.flatMap((d) =>
+      d.clients.map((c) => ({
+        beanName: d.beanName,
+        clientName: c.name,
+        quantity: c.quantity,
+        revenue: c.revenue,
+      })),
+    )
+    await exportStyledBeanSalesAnalysisExcel({
+      year: selectedYear,
+      sortByLabel,
+      createdAt: new Date(),
+      summaryRows,
+      summaryTotals: { totalRevenue: sRev, totalQuantity: sQty },
+      notInRows: notInInventoryByStatement.map((r) => ({ ...r })),
+      clientLines,
+    })
+  }, [rowsWithRevenue, selectedYear, sortBy, notInInventoryByStatement])
 
   return (
     <div className="bean-sales-analysis-page">
@@ -297,15 +402,6 @@ function BeanSalesAnalysisPage() {
             명세↔입고
           </button>
         </div>
-        <p>
-          거래명세 품목을 <strong>같은 브라우저에 보관된 입출고 생두 표</strong>에 맞춥니다. 괄호 안은
-          매장명이므로 품목 매칭에 쓰지 않습니다. <strong>입고에 딱 맞는「N. 품목명」이 없는</strong> 거래는
-          위「매출 요약」에만 안 잡힐 수 있고, 하단 <strong>입고에 맞지 않은 품목</strong>에 따로
-          모읍니다(브라질만이 아님). <strong>최근 생두 주문(원/kg)</strong>은 생두 주문 화면의{' '}
-          <em>일자 기록</em> 스냅샷 품목을 최신일부터 묶은 값이며, <strong>스프레드</strong>는「거래명세 평균
-          단가 − 그 주문가」입니다(둘 다 1kg·원 단위로 볼 때만 의미가 가깝습니다. 200g 등은 수량·단가 해석이
-          달라질 수 있음).
-        </p>
       </div>
 
       <div className="analysis-controls">
@@ -341,6 +437,14 @@ function BeanSalesAnalysisPage() {
             <option value="quantity">수량순</option>
           </select>
         </label>
+
+        <button
+          type="button"
+          className="ghost-button bean-sales-export-excel"
+          onClick={() => void handleExportBeanSalesExcel()}
+        >
+          엑셀 내보내기
+        </button>
       </div>
 
       <div className="summary-metrics">
@@ -354,13 +458,12 @@ function BeanSalesAnalysisPage() {
         </div>
         <div className="metric-card">
           <span>품목 수</span>
-          <strong>{beanSalesAnalysis.length}개</strong>
+          <strong>{rowsWithRevenue.length}개</strong>
         </div>
         {inventoryBeanRows.length > 0 && notInInventoryByStatement.length > 0 ? (
           <div className="metric-card bean-sales-metric-warn">
             <span>입고에 맞지 않은 품목(누락)</span>
             <strong>{notInInventoryByStatement.length}개 · {formatCurrency(excludedRevenueNotInInventory)}원</strong>
-            <span className="metric-card-hint">아래 표 — 매출 요약에 안 올라감</span>
           </div>
         ) : null}
       </div>
@@ -378,42 +481,62 @@ function BeanSalesAnalysisPage() {
                     nameKey="beanName"
                     cx="50%"
                     cy="50%"
-                    outerRadius={100}
-                    label={(props: any) => `${props.beanName || ''} ${((props.percent || 0) * 100).toFixed(1)}%`}
+                    innerRadius={58}
+                    outerRadius={94}
+                    paddingAngle={2}
+                    label={false}
                   >
                     {revenueChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => `${formatCurrency(Number(value))}원`} />
+                  <Tooltip
+                    formatter={(value) => `${formatCurrency(Number(value))}원`}
+                    labelFormatter={(_, payload) => payload?.[0]?.payload?.beanName ?? ''}
+                    contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="bean-sales-pie-legend" aria-label="원두별 매출 비율 범례">
+                {revenueChartData.map((data) => (
+                  <div key={data.beanName} className="bean-sales-pie-legend__item" title={data.beanName}>
+                    <span className="bean-sales-pie-legend__dot" style={{ background: data.fill }} />
+                    <span className="bean-sales-pie-legend__name">{shortenBeanName(data.beanName, 16)}</span>
+                    <span className="bean-sales-pie-legend__value">
+                      {totalRevenue > 0 ? ((data.totalRevenue / totalRevenue) * 100).toFixed(1) : '0.0'}%
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="chart-container">
               <h3>원두별 매출 금액</h3>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={revenueChartData.slice(0, 8)}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="beanName" 
+                <BarChart data={revenueChartData} layout="vertical" margin={{ top: 4, right: 8, bottom: 4, left: 8 }}>
+                  <CartesianGrid strokeDasharray="2 4" horizontal={false} />
+                  <XAxis type="number" tickFormatter={(value) => `${Math.round(value / 10000)}만`} tick={{ fontSize: 12 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="beanName"
+                    width={116}
                     tick={{ fontSize: 12 }}
-                    interval={0}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
+                    tickFormatter={(value) => shortenBeanName(String(value), 10)}
                   />
-                  <YAxis tickFormatter={(value) => `${Math.round(value / 10000)}만`} />
-                  <Tooltip formatter={(value) => `${formatCurrency(Number(value))}원`} />
+                  <Tooltip
+                    formatter={(value) => `${formatCurrency(Number(value))}원`}
+                    labelFormatter={(label) => String(label)}
+                    contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
+                  />
                   <Bar dataKey="totalRevenue" fill="#8884d8" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="revenue-summary-table">
+          <div className="revenue-summary-table revenue-summary-table--no-hscroll">
             <h3>매출 요약</h3>
-            <table>
+            <table className="bean-sales-revenue-table">
               <thead>
                 <tr>
                   <th>원두명</th>
@@ -421,9 +544,10 @@ function BeanSalesAnalysisPage() {
                   <th>매출 비율</th>
                   <th>수량</th>
                   <th>매출 평균단가</th>
-                  <th>최근 주문(원/kg)</th>
-                  <th>주문일</th>
-                  <th>스프레드(대략)</th>
+                  <th>최근 주문</th>
+                  <th>원가액</th>
+                  <th>이익</th>
+                  <th>스프레드</th>
                   <th>거래처 수</th>
                   <th>거래 건수</th>
                   <th>수정</th>
@@ -442,8 +566,21 @@ function BeanSalesAnalysisPage() {
                       <td>
                         {data.latestGreenWonPerKg != null ? `${formatCurrency(data.latestGreenWonPerKg)}원` : '—'}
                       </td>
-                      <td className="bean-sales-td-muted">
-                        {data.latestGreenOrderDate ?? '—'}
+                      <td>
+                        {data.estimatedCostAmount != null ? `${formatCurrency(data.estimatedCostAmount)}원` : '—'}
+                      </td>
+                      <td
+                        className={
+                          data.estimatedProfitAmount != null
+                            ? data.estimatedProfitAmount >= 0
+                              ? 'bean-sales-spread-pos'
+                              : 'bean-sales-spread-neg'
+                            : 'bean-sales-td-muted'
+                        }
+                      >
+                        {data.estimatedProfitAmount != null
+                          ? `${data.estimatedProfitAmount >= 0 ? '+' : '−'}${formatCurrency(Math.abs(data.estimatedProfitAmount))}원`
+                          : '—'}
                       </td>
                       <td
                         className={
@@ -480,12 +617,7 @@ function BeanSalesAnalysisPage() {
 
       {inventoryBeanRows.length > 0 && notInInventoryByStatement.length > 0 ? (
         <div className="analysis-section bean-sales-not-in-inventory">
-          <h3>입고 생두에 맞지 않은 품목(거래명세)</h3>
-          <p className="bean-sales-not-in-inventory-hint">
-            위「매출 요약」은 입출고에 있는 <strong>N. 품목명</strong>에만 잡힌 금액입니다. 아래 품목은
-            매칭·라벨이 입고에 없어 요약에서 제외됐을 수 있으니, 품목명·입고 표기를 맞추면 같은 표에
-            합쳐집니다. <strong>명세↔입고</strong>에 잡은 품목은 이 목록에 나오지 않습니다(아직 수동으로 안 잡은 것·오매칭만).
-          </p>
+          <h3>입고에 맞지 않은 품목</h3>
           <div className="revenue-summary-table">
             <table>
               <thead>
@@ -545,7 +677,7 @@ function BeanSalesAnalysisPage() {
                         data.spreadVsGreenOrder >= 0 ? 'metric bean-sales-spread-pos' : 'metric bean-sales-spread-neg'
                       }
                     >
-                      스프레드(평균−주문){' '}
+                      스프레드{' '}
                       {data.spreadVsGreenOrder >= 0 ? '+' : '−'}
                       {formatCurrency(Math.abs(data.spreadVsGreenOrder))}원
                     </span>
@@ -633,11 +765,6 @@ function BeanSalesAnalysisPage() {
         }
         .bean-sales-row-edit-btn:hover { background: #e7f1ff; }
 
-        .page-header p {
-          color: #666;
-          font-size: 14px;
-        }
-
         .analysis-controls {
           display: flex;
           gap: 20px;
@@ -660,6 +787,10 @@ function BeanSalesAnalysisPage() {
           border: 1px solid #ddd;
           border-radius: 4px;
           font-size: 14px;
+        }
+
+        .bean-sales-export-excel {
+          margin-left: auto;
         }
 
         .view-mode-tabs {
@@ -719,14 +850,6 @@ function BeanSalesAnalysisPage() {
           font-weight: 600;
         }
 
-        .metric-card-hint {
-          display: block !important;
-          font-size: 12px !important;
-          color: #888 !important;
-          margin-top: 4px;
-          font-weight: normal;
-        }
-
         .bean-sales-metric-warn {
           border: 1px solid #e6c86a;
           background: #fffdf5;
@@ -736,13 +859,6 @@ function BeanSalesAnalysisPage() {
           color: #333;
           font-size: 18px;
           margin-bottom: 8px;
-        }
-
-        .bean-sales-not-in-inventory-hint {
-          color: #666;
-          font-size: 14px;
-          margin: 0 0 16px 0;
-          line-height: 1.5;
         }
 
         .analysis-section {
@@ -765,15 +881,55 @@ function BeanSalesAnalysisPage() {
 
         .chart-container h3 {
           margin: 0 0 15px 0;
-          color: #333;
+          color: #2c3440;
           font-size: 16px;
+          font-weight: 700;
+          letter-spacing: -0.01em;
+        }
+        .bean-sales-pie-legend {
+          margin-top: 10px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px 10px;
+        }
+        .bean-sales-pie-legend__item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          min-width: 0;
+          font-size: 12px;
+          color: #4b5563;
+        }
+        .bean-sales-pie-legend__dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          flex: 0 0 auto;
+        }
+        .bean-sales-pie-legend__name {
+          flex: 1;
+          min-width: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .bean-sales-pie-legend__value {
+          font-variant-numeric: tabular-nums;
+          color: #374151;
+          font-weight: 600;
         }
 
         .revenue-summary-table {
           background: white;
           border-radius: 8px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          overflow: hidden;
+          overflow-x: auto;
+          overflow-y: hidden;
+        }
+
+        .revenue-summary-table--no-hscroll {
+          overflow-x: hidden;
+          max-width: 100%;
         }
 
         .revenue-summary-table h3 {
@@ -785,28 +941,42 @@ function BeanSalesAnalysisPage() {
           border-bottom: 1px solid #e9ecef;
         }
 
-        .revenue-summary-table table {
+        .revenue-summary-table table.bean-sales-revenue-table {
           width: 100%;
           border-collapse: collapse;
+          min-width: 0;
+          table-layout: fixed;
         }
 
         .revenue-summary-table th,
         .revenue-summary-table td {
-          padding: 12px;
+          padding: 8px 6px;
           text-align: left;
           border-bottom: 1px solid #e9ecef;
+          vertical-align: top;
+        }
+
+        .revenue-summary-table th:nth-child(1),
+        .revenue-summary-table td:nth-child(1) {
+          width: 18%;
+          min-width: 120px;
+          word-break: break-word;
         }
 
         .revenue-summary-table th {
           background: #f8f9fa;
           font-weight: 600;
           color: #333;
-          font-size: 14px;
+          font-size: 12px;
         }
 
         .revenue-summary-table td {
           color: #666;
-          font-size: 14px;
+          font-size: 12px;
+        }
+
+        .revenue-summary-table td strong {
+          font-size: 12px;
         }
 
         .detailed-bean-analysis {

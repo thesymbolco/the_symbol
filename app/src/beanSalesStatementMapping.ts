@@ -169,8 +169,9 @@ const KEYWORD_TO_BEAN_NAME: KeywordSpec[] = [
   { re: /ihider|아이히더/i, target: 'Ihider' },
   { re: /achegayo|아체가요/i, target: 'Ache Gayo Mountain' },
   { re: /mandling|만델링/i, target: 'Mandling' },
-  { re: /antigua(?!.*디카)|안티구아(?!.*디카)/i, target: 'Antigua SHB' },
+  // `Decaf Antigua SHB` 는 `antigua(?!.*디카)` 가 먼저 걸리면(뒤에 '디카'가 없는 한글) Antigua SHB로 잘몤 붙는다. 디카 쪽 키워드를 **항상 먼저** 둔다.
   { re: /decaf.*antigua|디카.*안티|decaf antigua|과테말라.*디카(?!.*yirg)/i, target: 'Decaf Antigua SHB' },
+  { re: /antigua(?!.*(?:디카|decaf))|안티구아(?!.*(?:디카|decaf))/i, target: 'Antigua SHB' },
   { re: /decaf yirg|yirgacheffe.*디카|decaf.*예가/i, target: 'Decaf Yirgacheffe' },
   { re: /세라도 ny2|ny2fc|decaf.*세라도|디카.*세하도/i, target: 'Decaf 세라도 NY2FC' },
   { re: /huila|후일라|다리오|dario|수프리모/i, target: 'Huila Supremo' },
@@ -178,7 +179,12 @@ const KEYWORD_TO_BEAN_NAME: KeywordSpec[] = [
   { re: /kappi royale|카피.*로얄|인도.*kappi/i, target: 'India Kappi Royale' },
   { re: /다크(?!.*라이트)|dark\s*blend|blending-dark|블렌딩.*다크|다크로스/i, target: '13. DARK BLEND' },
   { re: /라이트\s*blend|light\s*blend|blending-light|블렌딩.*라이트/i, target: '14. LIGHT BLEND' },
-  { re: /deca?ffe?ine|디카페인\s*blend|blending-signature|15\.|decaf.*blend(?!.*dark)/i, target: '15. DECAFFEINE BLEND' },
+  // 주의: `15\.`만 두면 "15.0kg" 같은 수량 표기에 걸려 다른 품목 단가가 디카페인 블렌드로 잡힌다.
+  {
+    re: /deca?ffe?ine\s*blend|디카페인\s*블렌드|blending[-\s]*signature|blending-signature|decaf.*blend(?!.*dark)/i,
+    target: '15. DECAFFEINE BLEND',
+  },
+  { re: /^15\.\s*DECAFFEINE|DECAFFEINE\s*BLEND/i, target: '15. DECAFFEINE BLEND' },
 ]
 
 const keywordTargetForDisplay = (candidates: string[]): string | null => {
@@ -198,7 +204,7 @@ const keywordTargetForDisplay = (candidates: string[]): string | null => {
 }
 
 /**
- * App.tsx `DEFAULT_ITEM_OPTIONS`·실제 납품 품목에서 자주 쓰는 풀문구 → `bean.name`
+ * App.tsx(품목 옵션은 마스터/기록 기반)·실제 납품 품목에서 자주 쓰는 풀문구 → `bean.name`
  * (공백·대소문자는 normCompact로 비교)
  */
 const PHRASE_TO_BEAN_NAME: ReadonlyArray<readonly [string, string]> = [
@@ -370,6 +376,17 @@ export function mapStatementItemToInventoryLabel(
   // 3) 생두주문-재고 별칭(괄호·매장명 제거 뒤 문자열만 — forMatch)
   for (const [from, to] of GREEN_BEAN_ORDER_INVENTORY_ALIASES) {
     if (forMatchCompact.includes(normCompact(from)) || normCompact(from) === forMatchCompact) {
+      // 알마 등에서 "브라질 세라도 NY2FC" 가 한 가지 품목명이면, 입고에 `Decaf 세라도 NY2FC` 가 따로 있을 때(블렌딩·단가) Brazil 별칭이면
+      // 주문가가 `10. Brazil`에만 쌓이고 레시피의 디카 행 키와 달라진다. 디카 입고 행이 있으면 그 라벨로 먼저 잡는다.
+      if (
+        to === 'Brazil' &&
+        (from === '브라질 세라도 NY2FC' || from === '브라질 세라도 NY2 FC')
+      ) {
+        const decafSerrado = findByExactName('Decaf 세라도 NY2FC', beanRows)
+        if (decafSerrado) {
+          return { label: formatBeanRowLabel(decafSerrado), sortKey: decafSerrado.no ?? 0, matched: true }
+        }
+      }
       const row = resolveAliasedTarget(to, beanRows) ?? findByExactName(to, beanRows)
       if (row) {
         return { label: formatBeanRowLabel(row), sortKey: row.no ?? 0, matched: true }

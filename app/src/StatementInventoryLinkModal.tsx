@@ -1,4 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BLEND_WON_OVERRIDES_SAVED_EVENT, readBlendWonOverridesByLabel, setBlendWonOverride } from './beanBlendWonOverrides'
+import { getLatestGreenOrderWonPerKgByInventoryLabel } from './beanSalesGreenOrderUnitPrice'
+import { GREEN_BEAN_ORDER_SAVED_EVENT } from './GreenBeanOrderPage'
+import {
+  isBlendingDarkBeanRow,
+  isBlendingDecaffeineBeanRow,
+  isBlendingLightBeanRow,
+} from './inventoryBlendRecipes'
+import {
+  INVENTORY_STATUS_CACHE_EVENT,
+  INVENTORY_STATUS_STORAGE_KEY,
+  inventoryPageScopedKey,
+} from './InventoryStatusPage'
 import {
   BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT,
   hasAnyStatementManualForItem,
@@ -6,10 +19,64 @@ import {
   writeStatementInventoryManuals,
   type StatementInventoryManualEntry,
 } from './beanStatementManualMappings'
-import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
-import type { InventoryBeanRow } from './inventoryStatusUtils'
+import { formatBeanRowLabel, mapStatementItemToInventoryLabel, type MapStatementItemToInventoryOptions } from './beanSalesStatementMapping'
+import { normalizeInventoryStatusState, type BlendingRecipe, type InventoryBeanRow } from './inventoryStatusUtils'
 
 const STATEMENT_RECORDS_KEY = 'statement-records-v1'
+
+const formatWon = (n: number) => new Intl.NumberFormat('ko-KR').format(Math.round(n))
+
+type BlendWonFieldProps = {
+  mappedLabel: string
+  wonPerKg: number | null
+  hasOverride: boolean
+  mapOpts: MapStatementItemToInventoryOptions
+}
+
+function BlendWonField({ mappedLabel, wonPerKg, hasOverride, mapOpts }: BlendWonFieldProps) {
+  const [text, setText] = useState(
+    () => (wonPerKg != null && Number.isFinite(wonPerKg) ? String(Math.round(wonPerKg)) : ''),
+  )
+  useEffect(() => {
+    setText(wonPerKg != null && Number.isFinite(wonPerKg) ? String(Math.round(wonPerKg)) : '')
+  }, [mappedLabel, wonPerKg])
+  const commit = () => {
+    const t = text.replace(/,/g, '').trim()
+    if (!t) {
+      setBlendWonOverride(mapOpts, mappedLabel, null)
+      return
+    }
+    const n = parseFloat(t.replace(/,/g, ''))
+    if (!Number.isFinite(n) || n <= 0) {
+      return
+    }
+    setBlendWonOverride(mapOpts, mappedLabel, n)
+  }
+  return (
+    <div className="stmt-inv-link__blend-won-wrap">
+      <input
+        type="text"
+        className="stmt-inv-link__blend-won-input"
+        inputMode="numeric"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            ;(e.target as HTMLInputElement).blur()
+          }
+        }}
+        placeholder="원/kg (입력·저장)"
+        aria-label={`${mappedLabel} 최근 주문 원/kg`}
+      />
+      {hasOverride ? (
+        <span className="stmt-inv-link__blend-ovr-badge" title="생두 주문가 대신 직접 입력">
+          직접
+        </span>
+      ) : null}
+    </div>
+  )
+}
 
 type StatementRecord = { itemName: string }
 
@@ -35,6 +102,7 @@ function StatementInventoryLinkModal({
   const [showMatchedItems, setShowMatchedItems] = useState(false)
   const [draftFrom, setDraftFrom] = useState('')
   const [draftTo, setDraftTo] = useState('')
+  const [costRefreshTick, setCostRefreshTick] = useState(0)
 
   const mapOpts = useMemo(
     () => ({ mode, companyId: activeCompanyId } as const),
@@ -106,6 +174,112 @@ function StatementInventoryLinkModal({
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
   }, [preferredToLabel, statementItemNames, inventoryBeanRows, mapOpts, mode, activeCompanyId, rows])
 
+  const blendRecipeSnapshot = useMemo(() => {
+    const read = (key: string) => {
+      try {
+        const raw = window.localStorage.getItem(key)
+        if (!raw) {
+          return null
+        }
+        const st = normalizeInventoryStatusState(JSON.parse(raw))
+        if (!st) {
+          return null
+        }
+        return {
+          dark: st.blendingDarkRecipe ?? null,
+          light: st.blendingLightRecipe ?? null,
+          decaf: st.blendingDecaffeineRecipe ?? null,
+        }
+      } catch {
+        return null
+      }
+    }
+    const primaryKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
+    return read(primaryKey) ?? read(INVENTORY_STATUS_STORAGE_KEY) ?? { dark: null, light: null, decaf: null }
+  }, [mode, activeCompanyId, open, costRefreshTick, stmtPickTick])
+
+  const blendCostBreakdown = useMemo(() => {
+    if (!open || !preferredToLabel) {
+      return null
+    }
+    const targetBean = inventoryBeanRows.find((b) => formatBeanRowLabel(b) === preferredToLabel)
+    if (!targetBean) {
+      return null
+    }
+    const labelKind = isBlendingDarkBeanRow(targetBean)
+      ? ('다크' as const)
+      : isBlendingLightBeanRow(targetBean)
+        ? ('라이트' as const)
+        : isBlendingDecaffeineBeanRow(targetBean)
+          ? ('디카페인' as const)
+          : null
+    if (!labelKind) {
+      return null
+    }
+    const recipe: BlendingRecipe | null = isBlendingDarkBeanRow(targetBean)
+      ? blendRecipeSnapshot.dark
+      : isBlendingLightBeanRow(targetBean)
+        ? blendRecipeSnapshot.light
+        : blendRecipeSnapshot.decaf
+    if (!recipe?.components?.length) {
+      return {
+        kind: labelKind,
+        rows: [] as Array<{
+          mappedLabel: string
+          rawPerCycle: number
+          wonPerKg: number | null
+          hasOverride: boolean
+        }>,
+        weightedWonPerKg: null,
+        totalRawForWeight: 0,
+        roastedPerCycle: recipe?.roastedPerCycle ?? 0,
+      }
+    }
+    const ovr = readBlendWonOverridesByLabel(mapOpts)
+    const costMap = getLatestGreenOrderWonPerKgByInventoryLabel(
+      inventoryBeanRows,
+      mapOpts,
+      blendRecipeSnapshot,
+    )
+    const rows = recipe.components.map((comp) => {
+      const { label: mappedLabel } = mapStatementItemToInventoryLabel(
+        comp.beanName,
+        inventoryBeanRows,
+        mapOpts,
+      )
+      const c = costMap.get(mappedLabel)
+      return {
+        mappedLabel,
+        rawPerCycle: comp.rawPerCycle,
+        hasOverride: ovr.has(mappedLabel),
+        wonPerKg: c != null ? c.wonPerKg : null,
+      }
+    })
+    let weighted = 0
+    let totalRaw = 0
+    for (const r of rows) {
+      if (r.wonPerKg != null && r.rawPerCycle > 0) {
+        weighted += r.wonPerKg * r.rawPerCycle
+        totalRaw += r.rawPerCycle
+      }
+    }
+    return {
+      kind: labelKind,
+      rows,
+      weightedWonPerKg: totalRaw > 0 ? weighted / totalRaw : null,
+      totalRawForWeight: totalRaw,
+      roastedPerCycle: recipe.roastedPerCycle,
+    }
+  }, [
+    open,
+    preferredToLabel,
+    inventoryBeanRows,
+    mapOpts,
+    blendRecipeSnapshot,
+    costRefreshTick,
+    stmtPickTick,
+  ])
+
   const load = useCallback(() => {
     setRows(readStatementInventoryManuals(mode, activeCompanyId))
   }, [mode, activeCompanyId])
@@ -134,6 +308,21 @@ function StatementInventoryLinkModal({
     window.addEventListener(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, on)
     return () => window.removeEventListener(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, on)
   }, [])
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    const bump = () => setCostRefreshTick((n) => n + 1)
+    window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, bump)
+    window.addEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, bump)
+    window.addEventListener(BLEND_WON_OVERRIDES_SAVED_EVENT, bump)
+    return () => {
+      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, bump)
+      window.removeEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, bump)
+      window.removeEventListener(BLEND_WON_OVERRIDES_SAVED_EVENT, bump)
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) {
@@ -205,6 +394,7 @@ function StatementInventoryLinkModal({
 
         <section className="stmt-inv-link__add" aria-label="새 연결">
           {preferredToLabel ? (
+            <>
             <div className="stmt-inv-link__prefill">
               <strong>현재 선택 입고:</strong> {preferredToLabel}
               <div className="stmt-inv-link__prefill-list">
@@ -219,6 +409,65 @@ function StatementInventoryLinkModal({
                 )}
               </div>
             </div>
+            {blendCostBreakdown ? (
+              <div className="stmt-inv-link__blend" aria-label="블렌딩 원가 구성(입출고 레시피·생두 주문)">
+                <div className="stmt-inv-link__blend-head">
+                  <strong>블렌딩·{blendCostBreakdown.kind}</strong>
+                  <span className="stmt-inv-link__blend-hint">
+                    입출고 레시피; 최근 주문(원/kg)은 생두 주문「일자 기록」. 없을 때·틀릴 때 아래에 직접 입력(탭/엔터로 저장)합니다.
+                  </span>
+                </div>
+                {blendCostBreakdown.rows.length === 0 ? (
+                  <p className="stmt-inv-link__blend-empty">
+                    이 블렌드는 입출고 · 일자별 로스팅에서 <strong>레시피(재료)</strong>를 아직 넣지 않았습니다. 거기서 재료를
+                    추가하면 이 표가 채워집니다.
+                  </p>
+                ) : (
+                  <>
+                    <div className="stmt-inv-link__blend-table-wrap">
+                      <table className="stmt-inv-link__blend-table">
+                        <thead>
+                          <tr>
+                            <th scope="col">재료 라벨(입고)</th>
+                            <th scope="col">최근 주문(원/kg)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {blendCostBreakdown.rows.map((r, idx) => (
+                            <tr key={`${r.mappedLabel}-${idx}`}>
+                              <td className="stmt-inv-link__blend-td-label">{r.mappedLabel}</td>
+                              <td className="stmt-inv-link__blend-td-won">
+                                <BlendWonField
+                                  mappedLabel={r.mappedLabel}
+                                  wonPerKg={r.wonPerKg}
+                                  hasOverride={r.hasOverride}
+                                  mapOpts={mapOpts}
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {blendCostBreakdown.totalRawForWeight > 0 && blendCostBreakdown.weightedWonPerKg != null ? (
+                      <p className="stmt-inv-link__blend-avg">
+                        <strong>레시피 가중 평균(원/kg):</strong> {formatWon(blendCostBreakdown.weightedWonPerKg)}원
+                        <span className="stmt-inv-link__td-muted"> · raw 합 {blendCostBreakdown.totalRawForWeight}kg</span>
+                        {blendCostBreakdown.roastedPerCycle > 0 ? (
+                          <span className="stmt-inv-link__td-muted">
+                            {' '}
+                            · 사이클당 로스팅 {blendCostBreakdown.roastedPerCycle}kg
+                          </span>
+                        ) : null}
+                      </p>
+                    ) : (
+                      <p className="stmt-inv-link__blend-warn">구성 원두 중 주문가가 잡힌 항목이 없으면 가중 평균을 못 씁니다.</p>
+                    )}
+                  </>
+                )}
+              </div>
+            ) : null}
+            </>
           ) : null}
           <label className="stmt-inv-link__toggle">
             <input
@@ -330,6 +579,28 @@ function StatementInventoryLinkModal({
         .stmt-inv-link__prefill-list { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 5px; }
         .stmt-inv-link__chip { display: inline-block; border: 1px solid #d9dfe7; background: #fff; color: #455; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
         .stmt-inv-link__prefill-empty { font-size: 11px; color: #777; }
+        .stmt-inv-link__blend { margin: 10px 0 0; padding: 10px; background: #f0f7ff; border: 1px solid #cfe2ff; border-radius: 8px; font-size: 12px; color: #333; overflow-x: hidden; max-width: 100%; box-sizing: border-box; }
+        .stmt-inv-link__blend-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+        .stmt-inv-link__blend-hint { font-size: 10px; color: #666; font-weight: 400; }
+        .stmt-inv-link__blend-empty { margin: 0; font-size: 11px; color: #555; line-height: 1.45; }
+        .stmt-inv-link__blend-table-wrap { overflow-x: hidden; min-width: 0; }
+        .stmt-inv-link__blend-table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed; min-width: 0; }
+        .stmt-inv-link__blend-table th, .stmt-inv-link__blend-table td { border: 1px solid #d0dbe8; padding: 4px 6px; text-align: left; vertical-align: middle; }
+        .stmt-inv-link__blend-table th { background: #e8f2fc; color: #444; font-weight: 600; }
+        .stmt-inv-link__blend-table th:first-child { width: 45%; }
+        .stmt-inv-link__blend-table th:last-child { width: 55%; }
+        .stmt-inv-link__blend-td-label { word-break: break-word; font-size: 11px; color: #333; }
+        .stmt-inv-link__blend-td-won { padding: 3px 4px !important; }
+        .stmt-inv-link__blend-won-wrap { display: flex; align-items: center; gap: 6px; min-width: 0; }
+        .stmt-inv-link__blend-won-input { flex: 1; min-width: 0; box-sizing: border-box; font-size: 12px; padding: 5px 7px; border: 1px solid #9db4cc; border-radius: 4px; background: #fff; }
+        .stmt-inv-link__blend-won-input:focus { border-color: #0d6efd; outline: none; }
+        .stmt-inv-link__blend-ovr-badge { flex: 0 0 auto; font-size: 10px; color: #0a58ca; background: #e7f0ff; border-radius: 4px; padding: 1px 5px; }
+        .stmt-inv-link__code { font-size: 10px; background: #fff; padding: 1px 4px; border-radius: 3px; word-break: break-all; }
+        .stmt-inv-link__td-muted { color: #666; }
+        .stmt-inv-link__td-warn { color: #a50; font-size: 11px; }
+        .stmt-inv-link__won { color: #0a58ca; }
+        .stmt-inv-link__blend-avg { margin: 8px 0 0; font-size: 12px; color: #222; }
+        .stmt-inv-link__blend-warn { margin: 6px 0 0; font-size: 11px; color: #8a4; }
         .stmt-inv-link__toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #555; margin: 0 0 8px; }
         .stmt-inv-link__row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
         .stmt-inv-link__row label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: #666; }

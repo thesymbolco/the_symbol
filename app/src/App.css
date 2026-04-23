@@ -4029,6 +4029,11 @@
   color: #ffffff;
 }
 
+.inventory-daily-journal-target-toggle button.is-decaf.is-active {
+  background: #0d9488;
+  color: #ffffff;
+}
+
 .inventory-daily-journal-commit-cycle.is-light {
   background: #d97706;
   border-color: #d97706;
@@ -4037,6 +4042,16 @@
 .inventory-daily-journal-commit-cycle.is-light:hover:not(:disabled) {
   background: #b45309;
   border-color: #b45309;
+}
+
+.inventory-daily-journal-commit-cycle.is-decaf {
+  background: #0d9488;
+  border-color: #0d9488;
+}
+
+.inventory-daily-journal-commit-cycle.is-decaf:hover:not(:disabled) {
+  background: #0f766e;
+  border-color: #0f766e;
 }
 
 .inventory-daily-journal-metric-value .inventory-daily-journal-metric-dark,
@@ -4057,8 +4072,19 @@
   margin-left: 10px;
 }
 
+.inventory-daily-journal-metric-value .inventory-daily-journal-metric-decaf {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f766e;
+  margin-left: 10px;
+}
+
 .inventory-daily-journal-metric-value .inventory-daily-journal-metric-dark em,
-.inventory-daily-journal-metric-value .inventory-daily-journal-metric-light em {
+.inventory-daily-journal-metric-value .inventory-daily-journal-metric-light em,
+.inventory-daily-journal-metric-value .inventory-daily-journal-metric-decaf em {
   font-style: normal;
   font-size: 11px;
   font-weight: 500;
@@ -4100,6 +4126,12 @@
   background: rgba(217, 119, 6, 0.1);
   color: #b45309;
   border: 1px solid rgba(217, 119, 6, 0.25);
+}
+
+.inventory-daily-journal-card-cycle-badge.is-decaf {
+  background: rgba(13, 148, 136, 0.1);
+  color: #0f766e;
+  border: 1px solid rgba(13, 148, 136, 0.25);
 }
 
 .inventory-daily-journal-card-cycle.is-light .inventory-daily-journal-card-cycle-label,
@@ -4285,7 +4317,7 @@
 
 .inventory-daily-journal-recipes {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
 
@@ -4340,6 +4372,29 @@
 
 .inventory-daily-journal-recipe.is-light .inventory-daily-journal-recipe-add:hover {
   background: rgba(254, 243, 199, 0.5);
+}
+
+.inventory-daily-journal-recipe.is-decaf {
+  border-color: rgba(45, 212, 191, 0.45);
+  background: rgba(240, 253, 250, 0.65);
+}
+
+.inventory-daily-journal-recipe.is-decaf .inventory-daily-journal-recipe-head strong,
+.inventory-daily-journal-recipe.is-decaf .inventory-daily-journal-recipe-output {
+  color: #0f766e;
+}
+
+.inventory-daily-journal-recipe.is-decaf .inventory-daily-journal-recipe-output {
+  border-top-color: rgba(45, 212, 191, 0.5);
+}
+
+.inventory-daily-journal-recipe.is-decaf .inventory-daily-journal-recipe-add {
+  color: #0f766e;
+  border-color: rgba(13, 148, 136, 0.55);
+}
+
+.inventory-daily-journal-recipe.is-decaf .inventory-daily-journal-recipe-add:hover {
+  background: rgba(204, 251, 241, 0.55);
 }
 
 .inventory-daily-journal-recipe-remove {

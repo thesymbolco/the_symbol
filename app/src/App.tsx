@@ -225,27 +225,8 @@ function categoryIdForPage(page: AppActivePage): PageCategoryId {
 const currencyFormatter = new Intl.NumberFormat('ko-KR')
 const CUSTOM_CLIENT_OPTION = '__custom_client__'
 const CUSTOM_ITEM_OPTION = '__custom__'
-const DEFAULT_ITEM_OPTIONS = [
-  '에티오피아 코케허니 예가체프 G1',
-  '에티오피아 예가체프 G2',
-  '에티오피아 모모라 워시드 구지 G1',
-  '케냐 AA FAQ',
-  '인도네시아 아체가요 G1',
-  '인도네시아 만델링 G1',
-  '과테말라 안티구아 SHB',
-  '디카페인 (안티구아+세하도 50:50)',
-  '브라질 세하도',
-  '콜롬비아 다리오 수프리모',
-  '블렌딩 다크로스나',
-  '블렌딩 라이트',
-  '과테말라 안티구아 디카페인',
-  '브라질 슈가케인 디카페인',
-  '에티오피아 시다모 G4',
-  '더치 오리지널',
-  '더치 디카페인',
-  '더치 블렌드',
-  '더치',
-] as const
+/** 거래 품목 셀렉트: 코드에 샘플 품목을 넣지 않고, 품목 마스터·단가·납품 기록에서만 옵션을 만든다. */
+const DEFAULT_ITEM_OPTIONS = [] as const
 const DEFAULT_SPEC_OPTIONS = ['1/KG', '200/G', '1/L', '500/ML', '250/ML'] as const
 const NOTE_OPTIONS = ['부가세 별도', '부가세 없음'] as const
 const STATEMENT_PREVIEW_LABEL = '공급받는자용'
