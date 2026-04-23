@@ -16,11 +16,14 @@ import {
   BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT,
   hasAnyStatementManualForItem,
   readStatementInventoryManuals,
-  writeStatementInventoryManuals,
+  saveStatementInventoryManualsWithCloud,
+  syncStatementInventoryManualsFromCloud,
   type StatementInventoryManualEntry,
 } from './beanStatementManualMappings'
+import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument } from './lib/companyDocuments'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel, type MapStatementItemToInventoryOptions } from './beanSalesStatementMapping'
 import { normalizeInventoryStatusState, type BlendingRecipe, type InventoryBeanRow } from './inventoryStatusUtils'
+import { useAppRuntime } from './providers/AppRuntimeProvider'
 
 const STATEMENT_RECORDS_KEY = 'statement-records-v1'
 
@@ -97,12 +100,14 @@ function StatementInventoryLinkModal({
   activeCompanyId,
   preferredToLabel = null,
 }: Props) {
+  const { user } = useAppRuntime()
   const [rows, setRows] = useState<StatementInventoryManualEntry[]>([])
   const [stmtPickTick, setStmtPickTick] = useState(0)
   const [showMatchedItems, setShowMatchedItems] = useState(false)
   const [draftFrom, setDraftFrom] = useState('')
   const [draftTo, setDraftTo] = useState('')
   const [costRefreshTick, setCostRefreshTick] = useState(0)
+  const [cloudSyncHint, setCloudSyncHint] = useState('')
 
   const mapOpts = useMemo(
     () => ({ mode, companyId: activeCompanyId } as const),
@@ -286,7 +291,40 @@ function StatementInventoryLinkModal({
 
   useEffect(() => {
     if (open) {
-      load()
+      void (async () => {
+        await syncStatementInventoryManualsFromCloud(mode, activeCompanyId)
+        if (mode === 'cloud' && activeCompanyId) {
+          try {
+            const remoteStatement = await loadCompanyDocument<{ records?: Array<{ itemName?: string }> }>(
+              activeCompanyId,
+              COMPANY_DOCUMENT_KEYS.statementPage,
+            )
+            if (Array.isArray(remoteStatement?.records)) {
+              window.localStorage.setItem(STATEMENT_RECORDS_KEY, JSON.stringify(remoteStatement.records))
+            }
+          } catch (error) {
+            console.error('명세↔입고 모달: 거래명세 클라우드 문서를 읽지 못했습니다.', error)
+          }
+          try {
+            const remoteInventory = await loadCompanyDocument<{ inventoryState?: unknown }>(
+              activeCompanyId,
+              COMPANY_DOCUMENT_KEYS.inventoryPage,
+            )
+            const candidate = remoteInventory?.inventoryState ?? remoteInventory
+            if (candidate) {
+              const st = normalizeInventoryStatusState(candidate)
+              if (st) {
+                const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
+                window.localStorage.setItem(key, JSON.stringify(st))
+              }
+            }
+          } catch (error) {
+            console.error('명세↔입고 모달: 입출고 클라우드 문서를 읽지 못했습니다.', error)
+          }
+        }
+        load()
+      })()
+      setCloudSyncHint('')
       setDraftFrom('')
       if (preferredToLabel && labelOptions.includes(preferredToLabel)) {
         setShowMatchedItems(true)
@@ -337,9 +375,16 @@ function StatementInventoryLinkModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  const saveAll = (next: StatementInventoryManualEntry[]) => {
+  const saveAll = async (next: StatementInventoryManualEntry[]) => {
     setRows(next)
-    writeStatementInventoryManuals(mode, activeCompanyId, next)
+    const result = await saveStatementInventoryManualsWithCloud(mode, activeCompanyId, next, user?.id)
+    if (mode === 'cloud') {
+      setCloudSyncHint(
+        result.cloudSaved
+          ? '클라우드 동기화 완료'
+          : '클라우드 저장 실패(이 브라우저에는 저장됨). 네트워크/권한 확인 후 다시 저장해 주세요.',
+      )
+    }
   }
 
   const addLink = () => {
@@ -350,18 +395,18 @@ function StatementInventoryLinkModal({
     }
     const next = rows.filter((r) => r.from !== from)
     next.push({ from, toLabel: to })
-    saveAll(next)
+    void saveAll(next)
     setDraftFrom('')
     setDraftTo('')
   }
 
   const updateRow = (index: number, toLabel: string) => {
     const next = rows.map((r, i) => (i === index ? { ...r, toLabel } : r))
-    saveAll(next)
+    void saveAll(next)
   }
 
   const removeRow = (index: number) => {
-    saveAll(rows.filter((_, i) => i !== index))
+    void saveAll(rows.filter((_, i) => i !== index))
   }
 
   if (!open) {
@@ -391,6 +436,7 @@ function StatementInventoryLinkModal({
           기본은 <strong>미매칭 거래 품목만</strong> 목록에 뜹니다. 필요하면 <strong>이미 자동 매칭된 항목도 보기</strong>를
           켜서 수동으로 덮어쓸 수 있습니다(수동이 자동보다 먼저 적용).
         </p>
+        {cloudSyncHint ? <p className="stmt-inv-link__cloud-hint">{cloudSyncHint}</p> : null}
 
         <section className="stmt-inv-link__add" aria-label="새 연결">
           {preferredToLabel ? (
@@ -574,6 +620,7 @@ function StatementInventoryLinkModal({
         .stmt-inv-modal-close { border: none; background: #eee; width: 36px; height: 36px; border-radius: 6px; font-size: 22px; line-height: 1; cursor: pointer; color: #555; }
         .stmt-inv-modal-close:hover { background: #e0e0e0; }
         .stmt-inv-modal-lead { font-size: 0.85rem; color: #555; line-height: 1.45; margin: 0 0 14px; }
+        .stmt-inv-link__cloud-hint { margin: -6px 0 10px; font-size: 12px; color: #1e3a8a; }
         .stmt-inv-link__add { margin: 0 0 12px; padding: 10px; background: #f5f6f8; border-radius: 8px; border: 1px solid #e3e5e8; }
         .stmt-inv-link__prefill { margin: 0 0 9px; font-size: 12px; color: #444; }
         .stmt-inv-link__prefill-list { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 5px; }

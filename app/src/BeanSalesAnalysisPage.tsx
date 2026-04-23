@@ -8,7 +8,11 @@ import {
 import { BLEND_WON_OVERRIDES_SAVED_EVENT } from './beanBlendWonOverrides'
 import { getLatestGreenOrderWonPerKgByInventoryLabel } from './beanSalesGreenOrderUnitPrice'
 import { GREEN_BEAN_ORDER_SAVED_EVENT, GREEN_BEAN_ORDER_STORAGE_KEY } from './GreenBeanOrderPage'
-import { BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, hasAnyStatementManualForItem } from './beanStatementManualMappings'
+import {
+  BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT,
+  hasAnyStatementManualForItem,
+  syncStatementInventoryManualsFromCloud,
+} from './beanStatementManualMappings'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
 import { normalizeInventoryStatusState } from './inventoryStatusUtils'
 import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'
@@ -129,6 +133,10 @@ function BeanSalesAnalysisPage() {
       window.removeEventListener(STATEMENT_RECORDS_SAVED_EVENT, onStatement)
     }
   }, [])
+
+  useEffect(() => {
+    void syncStatementInventoryManualsFromCloud(mode, activeCompanyId)
+  }, [mode, activeCompanyId, manualMappingTick])
 
   useEffect(() => {
     let cancelled = false

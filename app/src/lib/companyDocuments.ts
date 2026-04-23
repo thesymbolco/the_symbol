@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 export const COMPANY_DOCUMENT_KEYS = {
   expensePage: 'expense-page',
   statementPage: 'statement-page',
+  statementInventoryMappings: 'statement-inventory-mappings',
   inventoryPage: 'inventory-page',
   beanNameAliases: 'bean-name-aliases',
   greenBeanOrderPage: 'green-bean-order-page',

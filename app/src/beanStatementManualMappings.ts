@@ -1,4 +1,5 @@
 import { inventoryPageScopedKey } from './InventoryStatusPage'
+import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import type { InventoryBeanRow } from './inventoryStatusUtils'
 
 export const BEAN_STATEMENT_MANUAL_KEY_BASE = 'bean-statement-mappings-v1'
@@ -82,6 +83,51 @@ export const writeStatementInventoryManuals = (
   }))
   window.localStorage.setItem(getStorageKey(mode, companyId), JSON.stringify(deduped))
   window.dispatchEvent(new Event(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT))
+}
+
+export async function syncStatementInventoryManualsFromCloud(
+  mode: 'local' | 'cloud',
+  companyId: string | null,
+): Promise<void> {
+  if (mode !== 'cloud' || !companyId) {
+    return
+  }
+  try {
+    const remote = await loadCompanyDocument<StatementInventoryManualEntry[]>(
+      companyId,
+      COMPANY_DOCUMENT_KEYS.statementInventoryMappings,
+    )
+    if (!Array.isArray(remote)) {
+      return
+    }
+    writeStatementInventoryManuals(mode, companyId, remote)
+  } catch (error) {
+    console.error('명세↔입고 수동매핑 클라우드 문서를 읽지 못했습니다.', error)
+  }
+}
+
+export async function saveStatementInventoryManualsWithCloud(
+  mode: 'local' | 'cloud',
+  companyId: string | null,
+  entries: readonly StatementInventoryManualEntry[],
+  userId?: string | null,
+): Promise<{ cloudSaved: boolean }> {
+  writeStatementInventoryManuals(mode, companyId, entries)
+  if (mode !== 'cloud' || !companyId) {
+    return { cloudSaved: false }
+  }
+  try {
+    await saveCompanyDocument(
+      companyId,
+      COMPANY_DOCUMENT_KEYS.statementInventoryMappings,
+      readStatementInventoryManuals(mode, companyId),
+      userId ?? null,
+    )
+    return { cloudSaved: true }
+  } catch (error) {
+    console.error('명세↔입고 수동매핑 클라우드 저장에 실패했습니다.', error)
+    return { cloudSaved: false }
+  }
 }
 
 /**

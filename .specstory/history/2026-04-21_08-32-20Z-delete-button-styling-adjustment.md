@@ -55159,3 +55159,1189 @@ _**Agent (default)**_
 <summary>Tool use: **read_file_v2**</summary>
 
 </details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "const STORAGE_KEY|export const STORAGE_KEY|type StatementPageDocument|records"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "const STORAGE_KEY|export const STORAGE_KEY|type StatementPageDocument|records",
+  "topFiles": [
+    {
+      "matchCount": 50,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 117
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "INVENTORY_STATUS_STORAGE_KEY|normalizeInventoryStatusState\\(|type InventoryPageDocument"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "INVENTORY_STATUS_STORAGE_KEY|normalizeInventoryStatusState\\(|type InventoryPageDocument",
+  "topFiles": [
+    {
+      "matchCount": 9,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 9
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "readGreenBeanOrderPersistedFromStorage|GREEN_BEAN_ORDER_STORAGE_KEY|normalizePersisted"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "readGreenBeanOrderPersistedFromStorage|GREEN_BEAN_ORDER_STORAGE_KEY|normalizePersisted",
+  "topFiles": [
+    {
+      "matchCount": 10,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 10
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "const latestGreenWonByLabel|const allowedInventoryLabels|const \\{ beanSalesAnalysis"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "const latestGreenWonByLabel|const allowedInventoryLabels|const \\{ beanSalesAnalysis",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build</summary>
+
+```bash
+npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+src/BeanSalesAnalysisPage.tsx(13,46): error TS6133: 'BlendingRecipe' is declared but its value is never read.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build</summary>
+
+```bash
+npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 650 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-soYN0KTb.css    150.46 kB │ gzip:  25.04 kB
+dist/assets/index-CIZuA0y6.js   2,620.82 kB │ gzip: 745.49 kB
+
+✓ built in 408ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+패치 끝냈습니다. 급한 부분 바로 클라우드 연동으로 바꿨습니다.
+
+### 이번에 고친 것 (`BeanSalesAnalysisPage`)
+- **거래명세 데이터**
+  - cloud 모드 + companyId 있으면 `company_documents.statement-page`에서 직접 읽음
+  - 실패/없을 때만 localStorage fallback
+- **입출고 데이터 + 블렌딩 레시피**
+  - cloud 모드면 `company_documents.inventory-page`에서 읽고 분석에 사용
+  - 실패 시 local fallback
+- **생두주문 데이터(원가 추정용)**
+  - cloud 모드면 `company_documents.green-bean-order-page`를 먼저 읽어서 로컬 캐시에 동기화 후 계산
+  - 기존 계산 함수(`getLatestGreenOrderWonPerKgByInventoryLabel`)가 이 값을 사용하도록 연결
+
+### 추가 포인트
+- 기존 이벤트(`STATEMENT_RECORDS_SAVED_EVENT`, `INVENTORY_STATUS_CACHE_EVENT`, `GREEN_BEAN_ORDER_SAVED_EVENT`) 발생 시 클라우드 재조회 경로도 같이 타게 구성했습니다.
+- 타입/린트/빌드 모두 확인 완료:
+  - lints: 문제 없음
+  - `npm run build`: 통과
+
+맞습니다, 원래 처음부터 이랬어야 했고 이번에 분석 페이지까지 클라우드 경로로 맞췄습니다.
+
+---
+
+_**User**_
+
+또 안된건 없어?
+
+---
+
+_**Agent (default)**_
+
+빠르게 전수 점검해서 “클라우드 누락 가능 지점”만 딱 추려드릴게요.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.tsx",
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "useAppRuntime\\(|mode, activeCompanyId|activeCompanyId"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "useAppRuntime\\(|mode, activeCompanyId|activeCompanyId",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/TeamManagementPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/providers/AppRuntimeProvider.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/ExpensePage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MemoPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/components/AppAuthGate.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/StaffPayrollPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    }
+  ],
+  "totalFiles": 12,
+  "totalMatches": 12
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.tsx",
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "window\\.localStorage\\.getItem\\(|window\\.localStorage\\.setItem\\("
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "window\\.localStorage\\.getItem\\(|window\\.localStorage\\.setItem\\(",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/StaffPayrollPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MemoPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/ExpensePage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/providers/AppRuntimeProvider.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 10,
+  "totalMatches": 10
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.tsx",
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "loadCompanyDocument\u003c|saveCompanyDocument\\("
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "files_with_matches",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "loadCompanyDocument\u003c|saveCompanyDocument\\(",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/ExpensePage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/StaffPayrollPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MemoPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 8,
+  "totalMatches": 8
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx",
+  "pattern": "localStorage|loadCompanyDocument|saveCompanyDocument"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx",
+  "pattern": "localStorage|loadCompanyDocument|saveCompanyDocument",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+있습니다. 빠르게 점검해보니 **아직 2개 남아있어요**.
+
+1. **`beanStatementManualMappings` (명세↔입고 수동매핑)**
+- 지금도 `localStorage`만 사용합니다.
+- 즉 cloud 모드여도 기기 간 공유 안 됩니다.
+
+2. **`StatementInventoryLinkModal` 내부 읽기**
+- 거래명세 품목 목록/블렌드 스냅샷을 로컬에서 직접 읽는 경로가 남아 있습니다.
+- 분석 페이지에서 클라우드 동기화는 해놨지만, 이 모달 자체는 cloud 직접 읽기 기준으로 정리되지 않았습니다.
+
+---
+
+핵심 페이지(거래명세/입출고/생두주문/월마감/원두매출분석)는 지금 cloud 경로 붙였고,  
+**남은 건 위 “수동매핑+모달 데이터소스” 정리**입니다.
+
+원하면 지금 바로 이 2개도 같은 방식으로 완전히 cloud 문서화까지 끝내겠습니다.
+
+---
+
+_**User**_
+
+해줘
+
+---
+
+_**Agent (default)**_
+
+바로 진행합니다. 수동매핑을 클라우드 문서로 저장/로드하고, `StatementInventoryLinkModal`도 cloud 소스를 직접 동기화하도록 패치하겠습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+남은 2개를 끝까지 처리하겠습니다: 수동매핑 클라우드 문서화 + 모달이 cloud 문서를 먼저 동기화해서 읽게 보강합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/lib/companyDocuments.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts",
+    "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/lib/companyDocuments.ts"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/lib/companyDocuments.ts"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build</summary>
+
+```bash
+npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 650 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-soYN0KTb.css    150.46 kB │ gzip:  25.04 kB
+dist/assets/index-Dey87INk.js   2,621.93 kB │ gzip: 745.76 kB
+
+✓ built in 411ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+끝냈습니다. 남아있던 2개도 클라우드 쪽으로 붙였습니다.
+
+### 방금 패치한 항목
+
+1. **명세↔입고 수동매핑 (`beanStatementManualMappings`)**
+- 클라우드 문서 키 추가:
+  - `COMPANY_DOCUMENT_KEYS.statementInventoryMappings`
+- 새 함수 추가:
+  - `syncStatementInventoryManualsFromCloud(mode, companyId)`
+  - `saveStatementInventoryManualsWithCloud(mode, companyId, entries, userId?)`
+- 동작:
+  - cloud 모드면 클라우드 문서 읽어 로컬 캐시 반영
+  - 저장 시 로컬 + 클라우드 둘 다 저장
+
+2. **`StatementInventoryLinkModal`**
+- 열릴 때 cloud 모드면:
+  - 수동매핑 클라우드 동기화
+  - 거래명세 문서(`statement-page`)를 로컬 캐시에 동기화
+  - 입출고 문서(`inventory-page`)를 로컬 캐시에 동기화
+- 매핑 저장 시:
+  - 기존 local write 대신 `saveStatementInventoryManualsWithCloud(...)` 사용
+
+3. **`BeanSalesAnalysisPage`**
+- 수동매핑도 cloud 문서 기준으로 동기화되도록
+  - `syncStatementInventoryManualsFromCloud(...)` 호출 추가
+
+---
+
+### 확인 결과
+- 린트: 문제 없음
+- 빌드: 통과 (`npm run build`)
+
+지금 기준으로 이전에 지적한 “남은 2개”는 패치 완료됐습니다.
+
+---
+
+_**User**_
+
+아니 이거 다른 환경에서 수정해도 왜 값이 안바껴? 원두별 매출 분석에서 명세 입고를 맞췄는데 수정한 환경에서만 수정이 되고 다른 환경에서는 또 다시 수정을해야하는데? 이럴거면 클라우드 연결이 왜 필요한거야?
+
+---
+
+_**Agent (default)**_
+
+지적 맞습니다. 원인 바로 잡겠습니다: 수동매핑 저장이 실패해도 로컬만 반영되고(조용히 실패), 클라우드 실패가 UI에 안 보이는 상태였습니다. 지금 클라우드 저장 성공/실패를 명확히 처리하도록 패치합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build</summary>
+
+```bash
+npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 650 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-soYN0KTb.css    150.46 kB │ gzip:  25.04 kB
+dist/assets/index-CELylyXa.js   2,622.42 kB │ gzip: 745.92 kB
+
+✓ built in 406ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+맞습니다. 방금 원인 가능성이 큰 부분을 직접 고쳤습니다.
+
+### 왜 “한 환경에서만” 보였는지
+- 수동매핑 저장이 **로컬 먼저 저장**되고,
+- 클라우드 저장이 실패해도 사용자에게 표시가 안 나와서,
+- 결과적으로 “저장된 것처럼 보이지만 다른 환경엔 안 반영”이 생길 수 있었습니다.
+
+### 지금 고친 것
+1. `StatementInventoryLinkModal`에서 저장 시
+- `user?.id`를 함께 넘겨 클라우드 저장 시도 (권한/RLS 케이스 보강)
+- 저장 결과를 UI에 표시
+  - 성공: `클라우드 동기화 완료`
+  - 실패: `클라우드 저장 실패(이 브라우저에는 저장됨)...`
+
+2. `saveStatementInventoryManualsWithCloud`
+- 반환값으로 `cloudSaved`를 돌려줘서
+- 호출 UI가 성공/실패를 정확히 알 수 있게 변경
+
+### 확인
+- 린트/빌드 모두 통과했습니다.
+
+이제부터는 같은 상황이 오면 최소한 “클라우드 저장이 실패했는지”를 바로 알 수 있습니다.  
+지금 바로 한 번 다른 환경에서 저장 후 이 메시지가 뜨는지 확인해보면 원인 분리가 정확히 됩니다.
+
+---
+
+_**User**_
+
+아니 그럼 또 그렇게 저장되는 데이터가 존재한다는거네?
+
+---
+
+_**Agent (default)**_
+
+맞아요. 정확히 그 뜻입니다.  
+**로컬에 먼저 남고, 클라우드가 실패할 수 있는 데이터가 아직 존재**합니다.
+
+현재 기준으로는:
+- `명세↔입고 수동매핑`은 저장 흐름이 `localStorage -> cloud` 순서라서,
+- 클라우드 실패 시 로컬만 최신이 되는 상태가 가능합니다(이걸 지금 경고 메시지로 보이게 만든 상태).
+
+원하시면 이걸 **완전히 차단**할 수 있습니다:
+- cloud 모드에서는 **클라우드 저장 성공 시에만 반영**(로컬 선반영 금지)
+- 실패하면 이전값으로 롤백
+- 화면에 에러 표시 + 재시도 버튼
+
+즉 “로컬-클라우드 불일치” 자체를 막는 모드로 바꿀 수 있어요.  
+바로 그 방식으로 바꿔드릴까요?
