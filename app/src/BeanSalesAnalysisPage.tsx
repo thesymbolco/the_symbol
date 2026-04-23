@@ -7,12 +7,13 @@ import {
 } from './InventoryStatusPage'
 import { BLEND_WON_OVERRIDES_SAVED_EVENT } from './beanBlendWonOverrides'
 import { getLatestGreenOrderWonPerKgByInventoryLabel } from './beanSalesGreenOrderUnitPrice'
-import { GREEN_BEAN_ORDER_SAVED_EVENT } from './GreenBeanOrderPage'
+import { GREEN_BEAN_ORDER_SAVED_EVENT, GREEN_BEAN_ORDER_STORAGE_KEY } from './GreenBeanOrderPage'
 import { BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, hasAnyStatementManualForItem } from './beanStatementManualMappings'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
-import { normalizeInventoryStatusState, type BlendingRecipe } from './inventoryStatusUtils'
+import { normalizeInventoryStatusState } from './inventoryStatusUtils'
 import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'
 import { STATEMENT_RECORDS_SAVED_EVENT } from './MonthlyMeetingPage'
+import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument } from './lib/companyDocuments'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 import StatementInventoryLinkModal from './StatementInventoryLinkModal'
 
@@ -26,6 +27,14 @@ type StatementRecord = {
   taxAmount: number
   totalAmount: number
   clientName: string
+}
+
+type StatementPageDocumentLike = {
+  records?: StatementRecord[]
+}
+
+type InventoryPageDocumentLike = {
+  inventoryState?: unknown
 }
 
 /** 입고 `N. 품목명` 집합에 못 올라간(매칭 시도 끝) 거래 — 매출 요약에서 제외됐지만 수치는 여기에 표시 */
@@ -97,6 +106,9 @@ function BeanSalesAnalysisPage() {
   const [linkModalOpen, setLinkModalOpen] = useState(false)
   const [linkModalPreferredToLabel, setLinkModalPreferredToLabel] = useState<string | null>(null)
   const [statementRecordsTick, setStatementRecordsTick] = useState(0)
+  const [greenOrderCloudSyncTick, setGreenOrderCloudSyncTick] = useState(0)
+  const [statementRecordsRaw, setStatementRecordsRaw] = useState<StatementRecord[]>([])
+  const [inventoryStateRaw, setInventoryStateRaw] = useState<unknown>(null)
 
   useEffect(() => {
     const onInv = () => setInventoryReadTick((n) => n + 1)
@@ -118,88 +130,147 @@ function BeanSalesAnalysisPage() {
     }
   }, [])
 
-  const statementRecords = useMemo(() => {
-    try {
-      const saved = window.localStorage.getItem(STATEMENT_RECORDS_KEY)
-      if (!saved) return []
-      const parsed = JSON.parse(saved) as StatementRecord[]
-      return parsed.filter(record => 
-        new Date(record.deliveryDate).getFullYear() === selectedYear
-      )
-    } catch {
-      return []
+  useEffect(() => {
+    let cancelled = false
+    const loadStatementRecords = async () => {
+      if (mode === 'cloud' && activeCompanyId) {
+        try {
+          const remote = await loadCompanyDocument<StatementPageDocumentLike>(
+            activeCompanyId,
+            COMPANY_DOCUMENT_KEYS.statementPage,
+          )
+          if (cancelled) {
+            return
+          }
+          if (Array.isArray(remote?.records)) {
+            setStatementRecordsRaw(remote.records)
+            return
+          }
+        } catch (error) {
+          console.error('원두별 매출 분석: 거래명세 클라우드 문서를 읽지 못했습니다.', error)
+        }
+      }
+      try {
+        const saved = window.localStorage.getItem(STATEMENT_RECORDS_KEY)
+        if (!saved) {
+          setStatementRecordsRaw([])
+          return
+        }
+        const parsed = JSON.parse(saved) as StatementRecord[]
+        setStatementRecordsRaw(Array.isArray(parsed) ? parsed : [])
+      } catch {
+        setStatementRecordsRaw([])
+      }
     }
-  }, [selectedYear, statementRecordsTick])
+    void loadStatementRecords()
+    return () => {
+      cancelled = true
+    }
+  }, [mode, activeCompanyId, statementRecordsTick])
+
+  useEffect(() => {
+    let cancelled = false
+    const readInventoryFromLocal = () => {
+      const readState = (key: string) => {
+        try {
+          const raw = window.localStorage.getItem(key)
+          if (!raw) {
+            return null
+          }
+          const parsed = JSON.parse(raw)
+          const normalized = normalizeInventoryStatusState(parsed)
+          return normalized ?? null
+        } catch {
+          return null
+        }
+      }
+      const primaryKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
+      return readState(primaryKey) ?? (primaryKey !== INVENTORY_STATUS_STORAGE_KEY ? readState(INVENTORY_STATUS_STORAGE_KEY) : null)
+    }
+    const loadInventoryState = async () => {
+      if (mode === 'cloud' && activeCompanyId) {
+        try {
+          const remote = await loadCompanyDocument<InventoryPageDocumentLike>(
+            activeCompanyId,
+            COMPANY_DOCUMENT_KEYS.inventoryPage,
+          )
+          if (cancelled) {
+            return
+          }
+          const candidate = remote?.inventoryState ?? remote
+          const normalized = normalizeInventoryStatusState(candidate)
+          if (normalized) {
+            setInventoryStateRaw(normalized)
+            return
+          }
+        } catch (error) {
+          console.error('원두별 매출 분석: 입출고 클라우드 문서를 읽지 못했습니다.', error)
+        }
+      }
+      setInventoryStateRaw(readInventoryFromLocal())
+    }
+    void loadInventoryState()
+    return () => {
+      cancelled = true
+    }
+  }, [mode, activeCompanyId, inventoryReadTick])
+
+  useEffect(() => {
+    let cancelled = false
+    const syncGreenOrderForAnalysis = async () => {
+      if (mode !== 'cloud' || !activeCompanyId) {
+        setGreenOrderCloudSyncTick((n) => n + 1)
+        return
+      }
+      try {
+        const remote = await loadCompanyDocument<unknown>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
+        )
+        if (cancelled) {
+          return
+        }
+        if (remote) {
+          window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(remote))
+        }
+      } catch (error) {
+        console.error('원두별 매출 분석: 생두 주문 클라우드 문서를 읽지 못했습니다.', error)
+      } finally {
+        if (!cancelled) {
+          setGreenOrderCloudSyncTick((n) => n + 1)
+        }
+      }
+    }
+    void syncGreenOrderForAnalysis()
+    return () => {
+      cancelled = true
+    }
+  }, [mode, activeCompanyId, greenOrderReadTick])
+
+  const statementRecords = useMemo(() => {
+    return statementRecordsRaw.filter((record) => new Date(record.deliveryDate).getFullYear() === selectedYear)
+  }, [selectedYear, statementRecordsRaw])
 
   const inventoryBeanRows = useMemo(() => {
-    const readInventoryState = (key: string) => {
-      try {
-        const raw = window.localStorage.getItem(key)
-        if (!raw) {
-          return null
-        }
-        const st = normalizeInventoryStatusState(JSON.parse(raw))
-        if (!st || !Array.isArray(st.beanRows) || st.beanRows.length === 0) {
-          return null
-        }
-        return st
-      } catch {
-        return null
-      }
-    }
-    const primaryKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
-    const fromPrimary = readInventoryState(primaryKey)
-    if (fromPrimary) {
-      return fromPrimary.beanRows
-    }
-    if (primaryKey !== INVENTORY_STATUS_STORAGE_KEY) {
-      const fromLegacy = readInventoryState(INVENTORY_STATUS_STORAGE_KEY)
-      if (fromLegacy) {
-        return fromLegacy.beanRows
-      }
-    }
-    return []
-  }, [statementRecords, mode, activeCompanyId, inventoryReadTick])
+    const normalized = normalizeInventoryStatusState(inventoryStateRaw)
+    return Array.isArray(normalized?.beanRows) ? normalized.beanRows : []
+  }, [inventoryStateRaw])
 
   const blendRecipeSnapshot = useMemo(() => {
-    const readBlendRecipes = (
-      key: string,
-    ): { dark: BlendingRecipe | null; light: BlendingRecipe | null; decaf: BlendingRecipe | null } | null => {
-      try {
-        const raw = window.localStorage.getItem(key)
-        if (!raw) {
-          return null
-        }
-        const st = normalizeInventoryStatusState(JSON.parse(raw))
-        if (!st) {
-          return null
-        }
-        return {
-          dark: st.blendingDarkRecipe ?? null,
-          light: st.blendingLightRecipe ?? null,
-          decaf: st.blendingDecaffeineRecipe ?? null,
-        }
-      } catch {
-        return null
-      }
+    const st = normalizeInventoryStatusState(inventoryStateRaw)
+    if (!st) {
+      return { dark: null, light: null, decaf: null }
     }
-    const primaryKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
-    const primary = readBlendRecipes(primaryKey)
-    if (primary) {
-      return primary
+    return {
+      dark: st.blendingDarkRecipe ?? null,
+      light: st.blendingLightRecipe ?? null,
+      decaf: st.blendingDecaffeineRecipe ?? null,
     }
-    if (primaryKey !== INVENTORY_STATUS_STORAGE_KEY) {
-      const legacy = readBlendRecipes(INVENTORY_STATUS_STORAGE_KEY)
-      if (legacy) {
-        return legacy
-      }
-    }
-    return { dark: null, light: null, decaf: null }
-  }, [mode, activeCompanyId, inventoryReadTick])
+  }, [inventoryStateRaw])
 
   const latestGreenWonByLabel = useMemo(
     () => getLatestGreenOrderWonPerKgByInventoryLabel(inventoryBeanRows, mapOptions, blendRecipeSnapshot),
-    [inventoryBeanRows, greenOrderReadTick, mapOptions, manualMappingTick, blendRecipeSnapshot],
+    [inventoryBeanRows, greenOrderReadTick, greenOrderCloudSyncTick, mapOptions, manualMappingTick, blendRecipeSnapshot],
   )
 
   /** 입출고 생두 표에 없는 품목(키워드만 맞는 영문·더치·미매칭 원문)은 집계에서 제외 */
