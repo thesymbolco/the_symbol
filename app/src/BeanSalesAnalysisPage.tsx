@@ -84,6 +84,11 @@ const STATEMENT_RECORDS_KEY = 'statement-records-v1'
 /** 파이/막대/범례 공통: 매출 0 제외 뒤 상위 N (동일 값 유지) */
 const BEAN_SALES_CHART_TOP = 10
 
+const BEAN_SALES_CHART_COLORS = [
+  '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1',
+  '#d084d0', '#ffb366', '#95d5b2', '#ffd93d', '#c9c9c9',
+] as const
+
 const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('ko-KR').format(Math.round(value))
 }
@@ -566,18 +571,13 @@ function BeanSalesAnalysisPage() {
     [beanSalesAnalysis],
   )
 
-  const chartColors = [
-    '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1',
-    '#d084d0', '#ffb366', '#95d5b2', '#ffd93d', '#c9c9c9'
-  ]
-
   const revenueChartData = useMemo(() => {
     return [...rowsWithRevenue]
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, BEAN_SALES_CHART_TOP)
       .map((data, index) => ({
         ...data,
-        fill: chartColors[index % chartColors.length]
+        fill: BEAN_SALES_CHART_COLORS[index % BEAN_SALES_CHART_COLORS.length],
       }))
   }, [rowsWithRevenue])
 
@@ -597,11 +597,6 @@ function BeanSalesAnalysisPage() {
     [rowsWithKnownProfit],
   )
 
-  const profitBarColors = [
-    '#2e7d32', '#1565c0', '#6a1b9a', '#e65100', '#00838f',
-    '#4e342e', '#37474f', '#558b2f', '#ad1457', '#283593',
-  ]
-
   const profitBarChartData = useMemo(() => {
     return [...rowsWithKnownProfit]
       .sort((a, b) => (b.estimatedProfitAmount ?? 0) - (a.estimatedProfitAmount ?? 0))
@@ -609,7 +604,7 @@ function BeanSalesAnalysisPage() {
       .map((data, index) => ({
         ...data,
         fill: (data.estimatedProfitAmount ?? 0) >= 0
-          ? profitBarColors[index % profitBarColors.length]
+          ? BEAN_SALES_CHART_COLORS[index % BEAN_SALES_CHART_COLORS.length]
           : '#b71c1c',
       }))
   }, [rowsWithKnownProfit])
@@ -621,7 +616,7 @@ function BeanSalesAnalysisPage() {
       .slice(0, BEAN_SALES_CHART_TOP)
       .map((data, index) => ({
         ...data,
-        fill: chartColors[index % chartColors.length],
+        fill: BEAN_SALES_CHART_COLORS[index % BEAN_SALES_CHART_COLORS.length],
       }))
   }, [rowsWithKnownProfit])
 
@@ -824,7 +819,11 @@ function BeanSalesAnalysisPage() {
                     labelFormatter={(label) => String(label)}
                     contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
                   />
-                  <Bar dataKey="totalRevenue" fill="#8884d8" isAnimationActive={false} />
+                  <Bar dataKey="totalRevenue" radius={[0, 2, 2, 0]} isAnimationActive={false}>
+                    {revenueChartData.map((entry, index) => (
+                      <Cell key={`rev-bar-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </div>
             </div>
