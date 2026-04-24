@@ -30,7 +30,7 @@ import {
   statementInputListDefaultColumnWidths,
 } from './statementExcelStyledExport.ts'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
-import { writeStatementRecordsToMirror } from './statementRecordsMirror'
+import { readStatementRecordsFromLocalStorage, writeStatementRecordsToMirror } from './statementRecordsMirror'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider.tsx'
 import './App.css'
@@ -464,15 +464,11 @@ const normalizeStatementTemplateSettings = (value: unknown): StatementTemplateSe
 }
 
 const readStatementPageLocalState = (): StatementPageDocument => {
-  let records: StatementRecord[] = []
-  const savedRecords = window.localStorage.getItem(STORAGE_KEY)
-  if (savedRecords) {
-    try {
-      records = normalizeLoadedRecords(JSON.parse(savedRecords) as Array<StatementRecord & { note?: string }>)
-    } catch (error) {
-      console.error('저장된 거래명세 데이터를 읽지 못했습니다.', error)
-    }
-  }
+  /** `statementRecordsMirror`·원두별 매출과 동일 키/동일 읽기 — 로컬 한 벌만 쓴다 */
+  const rawRows = readStatementRecordsFromLocalStorage<StatementRecord & { note?: string }>()
+  const records: StatementRecord[] = rawRows.length
+    ? normalizeLoadedRecords(rawRows)
+    : []
 
   let pricingRules: PricingRule[] = []
   const savedPricingRules = window.localStorage.getItem(PRICING_RULES_STORAGE_KEY)
