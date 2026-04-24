@@ -785,13 +785,15 @@ function ExpensePage() {
     let cancelled = false
     resetDocumentSaveUi()
 
-    const loadLocal = () => {
+    const loadLocal = (markAsCloudSynced: boolean) => {
       const localState = readExpensePageStateFromStorage()
       if (cancelled) {
         return
       }
       const normalized = normalizePageState(localState)
-      syncLastCloudRefFromState(normalized)
+      if (markAsCloudSynced) {
+        syncLastCloudRefFromState(normalized)
+      }
       setPageState(normalized)
       setStatusMessage(
         normalized.records.length > 0 ? '이전에 편집한 지출표를 불러왔습니다.' : '브라우저에 자동 저장됩니다.',
@@ -801,7 +803,7 @@ function ExpensePage() {
 
     const loadRemote = async () => {
       if (mode !== 'cloud' || !activeCompanyId) {
-        loadLocal()
+        loadLocal(true)
         return
       }
 
@@ -821,17 +823,17 @@ function ExpensePage() {
         } else {
           const localState = readExpensePageStateFromStorage()
           const normalized = normalizePageState(localState)
-          syncLastCloudRefFromState(normalized)
           setPageState(normalized)
           setStatusMessage(
             localState.records.length > 0
-              ? '브라우저 지출표를 불러왔습니다. 아직 클라우드 문서는 없습니다.'
+              ? '브라우저 지출표를 불러왔습니다. 아직 클라우드 문서가 없어 저장 버튼으로 업로드해 주세요.'
               : '클라우드 지출표가 없어 새 문서로 시작합니다.',
           )
         }
       } catch (error) {
         console.error('지출표 클라우드 문서를 읽지 못했습니다.', error)
-        loadLocal()
+        // 클라우드 읽기 실패 시 로컬은 보여주되, "동기화 완료"로 간주하지는 않음
+        loadLocal(false)
         return
       }
       setIsStorageReady(true)
@@ -1703,12 +1705,14 @@ function ExpensePage() {
                 <button
                   type="button"
                   className={
-                    saveState === 'saving' || saveState === 'saved'
+                    saveState === 'saving'
                       ? 'ghost-button expense-add-row-mini expense-cloud-save-mini expense-cloud-save-mini--synced'
-                      : 'ghost-button expense-add-row-mini expense-cloud-save-mini expense-cloud-save-mini--pending'
+                      : saveState === 'saved'
+                        ? 'ghost-button expense-add-row-mini expense-cloud-save-mini expense-cloud-save-mini--synced'
+                        : 'ghost-button expense-add-row-mini expense-cloud-save-mini expense-cloud-save-mini--pending'
                   }
                   onClick={() => void handleSaveToCloud()}
-                  disabled={saveState === 'saving' || saveState === 'saved'}
+                  disabled={saveState === 'saving'}
                   title={
                     saveState === 'saving'
                       ? '클라우드 저장 중'
