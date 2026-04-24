@@ -1583,6 +1583,26 @@ function App() {
     statementTemplateUpdatedAt,
   ])
 
+  /**
+   * 클라우드 모드: 전체 문서 저장(디바운스) 전이라도, 같은 탭·다른 화면(월마감·원두분석)이
+   * `statement-records`와 STATEMENT_RECORDS_SAVED_EVENT로 즉시 읽을 수 있게 `records`만 로컬에 반영.
+   * (팀 정본은 여전히 saveCompanyDocument 성공 시 전체 `writeStatementPageLocalState`로 맞춤)
+   */
+  useEffect(() => {
+    if (!isRecordsStorageReady) {
+      return
+    }
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+    } catch {
+      // ignore
+    }
+    window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
+  }, [activeCompanyId, isRecordsStorageReady, mode, records])
+
   useEffect(() => {
     if (activePage !== 'statements') {
       setStatementEntryModalOpen(false)
