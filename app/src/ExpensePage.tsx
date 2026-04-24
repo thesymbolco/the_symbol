@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -765,11 +766,20 @@ function ExpensePage() {
     markDocumentSaving,
     resetDocumentSaveUi,
     saveState,
-    skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
   const quickDateDigitsRef = useRef<Record<string, string>>({})
+  const pageStateRef = useRef(pageState)
+  pageStateRef.current = pageState
+  /** 클라우드에 마지막으로 맞춘 JSON(초기 로드·수동 저장·원격이 덮어쓸 때만 갱신) */
+  const lastCloudSyncedJsonRef = useRef('')
   const lastCloudPollJsonRef = useRef('')
   const [dateDrafts, setDateDrafts] = useState<Record<string, string>>({})
+
+  const syncLastCloudRefFromState = useCallback((state: ExpensePageState) => {
+    const j = JSON.stringify(state)
+    lastCloudSyncedJsonRef.current = j
+    lastCloudPollJsonRef.current = j
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -780,9 +790,11 @@ function ExpensePage() {
       if (cancelled) {
         return
       }
-      setPageState(localState)
+      const normalized = normalizePageState(localState)
+      syncLastCloudRefFromState(normalized)
+      setPageState(normalized)
       setStatusMessage(
-        localState.records.length > 0 ? '이전에 편집한 지출표를 불러왔습니다.' : '브라우저에 자동 저장됩니다.',
+        normalized.records.length > 0 ? '이전에 편집한 지출표를 불러왔습니다.' : '브라우저에 자동 저장됩니다.',
       )
       setIsStorageReady(true)
     }
@@ -802,11 +814,15 @@ function ExpensePage() {
           return
         }
         if (remoteState) {
-          setPageState(normalizePageState(remoteState))
+          const normalized = normalizePageState(remoteState)
+          syncLastCloudRefFromState(normalized)
+          setPageState(normalized)
           setStatusMessage('클라우드에서 지출표를 불러왔습니다.')
         } else {
           const localState = readExpensePageStateFromStorage()
-          setPageState(localState)
+          const normalized = normalizePageState(localState)
+          syncLastCloudRefFromState(normalized)
+          setPageState(normalized)
           setStatusMessage(
             localState.records.length > 0
               ? '브라우저 지출표를 불러왔습니다. 아직 클라우드 문서는 없습니다.'
@@ -825,52 +841,52 @@ function ExpensePage() {
     return () => {
       cancelled = true
     }
-  }, [activeCompanyId, mode, resetDocumentSaveUi])
+  }, [activeCompanyId, mode, resetDocumentSaveUi, syncLastCloudRefFromState])
 
   useEffect(() => {
     if (!isStorageReady) {
       return
     }
-
     window.localStorage.setItem(EXPENSE_PAGE_STORAGE_KEY, JSON.stringify(pageState))
     window.dispatchEvent(new Event(EXPENSE_PAGE_SAVED_EVENT))
+  }, [isStorageReady, pageState])
+
+  /** 클라우드: 수동 저장 전까지 '저장 필요' — 자동 클라우드 동기화는 하지 않음(입력 중 덮어쓰기 방지) */
+  useEffect(() => {
+    if (!isStorageReady || mode !== 'cloud') {
+      return
+    }
+    if (JSON.stringify(pageState) !== lastCloudSyncedJsonRef.current) {
+      markDocumentDirty()
+    } else {
+      markDocumentSaved()
+    }
+  }, [pageState, isStorageReady, mode, markDocumentDirty, markDocumentSaved])
+
+  const handleSaveToCloud = useCallback(async () => {
     if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
-    if (skipInitialDocumentSave()) {
-      return
+    markDocumentSaving()
+    try {
+      await saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.expensePage, pageState, user?.id)
+      syncLastCloudRefFromState(pageState)
+      markDocumentSaved()
+      setStatusMessage('클라우드에 저장했습니다.')
+    } catch (error) {
+      console.error('지출표 클라우드 저장에 실패했습니다.', error)
+      markDocumentError()
+      setStatusMessage('클라우드 저장에 실패했습니다.')
     }
-    const currentJson = JSON.stringify(pageState)
-    if (currentJson === lastCloudPollJsonRef.current) {
-      return
-    }
-
-    markDocumentDirty()
-
-    const timeoutId = window.setTimeout(() => {
-      markDocumentSaving()
-      void saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.expensePage, pageState, user?.id)
-        .then(() => {
-          markDocumentSaved()
-        })
-        .catch((error) => {
-          console.error('지출표 클라우드 저장에 실패했습니다.', error)
-          markDocumentError()
-        })
-    }, 600)
-
-    return () => window.clearTimeout(timeoutId)
   }, [
     activeCompanyId,
-    isStorageReady,
     mode,
     pageState,
-    user?.id,
-    markDocumentDirty,
     markDocumentError,
     markDocumentSaved,
     markDocumentSaving,
-    skipInitialDocumentSave,
+    syncLastCloudRefFromState,
+    user?.id,
   ])
 
   useEffect(() => {
@@ -885,6 +901,9 @@ function ExpensePage() {
       if (cancelled || inFlight) {
         return
       }
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return
+      }
       inFlight = true
       try {
         const remote = await loadCompanyDocument<ExpensePageState>(
@@ -896,11 +915,15 @@ function ExpensePage() {
         }
         const normalized = normalizePageState(remote)
         const nextJson = JSON.stringify(normalized)
-        if (nextJson !== lastJson) {
-          lastJson = nextJson
-          lastCloudPollJsonRef.current = nextJson
-          setPageState(normalized)
+        if (nextJson === lastJson) {
+          return
         }
+        if (JSON.stringify(pageStateRef.current) !== lastCloudSyncedJsonRef.current) {
+          return
+        }
+        lastJson = nextJson
+        syncLastCloudRefFromState(normalized)
+        setPageState(normalized)
       } catch {
         /* retry next cycle */
       } finally {
@@ -909,7 +932,7 @@ function ExpensePage() {
     }
 
     void poll()
-    const id = window.setInterval(() => void poll(), 2500)
+    const id = window.setInterval(() => void poll(), 8_000)
     return () => {
       cancelled = true
       window.clearInterval(id)
@@ -1581,6 +1604,18 @@ function ExpensePage() {
           <p className="page-status-message" role="status" aria-live="polite">
             {statusMessage}
           </p>
+          {mode === 'cloud' && activeCompanyId ? (
+            <div className="expense-cloud-save-wrap">
+              <button
+                type="button"
+                className="primary-button expense-cloud-save-button"
+                onClick={() => void handleSaveToCloud()}
+                disabled={saveState === 'saving' || saveState === 'saved'}
+              >
+                {saveState === 'saving' ? '저장 중…' : '클라우드에 저장'}
+              </button>
+            </div>
+          ) : null}
           <PageSaveStatus mode={mode} saveState={saveState} lastSavedAt={lastSavedAt} />
         </div>
 
