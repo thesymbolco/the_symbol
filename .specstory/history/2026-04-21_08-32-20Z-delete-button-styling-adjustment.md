@@ -76672,3 +76672,63 @@ _**Agent (default)**_
 앞으로는 **클라우드(서버) 기준**으로 먼저 말씀드리겠습니다. (동작이 이미 그쪽으로 가 있어도, 말이 로컬 중심이면 이해하시기 힘듭니다.)
 
 원하시면, 코드 주석/히어로 문구도 “**Supabase/회사 문서**” 중심으로만 정리해 드릴 수 있습니다. 그건 이어서 요청해 주시면 됩니다.
+
+---
+
+_**User**_
+
+여전히 똑같잖아... 뭐 입력하고 삭제하고 새로고침하면 삭제한 항목 다시뜨고 바로 반영도 안되고 솔직히 뭐가 오류인지 모르겠지?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user is still experiencing issue #1. After deleting and refreshing, deleted items reappear, and changes don't reflect immediately.
+
+Need to deeply debug the delete flow:
+
+- Delete flow: `handleDelete` calls `saveCompanyDocument` immediately; why do items still return?
+  - Save fails silently, user doesn't see error?
+  - `handleDelete` may not be the only delete path (inline, bulk delete)?
+  - Race condition: load on mount runs before save completes?
+  - Initial load `loadStatementState` overwrites with remote datasave may still be in flight during fast F5? - On full page refresh, the initial `loadStatementState` fetches remote data, which should reflect correct deletes if successful; otherwise, it loads old data.
+- The `skipInitialStatementSave` or signal reference might prevent debounced saves from running while delete triggers an immediate savethis could explain inconsistent behavior.
+- Multiple delete entry points like inline or batch operations may bypass immediate save logic.
+- Load order might cause issues: `readStatementPageLocalState` uses local data that could be stale. If local state is read first during load, it may overwrite the correct remote state. The `loadStatementState` function reads local state and applies it before fetching remote data. If `readStatementPageLocalState` returns stale data, this could cause issues. The load effect should prioritize remote data when available to ensure consistency. 
+
+- Local state is fetched and applied before remote data is retrieved.
+- Remote data is only used if present and normalized.
+- Stale local data can override correct remote state if not handled carefully.
+- The order of operations in `loadStatementState` needs to ensure remote data takes precedence when available. In cloud mode, when `remoteState` exists, it's always used entirely, with no fallback to local state. If a delete save fails or hasn't completed, refreshing shows outdated data. The issue persists even if the delete succeeds but the user refreshes too quickly, before the network request finishes. The `handleDelete` function uses `void` for the immediate save, meaning it doesn't await the promise  leaving no guarantee that the delete reaches the server before a refresh.
+
+- Remote data is fetched first and used if present.
+- Local state is never used as a fallback for newer data.
+- Deletes must be awaited to ensure they complete before refresh.
+- Fast refreshes can occur before network requests finish, causing stale data to appear. - Blocking UI or `await`ing the delete operation ensures user waits for completion.
+- A `beforeunload` handler could flush unsaved changes, similar to memo but not yet implemented for statements.
+- An unload handler may be necessary to ensure saves occur before page exit.
+- A critical bug exists where local state might update before cloud responses, especially with `writeStatementRecordsToMirror` triggering on every `records` change after a delete. So local state should update immediately after setState. On refresh, `loadStatementState` fetches remote data first; if remote data exists, it applies the remote state and ignores local state, even if local is more recent.
+
+**THE BUG:** `loadStatementState` always prioritizes remote data when available:
+```javascript
+const toApply = remoteState ? normalizeStatementPageDocument(remoteState) : localState
+applyState(toApply)
+```
+This means **cloud data always overrides local**, regardless of freshness. If a user deletes an item:
+- Local state updates immediately
+- Mirror updates trigger events
+- But if remote save fails or is slow, refresh loads stale remote data and overwrites local changes
+
+The issue occurs because:
+- Deletes are not awaited, so refreshes can happen before network requests complete
+- Remote data is always preferred on load, even if stale
+- Local state gets overwritten by older remote data during refresh cycles - Cloud save may be in flight or have failed, causing refreshes to load stale remote data and overwrite correct local state.
+- During initial load, comparing `updated_at` timestamps between remote and local data could help determine freshness, but the current API doesn't provide `updated_at` for merging.
+- If remote loading fails, local data is used as a fallbackthis behavior is already implemented.
+- On load, a smarter merge strategy could prefer local data if its record count or signature suggests its more recent, though this approach is currently heuristic. - **Simpler fix:** On `loadStatementState` for cloud, read local first and use it if it's newer, but lack timestamp for "last modified" in local data.
+- **Simpler fix 2:** Change load order to try remote first, but if local mirror was written more recently, prefer localthough we don't have a way to know when that happened.
+- **Best fix:** Ensure delete always completes server save before user navigates away`await` in `handleDelete` and show " ..." on the row. - **Simpler fix 4:** On `loadStatementState`, after fetching remote data, compare `JSON.stringify(local.records)` with `JSON.stringify(remote.records)`. If local has fewer records, prefer local assuming its from the same session; however, this risks merging in incorrect data if another device added rows.
+- **Real fix for sync:** The server must consistently reflect the correct state after a delete operation. So **await save** in `handleDelete` and **disable** refresh or show non-blocking " "  or **synchronous** await so delete button doesn't resolve until done.
+
+- **loadStatementState** should fetch remote, **apply remote if fetch succeeds and remote is up to date**  the bug is only **stale** remote. So **strengthen delete to await** and</details></think>

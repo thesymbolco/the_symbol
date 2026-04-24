@@ -596,6 +596,60 @@ const normalizeStatementPageDocument = (value: unknown): StatementPageDocument =
   }
 }
 
+const statementRecordById = (list: StatementRecord[]) => {
+  const map = new Map<string, StatementRecord>()
+  for (const r of list) {
+    map.set(r.id, r)
+  }
+  return map
+}
+
+/**
+ * 클라우드 F5·삭제 직후: 서버가 아직 upsert를 반영하지 않았는데, 로컬은 이미 삭제(또는 미반영 입력)을 반영한 경우.
+ * id 집합이 한쪽이 다른쪽의 부분집합이고, 겹치는 id의 row 내용이 같으면 `records`만 로컬(더 짧은/긴)을 따른다.
+ * (동시에 다른 팀원이 id를 추가·삭제한 충돌은 여전히 `remote` 기준)
+ */
+const mergeStatementPageDocumentOnCloudLoad = (
+  local: StatementPageDocument,
+  remote: StatementPageDocument,
+): StatementPageDocument => {
+  const L = local.records
+  const R = remote.records
+  if (L.length === 0) {
+    return R.length === 0 ? local : remote
+  }
+  if (R.length === 0) {
+    return { ...remote, records: L }
+  }
+  const Lm = statementRecordById(L)
+  const Rm = statementRecordById(R)
+  const Lids = new Set(Lm.keys())
+  const Rids = new Set(Rm.keys())
+  const sameRow = (id: string) => JSON.stringify(Lm.get(id)) === JSON.stringify(Rm.get(id))
+
+  const lSubsetR = [...Lids].every((id) => Rids.has(id))
+  if (lSubsetR && Lids.size < Rids.size) {
+    for (const id of Lids) {
+      if (!sameRow(id)) {
+        return remote
+      }
+    }
+    return { ...remote, records: L }
+  }
+
+  const rSubsetL = [...Rids].every((id) => Lids.has(id))
+  if (rSubsetL && Rids.size < Lids.size) {
+    for (const id of Rids) {
+      if (!sameRow(id)) {
+        return remote
+      }
+    }
+    return { ...remote, records: L }
+  }
+
+  return remote
+}
+
 const createWorksheetCopy = (
   workbook: ExcelJS.Workbook,
   source: ExcelJS.Worksheet,
@@ -1568,9 +1622,12 @@ function App() {
           activeCompanyId,
           COMPANY_DOCUMENT_KEYS.statementPage,
         )
-        const toApply = remoteState ? normalizeStatementPageDocument(remoteState) : localState
+        const remoteNorm = remoteState ? normalizeStatementPageDocument(remoteState) : null
+        const toApply = remoteNorm
+          ? mergeStatementPageDocumentOnCloudLoad(localState, remoteNorm)
+          : localState
         applyState(toApply)
-        if (remoteState) {
+        if (remoteNorm) {
           writeStatementPageLocalState(toApply)
         }
         statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(toApply)
@@ -1604,9 +1661,11 @@ function App() {
         if (cancelled) {
           return
         }
-        const toApply = remoteState
-          ? normalizeStatementPageDocument(remoteState)
-          : readStatementPageLocalState()
+        const local = readStatementPageLocalState()
+        const remoteNorm = remoteState ? normalizeStatementPageDocument(remoteState) : null
+        const toApply = remoteNorm
+          ? mergeStatementPageDocumentOnCloudLoad(local, remoteNorm)
+          : local
         setRecords(toApply.records)
         setPricingRules(toApply.pricingRules)
         setMasterItems(toApply.masterItems)
@@ -3330,7 +3389,7 @@ function App() {
   }
 
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (editingRecordId === id) {
         resetStatementFormAfterSave()
       }
@@ -3352,16 +3411,27 @@ function App() {
       const nextSig = statementPageDocumentPayloadSig(payload)
       statementCloudSaveSigRef.current = nextSig
       markStatementSaving()
-      void saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.statementPage, payload, user?.id)
-        .then(() => {
-          writeStatementPageLocalState(payload)
-          markStatementSaved()
-        })
-        .catch((error) => {
-          console.error('거래명세 삭제를 클라우드에 반영하지 못했습니다.', error)
-          statementCloudSaveSigRef.current = ''
-          markStatementError()
-        })
+      const beforeDoc: StatementPageDocument = {
+        records,
+        pricingRules,
+        masterItems,
+        statementTemplateBase64,
+        statementTemplateFileName,
+        statementTemplateUpdatedAt,
+        statementTemplateSettings,
+      }
+      const prevSig = statementPageDocumentPayloadSig(beforeDoc)
+      try {
+        await saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.statementPage, payload, user?.id)
+        writeStatementPageLocalState(payload)
+        markStatementSaved()
+      } catch (error) {
+        console.error('거래명세 삭제를 클라우드에 반영하지 못했습니다.', error)
+        setRecords(records)
+        statementCloudSaveSigRef.current = prevSig
+        writeStatementPageLocalState(beforeDoc)
+        markStatementError()
+      }
     },
     [
       activeCompanyId,
