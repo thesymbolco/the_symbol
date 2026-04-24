@@ -375,6 +375,13 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
         dailyByDate: pruneDailyByDate(parsed.dailyByDate),
       }
       lastSyncedPayloadRef.current = JSON.stringify(payloadForSync)
+      if (source === 'cloud' && runtimeMode === 'cloud' && activeCompanyId) {
+        try {
+          window.localStorage.setItem(MEMO_PAGE_STORAGE_KEY, JSON.stringify(payloadForSync))
+        } catch {
+          // ignore
+        }
+      }
       setItems(nextItems)
       setTodos(nextTodos)
       setDailyByDate(parsed.dailyByDate)
@@ -419,6 +426,9 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
     if (!isStorageReady) {
       return
     }
+    if (runtimeMode === 'cloud' && activeCompanyId) {
+      return
+    }
     const payload: MemoPagePersisted = {
       items,
       todos,
@@ -429,7 +439,7 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
     } catch {
       setStatusMessage('저장 실패 (저장 공간 확인 필요)')
     }
-  }, [isStorageReady, items, todos, dailyByDate])
+  }, [activeCompanyId, isStorageReady, items, runtimeMode, todos, dailyByDate])
 
   const buildCloudPayload = useCallback(
     (): MemoPagePersisted => ({
@@ -451,6 +461,11 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
       try {
         await saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.memoPage, payload, user?.id)
         lastSyncedPayloadRef.current = JSON.stringify(payload)
+        try {
+          window.localStorage.setItem(MEMO_PAGE_STORAGE_KEY, JSON.stringify(payload))
+        } catch {
+          // ignore
+        }
         setSaveState('saved')
         setLastSavedAt(new Date().toISOString())
       } catch (error) {

@@ -196,6 +196,14 @@ const readStaffPayrollPageStateFromStorage = (): StaffPayrollPageState => {
   }
 }
 
+const writeStaffPayrollPageStateToStorage = (state: StaffPayrollPageState) => {
+  try {
+    window.localStorage.setItem(STAFF_PAYROLL_STORAGE_KEY, JSON.stringify(state))
+  } catch {
+    // ignore
+  }
+}
+
 const newEmptyRow = (): StaffPayrollRecord => ({
   id: crypto.randomUUID(),
   storeName: '',
@@ -269,7 +277,15 @@ function StaffPayrollPage() {
           activeCompanyId,
           COMPANY_DOCUMENT_KEYS.staffPayrollPage,
         )
-        applyState(remoteState ? normalizePageState(remoteState) : localState, remoteState ? 'cloud' : 'local', Boolean(remoteState))
+        if (remoteState) {
+          const next = normalizePageState(remoteState)
+          applyState(next, 'cloud', true)
+          if (activeCompanyId) {
+            writeStaffPayrollPageStateToStorage(next)
+          }
+        } else {
+          applyState(localState, 'local', false)
+        }
       } catch (error) {
         console.error('직원·급여 클라우드 문서를 읽지 못했습니다.', error)
         applyState(localState, 'local', true)
@@ -286,14 +302,11 @@ function StaffPayrollPage() {
     if (!isStorageReady) {
       return
     }
-    window.localStorage.setItem(STAFF_PAYROLL_STORAGE_KEY, JSON.stringify(pageState))
-  }, [isStorageReady, pageState])
-
-  useEffect(() => {
-    if (!isStorageReady || !isCloudReady) {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      writeStaffPayrollPageStateToStorage(pageState)
       return
     }
-    if (mode !== 'cloud' || !activeCompanyId) {
+    if (!isCloudReady) {
       return
     }
     if (skipInitialDocumentSave()) {
@@ -311,6 +324,7 @@ function StaffPayrollPage() {
         user?.id,
       )
         .then(() => {
+          writeStaffPayrollPageStateToStorage(pageState)
           markDocumentSaved()
         })
         .catch((error) => {

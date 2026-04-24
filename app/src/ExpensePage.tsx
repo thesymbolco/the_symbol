@@ -514,6 +514,18 @@ export function readExpensePageStateFromStorage(): ExpensePageState {
   }
 }
 
+export function writeExpensePageStateToStorage(state: ExpensePageState) {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    window.localStorage.setItem(EXPENSE_PAGE_STORAGE_KEY, JSON.stringify(state))
+    window.dispatchEvent(new Event(EXPENSE_PAGE_SAVED_EVENT))
+  } catch {
+    // ignore
+  }
+}
+
 const sanitizeExpenseTableColumns = (value: unknown): ExpenseTableColumn[] | undefined => {
   if (!Array.isArray(value)) {
     return undefined
@@ -801,7 +813,11 @@ function ExpensePage() {
           return
         }
         if (remoteState) {
-          setPageState(normalizePageState(remoteState))
+          const next = normalizePageState(remoteState)
+          setPageState(next)
+          if (activeCompanyId) {
+            writeExpensePageStateToStorage(next)
+          }
           setStatusMessage('클라우드에서 지출표를 불러왔습니다.')
         } else {
           const localState = readExpensePageStateFromStorage()
@@ -831,9 +847,8 @@ function ExpensePage() {
       return
     }
 
-    window.localStorage.setItem(EXPENSE_PAGE_STORAGE_KEY, JSON.stringify(pageState))
-    window.dispatchEvent(new Event(EXPENSE_PAGE_SAVED_EVENT))
     if (mode !== 'cloud' || !activeCompanyId) {
+      writeExpensePageStateToStorage(pageState)
       return
     }
     if (skipInitialDocumentSave()) {
@@ -846,6 +861,7 @@ function ExpensePage() {
       markDocumentSaving()
       void saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.expensePage, pageState, user?.id)
         .then(() => {
+          writeExpensePageStateToStorage(pageState)
           markDocumentSaved()
         })
         .catch((error) => {

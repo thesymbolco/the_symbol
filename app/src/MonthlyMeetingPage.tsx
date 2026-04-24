@@ -1385,6 +1385,14 @@ const readMonthlyMeetingPageStateFromStorage = (): MonthlyMeetingPageState => {
   }
 }
 
+const writeMonthlyMeetingPageStateToStorage = (state: MonthlyMeetingPageState) => {
+  try {
+    window.localStorage.setItem(MONTHLY_MEETING_DATA_KEY, JSON.stringify(state))
+  } catch {
+    // ignore
+  }
+}
+
 const normalizeMeetingTitle = (title: string, months: string[]) => {
   const trimmed = title.trim()
   if (!trimmed) {
@@ -1717,7 +1725,15 @@ function MonthlyMeetingPage() {
           activeCompanyId,
           COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
         )
-        applyState(remoteState ? normalizeMonthlyMeetingPageState(remoteState) : localState)
+        if (remoteState) {
+          const next = normalizeMonthlyMeetingPageState(remoteState)
+          applyState(next)
+          if (activeCompanyId) {
+            writeMonthlyMeetingPageStateToStorage(next)
+          }
+        } else {
+          applyState(localState)
+        }
       } catch (error) {
         console.error('월 마감회의 클라우드 문서를 읽지 못했습니다.', error)
         applyState(localState)
@@ -1744,15 +1760,11 @@ function MonthlyMeetingPage() {
     if (!isStorageReady) {
       return
     }
-
-    window.localStorage.setItem(MONTHLY_MEETING_DATA_KEY, JSON.stringify(pageState))
-  }, [isStorageReady, pageState])
-
-  useEffect(() => {
-    if (!isStorageReady || !isCloudReady) {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      writeMonthlyMeetingPageStateToStorage(pageState)
       return
     }
-    if (mode !== 'cloud' || !activeCompanyId) {
+    if (!isCloudReady) {
       return
     }
     if (skipInitialDocumentSave()) {
@@ -1770,6 +1782,7 @@ function MonthlyMeetingPage() {
         user?.id,
       )
         .then(() => {
+          writeMonthlyMeetingPageStateToStorage(pageState)
           markDocumentSaved()
         })
         .catch((error) => {

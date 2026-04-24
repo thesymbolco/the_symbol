@@ -501,6 +501,29 @@ const readStatementPageLocalState = (): StatementPageDocument => {
   }
 }
 
+const writeStatementPageLocalState = (doc: StatementPageDocument) => {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(doc.records))
+  window.localStorage.setItem(PRICING_RULES_STORAGE_KEY, JSON.stringify(doc.pricingRules))
+  window.localStorage.setItem(MASTER_ITEMS_STORAGE_KEY, JSON.stringify(doc.masterItems))
+  if (doc.statementTemplateBase64) {
+    window.localStorage.setItem(STATEMENT_TEMPLATE_STORAGE_KEY, doc.statementTemplateBase64)
+  } else {
+    window.localStorage.removeItem(STATEMENT_TEMPLATE_STORAGE_KEY)
+  }
+  if (doc.statementTemplateFileName) {
+    window.localStorage.setItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY, doc.statementTemplateFileName)
+  } else {
+    window.localStorage.removeItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY)
+  }
+  if (doc.statementTemplateUpdatedAt) {
+    window.localStorage.setItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY, doc.statementTemplateUpdatedAt)
+  } else {
+    window.localStorage.removeItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY)
+  }
+  window.localStorage.setItem(STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY, JSON.stringify(doc.statementTemplateSettings))
+  window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
+}
+
 const normalizeMasterItemsList = (value: unknown): MasterItem[] => {
   if (!Array.isArray(value)) {
     return []
@@ -1482,7 +1505,11 @@ function App() {
           activeCompanyId,
           COMPANY_DOCUMENT_KEYS.statementPage,
         )
-        applyState(remoteState ? normalizeStatementPageDocument(remoteState) : localState)
+        const toApply = remoteState ? normalizeStatementPageDocument(remoteState) : localState
+        applyState(toApply)
+        if (remoteState) {
+          writeStatementPageLocalState(toApply)
+        }
       } catch (error) {
         console.error('거래명세 클라우드 문서를 읽지 못했습니다.', error)
         applyState(localState)
@@ -1524,56 +1551,35 @@ function App() {
   }, [activePage, refreshLowGreenBeanWarnings])
 
   useEffect(() => {
-    if (!isRecordsStorageReady) {
+    if (!isRecordsStorageReady || !isPricingStorageReady || !isMasterItemsStorageReady) {
       return
     }
-
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
-    window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
-  }, [isRecordsStorageReady, records])
-
-  useEffect(() => {
-    if (!isPricingStorageReady) {
+    if (mode === 'cloud' && activeCompanyId) {
       return
     }
-
-    window.localStorage.setItem(PRICING_RULES_STORAGE_KEY, JSON.stringify(pricingRules))
-  }, [isPricingStorageReady, pricingRules])
-
-  useEffect(() => {
-    if (!isMasterItemsStorageReady) {
-      return
-    }
-
-    window.localStorage.setItem(MASTER_ITEMS_STORAGE_KEY, JSON.stringify(masterItems))
-  }, [isMasterItemsStorageReady, masterItems])
-
-  useEffect(() => {
-    if (statementTemplateBase64) {
-      window.localStorage.setItem(STATEMENT_TEMPLATE_STORAGE_KEY, statementTemplateBase64)
-    } else {
-      window.localStorage.removeItem(STATEMENT_TEMPLATE_STORAGE_KEY)
-    }
-
-    if (statementTemplateFileName) {
-      window.localStorage.setItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY, statementTemplateFileName)
-    } else {
-      window.localStorage.removeItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY)
-    }
-
-    if (statementTemplateUpdatedAt) {
-      window.localStorage.setItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY, statementTemplateUpdatedAt)
-    } else {
-      window.localStorage.removeItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY)
-    }
-  }, [statementTemplateBase64, statementTemplateFileName, statementTemplateUpdatedAt])
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY,
-      JSON.stringify(statementTemplateSettings),
-    )
-  }, [statementTemplateSettings])
+    writeStatementPageLocalState({
+      records,
+      pricingRules,
+      masterItems,
+      statementTemplateBase64,
+      statementTemplateFileName,
+      statementTemplateUpdatedAt,
+      statementTemplateSettings,
+    })
+  }, [
+    activeCompanyId,
+    isMasterItemsStorageReady,
+    isPricingStorageReady,
+    isRecordsStorageReady,
+    masterItems,
+    mode,
+    pricingRules,
+    records,
+    statementTemplateBase64,
+    statementTemplateFileName,
+    statementTemplateSettings,
+    statementTemplateUpdatedAt,
+  ])
 
   useEffect(() => {
     if (activePage !== 'statements') {
@@ -1618,21 +1624,23 @@ function App() {
 
     const timeoutId = window.setTimeout(() => {
       markStatementSaving()
+      const statementPayload = {
+        records,
+        pricingRules,
+        masterItems,
+        statementTemplateBase64,
+        statementTemplateFileName,
+        statementTemplateUpdatedAt,
+        statementTemplateSettings,
+      }
       void saveCompanyDocument(
         activeCompanyId,
         COMPANY_DOCUMENT_KEYS.statementPage,
-        {
-          records,
-          pricingRules,
-          masterItems,
-          statementTemplateBase64,
-          statementTemplateFileName,
-          statementTemplateUpdatedAt,
-          statementTemplateSettings,
-        },
+        statementPayload,
         user?.id,
       )
         .then(() => {
+          writeStatementPageLocalState(statementPayload)
           markStatementSaved()
         })
         .catch((error) => {

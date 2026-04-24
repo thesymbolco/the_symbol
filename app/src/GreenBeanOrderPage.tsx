@@ -1229,6 +1229,15 @@ export function readGreenBeanOrderPersistedFromStorage(): GreenBeanOrderPersiste
   }
 }
 
+function writeGreenBeanOrderPersistedToStorage(persisted: GreenBeanOrderPersisted) {
+  try {
+    window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(persisted))
+    window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
+  } catch {
+    // ignore
+  }
+}
+
 /** `YYYY-MM`에 일자 기록이 있으면 차감 반영 후 월 합계(원). 없으면 `hasMonth: false`. */
 export function getGreenBeanOrderMonthAggregate(ym: string): {
   hasMonth: boolean
@@ -1386,6 +1395,9 @@ export default function GreenBeanOrderPage() {
             : '브라우저 생두 주문을 불러왔습니다. 아직 클라우드 문서는 없습니다.',
       )
       setIsCloudReady(true)
+      if (source === 'cloud' && mode === 'cloud' && activeCompanyId) {
+        writeGreenBeanOrderPersistedToStorage(nextPersisted)
+      }
     }
 
     const loadPersisted = async () => {
@@ -1549,9 +1561,11 @@ export default function GreenBeanOrderPage() {
   }, [])
 
   useEffect(() => {
-    window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(persisted))
-    window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
-  }, [persisted])
+    if (mode === 'cloud' && activeCompanyId) {
+      return
+    }
+    writeGreenBeanOrderPersistedToStorage(persisted)
+  }, [activeCompanyId, mode, persisted])
 
   useEffect(() => {
     if (!isCloudReady) {
@@ -1575,6 +1589,7 @@ export default function GreenBeanOrderPage() {
         user?.id,
       )
         .then(() => {
+          writeGreenBeanOrderPersistedToStorage(persisted)
           markDocumentSaved()
         })
         .catch((error) => {
@@ -2106,7 +2121,6 @@ export default function GreenBeanOrderPage() {
 
   const saveAliasDraftRows = async () => {
     const cleaned = normalizeBeanNameAliases(aliasDraftRows)
-    writeCustomBeanNameAliases(cleaned)
     if (mode === 'cloud' && activeCompanyId) {
       try {
         await saveCompanyDocument(
@@ -2115,15 +2129,15 @@ export default function GreenBeanOrderPage() {
           cleaned,
           user?.id,
         )
+        writeCustomBeanNameAliases(cleaned)
         setStatusMessage(`원두 별칭 ${cleaned.length}건을 클라우드에 저장했습니다.`)
       } catch (error) {
         console.error('원두 별칭 클라우드 저장에 실패했습니다.', error)
-        setStatusMessage(
-          `원두 별칭 ${cleaned.length}건을 브라우저에 저장했습니다. 클라우드 저장은 실패해 다시 시도해 주세요.`,
-        )
+        setStatusMessage('원두 별칭 클라우드 저장에 실패했습니다. 연결을 확인한 뒤 다시 시도해 주세요.')
       }
       return
     }
+    writeCustomBeanNameAliases(cleaned)
     setStatusMessage(`원두 별칭 ${cleaned.length}건을 저장했습니다.`)
   }
 

@@ -108,6 +108,7 @@ function StatementInventoryLinkModal({
   const [draftTo, setDraftTo] = useState('')
   const [costRefreshTick, setCostRefreshTick] = useState(0)
   const [cloudSyncHint, setCloudSyncHint] = useState('')
+  const [isSavingManualLinks, setIsSavingManualLinks] = useState(false)
 
   const mapOpts = useMemo(
     () => ({ mode, companyId: activeCompanyId } as const),
@@ -376,15 +377,23 @@ function StatementInventoryLinkModal({
   }, [open, onClose])
 
   const saveAll = async (next: StatementInventoryManualEntry[]) => {
+    const prevRows = rows
     setRows(next)
+    setIsSavingManualLinks(true)
     const result = await saveStatementInventoryManualsWithCloud(mode, activeCompanyId, next, user?.id)
+    setIsSavingManualLinks(false)
     if (mode === 'cloud') {
-      setCloudSyncHint(
-        result.cloudSaved
-          ? '클라우드 동기화 완료'
-          : '클라우드 저장 실패(이 브라우저에는 저장됨). 네트워크/권한 확인 후 다시 저장해 주세요.',
-      )
+      if (result.cloudSaved) {
+        setRows(result.savedEntries)
+        setCloudSyncHint('클라우드 동기화 완료')
+      } else {
+        // cloud 우선 모드: 실패 시 이전 상태로 롤백
+        setRows(prevRows)
+        setCloudSyncHint('클라우드 저장 실패(변경 미적용). 네트워크/권한 확인 후 다시 시도해 주세요.')
+      }
+      return
     }
+    setRows(result.savedEntries)
   }
 
   const addLink = () => {
@@ -553,7 +562,7 @@ function StatementInventoryLinkModal({
                 ))}
               </select>
             </label>
-            <button type="button" className="stmt-inv-link__btn" onClick={addLink} disabled={!draftFrom.trim() || !draftTo}>
+            <button type="button" className="stmt-inv-link__btn" onClick={addLink} disabled={isSavingManualLinks || !draftFrom.trim() || !draftTo}>
               연결
             </button>
           </div>
@@ -601,7 +610,7 @@ function StatementInventoryLinkModal({
                       </option>
                     ))}
                   </select>
-                  <button type="button" className="stmt-inv-link__rm" onClick={() => removeRow(i)} title="삭제">
+                  <button type="button" className="stmt-inv-link__rm" onClick={() => removeRow(i)} title="삭제" disabled={isSavingManualLinks}>
                     ×
                   </button>
                 </li>

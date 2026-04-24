@@ -56345,3 +56345,2129 @@ _**Agent (default)**_
 
 즉 “로컬-클라우드 불일치” 자체를 막는 모드로 바꿀 수 있어요.  
 바로 그 방식으로 바꿔드릴까요?
+
+---
+
+_**User**_
+
+아니 여럿이서 쓰는건데... 혼자 쓰는게 아니잖아...
+
+---
+
+_**Agent (default)**_
+
+맞습니다. 협업 환경이면 로컬 선저장은 위험합니다. 지금 **cloud 모드에서는 “클라우드 성공 시에만 확정”**으로 바로 바꾸겠습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx",
+  "pattern": "stmt-inv-link__btn|stmt-inv-link__rm"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx",
+  "pattern": "stmt-inv-link__btn|stmt-inv-link__rm",
+  "topFiles": [
+    {
+      "matchCount": 9,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 9
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build</summary>
+
+```bash
+npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 650 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-soYN0KTb.css    150.46 kB │ gzip:  25.04 kB
+dist/assets/index-Cp7fE_sQ.js   2,622.61 kB │ gzip: 745.90 kB
+
+✓ built in 406ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+맞습니다. 협업인데 로컬 선반영은 안 맞습니다. 그래서 **방금 cloud-first로 바꿨습니다.**
+
+### 바뀐 정책 (명세↔입고 수동매핑)
+- `cloud` 모드에서는:
+  - **클라우드 저장 성공 시에만 확정**
+  - 실패하면 **변경 미적용(롤백)**
+- `local` 모드는 기존처럼 로컬 저장
+
+### 코드 변경 핵심
+- `saveStatementInventoryManualsWithCloud(...)`
+  - cloud 모드에서 `saveCompanyDocument` 성공 후에만 로컬 캐시 갱신
+  - 실패 시 기존값 유지해서 환경 불일치 방지
+  - 결과로 `{ cloudSaved, savedEntries }` 반환
+- `StatementInventoryLinkModal`
+  - 저장 중 상태 추가 (`isSavingManualLinks`)
+  - 저장/삭제 버튼 저장 중 비활성화
+  - 실패 메시지도 “이 브라우저에만 저장”이 아니라 **“변경 미적용”**으로 수정
+
+### 확인
+- 린트 통과
+- 빌드 통과
+
+이제 cloud 모드에서 예전처럼 “내 환경만 바뀌는” 케이스는 해당 저장 경로에서 막혔습니다.
+
+---
+
+_**User**_
+
+그럼 이제 다른 페이지에 모든 데이터도 그렇게 되는거야?
+
+---
+
+_**Agent (default)**_
+
+거의 다 맞췄지만, **“모든 데이터가 100% cloud-first”까지는 아직 아닙니다.**
+
+지금 상태를 정확히 나누면:
+
+- ✅ **클라우드 연동됨**: 거래명세, 입출고, 생두주문, 월마감, 메모, 지출, 급여, 원두별매출분석(읽기 소스), 원두명 별칭, 명세↔입고 수동매핑
+- ✅ **방금 cloud-first로 바꾼 것**: 명세↔입고 수동매핑 저장
+- ⚠️ **아직 점검/정리 대상**: 일부 페이지는 cloud 모드에서도 local 캐시를 보조로 쓰는 구간이 남아 있을 수 있음(특히 UI 편의/임시상태, 캐시성 데이터)
+
+즉, 핵심 업무 데이터는 클라우드 경로를 타게 해놨고,  
+**완전한 “전 페이지 cloud-first 보장”**은 마지막 전수 정리 1번이 더 필요합니다.
+
+원하면 다음 턴에 제가 바로
+1) 페이지별 저장 경로 표로 체크
+2) local 선반영/조용한 fallback 있는 곳 전부 cloud-first로 통일
+3) 실패 시 공통 UX(저장 실패/재시도)까지
+한 번에 마무리하겠습니다.
+
+---
+
+_**User**_
+
+해줘
+
+---
+
+_**Agent (default)**_
+
+전 페이지 저장 경로를 점검하고, cloud 모드에서 로컬 선반영·조용한 실패가 남은 곳을 cloud-first로 통일합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.{ts,tsx}",
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "saveCompanyDocument\\("
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "saveCompanyDocument\\(",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/beanStatementManualMappings.ts"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/StaffPayrollPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/ExpensePage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MemoPage.tsx"
+    }
+  ],
+  "totalFiles": 8,
+  "totalMatches": 9
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.{ts,tsx}",
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "loadCompanyDocument\u003c"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "loadCompanyDocument\u003c",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/lib/companyDocuments.ts"
+    },
+    {
+      "matchCount": 3,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/ExpensePage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MemoPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/beanStatementManualMappings.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/StaffPayrollPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 11,
+  "totalMatches": 15
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to examine each page using saveCompanyDocument to understand the flow:
+
+- Review pages that utilize saveCompanyDocument
+- Analyze the workflow and data handling
+- Identify any patterns or issues in the implementation</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants a cloud-first approach implemented across all pages. The user wants a cloud-first approach implemented across all pages.
+
+The current pattern shows:
+- App.tsx, GreenBeanOrderPage, ExpensePage, and MemoPage all write to localStorage immediately on changes, followed by debounced cloud saves
+- If cloud saves fail, local data remains updated but may diverge from cloud state
+- MemoPage has additional flushCloudSave functionality and may already include sync logic with lastSyncedPayloadRef
+- InventoryStatusPage, MonthlyMeetingPage, and StaffPayrollPage require further review for implementation consistency The cloud-first approach for collaborative use involves two main options:
+
+- Option A: Only write to localStorage after successful cloud save, keeping React state updated until then. On failure, show error and optionally rollback using a reference.
+- Option B: Queue updates and don't commit state until cloud save succeeds, though this creates a poorer user experience.
+
+Practical implementations typically use:
+- Optimistic UI with rollback on failure
+- Pessimistic approach: wait for cloud save before updating state (not ideal for typing)
+
+For large pages like statements, industry-standard patterns are applied. - Keep React state as the source of truth during the session
+- On cloud save failure: show an error, mark the save state as failed, and optionally retry
+- Do not write to localStorage until the cloud save succeeds to prevent incorrect data from storage events in other tabs
+- If localStorage is outdated, users must fetch from the cloud on load to ensure consistency
+
+The real fix for multi-user scenarios involves:
+1. Ensuring cloud data is fetched on load when localStorage is stale
+2. Implementing proper synchronization mechanisms between tabs and cloud state **Load**: Always prefer cloud data when in cloud mode (already mostly implemented).  
+**Save**: On cloud failure, do not update localStorage to prevent inconsistency. Show error and allow retry or warn that others wont see the change.
+
+Minimal change: In cloud mode, delay `localStorage.setItem` until `saveCompanyDocument` succeeds for company document pages.
+
+However, current pages use `useEffect([state])` to write to local storage and debounce cloud saves. The flow is:  
+- useEffect 1: If ready, setItem local  
+- useEffect 2: Debounced cloud save  
+
+This needs adjustment to avoid writing to localStorage before cloud success. If cloud save fails, the local storage was already updated in the first useEffect. The fix is to merge the local and cloud save flows into one for cloud mode, or use a reference to only update local storage on cloud success.
+
+For cloud mode with an active company ID:
+- Stop automatic local writes on every state change
+- In the debounced effect that calls saveCompanyDocument, write to localStorage only on success
+- On failure, do not update localStorage (user sees dirty React state, can retry) If users refresh, they might lose unsaved work if loading from cloud instead of local storage. Options include:
+- Reverting React state on cloud failure (harsh)
+- Writing local storage with "pending sync" flag on failure (complex)
+- Keeping React state on failure, writing local anyway but showing warning (still risky)
+
+The strict approach is: **write local and mark saved only after cloud success**. On failure, **mark error, keep React state, and don't write local**this means unsaved work is lost on refresh unless the user is prompted.</details></think>
+
+_**Agent (default)**_
+
+cloud 모드에서 `localStorage`에 먼저 쓰는 패턴을 제거하고, `saveCompanyDocument` 성공 시에만 로컬 캐시를 갱신하도록 각 페이지를 정리합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "localStorage\\.setItem"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "localStorage\\.setItem",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx",
+  "pattern": "localStorage|flushCloud|lastSynced"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx",
+  "pattern": "localStorage|flushCloud|lastSynced",
+  "topFiles": [
+    {
+      "matchCount": 10,
+      "uri": "app/src/MemoPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 10
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "saveCompanyDocument|localStorage|BEAN_NAME|beanNameAlias"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "saveCompanyDocument|localStorage|BEAN_NAME|beanNameAlias",
+  "topFiles": [
+    {
+      "matchCount": 16,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 16
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to examine beanNameAliasStore to understand how writeCustomBeanNameAliases works and ensure that alias saving prioritizes cloud storageonly writing locally after confirming successful cloud storage in cloud mode. For GreenBeanOrderPage saveAliasDraftRows:
+- Currently: writeCustomBeanNameAliases runs first, then cloud save. On cloud failure, user sees "saved locally" message, but local write already occurred.
+- Cloud-first approach: `await saveCompanyDocument` first; on success, run `writeCustomBeanNameAliases(cleaned)`; on failure, skip local write and show error.
+- If cloud fails, avoid calling `writeCustomBeanNameAliases` and revert UI from read, since draft is in state and user may have old localStorage data. The rows in state are still the edited `cleaned` values. If we save to cloud first and succeed, we should then write locally and show a success message. If cloud fails, we must show an error and not update local storage. This way, in-memory `aliasDraftRows` reflects the users edits correctly, while `readCustomBeanNameAliases` on other components remains consistent until sync occurs.
+
+Currently, the code writes to local storage before cloud  this needs to be reversed so that cloud save happens first. If cloud succeeds, proceed with local write; otherwise, do not update local and display an error.
+
+For MemoPage:</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.tsx",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "readStatementPageLocalState|STORAGE_KEY|function readStatement"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "readStatementPageLocalState|STORAGE_KEY|function readStatement",
+  "topFiles": [
+    {
+      "matchCount": 79,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 5,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 3,
+      "uri": "app/src/MemoPage.tsx"
+    },
+    {
+      "matchCount": 4,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "matchCount": 21,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 8,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "matchCount": 3,
+      "uri": "app/src/ExpensePage.tsx"
+    },
+    {
+      "matchCount": 5,
+      "uri": "app/src/providers/AppRuntimeProvider.tsx"
+    },
+    {
+      "matchCount": 15,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "matchCount": 3,
+      "uri": "app/src/StaffPayrollPage.tsx"
+    }
+  ],
+  "totalFiles": 10,
+  "totalMatches": 146
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "readInventoryPageLocalDocument|inventoryPageScopedKey"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "readInventoryPageLocalDocument|inventoryPageScopedKey",
+  "topFiles": [
+    {
+      "matchCount": 15,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 15
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanNameAliasStore.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add `writeStatementPageLocalState(document: StatementPageDocument)` next to `readStatementPageLocalState` in App.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll implement:
+
+- App.tsx: Add `writeStatementPageLocalState(doc: StatementPageDocument)` that mirrors the read.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+  "pattern": "EXPENSE_PAGE_SAVED"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+  "pattern": "EXPENSE_PAGE_SAVED",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/ExpensePage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+For Expense, the current effect performs: setItem + optional dispatch, followed by a debounced cloud update. I need to:
+- if (!(mode==='cloud' && activeCompanyId)): setItem + dispatch
+- if cloud+company: don't setItem in that effect, only in .then of save
+
+For App.tsx, I need to pass the document to write in .then() - the closure has records, pricingRules, etc. so it's fine.
+
+For statement template effects 1551-1576: they're separate for template. In cloud mode I should gate all and merge into writeStatementPageLocalState in .then of single save.
+
+Let me add writeStatementPageLocalState that writes everything: - STORAGE_KEY, PRICING_RULES, MASTER_ITEMS, template keys, settings, and dispatch event for records
+
+10. `skipInitialStatementSave`  the first run doesnt write local in cloud if skipping save, so we shouldnt run write. Good.
+
+11. **GreenBeanOrder applyAliasRows** on load: `writeCustomBeanNameAliases`  loads from cloud and writes to local, which is correct for hydrating the cache from cloud.
+
+12. For **InventoryStatusPage**, the applyDocument on cloud load  does it write local? I dont see `setItem` in applyDocument except for migration. After loading from cloud, the state is updated in memory, but local storage might remain stale. On initial load, we should sync local storage to match the cloud state to avoid inconsistencies across tabs. This sync should happen during `applyDocument` for cloud loads, ensuring a one-time synchronization rather than waiting for a save. This prevents issues where other tabs see outdated data while the UI reflects fresh cloud data. Writing local storage during cloud load helps prevent stale cache issues. Currently, `applyDocument` for inventory doesnt write to local storage on cloud load, which can cause inconsistencies. 
+
+For edits, local storage should not be written until the cloud commit is successful. This ensures data consistency and avoids premature local writes before cloud sync. When loading from cloud in cloud mode, the initial load doesn't trigger local storage writes due to gating logic. However, since the data comes from cloud, writing local storage afterward would synchronize the cache correctly. The issue arises because `useEffect` is gated for cloud mode (`if (mode === 'cloud' && activeCompanyId) return`) and thus never writes local storage after cloud load. This leads to inconsistency between UI state and local storage.
+
+To fix this:
+- Remove the gating for local writes in cloud mode after initial load
+- Ensure local storage syncs with cloud data immediately after load
+- Only prevent local writes during actual save operations, not after cloud load
+
+This ensures proper cache synchronization without blocking necessary local updates after cloud fetches. Other pages reading from local storage for Green Bean may encounter stale data.
+
+The fix: **Local writes in cloud mode should occur when**:
+- A) saveCompanyDocument succeeds (user edits)
+- B) Data is loaded from cloud and applied (initial sync to cache)  or we write local within the loads apply function
+
+For GreenBeanOrderPage, after `applyPersisted(normalize...)` from cloud, one local write is needed, or the useEffect on the first `persisted` change could be treated as from load  though distinguishing this is difficult.
+
+Simplest pattern: - **Option 1** is clean: on cloud document load success, explicitly call `writeLocalCache(state)` in `applyX`.
+- **Option 2** uses `useRef isHydrating` to track loading state, but is messy.
+
+For simplicity, in each pages load path when applying cloud data:
+- App.tsx `applyState` from remote: call `writeStatementPageLocalState` after `setState`</details></think>
+
+_**Agent (default)**_
+
+클라우드 모드에서는 편집마다 `localStorage`에 먼저 쓰지 않고, 클라우드 저장 성공 시(및 클라우드에서 불러온 직후 캐시 동기화 시)에만 씁니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to check useAppRuntime for `mode` in App - it's `mode` from provider.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "STATEMENT_RECORDS_SAVED"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "STATEMENT_RECORDS_SAVED",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 3,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 3,
+  "totalMatches": 8
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add `writeStatementPageLocalState` after `readStatementPageLocalState` in App.tsx.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+  "pattern": "readExpensePageStateFromStorage|function write"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+  "pattern": "readExpensePageStateFromStorage|function write",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/ExpensePage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "readMonthlyMeetingPageStateFromStorage|MONTHLY_MEETING_DATA"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "readMonthlyMeetingPageStateFromStorage|MONTHLY_MEETING_DATA",
+  "topFiles": [
+    {
+      "matchCount": 5,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 5
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+StaffPayroll read functionality is not exported. A small write function will be added directly within the file, without exporting, unless it's needed elsewhere.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "type InventoryPageDocument|export type InventoryPageDocument"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "type InventoryPageDocument|export type InventoryPageDocument",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add the `writeInventoryPageLocalDocument` function immediately after `readInventoryPageLocalDocument` finishes, before `normalizeInventoryPageDocument` starts. The `writeInventoryPageLocalDocument` function mirrors the setItem blocks in useEffects, storing inventory state and baseline state in local storage under keys scoped by mode and company ID.
+
+- It stores `document.inventoryState` under the inventory status storage key
+- It stores `document.baselineState` under the inventory status baseline storage key
+- Both values are stringified before storage
+- Keys are generated using `inventoryPageScopedKey` with appropriate storage keys and parameters</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add the write at the end of applyDocument when source === 'cloud' && mode === 'cloud' && activeCompanyId. I'll add the write at the end of applyDocument when source === 'cloud' && mode === 'cloud' && activeCompanyId, placing it before setIsStorageReady. The order should be: compute finalBaseline, then setState, then if cloud write local cache, then set messages.
+
+For the Memo page - in applyPersisted when source is 'cloud', set local storage and lastSyncedPayloadRef. In apply for cloud, add `try { window.localStorage.setItem(MEMO_PAGE_STORAGE_KEY, JSON.stringify(payloadForSync)) }` when source is cloud and activeCompanyId.</details></think>
+
+_**Agent (default)**_
+
+구현 중: `writeStatementPageLocalState` 추가, 각 페이지에 동일한 클라우드-우선 캐시 규칙 적용.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to update App.tsx to include `mode` and `activeCompanyId` in the combined useEffect hook, as these variables were previously missing but are now being used. The `useAppRuntime` hook does include `activeCompanyId`, as confirmed by the grep result showing `const { mode, activeCompany, activeCompanyId, user, signOut } = useAppRuntime()`.
+
+However, there's an issue with the combined local-only effect: it now runs on every dependency change and writes the full document, whereas the original implementation only wrote records when they changed. This behavior is actually correct for `writeStatementPageLocalState` because it needs to capture all current values. When records change, the effect re-runs with all current state, which is the intended behavior.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to ensure isPricingStorageReady and isMasterItemsStorageReady are checked to match the original behavior, since the template could update before all three conditions are ready.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+ExpensePage: add writeExpensePageStateToStorage, update load, gate useEffect, update.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Wait  I broke the Expense useEffect. The issue was in the expense effect's logic flow. The original flow had a bug where it would skip writing to local storage when in cloud mode with an active company. The fix ensures that:
+
+- When not in cloud mode or without an active company, it writes locally immediately
+- When in cloud mode with an active company, it skips immediate local writing but still processes the debounce logic for cloud saving
+- The debounce logic now properly handles all modes including cloud scenarios
+
+This prevents the expense effect from breaking when switching between local and cloud modes while maintaining proper data synchronization.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Replace the useEffect 301-306 with: if not cloud+company, write, return. Merge the effects into one: if not storage ready, return. If not cloud mode or no active company, write to local storage and return. Otherwise, debounce cloud save and write after .then.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Add `writeGreenBeanOrderPersistedToStorage` after `readGreenBeanOrderPersistedFromStorage`
+- Ensure order persistence logic is implemented for GreenBeanOrder</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+applyAliasRows on cloud load continues to call writeCustomBeanNameAliases, which hydrates local data from remote sourcesthis behavior is correct.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Now add applyDocument before setIsStorageReady:</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- The InventoryPageDocument type's scope within useEffect needs clarification.
+- It's unclear whether this type is properly included or accessible in the useEffect hook.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+In applyPersisted, after lastSyncedPayloadRef, when source==='cloud' && runtimeMode==='cloud' && activeCompanyId, setItem is attempted for payloadForSync.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The BeanSalesAnalysisPage saves green bean orders locally when loading from the cloud for analysis. That's intentional cache hydration from the server, similar to apply handlers. The edit path writing before cloud is finereading cloud and writing local mirrors the sync from the canonical source. No change needed; the setItem writes what came from the server, which is correct ("cache = server after load"). Run build to verify.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 650 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-soYN0KTb.css    150.46 kB │ gzip:  25.04 kB
+dist/assets/index-Bx4YCN8-.js   2,624.16 kB │ gzip: 746.22 kB
+
+✓ built in 452ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+.</details></think>
+
+_**Agent (default)**_
+
+작업 반영했습니다. **클라우드 모드이고 팀(`activeCompanyId`)이 있을 때**는 `localStorage`를 “저장됨”처럼 먼저 갱신하지 않고, **`saveCompanyDocument`가 성공한 뒤에만** 브라우저 캐시를 맞추도록 통일했습니다. **클라우드에서 불러온 직후**에는 이전에 하던 것처럼 **서버 스냅샷으로 캐시를 한 번 맞춰** 다른 화면·탭이 옛 데이터를 보지 않게 했습니다.
+
+### 변경 요약
+
+| 영역 | 동작 |
+|------|------|
+| **거래명세 (`App.tsx`)** | `writeStatementPageLocalState` 추가. 클라우드+회사: 편집 시 캐시는 저장 성공 시에만. 로드 시 클라우드 본문이 있으면 캐시 동기화. |
+| **지출/직원·급여/월 마감회의** | 전용 `write*ToStorage` (또는 기존 패턴) + 동일 규칙. 원격 로드 시 캐시 갱신. |
+| **생두 주문** | `writeGreenBeanOrderPersistedToStorage`. 클라우드 로드 `applyPersisted`에서 캐시 갱신. **원두 별칭**은 `saveCompanyDocument` 성공 후에만 `writeCustomBeanNameAliases` 호출. |
+| **입출고** | `writeInventoryPageLocalDocument` 추가. `applyDocument`(클라우드)에서 캐시 갱신. 저장 성공 시 전체 캐시. |
+| **메모** | 클라우드+회사: 자동 `localStorage` 쓰기는 `flushCloudSave` 성공(및 클라우드 로드) 시에만. |
+
+`npm run build`는 통과했습니다.
+
+**참고:** 클라우드 저장이 실패하면 **화면上的 편집은 React state에 남고**, 브라우저 캐시는 마지막으로 **성공한** 버전을 가리킬 수 있습니다. 새로고침하면 팀 기준 **클라우드** 기준으로 다시 보이니, `PageSaveStatus`의 오류 표시와 같이 “동기화 실패”를 인지하도록 맞춰 둔 상태입니다.
+
+---
+
+_**User**_
+
+그럼 이제는 클라우드로 다 되는거네? 이제 어디에서든 어느 컴퓨터든 다 데이터가 연동되는거고?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Yes, all data flows through the cloud and synchronizes across devices seamlessly.</details></think>
+
+_**Agent (default)**_
+
+완전히 그렇다고 말하긴 어렵고, **조건이 맞으면** “어느 PC·브라우저에서든 **같은 팀(회사) 기준으로** 데이터가 맞춰지도록” 쪽으로 맞춰 둔 상태에 가깝습니다.
+
+### 지금이 의미하는 것
+
+- **클라우드 모드** + **같은 팀(회사)이 선택**돼 있고, **로그인**된 상태에서 각 페이지는 **`save` / `load`가 클라우드를 기준**으로 가고, 예전엔 “로컬엔 써 뒀는데 클라우드엔 실패” 같은 **착시**를 줄이려고, **캐시(`localStorage`)는 클라우드에 성공한 뒤에** 맞추도록 바꾼 겁니다.
+- 그래서 **“팀용 데이터는 클라우드 쪽이 정본이고, 기기 캐시는 그 뒤를 따른다”**는 동작에 더 가깝습니다.
+
+### 그래도 “어디서든 100% 항상 다 연동”은 아닌 이유
+
+1. **로컬 전용 모드**를 쓰는 동안은 그 **기기 안에만** 남고, 팀이랑 자동 합쳐지지 않습니다.
+2. **같은 팀/회사**로 열어야 합니다. 팀이 다르면 데이터 집합이 다릅니다.
+3. **동시에 여러 명이** 같은 화면을 같이 쓰면, 일반 앱들처럼 **마지막에 저장한 쪽** 같은 방식이 될 수 있고, **실시간 협동 편집(Google Docs 수준)** 은 이 변경만으로는 보장되지 않습니다.
+4. **저장이 네트워크/서버 끝에 실패**하면, 화면에선 편집이 남아 있어도 **다른 PC에는 아직 반영이 안 될 수** 있고, 그때는 저장 UI의 오류를 보고 다시 시도하는 식이 됩니다.
+5. **즉시 동기**라기보다, 코드상 **느슨한 저장(디바운스 등)** 이 있으면 **몇 백 ms~딜레이**가 있을 수 있습니다.
+
+정리하면, **“클라우드 + 같은 팀이면, 의도는 기기를 넘어 맞는 데이터”**에 가깝고, **“로컬 모드/오프라인/동시편집/저장 실패”** 는 여전히 예외가 됩니다.  
+특정 화면만 더 확실히 보고 싶다면(예: 팀·로그인 없을 때의 동작) 그 흐름을 짚어 달라고 하시면 그 경로 기준으로만 짧게 답하겠습니다.
