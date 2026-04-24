@@ -23,7 +23,6 @@ import {
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument } from './lib/companyDocuments'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel, type MapStatementItemToInventoryOptions } from './beanSalesStatementMapping'
 import { normalizeInventoryStatusState, type BlendingRecipe, type InventoryBeanRow } from './inventoryStatusUtils'
-import { useAppRuntime } from './providers/AppRuntimeProvider'
 
 const STATEMENT_RECORDS_KEY = 'statement-records-v1'
 
@@ -100,15 +99,12 @@ function StatementInventoryLinkModal({
   activeCompanyId,
   preferredToLabel = null,
 }: Props) {
-  const { user, cloudDocRefreshTick } = useAppRuntime()
   const [rows, setRows] = useState<StatementInventoryManualEntry[]>([])
   const [stmtPickTick, setStmtPickTick] = useState(0)
   const [showMatchedItems, setShowMatchedItems] = useState(false)
   const [draftFrom, setDraftFrom] = useState('')
   const [draftTo, setDraftTo] = useState('')
   const [costRefreshTick, setCostRefreshTick] = useState(0)
-  const [cloudSyncHint, setCloudSyncHint] = useState('')
-  const [isSavingManualLinks, setIsSavingManualLinks] = useState(false)
 
   const mapOpts = useMemo(
     () => ({ mode, companyId: activeCompanyId } as const),
@@ -325,7 +321,6 @@ function StatementInventoryLinkModal({
         }
         load()
       })()
-      setCloudSyncHint('')
       setDraftFrom('')
       if (preferredToLabel && labelOptions.includes(preferredToLabel)) {
         setShowMatchedItems(true)
@@ -334,7 +329,7 @@ function StatementInventoryLinkModal({
         setDraftTo('')
       }
     }
-  }, [open, load, preferredToLabel, labelOptions, mode, activeCompanyId, cloudDocRefreshTick])
+  }, [open, load, preferredToLabel, labelOptions])
 
   useEffect(() => {
     if (draftFrom && !pickableItemNames.includes(draftFrom)) {
@@ -376,24 +371,9 @@ function StatementInventoryLinkModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  const saveAll = async (next: StatementInventoryManualEntry[]) => {
-    const prevRows = rows
+  const saveAll = (next: StatementInventoryManualEntry[]) => {
     setRows(next)
-    setIsSavingManualLinks(true)
-    const result = await saveStatementInventoryManualsWithCloud(mode, activeCompanyId, next, user?.id)
-    setIsSavingManualLinks(false)
-    if (mode === 'cloud') {
-      if (result.cloudSaved) {
-        setRows(result.savedEntries)
-        setCloudSyncHint('클라우드 동기화 완료')
-      } else {
-        // cloud 우선 모드: 실패 시 이전 상태로 롤백
-        setRows(prevRows)
-        setCloudSyncHint('클라우드 저장 실패(변경 미적용). 네트워크/권한 확인 후 다시 시도해 주세요.')
-      }
-      return
-    }
-    setRows(result.savedEntries)
+    void saveStatementInventoryManualsWithCloud(mode, activeCompanyId, next)
   }
 
   const addLink = () => {
@@ -404,18 +384,18 @@ function StatementInventoryLinkModal({
     }
     const next = rows.filter((r) => r.from !== from)
     next.push({ from, toLabel: to })
-    void saveAll(next)
+    saveAll(next)
     setDraftFrom('')
     setDraftTo('')
   }
 
   const updateRow = (index: number, toLabel: string) => {
     const next = rows.map((r, i) => (i === index ? { ...r, toLabel } : r))
-    void saveAll(next)
+    saveAll(next)
   }
 
   const removeRow = (index: number) => {
-    void saveAll(rows.filter((_, i) => i !== index))
+    saveAll(rows.filter((_, i) => i !== index))
   }
 
   if (!open) {
@@ -445,7 +425,6 @@ function StatementInventoryLinkModal({
           기본은 <strong>미매칭 거래 품목만</strong> 목록에 뜹니다. 필요하면 <strong>이미 자동 매칭된 항목도 보기</strong>를
           켜서 수동으로 덮어쓸 수 있습니다(수동이 자동보다 먼저 적용).
         </p>
-        {cloudSyncHint ? <p className="stmt-inv-link__cloud-hint">{cloudSyncHint}</p> : null}
 
         <section className="stmt-inv-link__add" aria-label="새 연결">
           {preferredToLabel ? (
@@ -562,7 +541,7 @@ function StatementInventoryLinkModal({
                 ))}
               </select>
             </label>
-            <button type="button" className="stmt-inv-link__btn" onClick={addLink} disabled={isSavingManualLinks || !draftFrom.trim() || !draftTo}>
+            <button type="button" className="stmt-inv-link__btn" onClick={addLink} disabled={!draftFrom.trim() || !draftTo}>
               연결
             </button>
           </div>
@@ -610,7 +589,7 @@ function StatementInventoryLinkModal({
                       </option>
                     ))}
                   </select>
-                  <button type="button" className="stmt-inv-link__rm" onClick={() => removeRow(i)} title="삭제" disabled={isSavingManualLinks}>
+                  <button type="button" className="stmt-inv-link__rm" onClick={() => removeRow(i)} title="삭제">
                     ×
                   </button>
                 </li>
@@ -629,7 +608,6 @@ function StatementInventoryLinkModal({
         .stmt-inv-modal-close { border: none; background: #eee; width: 36px; height: 36px; border-radius: 6px; font-size: 22px; line-height: 1; cursor: pointer; color: #555; }
         .stmt-inv-modal-close:hover { background: #e0e0e0; }
         .stmt-inv-modal-lead { font-size: 0.85rem; color: #555; line-height: 1.45; margin: 0 0 14px; }
-        .stmt-inv-link__cloud-hint { margin: -6px 0 10px; font-size: 12px; color: #1e3a8a; }
         .stmt-inv-link__add { margin: 0 0 12px; padding: 10px; background: #f5f6f8; border-radius: 8px; border: 1px solid #e3e5e8; }
         .stmt-inv-link__prefill { margin: 0 0 9px; font-size: 12px; color: #444; }
         .stmt-inv-link__prefill-list { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 5px; }

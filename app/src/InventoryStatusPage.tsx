@@ -40,7 +40,6 @@ import {
 
 type BlendTarget = 'dark' | 'light' | 'decaf'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
-import { useCloudDocumentRefreshPull } from './lib/cloudDocumentRefresh'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
@@ -666,42 +665,6 @@ const readInventoryPageLocalDocument = (mode: 'local' | 'cloud', companyId: stri
     templateFileName: savedTemplateName ?? '',
     historyNotes,
   }
-}
-
-const writeInventoryPageLocalDocument = (
-  mode: 'local' | 'cloud',
-  companyId: string | null,
-  document: InventoryPageDocument,
-) => {
-  window.localStorage.setItem(
-    inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, companyId),
-    JSON.stringify(document.inventoryState),
-  )
-  window.localStorage.setItem(
-    inventoryPageScopedKey(INVENTORY_STATUS_BASELINE_STORAGE_KEY, mode, companyId),
-    JSON.stringify(document.baselineState),
-  )
-  const templateKey = inventoryPageScopedKey(INVENTORY_STATUS_TEMPLATE_STORAGE_KEY, mode, companyId)
-  const templateNameKey = inventoryPageScopedKey(
-    INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY,
-    mode,
-    companyId,
-  )
-  if (document.templateBase64) {
-    window.localStorage.setItem(templateKey, document.templateBase64)
-  } else {
-    window.localStorage.removeItem(templateKey)
-  }
-  if (document.templateFileName) {
-    window.localStorage.setItem(templateNameKey, document.templateFileName)
-  } else {
-    window.localStorage.removeItem(templateNameKey)
-  }
-  window.localStorage.setItem(
-    inventoryPageScopedKey(INVENTORY_HISTORY_NOTES_STORAGE_KEY, mode, companyId),
-    JSON.stringify(document.historyNotes),
-  )
-  window.dispatchEvent(new Event(INVENTORY_STATUS_CACHE_EVENT))
 }
 
 const normalizeInventoryPageDocument = (value: unknown): InventoryPageDocument => {
@@ -1671,7 +1634,7 @@ function DailyRoastingJournal({
 }
 
 function InventoryStatusPage() {
-  const { mode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()
+  const { mode, activeCompanyId, user } = useAppRuntime()
   const [inventoryState, setInventoryState] = useState<InventoryStatusState>(() =>
     createDefaultInventoryStatusState(),
   )
@@ -1680,7 +1643,6 @@ function InventoryStatusPage() {
   const [baselineState, setBaselineState] = useState<InventoryStatusState>(() =>
     createDefaultInventoryStatusState(),
   )
-  const [externalSyncTick, setExternalSyncTick] = useState(0)
   const [templateBase64, setTemplateBase64] = useState<string | null>(null)
   const [templateFileName, setTemplateFileName] = useState<string>('')
   const [roastingViewMode, setRoastingViewMode] = useState<RoastingViewMode>('daily')
@@ -1708,7 +1670,6 @@ function InventoryStatusPage() {
     saveState,
     skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
-  const pullInventoryFromCloudRef = useRef<((isCancelled: () => boolean) => Promise<void>) | null>(null)
   const initialRoastingSyncDoneRef = useRef(false)
   const [fullResetDialogOpen, setFullResetDialogOpen] = useState(false)
   const [fullResetPin, setFullResetPin] = useState('')
@@ -1721,58 +1682,7 @@ function InventoryStatusPage() {
   const [nameEditUnlockPin, setNameEditUnlockPin] = useState('')
   const [nameEditUnlockError, setNameEditUnlockError] = useState('')
   const nameEditUnlockPinInputRef = useRef<HTMLInputElement>(null)
-  const saveStateRef = useRef(saveState)
-  saveStateRef.current = saveState
-
-  useEffect(() => {
-    const onExternalSync = () => {
-      if (saveStateRef.current === 'dirty' || saveStateRef.current === 'saving') {
-        return
-      }
-      setExternalSyncTick((n) => n + 1)
-    }
-    const onStorage = (e: StorageEvent) => {
-      if (e.key?.startsWith(INVENTORY_STATUS_STORAGE_KEY)) {
-        onExternalSync()
-      }
-    }
-    window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, onExternalSync)
-    window.addEventListener('storage', onStorage)
-    return () => {
-      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, onExternalSync)
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (mode !== 'cloud' || !activeCompanyId || externalSyncTick === 0) {
-      return
-    }
-    let cancelled = false
-    const syncFromCloud = async () => {
-      try {
-        const remoteDocument = await loadCompanyDocument<InventoryPageDocument>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.inventoryPage,
-        )
-        if (cancelled || !remoteDocument) {
-          return
-        }
-        const normalized = normalizeInventoryPageDocument(remoteDocument)
-        setInventoryState(normalized.inventoryState)
-        setBaselineState(normalized.baselineState)
-        setTemplateBase64(normalized.templateBase64)
-        setTemplateFileName(normalized.templateFileName)
-        setHistoryNotes(normalized.historyNotes)
-      } catch (error) {
-        console.error('입출고 현황 외부 동기화 실패', error)
-      }
-    }
-    void syncFromCloud()
-    return () => {
-      cancelled = true
-    }
-  }, [activeCompanyId, externalSyncTick, mode])
+  const lastCloudPollJsonRef = useRef('')
 
   useEffect(() => {
     let cancelled = false
@@ -1820,19 +1730,8 @@ function InventoryStatusPage() {
         return
       }
 
-      const finalBaseline = migratedFromManual ? next : nextBaseline
-      if (source === 'cloud' && mode === 'cloud' && activeCompanyId) {
-        writeInventoryPageLocalDocument(mode, activeCompanyId, {
-          inventoryState: next,
-          baselineState: finalBaseline,
-          templateBase64: document.templateBase64,
-          templateFileName: document.templateFileName,
-          historyNotes: document.historyNotes,
-        })
-      }
-
       setInventoryState(next)
-      setBaselineState(finalBaseline)
+      setBaselineState(migratedFromManual ? next : nextBaseline)
       setTemplateBase64(document.templateBase64)
       setTemplateFileName(document.templateFileName)
       setHistoryNotes(document.historyNotes)
@@ -1873,50 +1772,17 @@ function InventoryStatusPage() {
       }
     }
 
-    pullInventoryFromCloudRef.current = async (isCancelled) => {
-      if (mode !== 'cloud' || !activeCompanyId) {
-        return
-      }
-      try {
-        const remoteDocument = await loadCompanyDocument<InventoryPageDocument>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.inventoryPage,
-        )
-        if (isCancelled()) {
-          return
-        }
-        if (remoteDocument) {
-          applyDocument(normalizeInventoryPageDocument(remoteDocument), 'cloud', true)
-        }
-      } catch (error) {
-        console.error('입출고: 협업용 클라우드 다시 읽기에 실패했습니다.', error)
-      }
-    }
-
     void loadDocument()
     return () => {
       cancelled = true
-      pullInventoryFromCloudRef.current = null
     }
   }, [activeCompanyId, mode, resetDocumentSaveUi])
-
-  useCloudDocumentRefreshPull({
-    mode,
-    activeCompanyId,
-    cloudDocRefreshTick,
-    saveState,
-    onPull: async (isCancelled) => {
-      await (pullInventoryFromCloudRef.current?.(isCancelled) ?? Promise.resolve())
-    },
-  })
 
   useEffect(() => {
     if (!isStorageReady) {
       return
     }
-    if (mode === 'cloud' && activeCompanyId) {
-      return
-    }
+
     window.localStorage.setItem(
       inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId),
       JSON.stringify(inventoryState),
@@ -1961,9 +1827,7 @@ function InventoryStatusPage() {
     if (!isStorageReady) {
       return
     }
-    if (mode === 'cloud' && activeCompanyId) {
-      return
-    }
+
     window.localStorage.setItem(
       inventoryPageScopedKey(INVENTORY_STATUS_BASELINE_STORAGE_KEY, mode, activeCompanyId),
       JSON.stringify(baselineState),
@@ -1974,9 +1838,7 @@ function InventoryStatusPage() {
     if (!isStorageReady) {
       return
     }
-    if (mode === 'cloud' && activeCompanyId) {
-      return
-    }
+
     const templateKey = inventoryPageScopedKey(INVENTORY_STATUS_TEMPLATE_STORAGE_KEY, mode, activeCompanyId)
     const templateNameKey = inventoryPageScopedKey(
       INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY,
@@ -2007,9 +1869,7 @@ function InventoryStatusPage() {
     if (!isStorageReady) {
       return
     }
-    if (mode === 'cloud' && activeCompanyId) {
-      return
-    }
+
     window.localStorage.setItem(
       inventoryPageScopedKey(INVENTORY_HISTORY_NOTES_STORAGE_KEY, mode, activeCompanyId),
       JSON.stringify(historyNotes),
@@ -2026,26 +1886,28 @@ function InventoryStatusPage() {
     if (skipInitialDocumentSave()) {
       return
     }
+    const currentJson = JSON.stringify({ inventoryState, baselineState, templateBase64, templateFileName, historyNotes })
+    if (currentJson === lastCloudPollJsonRef.current) {
+      return
+    }
 
     markDocumentDirty()
 
     const timeoutId = window.setTimeout(() => {
       markDocumentSaving()
-      const inventoryPagePayload: InventoryPageDocument = {
-        inventoryState,
-        baselineState,
-        templateBase64,
-        templateFileName,
-        historyNotes,
-      }
       void saveCompanyDocument(
         activeCompanyId,
         COMPANY_DOCUMENT_KEYS.inventoryPage,
-        inventoryPagePayload,
+        {
+          inventoryState,
+          baselineState,
+          templateBase64,
+          templateFileName,
+          historyNotes,
+        },
         user?.id,
       )
         .then(() => {
-          writeInventoryPageLocalDocument(mode, activeCompanyId, inventoryPagePayload)
           markDocumentSaved()
         })
         .catch((error) => {
@@ -2072,6 +1934,68 @@ function InventoryStatusPage() {
     markDocumentSaving,
     skipInitialDocumentSave,
   ])
+
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+    let cancelled = false
+    let inFlight = false
+    let lastJson = ''
+
+    const poll = async () => {
+      if (cancelled || inFlight) {
+        return
+      }
+      inFlight = true
+      try {
+        const remote = await loadCompanyDocument<InventoryPageDocument>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.inventoryPage,
+        )
+        if (cancelled || !remote) {
+          return
+        }
+        const normalized = normalizeInventoryPageDocument(remote)
+        const payload = {
+          inventoryState: normalized.inventoryState,
+          baselineState: normalized.baselineState,
+          templateBase64: normalized.templateBase64,
+          templateFileName: normalized.templateFileName,
+          historyNotes: normalized.historyNotes,
+        }
+        const nextJson = JSON.stringify(payload)
+        if (nextJson !== lastJson) {
+          lastJson = nextJson
+          lastCloudPollJsonRef.current = nextJson
+          setInventoryState(normalized.inventoryState)
+          setBaselineState(normalized.baselineState)
+          setTemplateBase64(normalized.templateBase64)
+          setTemplateFileName(normalized.templateFileName)
+          setHistoryNotes(normalized.historyNotes)
+          if (normalized.inventoryState.beanRows[0]) {
+            setSelectedBeanName((prev) => {
+              if (normalized.inventoryState.beanRows.some((b) => b.name === prev)) {
+                return prev
+              }
+              return normalized.inventoryState.beanRows[0]?.name ?? ''
+            })
+          }
+        }
+      } catch {
+        /* retry next cycle */
+      } finally {
+        inFlight = false
+      }
+    }
+
+    void poll()
+    const id = window.setInterval(() => void poll(), 2500)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [mode, activeCompanyId])
 
   const endingStockDayIndex = useMemo(
     () => dayIndexForReferenceDate(inventoryState.days, inventoryState.referenceDate),

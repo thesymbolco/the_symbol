@@ -64,9 +64,11 @@ export const readStatementInventoryManuals = (mode: 'local' | 'cloud', companyId
 }
 
 /** 같은 `from`이 여러 개면 **뒤**에 온 쪽(사용자가 아래에 추가한 느낌)이 우선. 여기서는 뒤가 덮어씀 */
-export const normalizeStatementInventoryManuals = (
+export const writeStatementInventoryManuals = (
+  mode: 'local' | 'cloud',
+  companyId: string | null,
   entries: readonly StatementInventoryManualEntry[],
-): StatementInventoryManualEntry[] => {
+): void => {
   const byFrom = new Map<string, string>()
   for (const e of entries) {
     const from = e.from.trim()
@@ -75,19 +77,10 @@ export const normalizeStatementInventoryManuals = (
       byFrom.set(from, to)
     }
   }
-  return Array.from(byFrom.entries()).map(([from, toLabel]) => ({
+  const deduped: StatementInventoryManualEntry[] = Array.from(byFrom.entries()).map(([from, toLabel]) => ({
     from,
     toLabel,
   }))
-}
-
-/** 같은 `from`이 여러 개면 **뒤**에 온 쪽(사용자가 아래에 추가한 느낌)이 우선. 여기서는 뒤가 덮어씀 */
-export const writeStatementInventoryManuals = (
-  mode: 'local' | 'cloud',
-  companyId: string | null,
-  entries: readonly StatementInventoryManualEntry[],
-): void => {
-  const deduped = normalizeStatementInventoryManuals(entries)
   window.localStorage.setItem(getStorageKey(mode, companyId), JSON.stringify(deduped))
   window.dispatchEvent(new Event(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT))
 }
@@ -118,25 +111,20 @@ export async function saveStatementInventoryManualsWithCloud(
   companyId: string | null,
   entries: readonly StatementInventoryManualEntry[],
   userId?: string | null,
-): Promise<{ cloudSaved: boolean; savedEntries: StatementInventoryManualEntry[] }> {
-  const deduped = normalizeStatementInventoryManuals(entries)
+): Promise<void> {
+  writeStatementInventoryManuals(mode, companyId, entries)
   if (mode !== 'cloud' || !companyId) {
-    writeStatementInventoryManuals(mode, companyId, deduped)
-    return { cloudSaved: false, savedEntries: deduped }
+    return
   }
   try {
     await saveCompanyDocument(
       companyId,
       COMPANY_DOCUMENT_KEYS.statementInventoryMappings,
-      deduped,
+      readStatementInventoryManuals(mode, companyId),
       userId ?? null,
     )
-    // cloud 저장 성공 후에만 로컬 캐시 반영 (협업 불일치 방지)
-    writeStatementInventoryManuals(mode, companyId, deduped)
-    return { cloudSaved: true, savedEntries: deduped }
   } catch (error) {
     console.error('명세↔입고 수동매핑 클라우드 저장에 실패했습니다.', error)
-    return { cloudSaved: false, savedEntries: readStatementInventoryManuals(mode, companyId) }
   }
 }
 

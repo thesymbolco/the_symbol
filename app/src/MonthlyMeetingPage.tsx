@@ -38,7 +38,6 @@ import {
   type MeetingValueRow,
   type MonthlyMeetingData,
 } from './monthlyMeetingData'
-import { useCloudDocumentRefreshPull } from './lib/cloudDocumentRefresh'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
@@ -83,7 +82,6 @@ const pieShadeStops = (hex: string) => {
 }
 
 export const MONTHLY_MEETING_DATA_KEY = 'monthly-meeting-data-v2'
-export const MONTHLY_MEETING_SAVED_EVENT = 'monthly-meeting-saved'
 /** 로스팅실 매출 거래명세 집계 기준 연·월 (`YYYY-MM`) */
 const ROASTING_REF_YM_STORAGE_KEY = 'monthly-meeting-roasting-ref-ym-v1'
 /** 1~5번 섹션 +/- 접힘 상태 */
@@ -1387,15 +1385,6 @@ const readMonthlyMeetingPageStateFromStorage = (): MonthlyMeetingPageState => {
   }
 }
 
-const writeMonthlyMeetingPageStateToStorage = (state: MonthlyMeetingPageState) => {
-  try {
-    window.localStorage.setItem(MONTHLY_MEETING_DATA_KEY, JSON.stringify(state))
-    window.dispatchEvent(new Event(MONTHLY_MEETING_SAVED_EVENT))
-  } catch {
-    // ignore
-  }
-}
-
 const normalizeMeetingTitle = (title: string, months: string[]) => {
   const trimmed = title.trim()
   if (!trimmed) {
@@ -1461,7 +1450,7 @@ const migrateProductionHeaderToOutbound = (state: MonthlyMeetingPageState): Mont
 }
 
 function MonthlyMeetingPage() {
-  const { mode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()
+  const { mode, activeCompanyId, user } = useAppRuntime()
   /** 입출고 페이지와 동일한 localStorage 키 + 캐시 갱신 시 4번 출고·재고 표를 다시 읽음 */
   const [inventoryLinkTick, setInventoryLinkTick] = useState(0)
   const [pageState, setPageState] = useState<MonthlyMeetingPageState>(createDefaultState)
@@ -1470,6 +1459,7 @@ function MonthlyMeetingPage() {
   )
   const [isStorageReady, setIsStorageReady] = useState(false)
   const [isCloudReady, setIsCloudReady] = useState(mode === 'local')
+  const lastCloudPollJsonRef = useRef('')
   const {
     lastSavedAt,
     markDocumentDirty,
@@ -1480,7 +1470,6 @@ function MonthlyMeetingPage() {
     saveState,
     skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
-  const pullMeetingFromCloudRef = useRef<((isCancelled: () => boolean) => Promise<void>) | null>(null)
   const [copyTargetMonth, setCopyTargetMonth] = useState('')
   const [collapsedSections, setCollapsedSections] = useState<Record<MeetingSectionKey, boolean>>(
     readStoredCollapsedSections,
@@ -1507,54 +1496,6 @@ function MonthlyMeetingPage() {
   const outboundPieGfxId = useId().replace(/:/g, '')
   const outboundPieFilterId = `meetingOutboundPieDepth-${outboundPieGfxId}`
   const outboundPieGradId = (index: number) => `meetingOutboundPieGrad-${outboundPieGfxId}-${index}`
-  const [externalSyncTick, setExternalSyncTick] = useState(0)
-  const saveStateRef = useRef(saveState)
-  saveStateRef.current = saveState
-
-  useEffect(() => {
-    const onExternalSync = () => {
-      if (saveStateRef.current === 'dirty' || saveStateRef.current === 'saving') {
-        return
-      }
-      setExternalSyncTick((n) => n + 1)
-    }
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === MONTHLY_MEETING_DATA_KEY) {
-        onExternalSync()
-      }
-    }
-    window.addEventListener(MONTHLY_MEETING_SAVED_EVENT, onExternalSync)
-    window.addEventListener('storage', onStorage)
-    return () => {
-      window.removeEventListener(MONTHLY_MEETING_SAVED_EVENT, onExternalSync)
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (mode !== 'cloud' || !activeCompanyId || externalSyncTick === 0) {
-      return
-    }
-    let cancelled = false
-    const syncFromCloud = async () => {
-      try {
-        const remoteState = await loadCompanyDocument<MonthlyMeetingPageState>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
-        )
-        if (cancelled || !remoteState) {
-          return
-        }
-        setPageState(normalizeMonthlyMeetingPageState(remoteState))
-      } catch (error) {
-        console.error('월마감 회의 외부 동기화 실패', error)
-      }
-    }
-    void syncFromCloud()
-    return () => {
-      cancelled = true
-    }
-  }, [activeCompanyId, externalSyncTick, mode])
 
   const applyGreenBeanOrderToRoastingBeanCost = () => {
     const ref = parseYm(roastingSalesReferenceYm)
@@ -1777,61 +1718,18 @@ function MonthlyMeetingPage() {
           activeCompanyId,
           COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
         )
-        if (remoteState) {
-          const next = normalizeMonthlyMeetingPageState(remoteState)
-          applyState(next)
-          if (activeCompanyId) {
-            writeMonthlyMeetingPageStateToStorage(next)
-          }
-        } else {
-          applyState(localState)
-        }
+        applyState(remoteState ? normalizeMonthlyMeetingPageState(remoteState) : localState)
       } catch (error) {
         console.error('월 마감회의 클라우드 문서를 읽지 못했습니다.', error)
         applyState(localState)
       }
     }
 
-    pullMeetingFromCloudRef.current = async (isCancelled) => {
-      if (mode !== 'cloud' || !activeCompanyId) {
-        return
-      }
-      try {
-        const remoteState = await loadCompanyDocument<MonthlyMeetingPageState>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
-        )
-        if (isCancelled()) {
-          return
-        }
-        if (remoteState) {
-          const next = normalizeMonthlyMeetingPageState(remoteState)
-          applyState(next)
-          if (activeCompanyId) {
-            writeMonthlyMeetingPageStateToStorage(next)
-          }
-        }
-      } catch (error) {
-        console.error('월 마감회의: 협업용 클라우드 다시 읽기에 실패했습니다.', error)
-      }
-    }
-
     void loadState()
     return () => {
       cancelled = true
-      pullMeetingFromCloudRef.current = null
     }
   }, [activeCompanyId, mode, resetDocumentSaveUi])
-
-  useCloudDocumentRefreshPull({
-    mode,
-    activeCompanyId,
-    cloudDocRefreshTick,
-    saveState,
-    onPull: async (isCancelled) => {
-      await (pullMeetingFromCloudRef.current?.(isCancelled) ?? Promise.resolve())
-    },
-  })
 
   useEffect(() => {
     setCopyTargetMonth((current) => {
@@ -1847,14 +1745,22 @@ function MonthlyMeetingPage() {
     if (!isStorageReady) {
       return
     }
-    if (mode !== 'cloud' || !activeCompanyId) {
-      writeMonthlyMeetingPageStateToStorage(pageState)
+
+    window.localStorage.setItem(MONTHLY_MEETING_DATA_KEY, JSON.stringify(pageState))
+  }, [isStorageReady, pageState])
+
+  useEffect(() => {
+    if (!isStorageReady || !isCloudReady) {
       return
     }
-    if (!isCloudReady) {
+    if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
     if (skipInitialDocumentSave()) {
+      return
+    }
+    const currentJson = JSON.stringify(pageState)
+    if (currentJson === lastCloudPollJsonRef.current) {
       return
     }
 
@@ -1869,7 +1775,6 @@ function MonthlyMeetingPage() {
         user?.id,
       )
         .then(() => {
-          writeMonthlyMeetingPageStateToStorage(pageState)
           markDocumentSaved()
         })
         .catch((error) => {
@@ -1892,6 +1797,49 @@ function MonthlyMeetingPage() {
     markDocumentSaving,
     skipInitialDocumentSave,
   ])
+
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+    let cancelled = false
+    let inFlight = false
+    let lastJson = ''
+
+    const poll = async () => {
+      if (cancelled || inFlight) {
+        return
+      }
+      inFlight = true
+      try {
+        const remote = await loadCompanyDocument<MonthlyMeetingPageState>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
+        )
+        if (cancelled || !remote) {
+          return
+        }
+        const normalized = normalizeMonthlyMeetingPageState(remote)
+        const nextJson = JSON.stringify(normalized)
+        if (nextJson !== lastJson) {
+          lastJson = nextJson
+          lastCloudPollJsonRef.current = nextJson
+          setPageState(normalized)
+        }
+      } catch {
+        /* retry next cycle */
+      } finally {
+        inFlight = false
+      }
+    }
+
+    void poll()
+    const id = window.setInterval(() => void poll(), 2500)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [mode, activeCompanyId])
 
   useEffect(() => {
     if (parseYm(roastingSalesReferenceYm)) {

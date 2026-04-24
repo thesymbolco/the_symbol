@@ -11,6 +11,8 @@ import { GREEN_BEAN_ORDER_SAVED_EVENT, GREEN_BEAN_ORDER_STORAGE_KEY } from './Gr
 import {
   BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT,
   hasAnyStatementManualForItem,
+  type StatementInventoryManualEntry,
+  writeStatementInventoryManuals,
   syncStatementInventoryManualsFromCloud,
 } from './beanStatementManualMappings'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
@@ -18,7 +20,6 @@ import { normalizeInventoryStatusState } from './inventoryStatusUtils'
 import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'
 import { STATEMENT_RECORDS_SAVED_EVENT } from './MonthlyMeetingPage'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument } from './lib/companyDocuments'
-import { loadStatementRecordsMirror } from './statementRecordsMirror'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 import StatementInventoryLinkModal from './StatementInventoryLinkModal'
 
@@ -32,6 +33,10 @@ type StatementRecord = {
   taxAmount: number
   totalAmount: number
   clientName: string
+}
+
+type StatementPageDocumentLike = {
+  records?: StatementRecord[]
 }
 
 type InventoryPageDocumentLike = {
@@ -74,6 +79,8 @@ type BeanSalesData = {
   estimatedProfitAmount: number | null
 }
 
+const STATEMENT_RECORDS_KEY = 'statement-records-v1'
+
 /** 파이/막대/범례 공통: 매출 0 제외 뒤 상위 N (동일 값 유지) */
 const BEAN_SALES_CHART_TOP = 10
 
@@ -91,7 +98,7 @@ const shortenBeanName = (name: string, max = 14): string => {
 }
 
 function BeanSalesAnalysisPage() {
-  const { mode, activeCompanyId, cloudDocRefreshTick } = useAppRuntime()
+  const { mode, activeCompanyId } = useAppRuntime()
   const [inventoryReadTick, setInventoryReadTick] = useState(0)
   const [greenOrderReadTick, setGreenOrderReadTick] = useState(0)
   const [manualMappingTick, setManualMappingTick] = useState(0)
@@ -131,25 +138,144 @@ function BeanSalesAnalysisPage() {
 
   useEffect(() => {
     void syncStatementInventoryManualsFromCloud(mode, activeCompanyId)
-  }, [mode, activeCompanyId, manualMappingTick, cloudDocRefreshTick])
+  }, [mode, activeCompanyId, manualMappingTick])
+
+  /**
+   * 클라우드 모드: 다른 환경에서 문서를 수정해도 이 화면이 자동 반영되도록
+   * 필요한 문서를 폴링해서 로컬 캐시(및 이벤트)까지 갱신합니다.
+   */
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+
+    let cancelled = false
+    let inFlight = false
+
+    let lastManualMappings = ''
+    let lastStatementRecords = ''
+    let lastInventoryDoc = ''
+    let lastGreenOrderDoc = ''
+
+    const poll = async () => {
+      if (cancelled || inFlight) {
+        return
+      }
+      inFlight = true
+      try {
+        const [manualDoc, statementDoc, inventoryDoc, greenOrderDoc] = await Promise.all([
+          loadCompanyDocument<StatementInventoryManualEntry[]>(
+            activeCompanyId,
+            COMPANY_DOCUMENT_KEYS.statementInventoryMappings,
+          ),
+          loadCompanyDocument<StatementPageDocumentLike>(activeCompanyId, COMPANY_DOCUMENT_KEYS.statementPage),
+          loadCompanyDocument<InventoryPageDocumentLike>(activeCompanyId, COMPANY_DOCUMENT_KEYS.inventoryPage),
+          loadCompanyDocument<unknown>(activeCompanyId, COMPANY_DOCUMENT_KEYS.greenBeanOrderPage),
+        ])
+        if (cancelled) {
+          return
+        }
+
+        // 1) 수동 매핑
+        if (Array.isArray(manualDoc)) {
+          const sorted = [...manualDoc].sort((a, b) => a.from.localeCompare(b.from, 'ko'))
+          const nextJson = JSON.stringify(sorted)
+          if (nextJson !== lastManualMappings) {
+            lastManualMappings = nextJson
+            writeStatementInventoryManuals('cloud', activeCompanyId, sorted)
+          }
+        }
+
+        // 2) 거래명세
+        if (statementDoc && Array.isArray(statementDoc.records)) {
+          const nextJson = JSON.stringify(statementDoc.records)
+          if (nextJson !== lastStatementRecords) {
+            lastStatementRecords = nextJson
+            window.localStorage.setItem(STATEMENT_RECORDS_KEY, JSON.stringify(statementDoc.records))
+            window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
+            setStatementRecordsRaw(statementDoc.records)
+          }
+        }
+
+        // 3) 입출고
+        if (inventoryDoc) {
+          const candidate = (inventoryDoc as any)?.inventoryState ?? inventoryDoc
+          const normalized = normalizeInventoryStatusState(candidate)
+          if (normalized) {
+            const nextJson = JSON.stringify(normalized)
+            if (nextJson !== lastInventoryDoc) {
+              lastInventoryDoc = nextJson
+              const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, 'cloud', activeCompanyId)
+              window.localStorage.setItem(key, JSON.stringify(normalized))
+              window.dispatchEvent(new Event(INVENTORY_STATUS_CACHE_EVENT))
+              setInventoryStateRaw(normalized)
+            }
+          }
+        }
+
+        // 4) 생두 주문(최근 주문가 계산용)
+        if (greenOrderDoc) {
+          const nextJson = JSON.stringify(greenOrderDoc)
+          if (nextJson !== lastGreenOrderDoc) {
+            lastGreenOrderDoc = nextJson
+            window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(greenOrderDoc))
+            setGreenOrderCloudSyncTick((n) => n + 1)
+          }
+        }
+      } catch {
+        // ignore: 폴링 중 실패는 다음 주기에 재시도
+      } finally {
+        inFlight = false
+      }
+    }
+
+    // 초기 1회 즉시 + 이후 폴링
+    void poll()
+    const id = window.setInterval(() => void poll(), 2500)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [mode, activeCompanyId])
 
   useEffect(() => {
     let cancelled = false
-    const run = async () => {
-      const rows = await loadStatementRecordsMirror<StatementRecord>({
-        mode,
-        companyId: activeCompanyId,
-        cloudDocRefreshTick,
-      })
-      if (!cancelled) {
-        setStatementRecordsRaw(rows)
+    const loadStatementRecords = async () => {
+      if (mode === 'cloud' && activeCompanyId) {
+        try {
+          const remote = await loadCompanyDocument<StatementPageDocumentLike>(
+            activeCompanyId,
+            COMPANY_DOCUMENT_KEYS.statementPage,
+          )
+          if (cancelled) {
+            return
+          }
+          if (Array.isArray(remote?.records)) {
+            setStatementRecordsRaw(remote.records)
+            return
+          }
+        } catch (error) {
+          console.error('원두별 매출 분석: 거래명세 클라우드 문서를 읽지 못했습니다.', error)
+        }
+      }
+      try {
+        const saved = window.localStorage.getItem(STATEMENT_RECORDS_KEY)
+        if (!saved) {
+          setStatementRecordsRaw([])
+          return
+        }
+        const parsed = JSON.parse(saved) as StatementRecord[]
+        setStatementRecordsRaw(Array.isArray(parsed) ? parsed : [])
+      } catch {
+        setStatementRecordsRaw([])
       }
     }
-    void run()
+    void loadStatementRecords()
     return () => {
       cancelled = true
     }
-  }, [cloudDocRefreshTick, mode, activeCompanyId, statementRecordsTick])
+  }, [mode, activeCompanyId, statementRecordsTick])
 
   useEffect(() => {
     let cancelled = false
@@ -196,7 +322,7 @@ function BeanSalesAnalysisPage() {
     return () => {
       cancelled = true
     }
-  }, [cloudDocRefreshTick, mode, activeCompanyId, inventoryReadTick])
+  }, [mode, activeCompanyId, inventoryReadTick])
 
   useEffect(() => {
     let cancelled = false
@@ -228,7 +354,7 @@ function BeanSalesAnalysisPage() {
     return () => {
       cancelled = true
     }
-  }, [cloudDocRefreshTick, mode, activeCompanyId, greenOrderReadTick])
+  }, [mode, activeCompanyId, greenOrderReadTick])
 
   const statementRecords = useMemo(() => {
     return statementRecordsRaw.filter((record) => new Date(record.deliveryDate).getFullYear() === selectedYear)
@@ -385,14 +511,10 @@ function BeanSalesAnalysisPage() {
     [beanSalesAnalysis],
   )
 
-  /** 모듈 상수: 매 렌더마다 새 배열이 되면 useMemo(차트 데이터)의 fill 참조가 흔들릴 수 있음 */
-  const chartColors = useMemo(
-    () => [
-      '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1',
-      '#d084d0', '#ffb366', '#95d5b2', '#ffd93d', '#c9c9c9',
-    ],
-    [],
-  )
+  const chartColors = [
+    '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1',
+    '#d084d0', '#ffb366', '#95d5b2', '#ffd93d', '#c9c9c9'
+  ]
 
   const revenueChartData = useMemo(() => {
     return [...rowsWithRevenue]
@@ -400,9 +522,9 @@ function BeanSalesAnalysisPage() {
       .slice(0, BEAN_SALES_CHART_TOP)
       .map((data, index) => ({
         ...data,
-        fill: chartColors[index % chartColors.length],
+        fill: chartColors[index % chartColors.length]
       }))
-  }, [chartColors, rowsWithRevenue])
+  }, [rowsWithRevenue])
 
   /** 생두 주문이 있어 이익(추정)이 잡힌 행만 */
   const rowsWithKnownProfit = useMemo(
@@ -424,14 +546,11 @@ function BeanSalesAnalysisPage() {
     return [...rowsWithKnownProfit]
       .sort((a, b) => (b.estimatedProfitAmount ?? 0) - (a.estimatedProfitAmount ?? 0))
       .slice(0, BEAN_SALES_CHART_TOP)
-      .map((data, index) => {
-        const profit = data.estimatedProfitAmount ?? 0
-        return {
-          ...data,
-          fill: profit < 0 ? '#b71c1c' : chartColors[index % chartColors.length],
-        }
-      })
-  }, [chartColors, rowsWithKnownProfit])
+      .map((data) => ({
+        ...data,
+        fill: (data.estimatedProfitAmount ?? 0) >= 0 ? '#1b5e20' : '#b71c1c',
+      }))
+  }, [rowsWithKnownProfit])
 
   const profitPieChartData = useMemo(() => {
     return [...rowsWithKnownProfit]
@@ -442,7 +561,7 @@ function BeanSalesAnalysisPage() {
         ...data,
         fill: chartColors[index % chartColors.length],
       }))
-  }, [chartColors, rowsWithKnownProfit])
+  }, [rowsWithKnownProfit])
 
   const totalRevenue = beanSalesAnalysis.reduce((sum, data) => sum + data.totalRevenue, 0)
   const totalQuantity = beanSalesAnalysis.reduce((sum, data) => sum + data.totalQuantity, 0)
@@ -581,7 +700,7 @@ function BeanSalesAnalysisPage() {
           <div className="chart-grid">
             <div className="chart-container">
               <h3>원두별 매출 비율</h3>
-              <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={300} debounce={50}>
+              <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
                     data={revenueChartData}
@@ -593,9 +712,6 @@ function BeanSalesAnalysisPage() {
                     outerRadius={94}
                     paddingAngle={2}
                     label={false}
-                    isAnimationActive={false}
-                    stroke="#ffffff"
-                    strokeWidth={1}
                   >
                     {revenueChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -623,7 +739,7 @@ function BeanSalesAnalysisPage() {
 
             <div className="chart-container">
               <h3>원두별 매출 금액</h3>
-              <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={300} debounce={50}>
+              <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={revenueChartData} layout="vertical" margin={{ top: 4, right: 8, bottom: 4, left: 8 }}>
                   <CartesianGrid strokeDasharray="2 4" horizontal={false} />
                   <XAxis type="number" tickFormatter={(value) => `${Math.round(value / 10000)}만`} tick={{ fontSize: 12 }} />
@@ -639,11 +755,7 @@ function BeanSalesAnalysisPage() {
                     labelFormatter={(label) => String(label)}
                     contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
                   />
-                  <Bar dataKey="totalRevenue" isAnimationActive={false} radius={[0, 2, 2, 0]}>
-                    {revenueChartData.map((entry) => (
-                      <Cell key={entry.beanName} fill={entry.fill} />
-                    ))}
-                  </Bar>
+                  <Bar dataKey="totalRevenue" fill="#8884d8" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -658,7 +770,7 @@ function BeanSalesAnalysisPage() {
                 <p className="bean-sales-chart-empty">흑자(추정) 품목이 없습니다.</p>
               ) : (
                 <>
-                  <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={300} debounce={50}>
+                  <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
                       <Pie
                         data={profitPieChartData}
@@ -670,9 +782,6 @@ function BeanSalesAnalysisPage() {
                         outerRadius={94}
                         paddingAngle={2}
                         label={false}
-                        isAnimationActive={false}
-                        stroke="#ffffff"
-                        strokeWidth={1}
                       >
                         {profitPieChartData.map((entry, index) => (
                           <Cell key={`profit-pie-${index}`} fill={entry.fill} />
@@ -708,7 +817,7 @@ function BeanSalesAnalysisPage() {
               {rowsWithKnownProfit.length === 0 ? (
                 <p className="bean-sales-chart-empty">생두 주문이 있으면 품목별 이익(추정)을 계산합니다.</p>
               ) : (
-                <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={300} debounce={50}>
+                <ResponsiveContainer width="100%" height={300}>
                   <BarChart
                     data={profitBarChartData}
                     layout="vertical"
@@ -735,11 +844,7 @@ function BeanSalesAnalysisPage() {
                       labelFormatter={(label) => String(label)}
                       contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
                     />
-                    <Bar dataKey="estimatedProfitAmount" isAnimationActive={false} radius={[0, 2, 2, 0]}>
-                      {profitBarChartData.map((entry) => (
-                        <Cell key={entry.beanName} fill={entry.fill} />
-                      ))}
-                    </Bar>
+                    <Bar dataKey="estimatedProfitAmount" fill="#1b5e20" radius={[0, 2, 2, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -1089,7 +1194,6 @@ function BeanSalesAnalysisPage() {
           padding: 20px;
           border-radius: 8px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          min-width: 0;
         }
 
         .chart-container h3 {

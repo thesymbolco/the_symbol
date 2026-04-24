@@ -7,13 +7,10 @@ import {
   updateLinkedMemo,
 } from './memoLinkedSources'
 import PageSaveStatus from './components/PageSaveStatus'
-import { useCloudDocumentRefreshPull } from './lib/cloudDocumentRefresh'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
-import type { DocumentSaveState } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
 export const MEMO_PAGE_STORAGE_KEY = 'memo-page-data-v1'
-export const MEMO_PAGE_SAVED_EVENT = 'memo-page-saved'
 
 export type MemoScope =
   | 'general'
@@ -304,7 +301,7 @@ function sameUpToMinute(a: string, b: string): boolean {
 type MergedRow = { kind: 'local'; data: ConvenienceMemo } | { kind: 'linked'; data: LinkedMemoRow }
 
 export default function MemoPage({ mode = 'all' }: MemoPageProps) {
-  const { mode: runtimeMode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()
+  const { mode: runtimeMode, activeCompanyId, user } = useAppRuntime()
   const forceComfortOnly = mode === 'comfortOnly'
   const forceDailyOnly = mode === 'dailyOnly'
   const showModeTabs = mode === 'all'
@@ -336,7 +333,6 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
   const [lastSavedAt, setLastSavedAt] = useState('')
   const saveTimerRef = useRef<number | null>(null)
   const lastSyncedPayloadRef = useRef('')
-  const pullMemoFromCloudRef = useRef<((isCancelled: () => boolean) => Promise<void>) | null>(null)
 
   const [filterScope, setFilterScope] = useState<MemoScope | 'all'>('all')
   const [search, setSearch] = useState('')
@@ -354,63 +350,6 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
   const [editLinkBody, setEditLinkBody] = useState('')
   /** 입출고 히스토리 기준일 YYYY-MM-DD */
   const [editLinkDate, setEditLinkDate] = useState('')
-  const [externalSyncTick, setExternalSyncTick] = useState(0)
-  const saveStateRef = useRef(saveState)
-  saveStateRef.current = saveState
-
-  useEffect(() => {
-    const onExternalSync = () => {
-      if (saveStateRef.current === 'dirty' || saveStateRef.current === 'saving') {
-        return
-      }
-      setExternalSyncTick((n) => n + 1)
-    }
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === MEMO_PAGE_STORAGE_KEY) {
-        onExternalSync()
-      }
-    }
-    window.addEventListener(MEMO_PAGE_SAVED_EVENT, onExternalSync)
-    window.addEventListener('storage', onStorage)
-    return () => {
-      window.removeEventListener(MEMO_PAGE_SAVED_EVENT, onExternalSync)
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (runtimeMode !== 'cloud' || !activeCompanyId || externalSyncTick === 0) {
-      return
-    }
-    let cancelled = false
-    const syncFromCloud = async () => {
-      try {
-        const remotePersisted = await loadCompanyDocument<MemoPagePersisted>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.memoPage,
-        )
-        if (cancelled || !remotePersisted) {
-          return
-        }
-        const nextItems = [...(remotePersisted.items ?? [])].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-        const nextTodos = [...(remotePersisted.todos ?? [])].sort((a, b) => {
-          if (a.done !== b.done) {
-            return a.done ? 1 : -1
-          }
-          return b.createdAt.localeCompare(a.createdAt)
-        })
-        setItems(nextItems)
-        setTodos(nextTodos)
-        setDailyByDate(pruneDailyByDate(remotePersisted.dailyByDate))
-      } catch (error) {
-        console.error('메모 외부 동기화 실패', error)
-      }
-    }
-    void syncFromCloud()
-    return () => {
-      cancelled = true
-    }
-  }, [activeCompanyId, externalSyncTick, runtimeMode])
 
   useEffect(() => {
     let cancelled = false
@@ -436,13 +375,6 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
         dailyByDate: pruneDailyByDate(parsed.dailyByDate),
       }
       lastSyncedPayloadRef.current = JSON.stringify(payloadForSync)
-      if (source === 'cloud' && runtimeMode === 'cloud' && activeCompanyId) {
-        try {
-          window.localStorage.setItem(MEMO_PAGE_STORAGE_KEY, JSON.stringify(payloadForSync))
-        } catch {
-          // ignore
-        }
-      }
       setItems(nextItems)
       setTodos(nextTodos)
       setDailyByDate(parsed.dailyByDate)
@@ -477,48 +409,14 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
       }
     }
 
-    pullMemoFromCloudRef.current = async (isCancelled) => {
-      if (runtimeMode !== 'cloud' || !activeCompanyId) {
-        return
-      }
-      try {
-        const remotePersisted = await loadCompanyDocument<MemoPagePersisted>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.memoPage,
-        )
-        if (isCancelled()) {
-          return
-        }
-        if (remotePersisted) {
-          applyPersisted(normalizePersisted(remotePersisted), 'cloud', true)
-        }
-      } catch (error) {
-        console.error('메모: 협업용 클라우드 다시 읽기에 실패했습니다.', error)
-      }
-    }
-
     void loadPersisted()
     return () => {
       cancelled = true
-      pullMemoFromCloudRef.current = null
     }
   }, [activeCompanyId, runtimeMode])
 
-  useCloudDocumentRefreshPull({
-    mode: runtimeMode,
-    activeCompanyId,
-    cloudDocRefreshTick,
-    saveState: saveState as DocumentSaveState,
-    onPull: async (isCancelled) => {
-      await (pullMemoFromCloudRef.current?.(isCancelled) ?? Promise.resolve())
-    },
-  })
-
   useEffect(() => {
     if (!isStorageReady) {
-      return
-    }
-    if (runtimeMode === 'cloud' && activeCompanyId) {
       return
     }
     const payload: MemoPagePersisted = {
@@ -528,11 +426,10 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
     }
     try {
       window.localStorage.setItem(MEMO_PAGE_STORAGE_KEY, JSON.stringify(payload))
-      window.dispatchEvent(new Event(MEMO_PAGE_SAVED_EVENT))
     } catch {
       setStatusMessage('저장 실패 (저장 공간 확인 필요)')
     }
-  }, [activeCompanyId, isStorageReady, items, runtimeMode, todos, dailyByDate])
+  }, [isStorageReady, items, todos, dailyByDate])
 
   const buildCloudPayload = useCallback(
     (): MemoPagePersisted => ({
@@ -554,12 +451,6 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
       try {
         await saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.memoPage, payload, user?.id)
         lastSyncedPayloadRef.current = JSON.stringify(payload)
-        try {
-          window.localStorage.setItem(MEMO_PAGE_STORAGE_KEY, JSON.stringify(payload))
-          window.dispatchEvent(new Event(MEMO_PAGE_SAVED_EVENT))
-        } catch {
-          // ignore
-        }
         setSaveState('saved')
         setLastSavedAt(new Date().toISOString())
       } catch (error) {
@@ -615,6 +506,63 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [runtimeMode, saveState])
+
+  useEffect(() => {
+    if (runtimeMode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+    let cancelled = false
+    let inFlight = false
+    let lastJson = ''
+
+    const poll = async () => {
+      if (cancelled || inFlight) {
+        return
+      }
+      inFlight = true
+      try {
+        const remote = await loadCompanyDocument<MemoPagePersisted>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.memoPage,
+        )
+        if (cancelled || !remote) {
+          return
+        }
+        const normalized = normalizePersisted(remote)
+        const nextJson = JSON.stringify(normalized)
+        if (nextJson !== lastJson) {
+          lastJson = nextJson
+          const sortedItems = [...normalized.items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+          const sortedTodos = [...normalized.todos].sort((a, b) => {
+            if (a.done !== b.done) {
+              return a.done ? 1 : -1
+            }
+            return b.createdAt.localeCompare(a.createdAt)
+          })
+          const payload: MemoPagePersisted = {
+            items: sortedItems,
+            todos: sortedTodos,
+            dailyByDate: pruneDailyByDate(normalized.dailyByDate),
+          }
+          lastSyncedPayloadRef.current = JSON.stringify(payload)
+          setItems(sortedItems)
+          setTodos(sortedTodos)
+          setDailyByDate(normalized.dailyByDate)
+        }
+      } catch {
+        /* retry next cycle */
+      } finally {
+        inFlight = false
+      }
+    }
+
+    void poll()
+    const id = window.setInterval(() => void poll(), 2500)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [runtimeMode, activeCompanyId])
 
   useEffect(() => {
     return () => {

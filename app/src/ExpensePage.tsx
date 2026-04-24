@@ -10,7 +10,6 @@ import {
 import PageSaveStatus from './components/PageSaveStatus'
 import * as XLSX from 'xlsx'
 import { exportStyledExpenseWorkbook } from './expenseExcelStyledExport'
-import { useCloudDocumentRefreshPull } from './lib/cloudDocumentRefresh'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
@@ -515,18 +514,6 @@ export function readExpensePageStateFromStorage(): ExpensePageState {
   }
 }
 
-export function writeExpensePageStateToStorage(state: ExpensePageState) {
-  if (typeof window === 'undefined') {
-    return
-  }
-  try {
-    window.localStorage.setItem(EXPENSE_PAGE_STORAGE_KEY, JSON.stringify(state))
-    window.dispatchEvent(new Event(EXPENSE_PAGE_SAVED_EVENT))
-  } catch {
-    // ignore
-  }
-}
-
 const sanitizeExpenseTableColumns = (value: unknown): ExpenseTableColumn[] | undefined => {
   if (!Array.isArray(value)) {
     return undefined
@@ -761,7 +748,7 @@ const parseExpenseWorkbook = (
 }
 
 function ExpensePage() {
-  const { mode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()
+  const { mode, activeCompanyId, user } = useAppRuntime()
   const [pageState, setPageState] = useState<ExpensePageState>(createDefaultState)
   const [categoryFilter, setCategoryFilter] = useState('전체')
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('전체')
@@ -781,55 +768,8 @@ function ExpensePage() {
     skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
   const quickDateDigitsRef = useRef<Record<string, string>>({})
+  const lastCloudPollJsonRef = useRef('')
   const [dateDrafts, setDateDrafts] = useState<Record<string, string>>({})
-  const [externalSyncTick, setExternalSyncTick] = useState(0)
-  const saveStateRef = useRef(saveState)
-  saveStateRef.current = saveState
-
-  useEffect(() => {
-    const onExternalSync = () => {
-      if (saveStateRef.current === 'dirty' || saveStateRef.current === 'saving') {
-        return
-      }
-      setExternalSyncTick((n) => n + 1)
-    }
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === EXPENSE_PAGE_STORAGE_KEY) {
-        onExternalSync()
-      }
-    }
-    window.addEventListener(EXPENSE_PAGE_SAVED_EVENT, onExternalSync)
-    window.addEventListener('storage', onStorage)
-    return () => {
-      window.removeEventListener(EXPENSE_PAGE_SAVED_EVENT, onExternalSync)
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (mode !== 'cloud' || !activeCompanyId || externalSyncTick === 0) {
-      return
-    }
-    let cancelled = false
-    const syncFromCloud = async () => {
-      try {
-        const remoteState = await loadCompanyDocument<ExpensePageState>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.expensePage,
-        )
-        if (cancelled || !remoteState) {
-          return
-        }
-        setPageState(normalizePageState(remoteState))
-      } catch (error) {
-        console.error('지출표 외부 동기화 실패', error)
-      }
-    }
-    void syncFromCloud()
-    return () => {
-      cancelled = true
-    }
-  }, [activeCompanyId, externalSyncTick, mode])
 
   useEffect(() => {
     let cancelled = false
@@ -862,11 +802,7 @@ function ExpensePage() {
           return
         }
         if (remoteState) {
-          const next = normalizePageState(remoteState)
-          setPageState(next)
-          if (activeCompanyId) {
-            writeExpensePageStateToStorage(next)
-          }
+          setPageState(normalizePageState(remoteState))
           setStatusMessage('클라우드에서 지출표를 불러왔습니다.')
         } else {
           const localState = readExpensePageStateFromStorage()
@@ -891,53 +827,21 @@ function ExpensePage() {
     }
   }, [activeCompanyId, mode, resetDocumentSaveUi])
 
-  useCloudDocumentRefreshPull({
-    mode,
-    activeCompanyId,
-    cloudDocRefreshTick,
-    saveState,
-    onPull: async (isCancelled) => {
-      if (mode !== 'cloud' || !activeCompanyId) {
-        return
-      }
-      try {
-        const remoteState = await loadCompanyDocument<ExpensePageState>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.expensePage,
-        )
-        if (isCancelled()) {
-          return
-        }
-        if (remoteState) {
-          const next = normalizePageState(remoteState)
-          setPageState(next)
-          writeExpensePageStateToStorage(next)
-          setStatusMessage('클라우드에서 지출표를 다시 불러왔습니다.')
-        } else {
-          const localState = readExpensePageStateFromStorage()
-          setPageState(localState)
-          setStatusMessage(
-            localState.records.length > 0
-              ? '클라우드에 지출표가 없어 이 브라우저 사본을 표시합니다.'
-              : '클라우드 지출표가 없어 새 문서처럼 표시합니다.',
-          )
-        }
-      } catch (error) {
-        console.error('지출표: 협업용 클라우드 다시 읽기에 실패했습니다.', error)
-      }
-    },
-  })
-
   useEffect(() => {
     if (!isStorageReady) {
       return
     }
 
+    window.localStorage.setItem(EXPENSE_PAGE_STORAGE_KEY, JSON.stringify(pageState))
+    window.dispatchEvent(new Event(EXPENSE_PAGE_SAVED_EVENT))
     if (mode !== 'cloud' || !activeCompanyId) {
-      writeExpensePageStateToStorage(pageState)
       return
     }
     if (skipInitialDocumentSave()) {
+      return
+    }
+    const currentJson = JSON.stringify(pageState)
+    if (currentJson === lastCloudPollJsonRef.current) {
       return
     }
 
@@ -947,7 +851,6 @@ function ExpensePage() {
       markDocumentSaving()
       void saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.expensePage, pageState, user?.id)
         .then(() => {
-          writeExpensePageStateToStorage(pageState)
           markDocumentSaved()
         })
         .catch((error) => {
@@ -969,6 +872,49 @@ function ExpensePage() {
     markDocumentSaving,
     skipInitialDocumentSave,
   ])
+
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+    let cancelled = false
+    let inFlight = false
+    let lastJson = ''
+
+    const poll = async () => {
+      if (cancelled || inFlight) {
+        return
+      }
+      inFlight = true
+      try {
+        const remote = await loadCompanyDocument<ExpensePageState>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.expensePage,
+        )
+        if (cancelled || !remote) {
+          return
+        }
+        const normalized = normalizePageState(remote)
+        const nextJson = JSON.stringify(normalized)
+        if (nextJson !== lastJson) {
+          lastJson = nextJson
+          lastCloudPollJsonRef.current = nextJson
+          setPageState(normalized)
+        }
+      } catch {
+        /* retry next cycle */
+      } finally {
+        inFlight = false
+      }
+    }
+
+    void poll()
+    const id = window.setInterval(() => void poll(), 2500)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [mode, activeCompanyId])
 
   const monthOptions = useMemo(() => {
     const months = new Set<string>([currentMonth, pageState.activeMonth])

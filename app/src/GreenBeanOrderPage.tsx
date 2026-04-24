@@ -25,7 +25,6 @@ import {
   type BeanNameAliasEntry,
 } from './beanNameAliasStore'
 import { GREEN_BEAN_ORDER_INVENTORY_ALIASES } from './greenBeanOrderInventoryAliases'
-import { useCloudDocumentRefreshPull } from './lib/cloudDocumentRefresh'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
@@ -1230,15 +1229,6 @@ export function readGreenBeanOrderPersistedFromStorage(): GreenBeanOrderPersiste
   }
 }
 
-function writeGreenBeanOrderPersistedToStorage(persisted: GreenBeanOrderPersisted) {
-  try {
-    window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(persisted))
-    window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
-  } catch {
-    // ignore
-  }
-}
-
 /** `YYYY-MM`에 일자 기록이 있으면 차감 반영 후 월 합계(원). 없으면 `hasMonth: false`. */
 export function getGreenBeanOrderMonthAggregate(ym: string): {
   hasMonth: boolean
@@ -1336,7 +1326,7 @@ function buildGreenBeanOrderExportMatrix(state: GreenBeanOrderPersisted): {
 }
 
 export default function GreenBeanOrderPage() {
-  const { mode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()
+  const { mode, activeCompanyId, user } = useAppRuntime()
   const [persisted, setPersisted] = useState<GreenBeanOrderPersisted>(() => readGreenBeanOrderPersistedFromStorage())
   const [statusMessage, setStatusMessage] = useState('편집 내용은 이 브라우저에 자동 저장됩니다.')
   const [isCloudReady, setIsCloudReady] = useState(mode === 'local')
@@ -1350,7 +1340,6 @@ export default function GreenBeanOrderPage() {
     saveState,
     skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
-  const pullGreenBeanFromCloudRef = useRef<((isCancelled: () => boolean) => Promise<void>) | null>(null)
   const [compareMode, setCompareMode] = useState(true)
   const [recordDate, setRecordDate] = useState(() => new Date().toISOString().slice(0, 10))
   /** 선택한 주문 일자로 저장할 때 붙이는 메모(로컬 입력) */
@@ -1376,55 +1365,9 @@ export default function GreenBeanOrderPage() {
   const [aliasDraftOpen, setAliasDraftOpen] = useState(false)
   const [aliasDraftRows, setAliasDraftRows] = useState<BeanNameAliasEntry[]>(() => readCustomBeanNameAliases())
   const [aliasRevision, setAliasRevision] = useState(0)
+  const lastCloudPollJsonRef = useRef('')
+  const lastCloudPollAliasJsonRef = useRef('')
   const isAlmaRefreshAvailable = import.meta.env.DEV
-  const [externalSyncTick, setExternalSyncTick] = useState(0)
-  const saveStateRef = useRef(saveState)
-  saveStateRef.current = saveState
-
-  useEffect(() => {
-    const onExternalSync = () => {
-      if (saveStateRef.current === 'dirty' || saveStateRef.current === 'saving') {
-        return
-      }
-      setExternalSyncTick((n) => n + 1)
-    }
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === GREEN_BEAN_ORDER_STORAGE_KEY) {
-        onExternalSync()
-      }
-    }
-    window.addEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, onExternalSync)
-    window.addEventListener('storage', onStorage)
-    return () => {
-      window.removeEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, onExternalSync)
-      window.removeEventListener('storage', onStorage)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (mode !== 'cloud' || !activeCompanyId || externalSyncTick === 0) {
-      return
-    }
-    let cancelled = false
-    const syncFromCloud = async () => {
-      try {
-        const remotePersisted = await loadCompanyDocument<GreenBeanOrderPersisted>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
-        )
-        if (cancelled || !remotePersisted) {
-          return
-        }
-        setPersisted(normalizePersisted(remotePersisted))
-      } catch (error) {
-        console.error('생두 주문 외부 동기화 실패', error)
-      }
-    }
-    void syncFromCloud()
-    return () => {
-      cancelled = true
-    }
-  }, [activeCompanyId, externalSyncTick, mode])
 
   useEffect(() => {
     let cancelled = false
@@ -1445,9 +1388,6 @@ export default function GreenBeanOrderPage() {
             : '브라우저 생두 주문을 불러왔습니다. 아직 클라우드 문서는 없습니다.',
       )
       setIsCloudReady(true)
-      if (source === 'cloud' && mode === 'cloud' && activeCompanyId) {
-        writeGreenBeanOrderPersistedToStorage(nextPersisted)
-      }
     }
 
     const loadPersisted = async () => {
@@ -1473,55 +1413,11 @@ export default function GreenBeanOrderPage() {
       }
     }
 
-    pullGreenBeanFromCloudRef.current = async (isCancelled) => {
-      if (mode !== 'cloud' || !activeCompanyId) {
-        return
-      }
-      try {
-        const remotePersisted = await loadCompanyDocument<GreenBeanOrderPersisted>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
-        )
-        if (isCancelled()) {
-          return
-        }
-        if (remotePersisted) {
-          applyPersisted(normalizePersisted(remotePersisted), 'cloud', true)
-        }
-        const remoteAliases = await loadCompanyDocument<BeanNameAliasEntry[]>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.beanNameAliases,
-        )
-        if (isCancelled()) {
-          return
-        }
-        if (Array.isArray(remoteAliases)) {
-          writeCustomBeanNameAliases(remoteAliases)
-          setAliasDraftRows(readCustomBeanNameAliases())
-          setAliasRevision((n) => n + 1)
-          setInventoryHintsTick((n) => n + 1)
-        }
-      } catch (error) {
-        console.error('생두 주문: 협업용 클라우드 다시 읽기에 실패했습니다.', error)
-      }
-    }
-
     void loadPersisted()
     return () => {
       cancelled = true
-      pullGreenBeanFromCloudRef.current = null
     }
   }, [activeCompanyId, mode, resetDocumentSaveUi])
-
-  useCloudDocumentRefreshPull({
-    mode,
-    activeCompanyId,
-    cloudDocRefreshTick,
-    saveState,
-    onPull: async (isCancelled) => {
-      await (pullGreenBeanFromCloudRef.current?.(isCancelled) ?? Promise.resolve())
-    },
-  })
 
   useEffect(() => {
     let cancelled = false
@@ -1655,11 +1551,9 @@ export default function GreenBeanOrderPage() {
   }, [])
 
   useEffect(() => {
-    if (mode === 'cloud' && activeCompanyId) {
-      return
-    }
-    writeGreenBeanOrderPersistedToStorage(persisted)
-  }, [activeCompanyId, mode, persisted])
+    window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(persisted))
+    window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
+  }, [persisted])
 
   useEffect(() => {
     if (!isCloudReady) {
@@ -1669,6 +1563,10 @@ export default function GreenBeanOrderPage() {
       return
     }
     if (skipInitialDocumentSave()) {
+      return
+    }
+    const currentJson = JSON.stringify(persisted)
+    if (currentJson === lastCloudPollJsonRef.current) {
       return
     }
 
@@ -1683,7 +1581,6 @@ export default function GreenBeanOrderPage() {
         user?.id,
       )
         .then(() => {
-          writeGreenBeanOrderPersistedToStorage(persisted)
           markDocumentSaved()
         })
         .catch((error) => {
@@ -1705,6 +1602,71 @@ export default function GreenBeanOrderPage() {
     markDocumentSaving,
     skipInitialDocumentSave,
   ])
+
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+    let cancelled = false
+    let inFlight = false
+    let lastJson = ''
+    let lastAliasJson = ''
+
+    const poll = async () => {
+      if (cancelled || inFlight) {
+        return
+      }
+      inFlight = true
+      try {
+        const [remoteDoc, remoteAliases] = await Promise.all([
+          loadCompanyDocument<GreenBeanOrderPersisted>(
+            activeCompanyId,
+            COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
+          ),
+          loadCompanyDocument<BeanNameAliasEntry[]>(
+            activeCompanyId,
+            COMPANY_DOCUMENT_KEYS.beanNameAliases,
+          ),
+        ])
+        if (cancelled) {
+          return
+        }
+
+        if (remoteDoc) {
+          const normalized = normalizePersisted(remoteDoc)
+          const nextJson = JSON.stringify(normalized)
+          if (nextJson !== lastJson) {
+            lastJson = nextJson
+            lastCloudPollJsonRef.current = nextJson
+            setPersisted(normalized)
+          }
+        }
+
+        if (Array.isArray(remoteAliases)) {
+          const nextAliasJson = JSON.stringify(remoteAliases)
+          if (nextAliasJson !== lastAliasJson) {
+            lastAliasJson = nextAliasJson
+            lastCloudPollAliasJsonRef.current = nextAliasJson
+            writeCustomBeanNameAliases(remoteAliases)
+            setAliasDraftRows(readCustomBeanNameAliases())
+            setAliasRevision((n) => n + 1)
+            setInventoryHintsTick((n) => n + 1)
+          }
+        }
+      } catch {
+        /* retry next cycle */
+      } finally {
+        inFlight = false
+      }
+    }
+
+    void poll()
+    const id = window.setInterval(() => void poll(), 2500)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [mode, activeCompanyId])
 
   useEffect(() => {
     const bump = () => setInventoryHintsTick((n) => n + 1)
@@ -2215,6 +2177,7 @@ export default function GreenBeanOrderPage() {
 
   const saveAliasDraftRows = async () => {
     const cleaned = normalizeBeanNameAliases(aliasDraftRows)
+    writeCustomBeanNameAliases(cleaned)
     if (mode === 'cloud' && activeCompanyId) {
       try {
         await saveCompanyDocument(
@@ -2223,15 +2186,15 @@ export default function GreenBeanOrderPage() {
           cleaned,
           user?.id,
         )
-        writeCustomBeanNameAliases(cleaned)
         setStatusMessage(`원두 별칭 ${cleaned.length}건을 클라우드에 저장했습니다.`)
       } catch (error) {
         console.error('원두 별칭 클라우드 저장에 실패했습니다.', error)
-        setStatusMessage('원두 별칭 클라우드 저장에 실패했습니다. 연결을 확인한 뒤 다시 시도해 주세요.')
+        setStatusMessage(
+          `원두 별칭 ${cleaned.length}건을 브라우저에 저장했습니다. 클라우드 저장은 실패해 다시 시도해 주세요.`,
+        )
       }
       return
     }
-    writeCustomBeanNameAliases(cleaned)
     setStatusMessage(`원두 별칭 ${cleaned.length}건을 저장했습니다.`)
   }
 

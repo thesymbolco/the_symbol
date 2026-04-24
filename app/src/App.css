@@ -1444,22 +1444,6 @@
   cursor: pointer;
 }
 
-.statement-entry-save-toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  z-index: 12000;
-  transform: translateX(-50%);
-  padding: 10px 20px;
-  border-radius: 10px;
-  background: #0f172a;
-  color: #f8fafc;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.28);
-  pointer-events: none;
-}
-
 .statements-records-chips {
   display: flex;
   flex-wrap: wrap;
@@ -6560,37 +6544,6 @@ thead th {
   background: #f1f5f9;
   color: #334155;
   font-weight: 700;
-}
-
-button.statement-th-sort {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  min-height: 100%;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  text-align: center;
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  text-underline-offset: 3px;
-}
-
-button.statement-th-sort:hover {
-  color: #1d4ed8;
-}
-
-button.statement-th-sort .statement-th-sort-mark {
-  text-decoration: none;
-  font-weight: 800;
-  color: #1d4ed8;
 }
 
 tbody tr:nth-child(even) td {

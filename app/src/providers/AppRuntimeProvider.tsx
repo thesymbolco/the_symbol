@@ -11,8 +11,6 @@ import {
 import type { Session, User } from '@supabase/supabase-js'
 import { createEphemeralSupabaseClient, runtimeMode, supabase } from '../lib/supabase'
 
-const LOCAL_CLOUD_DOC_TICK = 0
-
 const ACTIVE_COMPANY_STORAGE_KEY = 'active-company-id-v1'
 
 /** 아이디(username)→내부 이메일 규칙. Supabase auth는 이메일 기반이라 synthetic email을 쓴다. */
@@ -85,8 +83,6 @@ type AppRuntimeContextValue = {
   updateTeamMember: (input: UpdateMemberInput) => Promise<string | null>
   removeTeamMember: (userId: string) => Promise<string | null>
   changeMemberPassword: (userId: string, newPassword: string) => Promise<string | null>
-  /** cloud 전용. 다른 탭/기기 반영: 탭 복귀·주기 갱신 시 늘어남 — 문서 load 의존성으로 사용 */
-  cloudDocRefreshTick: number
 }
 
 const AppRuntimeContext = createContext<AppRuntimeContextValue | null>(null)
@@ -110,7 +106,6 @@ const LOCAL_RUNTIME_VALUE: AppRuntimeContextValue = {
   updateTeamMember: async () => '로컬 모드에서는 팀 관리를 사용할 수 없습니다.',
   removeTeamMember: async () => '로컬 모드에서는 팀 관리를 사용할 수 없습니다.',
   changeMemberPassword: async () => '로컬 모드에서는 팀 관리를 사용할 수 없습니다.',
-  cloudDocRefreshTick: LOCAL_CLOUD_DOC_TICK,
 }
 
 function normalizeMembershipRows(rows: Array<Record<string, unknown>>): CompanyMembership[] {
@@ -152,32 +147,10 @@ export function AppRuntimeProvider({ children }: PropsWithChildren) {
   )
   const [errorMessage, setErrorMessage] = useState('')
   const [isReady, setIsReady] = useState(runtimeMode === 'local')
-  const [cloudDocRefreshTick, setCloudDocRefreshTick] = useState(0)
   const activeCompanyIdRef = useRef<string | null>(activeCompanyId)
 
   useEffect(() => {
     activeCompanyIdRef.current = activeCompanyId
-  }, [activeCompanyId])
-
-  useEffect(() => {
-    if (runtimeMode === 'local') {
-      return
-    }
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && activeCompanyId) {
-        setCloudDocRefreshTick((n) => n + 1)
-      }
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState === 'visible' && activeCompanyId) {
-        setCloudDocRefreshTick((n) => n + 1)
-      }
-    }, 90_000)
-    return () => {
-      document.removeEventListener('visibilitychange', onVisible)
-      window.clearInterval(intervalId)
-    }
   }, [activeCompanyId])
 
   const syncActiveCompany = useCallback((nextCompanyId: string | null, nextMemberships: CompanyMembership[]) => {
@@ -631,12 +604,10 @@ export function AppRuntimeProvider({ children }: PropsWithChildren) {
             updateTeamMember,
             removeTeamMember,
             changeMemberPassword,
-            cloudDocRefreshTick,
           },
     [
       activeCompany,
       activeCompanyId,
-      cloudDocRefreshTick,
       createCompany,
       errorMessage,
       isReady,

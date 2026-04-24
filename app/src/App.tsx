@@ -24,13 +24,13 @@ import MonthlyMeetingPage, {
   STATEMENT_RECORDS_STORAGE_KEY,
 } from './MonthlyMeetingPage'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin.ts'
+import PageSaveStatus from './components/PageSaveStatus'
 import {
   buildStyledStatementInputListBuffer,
   buildStyledStatementMonthlySummaryBuffer,
   statementInputListDefaultColumnWidths,
 } from './statementExcelStyledExport.ts'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
-import { readStatementRecordsFromLocalStorage, writeStatementRecordsToMirror } from './statementRecordsMirror'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider.tsx'
 import './App.css'
@@ -258,8 +258,6 @@ type StatementRecord = {
   supplyAmount: number
   taxAmount: number
   totalAmount: number
-  /** 이분 기준 월·번 순: 마지막으로 저장한 건이 해당 월에서 가장 큰 번호 */
-  savedAt?: string
 }
 
 type FormState = {
@@ -354,18 +352,6 @@ type StatementPageDocument = {
   statementTemplateUpdatedAt: string
   statementTemplateSettings: StatementTemplateSettings
 }
-
-/** 클라우드 자동저장: 내용이 직전 성공 본과 같으면 dirty/저장 스케줄을 생략(원격·탭 복제 시 루프 방지) */
-const statementPageDocumentPayloadSig = (doc: StatementPageDocument): string =>
-  JSON.stringify({
-    records: doc.records,
-    pricingRules: doc.pricingRules,
-    masterItems: doc.masterItems,
-    statementTemplateBase64: doc.statementTemplateBase64,
-    statementTemplateFileName: doc.statementTemplateFileName,
-    statementTemplateUpdatedAt: doc.statementTemplateUpdatedAt,
-    statementTemplateSettings: doc.statementTemplateSettings,
-  })
 
 const DEFAULT_STATEMENT_TEMPLATE_SETTINGS: StatementTemplateSettings = {
   businessNumber: '560.17.02264',
@@ -464,11 +450,15 @@ const normalizeStatementTemplateSettings = (value: unknown): StatementTemplateSe
 }
 
 const readStatementPageLocalState = (): StatementPageDocument => {
-  /** `statementRecordsMirror`·원두별 매출과 동일 키/동일 읽기 — 로컬 한 벌만 쓴다 */
-  const rawRows = readStatementRecordsFromLocalStorage<StatementRecord & { note?: string }>()
-  const records: StatementRecord[] = rawRows.length
-    ? normalizeLoadedRecords(rawRows)
-    : []
+  let records: StatementRecord[] = []
+  const savedRecords = window.localStorage.getItem(STORAGE_KEY)
+  if (savedRecords) {
+    try {
+      records = normalizeLoadedRecords(JSON.parse(savedRecords) as Array<StatementRecord & { note?: string }>)
+    } catch (error) {
+      console.error('저장된 거래명세 데이터를 읽지 못했습니다.', error)
+    }
+  }
 
   let pricingRules: PricingRule[] = []
   const savedPricingRules = window.localStorage.getItem(PRICING_RULES_STORAGE_KEY)
@@ -509,29 +499,6 @@ const readStatementPageLocalState = (): StatementPageDocument => {
     statementTemplateUpdatedAt: window.localStorage.getItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY) ?? '',
     statementTemplateSettings,
   }
-}
-
-const writeStatementPageLocalState = (doc: StatementPageDocument) => {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(doc.records))
-  window.localStorage.setItem(PRICING_RULES_STORAGE_KEY, JSON.stringify(doc.pricingRules))
-  window.localStorage.setItem(MASTER_ITEMS_STORAGE_KEY, JSON.stringify(doc.masterItems))
-  if (doc.statementTemplateBase64) {
-    window.localStorage.setItem(STATEMENT_TEMPLATE_STORAGE_KEY, doc.statementTemplateBase64)
-  } else {
-    window.localStorage.removeItem(STATEMENT_TEMPLATE_STORAGE_KEY)
-  }
-  if (doc.statementTemplateFileName) {
-    window.localStorage.setItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY, doc.statementTemplateFileName)
-  } else {
-    window.localStorage.removeItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY)
-  }
-  if (doc.statementTemplateUpdatedAt) {
-    window.localStorage.setItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY, doc.statementTemplateUpdatedAt)
-  } else {
-    window.localStorage.removeItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY)
-  }
-  window.localStorage.setItem(STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY, JSON.stringify(doc.statementTemplateSettings))
-  window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
 }
 
 const normalizeMasterItemsList = (value: unknown): MasterItem[] => {
@@ -594,52 +561,6 @@ const normalizeStatementPageDocument = (value: unknown): StatementPageDocument =
       typeof source.statementTemplateUpdatedAt === 'string' ? source.statementTemplateUpdatedAt : '',
     statementTemplateSettings: normalizeStatementTemplateSettings(source.statementTemplateSettings),
   }
-}
-
-const statementRecordById = (list: StatementRecord[]) => {
-  const map = new Map<string, StatementRecord>()
-  for (const r of list) {
-    map.set(r.id, r)
-  }
-  return map
-}
-
-/**
- * 클라우드 F5·삭제 직후(서버가 늦고 로컬은 이미 삭제)만: 로컬 id 집합 ⊂ 서버, 건수는 로컬이 적을 때
- * 겹치는 id의 row가 같으면 `records`는 로컬(짧은 쪽)을 쓴다.
- *
- * (서버가 짧고 로컬이 길 때는 "다른 기기에서 삭제" vs "이 기기에서 아직 미동기화 추가"를 구분할 수 없으므로
- * 그 경우는 `remote`가 정본 — 여기서는 병합하지 않고 아래 `return remote`에 맡긴다)
- */
-const mergeStatementPageDocumentOnCloudLoad = (
-  local: StatementPageDocument,
-  remote: StatementPageDocument,
-): StatementPageDocument => {
-  const L = local.records
-  const R = remote.records
-  if (L.length === 0) {
-    return R.length === 0 ? local : remote
-  }
-  if (R.length === 0) {
-    return { ...remote, records: L }
-  }
-  const Lm = statementRecordById(L)
-  const Rm = statementRecordById(R)
-  const Lids = new Set(Lm.keys())
-  const Rids = new Set(Rm.keys())
-  const sameRow = (id: string) => JSON.stringify(Lm.get(id)) === JSON.stringify(Rm.get(id))
-
-  const lSubsetR = [...Lids].every((id) => Rids.has(id))
-  if (lSubsetR && Lids.size < Rids.size) {
-    for (const id of Lids) {
-      if (!sameRow(id)) {
-        return remote
-      }
-    }
-    return { ...remote, records: L }
-  }
-
-  return remote
 }
 
 const createWorksheetCopy = (
@@ -1050,15 +971,11 @@ const resolveStatementPricingForClientItem = (
   return null
 }
 
-const normalizeLoadedRecords = (records: Array<StatementRecord & { note?: string; savedAt?: string }>) =>
-  records.map((record) => {
-    const savedAt = typeof record.savedAt === 'string' && record.savedAt ? record.savedAt : undefined
-    return {
-      ...record,
-      note: record.note ?? (record.taxAmount === 0 ? '부가세 없음' : '부가세 별도'),
-      ...(savedAt ? { savedAt } : {}),
-    }
-  })
+const normalizeLoadedRecords = (records: Array<StatementRecord & { note?: string }>) =>
+  records.map((record) => ({
+    ...record,
+    note: record.note ?? (record.taxAmount === 0 ? '부가세 없음' : '부가세 별도'),
+  }))
 
 const FILE_HANDLE_DB_NAME = 'statement-file-handle-db'
 const FILE_HANDLE_STORE_NAME = 'handles'
@@ -1291,15 +1208,7 @@ const pickLatestDate = (dates: string[]) => {
   return filtered.at(-1) ?? ''
 }
 
-/** 납품월이 같은 건: 저장 순(오래될수록 1, 가장 나중에 저장한 건이 해당 월 최대 번호). 예전 데이터는 납품일·거래처·id */
-
-const monthSeqSortKey = (r: StatementRecord) => {
-  if (r.savedAt) {
-    return r.savedAt
-  }
-  return `${r.deliveryDate}\0${r.clientName}\0${r.id}`
-}
-
+/** 납품일 연·월(YYYY-MM)이 같은 건끼리, 납품일·거래처·id 순으로 월 내 몇 번째인지(1부터). */
 const statementRecordDeliveryMonthSeqById = (records: StatementRecord[]): Map<string, number> => {
   const byMonth = new Map<string, StatementRecord[]>()
   for (const r of records) {
@@ -1316,7 +1225,17 @@ const statementRecordDeliveryMonthSeqById = (records: StatementRecord[]): Map<st
   }
   const idToSeq = new Map<string, number>()
   for (const list of byMonth.values()) {
-    const sorted = [...list].sort((a, b) => monthSeqSortKey(a).localeCompare(monthSeqSortKey(b)))
+    const sorted = [...list].sort((a, b) => {
+      const d = a.deliveryDate.localeCompare(b.deliveryDate)
+      if (d !== 0) {
+        return d
+      }
+      const c = a.clientName.localeCompare(b.clientName, 'ko')
+      if (c !== 0) {
+        return c
+      }
+      return a.id.localeCompare(b.id)
+    })
     sorted.forEach((rec, i) => idToSeq.set(rec.id, i + 1))
   }
   return idToSeq
@@ -1335,51 +1254,8 @@ const compareStatementRecordsNewestFirst = (a: StatementRecord, b: StatementReco
   return b.id.localeCompare(a.id)
 }
 
-type StatementListSortKey = 'number' | 'deliveryDate' | 'clientName' | 'itemName'
-
-/** 입력목록 탭: 번호(월별)·납품일·거래처·품목 열 정렬. */
-const compareStatementRecordsForListSort = (
-  a: StatementRecord,
-  b: StatementRecord,
-  sort: { key: StatementListSortKey; dir: 'asc' | 'desc' },
-  seqById: Map<string, number>,
-): number => {
-  if (sort.key === 'number') {
-    const ymA = a.deliveryDate.length >= 7 ? a.deliveryDate.slice(0, 7) : ''
-    const ymB = b.deliveryDate.length >= 7 ? b.deliveryDate.slice(0, 7) : ''
-    if (ymA !== ymB) {
-      return sort.dir === 'desc' ? ymB.localeCompare(ymA) : ymA.localeCompare(ymB)
-    }
-    const sA = seqById.get(a.id) ?? 0
-    const sB = seqById.get(b.id) ?? 0
-    if (sA !== sB) {
-      return sort.dir === 'desc' ? sB - sA : sA - sB
-    }
-    return b.id.localeCompare(a.id)
-  }
-  if (sort.key === 'deliveryDate') {
-    const c = a.deliveryDate.localeCompare(b.deliveryDate)
-    if (c !== 0) {
-      return sort.dir === 'desc' ? -c : c
-    }
-    return a.id.localeCompare(b.id)
-  }
-  if (sort.key === 'clientName') {
-    const c = a.clientName.localeCompare(b.clientName, 'ko', { sensitivity: 'base' })
-    if (c !== 0) {
-      return sort.dir === 'desc' ? -c : c
-    }
-    return a.id.localeCompare(b.id)
-  }
-  const c = a.itemName.localeCompare(b.itemName, 'ko', { sensitivity: 'base' })
-  if (c !== 0) {
-    return sort.dir === 'desc' ? -c : c
-  }
-  return a.id.localeCompare(b.id)
-}
-
 function App() {
-  const { mode, activeCompany, activeCompanyId, user, signOut, cloudDocRefreshTick } = useAppRuntime()
+  const { mode, activeCompany, activeCompanyId, user, signOut } = useAppRuntime()
   const [form, setForm] = useState<FormState>(() => defaultFormState())
   const [records, setRecords] = useState<StatementRecord[]>([])
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([])
@@ -1473,10 +1349,6 @@ function App() {
   const [recordsNoteFilter, setRecordsNoteFilter] = useState<'all' | '부가세 별도' | '부가세 없음'>(
     'all',
   )
-  const [recordListSort, setRecordListSort] = useState<{
-    key: StatementListSortKey
-    dir: 'asc' | 'desc'
-  }>({ key: 'number', dir: 'desc' })
   const [inlineEditRecordId, setInlineEditRecordId] = useState<string | null>(null)
   const [inlineEditDraft, setInlineEditDraft] = useState<{
     deliveryDate: string
@@ -1500,8 +1372,6 @@ function App() {
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7))
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [statementEntryModalOpen, setStatementEntryModalOpen] = useState(false)
-  const [statementSaveToastVisible, setStatementSaveToastVisible] = useState(false)
-  const statementSaveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [bulkItemPickerOpen, setBulkItemPickerOpen] = useState(false)
   const [bulkItemPickerQuery, setBulkItemPickerQuery] = useState('')
   const [bulkItemPickerPick, setBulkItemPickerPick] = useState<{
@@ -1558,6 +1428,7 @@ function App() {
   const [isMasterItemsStorageReady, setIsMasterItemsStorageReady] = useState(false)
   const [isStatementCloudReady, setIsStatementCloudReady] = useState(mode === 'local')
   const {
+    lastSavedAt: statementLastSavedAt,
     markDocumentDirty: markStatementDirty,
     markDocumentError: markStatementError,
     markDocumentSaved: markStatementSaved,
@@ -1572,7 +1443,7 @@ function App() {
   const statementStickyHScrollInnerRef = useRef<HTMLDivElement | null>(null)
   const statementHScrollSyncingRef = useRef(false)
   const [statementStickyHScrollVisible, setStatementStickyHScrollVisible] = useState(false)
-  const statementCloudSaveSigRef = useRef<string>('')
+  const lastCloudPollJsonRef = useRef('')
 
   useEffect(() => {
     let cancelled = false
@@ -1582,7 +1453,6 @@ function App() {
     setIsMasterItemsStorageReady(false)
     setIsStatementCloudReady(mode === 'local')
     resetStatementSaveUi()
-    statementCloudSaveSigRef.current = ''
 
     const applyState = (next: StatementPageDocument) => {
       if (cancelled) {
@@ -1605,7 +1475,6 @@ function App() {
       const localState = readStatementPageLocalState()
       if (mode !== 'cloud' || !activeCompanyId) {
         applyState(localState)
-        statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(localState)
         return
       }
 
@@ -1614,19 +1483,10 @@ function App() {
           activeCompanyId,
           COMPANY_DOCUMENT_KEYS.statementPage,
         )
-        const remoteNorm = remoteState ? normalizeStatementPageDocument(remoteState) : null
-        const toApply = remoteNorm
-          ? mergeStatementPageDocumentOnCloudLoad(localState, remoteNorm)
-          : localState
-        applyState(toApply)
-        if (remoteNorm) {
-          writeStatementPageLocalState(toApply)
-        }
-        statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(toApply)
+        applyState(remoteState ? normalizeStatementPageDocument(remoteState) : localState)
       } catch (error) {
         console.error('거래명세 클라우드 문서를 읽지 못했습니다.', error)
         applyState(localState)
-        statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(localState)
       }
     }
 
@@ -1635,103 +1495,6 @@ function App() {
       cancelled = true
     }
   }, [activeCompanyId, mode, resetStatementSaveUi])
-
-  useEffect(() => {
-    if (mode !== 'cloud' || !activeCompanyId || cloudDocRefreshTick === 0) {
-      return
-    }
-    if (statementSaveState === 'dirty' || statementSaveState === 'saving') {
-      return
-    }
-    let cancelled = false
-    const pullRemote = async () => {
-      try {
-        const remoteState = await loadCompanyDocument<StatementPageDocument>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.statementPage,
-        )
-        if (cancelled) {
-          return
-        }
-        const local = readStatementPageLocalState()
-        const remoteNorm = remoteState ? normalizeStatementPageDocument(remoteState) : null
-        const toApply = remoteNorm
-          ? mergeStatementPageDocumentOnCloudLoad(local, remoteNorm)
-          : local
-        setRecords(toApply.records)
-        setPricingRules(toApply.pricingRules)
-        setMasterItems(toApply.masterItems)
-        setStatementTemplateBase64(toApply.statementTemplateBase64)
-        setStatementTemplateFileName(toApply.statementTemplateFileName)
-        setStatementTemplateUpdatedAt(toApply.statementTemplateUpdatedAt)
-        setStatementTemplateSettings(toApply.statementTemplateSettings)
-        if (remoteState) {
-          writeStatementPageLocalState(toApply)
-        }
-        statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(toApply)
-      } catch (error) {
-        console.error('거래명세: 다른 기기/탭 동기화용 클라우드 다시 읽기에 실패했습니다.', error)
-      }
-    }
-    void pullRemote()
-    return () => {
-      cancelled = true
-    }
-  }, [activeCompanyId, cloudDocRefreshTick, mode, statementSaveState])
-
-  /**
-   * 다른 **탭/창**이 `statement-*` `localStorage` 키를 갱신하면(거래명세·원두분석·저장 루프가 동기화)
-   * 이 탭의 거래명세 React state는 자동 갱신되지 않는다(브라우저는 `storage`를 그 탭에만 쏨).
-   * 원두별 매출은 `STATEMENT_RECORDS_SAVED_EVENT`·재조회에 묶여 "바로" 보이는 것처럼 느껴지지만,
-   * 거래명세 본인 화면은 그렇지 않아 이벤트가 아니라 **storage**로 맞춘다(저장 대기/저장 중이면 덮어쓰지 않음).
-   */
-  useEffect(() => {
-    if (!isStatementCloudReady || !isRecordsStorageReady || !isPricingStorageReady || !isMasterItemsStorageReady) {
-      return
-    }
-    const statementStorageKeys = new Set<string>([
-      STORAGE_KEY,
-      PRICING_RULES_STORAGE_KEY,
-      MASTER_ITEMS_STORAGE_KEY,
-      STATEMENT_TEMPLATE_STORAGE_KEY,
-      STATEMENT_TEMPLATE_NAME_STORAGE_KEY,
-      STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY,
-      STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY,
-    ])
-    const applyFromOtherTabLocal = () => {
-      if (mode === 'cloud' && activeCompanyId && (statementSaveState === 'dirty' || statementSaveState === 'saving')) {
-        return
-      }
-      const next = readStatementPageLocalState()
-      setRecords(next.records)
-      setPricingRules(next.pricingRules)
-      setMasterItems(next.masterItems)
-      setStatementTemplateBase64(next.statementTemplateBase64)
-      setStatementTemplateFileName(next.statementTemplateFileName)
-      setStatementTemplateUpdatedAt(next.statementTemplateUpdatedAt)
-      setStatementTemplateSettings(next.statementTemplateSettings)
-      statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(next)
-    }
-    const onStorage = (event: StorageEvent) => {
-      if (event.storageArea !== window.localStorage) {
-        return
-      }
-      if (!event.key || !statementStorageKeys.has(event.key)) {
-        return
-      }
-      applyFromOtherTabLocal()
-    }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
-  }, [
-    activeCompanyId,
-    isStatementCloudReady,
-    isMasterItemsStorageReady,
-    isRecordsStorageReady,
-    isPricingStorageReady,
-    mode,
-    statementSaveState,
-  ])
 
   useEffect(() => {
     window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage)
@@ -1762,50 +1525,56 @@ function App() {
   }, [activePage, refreshLowGreenBeanWarnings])
 
   useEffect(() => {
-    if (!isRecordsStorageReady || !isPricingStorageReady || !isMasterItemsStorageReady) {
-      return
-    }
-    if (mode === 'cloud' && activeCompanyId) {
-      return
-    }
-    writeStatementPageLocalState({
-      records,
-      pricingRules,
-      masterItems,
-      statementTemplateBase64,
-      statementTemplateFileName,
-      statementTemplateUpdatedAt,
-      statementTemplateSettings,
-    })
-  }, [
-    activeCompanyId,
-    isMasterItemsStorageReady,
-    isPricingStorageReady,
-    isRecordsStorageReady,
-    masterItems,
-    mode,
-    pricingRules,
-    records,
-    statementTemplateBase64,
-    statementTemplateFileName,
-    statementTemplateSettings,
-    statementTemplateUpdatedAt,
-  ])
-
-  /**
-   * 클라우드 모드: 전체 문서 저장(디바운스) 전이라도, 같은 탭·다른 화면(월마감·원두분석)이
-   * `statement-records`와 STATEMENT_RECORDS_SAVED_EVENT로 즉시 읽을 수 있게 `records`만 로컬에 반영.
-   * (팀 정본은 여전히 saveCompanyDocument 성공 시 전체 `writeStatementPageLocalState`로 맞춤)
-   */
-  useEffect(() => {
     if (!isRecordsStorageReady) {
       return
     }
-    if (mode !== 'cloud' || !activeCompanyId) {
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+    window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
+  }, [isRecordsStorageReady, records])
+
+  useEffect(() => {
+    if (!isPricingStorageReady) {
       return
     }
-    writeStatementRecordsToMirror(records)
-  }, [activeCompanyId, isRecordsStorageReady, mode, records])
+
+    window.localStorage.setItem(PRICING_RULES_STORAGE_KEY, JSON.stringify(pricingRules))
+  }, [isPricingStorageReady, pricingRules])
+
+  useEffect(() => {
+    if (!isMasterItemsStorageReady) {
+      return
+    }
+
+    window.localStorage.setItem(MASTER_ITEMS_STORAGE_KEY, JSON.stringify(masterItems))
+  }, [isMasterItemsStorageReady, masterItems])
+
+  useEffect(() => {
+    if (statementTemplateBase64) {
+      window.localStorage.setItem(STATEMENT_TEMPLATE_STORAGE_KEY, statementTemplateBase64)
+    } else {
+      window.localStorage.removeItem(STATEMENT_TEMPLATE_STORAGE_KEY)
+    }
+
+    if (statementTemplateFileName) {
+      window.localStorage.setItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY, statementTemplateFileName)
+    } else {
+      window.localStorage.removeItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY)
+    }
+
+    if (statementTemplateUpdatedAt) {
+      window.localStorage.setItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY, statementTemplateUpdatedAt)
+    } else {
+      window.localStorage.removeItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY)
+    }
+  }, [statementTemplateBase64, statementTemplateFileName, statementTemplateUpdatedAt])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY,
+      JSON.stringify(statementTemplateSettings),
+    )
+  }, [statementTemplateSettings])
 
   useEffect(() => {
     if (activePage !== 'statements') {
@@ -1831,14 +1600,6 @@ function App() {
   }, [statementEntryModalOpen, bulkItemPickerOpen, isAdminUnlockDialogOpen])
 
   useEffect(() => {
-    return () => {
-      if (statementSaveToastTimerRef.current) {
-        clearTimeout(statementSaveToastTimerRef.current)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
     if (
       !isRecordsStorageReady ||
       !isPricingStorageReady ||
@@ -1853,8 +1614,7 @@ function App() {
     if (skipInitialStatementSave()) {
       return
     }
-
-    const statementPayload: StatementPageDocument = {
+    const currentJson = JSON.stringify({
       records,
       pricingRules,
       masterItems,
@@ -1862,12 +1622,8 @@ function App() {
       statementTemplateFileName,
       statementTemplateUpdatedAt,
       statementTemplateSettings,
-    }
-    const nextSig = statementPageDocumentPayloadSig(statementPayload)
-    if (nextSig === statementCloudSaveSigRef.current) {
-      if (statementSaveState === 'dirty') {
-        markStatementSaved()
-      }
+    })
+    if (currentJson === lastCloudPollJsonRef.current) {
       return
     }
 
@@ -1878,12 +1634,18 @@ function App() {
       void saveCompanyDocument(
         activeCompanyId,
         COMPANY_DOCUMENT_KEYS.statementPage,
-        statementPayload,
+        {
+          records,
+          pricingRules,
+          masterItems,
+          statementTemplateBase64,
+          statementTemplateFileName,
+          statementTemplateUpdatedAt,
+          statementTemplateSettings,
+        },
         user?.id,
       )
         .then(() => {
-          writeStatementPageLocalState(statementPayload)
-          statementCloudSaveSigRef.current = nextSig
           markStatementSaved()
         })
         .catch((error) => {
@@ -1913,8 +1675,64 @@ function App() {
     markStatementSaved,
     markStatementSaving,
     skipInitialStatementSave,
-    statementSaveState,
   ])
+
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+    let cancelled = false
+    let inFlight = false
+    let lastJson = ''
+
+    const poll = async () => {
+      if (cancelled || inFlight) {
+        return
+      }
+      inFlight = true
+      try {
+        const remote = await loadCompanyDocument<StatementPageDocument>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.statementPage,
+        )
+        if (cancelled || !remote) {
+          return
+        }
+        const normalized = normalizeStatementPageDocument(remote)
+        const nextJson = JSON.stringify({
+          records: normalized.records,
+          pricingRules: normalized.pricingRules,
+          masterItems: normalized.masterItems,
+          statementTemplateBase64: normalized.statementTemplateBase64,
+          statementTemplateFileName: normalized.statementTemplateFileName,
+          statementTemplateUpdatedAt: normalized.statementTemplateUpdatedAt,
+          statementTemplateSettings: normalized.statementTemplateSettings,
+        })
+        if (nextJson !== lastJson) {
+          lastJson = nextJson
+          lastCloudPollJsonRef.current = nextJson
+          setRecords(normalized.records)
+          setPricingRules(normalized.pricingRules)
+          setMasterItems(normalized.masterItems)
+          setStatementTemplateBase64(normalized.statementTemplateBase64)
+          setStatementTemplateFileName(normalized.statementTemplateFileName)
+          setStatementTemplateUpdatedAt(normalized.statementTemplateUpdatedAt)
+          setStatementTemplateSettings(normalized.statementTemplateSettings)
+        }
+      } catch {
+        /* retry next cycle */
+      } finally {
+        inFlight = false
+      }
+    }
+
+    void poll()
+    const id = window.setInterval(() => void poll(), 2500)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [mode, activeCompanyId])
 
   useEffect(() => {
     let isMounted = true
@@ -2282,13 +2100,6 @@ function App() {
     [records],
   )
 
-  const recordsSortedForMainList = useMemo(() => {
-    const seqById = statementRecordDeliveryMonthSeqById(records)
-    return [...statementPreviewRecords].sort((a, b) =>
-      compareStatementRecordsForListSort(a, b, recordListSort, seqById),
-    )
-  }, [recordListSort, records, statementPreviewRecords])
-
   const visibleRecords = useMemo(() => {
     const todayIso = new Date().toISOString().slice(0, 10)
     const today = new Date(todayIso)
@@ -2298,7 +2109,7 @@ function App() {
     const currentMonth = todayIso.slice(0, 7)
     const query = recordsSearchQuery.trim().toLowerCase()
 
-    return recordsSortedForMainList.filter((record) => {
+    return statementPreviewRecords.filter((record) => {
       if (recordsRangeFilter === 'year' && !record.deliveryDate.startsWith(selectedYear)) {
         return false
       }
@@ -2319,25 +2130,7 @@ function App() {
       }
       return true
     })
-  }, [recordsRangeFilter, recordsNoteFilter, recordsSearchQuery, recordsSortedForMainList, selectedYear])
-
-  const handleRecordListSortClick = useCallback((key: StatementListSortKey) => {
-    setRecordListSort((prev) => {
-      if (prev.key === key) {
-        return { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' }
-      }
-      if (key === 'number') {
-        return { key: 'number', dir: 'desc' }
-      }
-      if (key === 'deliveryDate') {
-        return { key: 'deliveryDate', dir: 'desc' }
-      }
-      if (key === 'clientName') {
-        return { key: 'clientName', dir: 'asc' }
-      }
-      return { key: 'itemName', dir: 'asc' }
-    })
-  }, [])
+  }, [statementPreviewRecords, recordsRangeFilter, recordsNoteFilter, recordsSearchQuery, selectedYear])
 
   const visibleTotals = useMemo(() => {
     return visibleRecords.reduce(
@@ -2913,7 +2706,6 @@ function App() {
         supplyAmount,
         taxAmount,
         totalAmount: supplyAmount + taxAmount,
-        savedAt: new Date(Date.now() + newRecords.length).toISOString(),
       })
     }
 
@@ -3313,9 +3105,6 @@ function App() {
       }
     }
 
-    const existingSaved = editingRecordId
-      ? records.find((row) => row.id === editingRecordId)?.savedAt
-      : undefined
     const nextRecord: StatementRecord = {
       id: editingRecordId ?? crypto.randomUUID(),
       deliveryDate: form.deliveryDate,
@@ -3331,11 +3120,6 @@ function App() {
       supplyAmount: calculatedAmounts.supplyAmount,
       taxAmount: calculatedAmounts.taxAmount,
       totalAmount: calculatedAmounts.totalAmount,
-      ...(editingRecordId
-        ? existingSaved
-          ? { savedAt: existingSaved }
-          : {}
-        : { savedAt: new Date().toISOString() }),
     }
 
     if (editingRecordId) {
@@ -3351,15 +3135,6 @@ function App() {
     }
 
     resetStatementFormAfterSave()
-
-    if (statementSaveToastTimerRef.current) {
-      clearTimeout(statementSaveToastTimerRef.current)
-    }
-    setStatementSaveToastVisible(true)
-    statementSaveToastTimerRef.current = setTimeout(() => {
-      setStatementSaveToastVisible(false)
-      statementSaveToastTimerRef.current = null
-    }, 2000)
   }
 
   const handleCancelStatementEdit = () => {
@@ -3380,68 +3155,12 @@ function App() {
     window.requestAnimationFrame(() => formPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
   }
 
-  const handleDelete = useCallback(
-    async (id: string) => {
-      if (editingRecordId === id) {
-        resetStatementFormAfterSave()
-      }
-      const nextRecords = records.filter((record) => record.id !== id)
-      setRecords(nextRecords)
-      if (mode !== 'cloud' || !activeCompanyId) {
-        return
-      }
-      // 삭제만 적용한 뒤 곧바로 F5 하면 `load`가 서버(옛 data)에 이김. 디바운스 600ms 기다리지 않고 즉시 upsert.
-      const payload: StatementPageDocument = {
-        records: nextRecords,
-        pricingRules,
-        masterItems,
-        statementTemplateBase64,
-        statementTemplateFileName,
-        statementTemplateUpdatedAt,
-        statementTemplateSettings,
-      }
-      const nextSig = statementPageDocumentPayloadSig(payload)
-      statementCloudSaveSigRef.current = nextSig
-      markStatementSaving()
-      const beforeDoc: StatementPageDocument = {
-        records,
-        pricingRules,
-        masterItems,
-        statementTemplateBase64,
-        statementTemplateFileName,
-        statementTemplateUpdatedAt,
-        statementTemplateSettings,
-      }
-      const prevSig = statementPageDocumentPayloadSig(beforeDoc)
-      try {
-        await saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.statementPage, payload, user?.id)
-        writeStatementPageLocalState(payload)
-        markStatementSaved()
-      } catch (error) {
-        console.error('거래명세 삭제를 클라우드에 반영하지 못했습니다.', error)
-        setRecords(records)
-        statementCloudSaveSigRef.current = prevSig
-        writeStatementPageLocalState(beforeDoc)
-        markStatementError()
-      }
-    },
-    [
-      activeCompanyId,
-      editingRecordId,
-      markStatementError,
-      markStatementSaved,
-      markStatementSaving,
-      masterItems,
-      mode,
-      pricingRules,
-      records,
-      statementTemplateBase64,
-      statementTemplateFileName,
-      statementTemplateSettings,
-      statementTemplateUpdatedAt,
-      user?.id,
-    ],
-  )
+  const handleDelete = (id: string) => {
+    if (editingRecordId === id) {
+      resetStatementFormAfterSave()
+    }
+    setRecords((current) => current.filter((record) => record.id !== id))
+  }
 
   const handleCopyFromRecentRecord = (record: StatementRecord) => {
     setEditingRecordId(null)
@@ -3668,7 +3387,7 @@ function App() {
       ['[거래명세서]', ...Array.from({ length: totalColumnCount - 1 }, () => '')],
       ['출력일', formatDateLabel(today), '저장 건수', records.length, '', '', '', '', '', '', '', ''],
       ['번호', '납품일', '횟수', '거래처명', '품목', '규격/단위', '수량', '단가', '과세구분', '공급가액', '세액', '계'],
-      ...recordsSortedForMainList.map((record) => [
+      ...statementPreviewRecords.map((record) => [
         seqById.get(record.id) ?? '',
         record.deliveryDate.slice(5).replace('-', '/'),
         record.deliveryCount,
@@ -3949,15 +3668,11 @@ function App() {
                     {mode === 'cloud' ? '회사 공용 문서' : '개인 브라우저 문서'}
                   </span>
                   {activePage === 'statements' ? (
-                    mode !== 'cloud' ? (
-                      <span className="page-hero-pill">브라우저에 자동 저장</span>
-                    ) : statementSaveState === 'saving' ? (
-                      <span className="page-hero-pill page-save-state--saving">클라우드에 반영 중…</span>
-                    ) : statementSaveState === 'error' ? (
-                      <span className="page-hero-pill page-save-state--error">클라우드 반영 실패 — 다시 저장해 주세요</span>
-                    ) : (
-                      <span className="page-hero-pill">클라우드 자동 반영 · 원두·명세 동일 데이터</span>
-                    )
+                    <PageSaveStatus
+                      mode={mode}
+                      saveState={statementSaveState}
+                      lastSavedAt={statementLastSavedAt}
+                    />
                   ) : null}
                 </div>
               </div>
@@ -4080,14 +3795,10 @@ function App() {
             <div className="statements-records-filterbar">
               <div className="statements-records-search">
                 <input
-                  type="text"
+                  type="search"
                   value={recordsSearchQuery}
                   onChange={(event) => setRecordsSearchQuery(event.target.value)}
                   placeholder="거래처·품목·메모 검색"
-                  autoComplete="off"
-                  inputMode="search"
-                  enterKeyHint="search"
-                  aria-label="입력 목록 검색"
                 />
                 {recordsSearchQuery ? (
                   <button
@@ -4157,67 +3868,11 @@ function App() {
               <table>
                 <thead>
                   <tr>
-                    <th>
-                      <button
-                        type="button"
-                        className="statement-th-sort"
-                        title="같은 납품월에서 입력·저장한 순서(가장 나중에 저장한 건이 가장 큰 번호). 클릭: 번호순 · 다시 클릭: 순서 반대"
-                        onClick={() => handleRecordListSortClick('number')}
-                      >
-                        번호
-                        {recordListSort.key === 'number' ? (
-                          <span className="statement-th-sort-mark" aria-hidden="true">
-                            {recordListSort.dir === 'desc' ? ' ↓' : ' ↑'}
-                          </span>
-                        ) : null}
-                      </button>
-                    </th>
-                    <th>
-                      <button
-                        type="button"
-                        className="statement-th-sort"
-                        title="납품일 기준 · 최신순/과거순 전환"
-                        onClick={() => handleRecordListSortClick('deliveryDate')}
-                      >
-                        납품일
-                        {recordListSort.key === 'deliveryDate' ? (
-                          <span className="statement-th-sort-mark" aria-hidden="true">
-                            {recordListSort.dir === 'desc' ? ' ↓' : ' ↑'}
-                          </span>
-                        ) : null}
-                      </button>
-                    </th>
+                    <th title="납품일이 속한 달에서, 납품일·거래처 순으로 몇 번째 건인지">번호</th>
+                    <th>납품일</th>
                     <th>횟수</th>
-                    <th>
-                      <button
-                        type="button"
-                        className="statement-th-sort"
-                        title="거래처명 가나다순 · 클릭으로 오름·내림 전환"
-                        onClick={() => handleRecordListSortClick('clientName')}
-                      >
-                        거래처명
-                        {recordListSort.key === 'clientName' ? (
-                          <span className="statement-th-sort-mark" aria-hidden="true">
-                            {recordListSort.dir === 'asc' ? ' ↑' : ' ↓'}
-                          </span>
-                        ) : null}
-                      </button>
-                    </th>
-                    <th>
-                      <button
-                        type="button"
-                        className="statement-th-sort"
-                        title="품목명 가나다순 · 클릭으로 오름·내림 전환"
-                        onClick={() => handleRecordListSortClick('itemName')}
-                      >
-                        품목
-                        {recordListSort.key === 'itemName' ? (
-                          <span className="statement-th-sort-mark" aria-hidden="true">
-                            {recordListSort.dir === 'asc' ? ' ↑' : ' ↓'}
-                          </span>
-                        ) : null}
-                      </button>
-                    </th>
+                    <th>거래처명</th>
+                    <th>품목</th>
                     <th>규격/단위</th>
                     <th>수량</th>
                     <th>단가</th>
@@ -5568,14 +5223,12 @@ function App() {
             <label className="inventory-reset-dialog-field">
               <span className="inventory-reset-dialog-label">품목 검색</span>
               <input
-                type="text"
+                type="search"
                 className="statement-bulk-item-dialog-search"
                 value={bulkItemPickerQuery}
                 onChange={(event) => setBulkItemPickerQuery(event.target.value)}
                 placeholder="이름 일부로 좁히기"
                 autoComplete="off"
-                inputMode="search"
-                aria-label="품목 검색"
               />
             </label>
             <div className="statement-bulk-item-dialog-toolbar">
@@ -5759,11 +5412,6 @@ function App() {
               </li>
             ))}
           </ul>
-        </div>
-      ) : null}
-      {statementSaveToastVisible ? (
-        <div className="statement-entry-save-toast" role="status" aria-live="polite">
-          저장되었습니다
         </div>
       ) : null}
     </div>
