@@ -1568,6 +1568,59 @@ function App() {
     }
   }, [activeCompanyId, cloudDocRefreshTick, mode, statementSaveState])
 
+  /**
+   * 다른 **탭/창**이 `statement-*` `localStorage` 키를 갱신하면(거래명세·원두분석·저장 루프가 동기화)
+   * 이 탭의 거래명세 React state는 자동 갱신되지 않는다(브라우저는 `storage`를 그 탭에만 쏨).
+   * 원두별 매출은 `STATEMENT_RECORDS_SAVED_EVENT`·재조회에 묶여 "바로" 보이는 것처럼 느껴지지만,
+   * 거래명세 본인 화면은 그렇지 않아 이벤트가 아니라 **storage**로 맞춘다(저장 대기/저장 중이면 덮어쓰지 않음).
+   */
+  useEffect(() => {
+    if (!isStatementCloudReady || !isRecordsStorageReady || !isPricingStorageReady || !isMasterItemsStorageReady) {
+      return
+    }
+    const statementStorageKeys = new Set<string>([
+      STORAGE_KEY,
+      PRICING_RULES_STORAGE_KEY,
+      MASTER_ITEMS_STORAGE_KEY,
+      STATEMENT_TEMPLATE_STORAGE_KEY,
+      STATEMENT_TEMPLATE_NAME_STORAGE_KEY,
+      STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY,
+      STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY,
+    ])
+    const applyFromOtherTabLocal = () => {
+      if (mode === 'cloud' && activeCompanyId && (statementSaveState === 'dirty' || statementSaveState === 'saving')) {
+        return
+      }
+      const next = readStatementPageLocalState()
+      setRecords(next.records)
+      setPricingRules(next.pricingRules)
+      setMasterItems(next.masterItems)
+      setStatementTemplateBase64(next.statementTemplateBase64)
+      setStatementTemplateFileName(next.statementTemplateFileName)
+      setStatementTemplateUpdatedAt(next.statementTemplateUpdatedAt)
+      setStatementTemplateSettings(next.statementTemplateSettings)
+    }
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage) {
+        return
+      }
+      if (!event.key || !statementStorageKeys.has(event.key)) {
+        return
+      }
+      applyFromOtherTabLocal()
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [
+    activeCompanyId,
+    isStatementCloudReady,
+    isMasterItemsStorageReady,
+    isRecordsStorageReady,
+    isPricingStorageReady,
+    mode,
+    statementSaveState,
+  ])
+
   useEffect(() => {
     window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage)
   }, [activePage])

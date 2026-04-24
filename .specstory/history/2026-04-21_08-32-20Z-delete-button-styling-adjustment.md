@@ -69210,3 +69210,1470 @@ Status: **completed**
 <summary>Tool use: **ripgrep_raw_search**</summary>
 
 </details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The App.tsx pattern follows these steps:
+- First useEffect: loads on activeCompanyId/mode change (initial) - no tick
+- Second useEffect: handles subsequent updates with tick logic The second useEffect handles refresh logic where `cloudDocRefreshTick` changes and saveState is not dirty/saving, triggering remote pull and local apply.
+
+For each page, the approach should be:
+- Initial load: keep current behavior (or split if needed)
+- cloudDocRefreshTick effect: when tick > 0 and not dirty/saving, load remote data and apply changes locally
+
+The first useEffect in App.tsx has dependencies `[activeCompanyId, mode, resetStatementSaveUi]` without `cloudDocRefreshTick`, while the second effect specifically manages the refresh behavior with tick logic.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/lib/documentSaveUi.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll create a shared hook or helper to avoid duplicating the pull logic. The user wants a complete implementation, so I'll create a shared hook to avoid duplicating pull logic across files. The cleanest approach matches the App.tsx pattern:
+
+- Create `useCloudDocumentPull` hook in `lib/documentSaveUi.ts` or new file
+- Hook accepts: mode, activeCompanyId, cloudDocRefreshTick, saveState
+- Hook includes: loadRemote async function (apply from server) or company key + normalizers
+- Each page imports and uses:
+  - `const { mode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()`
+  - Second `useEffect` that triggers pull when needed When activeCompanyId or cloudDocRefreshTick is missing, the function returns early. If saveState is 'dirty' or 'saving', it also returns early. Otherwise, it initiates a pull operation that fetches remote data and applies it locally. A cancellation flag ensures cleanup when the effect unmounts. The effect depends on activeCompanyId, cloudDocRefreshTick, mode, saveState, and other relevant dependencies. The save state in dependencies doesn't change when pulling and applying remote data, which is correct behavior. When the tick changes from 0 to 1 on first visibility, unsaved changes are properly skipped.
+
+For the expense page, since it lacks `isCloudReady`, it sets `isStorageReady` in `loadRemote`. The pull effect should replicate the "apply remote" portion of `loadRemote`.
+
+Implementation plan:
+- ExpensePage: Add `cloudDocRefreshTick` to destructuring, add useEffect for pull with same logic as remote application in loadRemote
+- [Missing content]</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "beanNameAliases|markDocument|saveCompanyDocument"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+  "pattern": "beanNameAliases|markDocument|saveCompanyDocument",
+  "topFiles": [
+    {
+      "matchCount": 17,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 17
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add a reusable hook `useCloudDocumentRefreshPull` in `lib/documentSaveUi`. I'll create a reusable hook `useCloudDocumentRefreshPull` in `lib/documentSaveUi` that encapsulates the logic for pulling cloud document changes based on specified conditions and state. This hook will manage the timing and execution of document refresh operations when certain criteria are met.
+
+- The hook will accept options including mode, company ID, refresh tick, save state, and pull function
+- It will only execute when in cloud mode, with an active company, and when the refresh tick is non-zero
+- It will skip execution if the document is dirty or saving
+- It will cancel any ongoing operations if the component unmounts before completion
+- It will call the provided pull function when conditions are met
+
+This approach ensures efficient and safe handling of cloud document refresh operations while preventing unnecessary network calls or race conditions. The `pull` function is inline and changes on every render, which causes issues; therefore, it should either be wrapped with `useCallback` or accessed via a ref.
+
+The `saveState` dependency correctly skips execution when the user is editing.
+
+Since **MemoPage** uses a custom `saveState` instead of `useDocumentSaveUi`, it needs the same dirty/saving check.
+
+I'll create `useCloudDocumentRefreshPull` in `lib/cloudDocumentRefresh.ts`. The hook uses a ref to store the `onPull` function, ensuring it always has access to the latest version without causing infinite loops. It executes the pull operation only when in cloud mode, an active company exists, and the refresh tick is non-zero. The hook also checks that the document is not dirty or currently saving before proceeding. If any of these conditions are not met, the effect returns early to avoid unnecessary operations. A cleanup function cancels ongoing operations if the component unmounts before completion. This ensures safe and efficient handling of cloud document refreshes. If the document is dirty or saving, the hook returns early to prevent unnecessary operations. The pull function is executed only when conditions are met, and a cleanup function cancels ongoing operations if the component unmounts. However, there's a bug where the pull function doesn't check for cancellation during async operations. Each page's pull implementation should handle the cancelled flag internally to properly abort pending operations. The hook can simplify cancellation by mirroring App.tsx's pattern using `let cancelled = false` inside the effect. The hook will include:
+
+- useEffect that checks mode, active company, and refresh tick
+- Early returns if not in cloud mode, no active company, or refresh tick is zero
+- Checks save state for dirty or saving conditions
+- Passes no explicit cancellation signal, letting each page handle cancellation internally with a cancelled flag
+- Pages duplicate the cancellation logic rather than relying on a shared signal or generation counter The hook now includes a `cancelled` flag to prevent state updates after unmounting. The `onPull` function accepts a `cancelled` parameter, allowing implementations to abort operations gracefully. Each page handles its own cancellation logic, checking `if (cancelled) return` after async operations to avoid errors from updating components that have already unmounted. This pattern ensures safe cleanup and prevents memory leaks. The hook provides a `cancelled` flag to prevent state updates after unmounting. Each page's `onPull` function receives a `cancelled` parameter, allowing it to abort operations gracefully. This ensures safe cleanup and prevents memory leaks. Pages handle their own cancellation logic, checking `if (cancelled) return` after async operations to avoid errors from updating unmounted components. React 18's strict mode double mount is handled by the cancel flag. The hook simply calls `onPull` with the cancellation status, while each page manages its own cleanup logic. If the save state is 'dirty' or 'saving', the hook returns early to prevent unnecessary operations. A `cancelled` flag is used to manage cleanup, with `isCancelled()` providing a way to check for cancellation status. The `onPull` function is called with this cancellation check, allowing each page to handle its own cleanup logic. Each page implements its own cancellation logic by checking `if (isCancelled()) return` after async operations to avoid errors from updating unmounted components. This ensures safe cleanup and prevents memory leaks. **MonthlyMeeting** requires `isCloudReady` for save, and for pull, it can apply if `isStorageReady`. On tick, the page loads, and `onPull` fetches and merges data.
+
+**Inventory** has a large `applyDocument` function that needs to be extracted or reused. The easiest approach is to duplicate the try/load/apply logic in `useEffect` in Inventory, calling `loadCompanyDocument` followed by `applyDocument(normalize...)`. However, since `applyDocument` is inside the first `useEffect`, it will need to be moved or wrapped in `useCallback` to be accessible outside that effect. Looking at Inventory, the cleanest approach is to add a second `useEffect` that runs only on tick, duplicating the fetch and apply logic from lines 18051818 using the same setters. Alternatively, simplify by adding `cloudDocRefreshTick` and `saveState` to the first effects dependencies and skipping remote fetches when local and tick is zero. This avoids duplication but requires careful handling of the bean pattern.
+
+The bean pattern in one effect for Inventory:
+- Add `cloudDocRefreshTick` and `saveState` to dependencies
+- At start of `loadDocument`: if cloud mode and shouldPullRemote, always fetch remote data Actually, the **App pattern** uses two effects  Ill add a second effect with the hook and inline the Inventory pull by copying the try block with apply. I need to access `applyDocument`, which is closed over in the first effect. 
+
+**Refactor:** Extract `applyDocument` into a `useCallback` that depends on mode, activeCompanyId, and setters.
+
+Thats a significant refactor. 
+
+**Smaller change:** In Inventory, duplicate only the `loadCompanyDocument` + normalize + core set state part in the pull effect  copy from `applyDocument`. **Alternative:** Use `useRef` to hold the latest `applyFromRemote` function, updated each render, and have the pull effect call it.
+
+Simpler approach for Inventory: store apply logic in a ref:
+
+```javascript
+const applyDocumentRef = useRef(applyDocument)
+// update ref when ...
+```
+
+Or simpler yet: **add `cloudDocRefreshTick` to the dependency array of the first `useEffect`** in Inventory  this would make the entire `loadDocument` re-run every 90 seconds. 
+
+**Problem:** This resets `isStorageReady` to false at the start, due to the effect resetting it at line 1725. That would flash the page and reset UI state, so adding the tick dependency to the existing effect is not an option.
+
+Instead, a separate effect must handle tick-based pulls without resetting `isStorageReady`.
+
+For Inventory, a second effect would look like:
+
+- Uses `useCloudDocumentRefreshPull` with `cloudDocRefreshTick` as a dependency
+- Skips execution if `isStorageReady` is false
+- Runs `onPull` only when `isStorageReady` is true, avoiding redundant loads</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "syncStatementInventoryManualsFromCloud"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "syncStatementInventoryManualsFromCloud",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/beanStatementManualMappings.ts"
+    }
+  ],
+  "totalFiles": 3,
+  "totalMatches": 5
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "useAppRuntime"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "useAppRuntime",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll create the hook and implement it. For MonthlyMeeting, the pull functionality uses a ref to store an async function that loads remote state and applies it when not cancelled.
+
+- The function checks if mode is 'cloud' and activeCompanyId exists
+- It loads company document data asynchronously
+- If cancelled, it returns early
+- If remote state exists, it normalizes and applies the state
+- Uses isCancelled callback to prevent updates after cancellation When remote state is null during pull, the current state should be preserved instead of being wiped. The logic should skip applying remote state when it's unavailable, maintaining existing page state. This prevents overwriting local data on refresh when no remote data exists. When no remote state exists, the system should use local state instead of applying null data. For expense pull operations, if remote state is unavailable, the app should refresh from local data rather than clobbering with stale local state. During initial load, local data is used when remote is null, but on tick refresh, if remote is null, local state should be preserved assuming the server may have deleted the remote data. The pull logic mirrors App behavior by using local state when remote state is unavailable. When remote state is unavailable, the system preserves local state instead of applying null data. For expense pulls, if remote state doesn't exist, it refreshes from local data rather than overwriting with stale local state. During refresh ticks, when remote data is null, local state is maintained assuming server-side deletion. The pull logic mirrors App behavior by using local state when remote state is unavailable.
+
+- The function always sets state with either remote or local data
+- For refresh ticks, local data is re-read when remote is null
+- Expense pulls follow App's second useEffect pattern
+- Remote state is loaded asynchronously with cancellation check
+- Local state is used as fallback when remote state is unavailable When remote state exists, it's normalized and applied to the page state, with local storage updated and a status message shown. When remote state is null, local state is used instead, preserving existing data. 
+
+The hook should guard against missing activeCompanyId at startup. Error handling is added via try/catch blocks in onPull to catch and log errors, similar to App's approach. The `applyState` function needs access within the pull ref, which is assigned with closure over `applyState`. For GreenBean, the ref should be assigned in the first useEffect that combines both `loadPersisted` and `loadAliasRows` into a single `onPull` function:
+
+- Loads main persistent data if not cancelled
+- Loads aliases after main data loads
+
+The pull ref is set up with proper cancellation checks and error handling. When remote aliases exist, they are applied to update the UI and trigger related state changes. If remote aliases are missing, local data is preserved instead of applying null values. The function includes error handling and cancellation checks to prevent updates after cancellation. The alias pull logic mirrors the main pull behavior by using local state when remote state is unavailable. The applyAliasRows is inside another effect - I'll duplicate the array branch.
+
+**Import** cloudDocRefreshTick in all pages and add hook.
+
+**useCloudDocumentRefreshPull** - the `onPull` in deps: use useRef to avoid re-running when onPull identity changes. The hook will use onPullRef pattern.
+
+File `lib/cloudDocumentRefresh.ts`:
+
+```typescript
+import { useEffect, useRef } from 'react'
+import type { DocumentSaveState } from './documentSaveUi'
+
+export function useCloudDocumentRefreshPull(
+  {
+    mode,
+    activeCompanyId,
+    cloudDocRefreshTick,
+    saveState,
+    onPull,
+  }: {
+``` The hook uses a ref to store the `onPull` function, ensuring it doesn't re-run when its identity changes. It only executes when mode is 'cloud', an active company exists, and refresh tick is active. The pull function runs asynchronously with cancellation support and error handling. When remote state is unavailable, local state is preserved instead of applying null data. The function includes guards against missing company ID and handles errors gracefully. For expense pulls, local data is refreshed when remote state is null, preventing overwrite of local data. The pull logic mirrors App behavior by using local state when remote state is unavailable. The `applyState` function is accessed through closure within the pull ref. The alias pull logic follows the same pattern as main pull, using local state when remote data is missing. The hook integrates with `cloudDocRefreshTick` to control refresh timing. A try/catch block wraps the pull operation to handle errors similar to App's approach. The ref ensures consistent function reference across renders while The hook includes error handling with try/catch to log failures during cloud refresh attempts. The `applyState` function is accessed via closure within the pull ref to ensure proper state management. For expense pulls, local data is refreshed when remote state is null, preventing overwrite of local data. The pull logic mirrors App behavior by using local state when remote state is unavailable. A ref ensures consistent function reference across renders while maintaining proper cancellation checks. The hook integrates with `cloudDocRefreshTick` to control refresh timing and only executes when mode is 'cloud' and an active company exists. Memo uses `saveState` with type `'saved' | 'dirty' | 'saving' | 'error'`, allowing pull on error states while skipping dirty and saving states, matching App's behavior. For refresh operations, the system skips 'dirty' and 'saving' states but allows pulling on 'error' states, enabling users to fetch the latest data. The `useCloudDocumentRefreshPull` hook is implemented separately from the initial setup to avoid re-running full initialization. It uses `cloudDocRefreshTick` for timing control and applies persisted data from the cloud when available. The hook ensures proper cancellation and error handling, mirroring App's behavior by using local state when remote data is unavailable. A second useEffect handles the pull logic independently of the main initialization flow. The `onPull` function is wrapped in a ref to prevent unnecessary re-execution due to changing identities. The hook integrates with `cloudDocRefreshTick` to manage refresh timing effectively. The `onPull` function requires `applyPersisted` and must be wrapped in a ref to prevent re-execution, similar to the meeting pattern. A ref is added to `useCloudDocumentRefreshPull` for consistent function identity and debugging purposes. For GreenBean, the alias data is saved to cloud during save operations, and pull is skipped when dirty. Expense pages load data on mount without `cloudDocRefreshTick`. Run build at the end. When the refresh tick occurs, the second effect triggers the pull operation. However, if the user never receives a tick greater than zero (remaining at tick 0), they only experience one initial load. This tick 0 scenario happens when a user opens the app, never leaves the tab, and does not trigger the 90-second intervalthus, the first load still occurs as expected. Upon returning to the tab, the tick increments and triggers a pull (provided the data is not dirty). On first mount with tick 0, `useCloudDocumentRefreshPull` skips the pull due to `cloudDocRefreshTick === 0` in its guardthis is correct behavior, as the initial load is handled by the first effect. A tick increment to 1 then triggers the pullalso correct.
+
+- All files are added, beginning with the hook implementation.
+- Each page is updated accordingly. **MonthlyMeeting** - The ref is added to `useCloudDocumentRefreshPull` to ensure consistent function identity and prevent re-execution. The ref is assigned after `applyState` and `loadState` are defined but before `void loadState` in the first useEffect. This matches the pattern used in other components like `useCloudDocumentRefreshPull` and ensures proper cancellation handling during cloud refresh operations. The ref stores the async pull function that handles remote state updates with error handling and cancellation checks.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx",
+  "pattern": "useEffect|open"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx",
+  "pattern": "useEffect|open",
+  "topFiles": [
+    {
+      "matchCount": 20,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 20
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+For StatementInventoryLinkModal, I'll add `cloudDocRefreshTick` to the dependency when `open` is true, ensuring re-sync when the modal is open and tick refreshes.</details></think>
+
+_**Agent (default)**_
+
+공통 훅 `useCloudDocumentRefreshPull`을 추가하고, `company_documents`를 쓰는 모든 화면에 **탭 복귀·주기 갱신 시 ‘저장 대기/저장 중’이 아니면 서버에서 다시 읽기**를 연결합니다. (거래명세 `App.tsx`의 두 번째 `useEffect`와 동일한 안전장치)
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/lib/cloudDocumentRefresh.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to:
+- Add `useRef` to the React import
+- [No further details provided]</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Structure looks good. Need to check for duplicate `}, [activeCompanyId, mode, resetDocumentSaveUi]`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add import for useCloudDocumentRefreshPull. Add cloudDocRefreshTick to destructure.  
+Add pullFromCloudRef = useRef after useDocumentSaveUi.  
+In first useEffect, before void loadPersisted(), assign the ref.  
+On cleanup: set ref to null.  
+
+The second useEffect (alias) at line 1379 should include alias refresh. The ref in first useEffect should call both persisted load and alias  duplicate logic from alias effect for remote branch.  
+
+From lines 14441464:  
+- Load alias rows asynchronously.  
+- Read custom bean name aliases.  
+- If mode is not 'cloud' or activeCompanyId is falsy, skip loading. The `applyAliasRows` function is located inside the second useEffect. In the first useEffect, assign `pullFromCloudRef` to an async function that:
+1. Loads alias rows asynchronously.
+2. Reads custom bean name aliases.
+3. Applies remote aliases if available, otherwise falls back to local aliases.
+4. Handles errors gracefully by logging and using local aliases. The persisted pull includes the pullMeeting part. For aliases, inline writeCustomBeanNameAliases, setAliasDraftRows, setAliasRevision, and setInventoryHintsTick.  
+The applyAliasRows function updates alias rows by writing custom bean name aliases, setting draft rows, incrementing revision and hints tick.  
+For the pull reference, after remote aliases, check if cancelled and proceed accordingly. The first effect calls `applyPersisted` for main data, while the second handles `applyAliasRows` for aliases. The pull reference in the first effect can invoke `applyPersisted` for main data and also handle aliases by using the available setters like `setAliasDraftRows`, `setAliasRevision`, and `setInventoryHintsTick` within the component scope.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "useAppRuntime"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "useAppRuntime",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Add cloudDocRefreshTick
+- Add pull ref after useDocumentSaveUi
+- Assign in first useEffect before void loadDocument
+- Add useCloudDocumentRefreshPull</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Good. Now Memo - need useRef in imports, pullMemo ref, useCloudDocumentRefreshPull. Memo needs useRef in imports, pullMemo ref, and useCloudDocumentRefreshPull. DocumentSaveState is compatible with the custom saveState 'saved' | 'dirty' used in Memo.
+
+For Memo, add:
+- import useRef (check - might not have useRef in Memo)
+- useCloudDocumentRefreshPull
+- cloudDocRefreshTick from useAppRuntime
+- pullMemoFromCloudRef
+- in first useEffect, assign ref before void loadPersisted, cleanup null
+- useCloudDocumentRefreshPull with onPull that calls ref
+
+The applyPersisted in Memo - and loadPersisted. The ref will duplicate remote branch.
+
+```javascript
+    pullMemoFromCloudRef.
+```</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Memo uses useRef. Added useCloudDocumentRefreshPull import and DocumentSaveState, as the saveState in Memo is compatible.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+Incorrect tool arguments
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+StatementInventoryLinkModal - the useEffect already has `if (open)` - when open is false, the effect still runs on tick but does nothing useful. OK.
+
+- The useEffect includes a condition `if (open)` to control execution.
+- When `open` is false, the effect runs on each tick but performs no meaningful action.
+- This behavior is acceptable as it doesn't cause issues and the condition prevents unnecessary operations when open.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/package.json</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-Cx2NrBY9.css    150.72 kB │ gzip:  25.08 kB
+dist/assets/index-R7aOSkIX.js   2,629.85 kB │ gzip: 747.83 kB
+
+✓ built in 499ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/lib/cloudDocumentRefresh.ts",
+    "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/StaffPayrollPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/lib/cloudDocumentRefresh.ts"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+In MonthlyMeeting, placing useCloudDocumentRefreshPull after useEffect is valid according to React hooks rules.</details></think>
+
+_**Agent (default)**_
+
+작업을 반영했습니다. **요약**만 정리합니다.
+
+## 무엇을 했는지
+
+- 공통 훅 [`app/src/lib/cloudDocumentRefresh.ts`](app/src/lib/cloudDocumentRefresh.ts)  
+  - `AppRuntime`의 `cloudDocRefreshTick`(탭이 다시 보이거나, 켜 둔 탭이 약 90초마다)이 올라갈 때  
+  - **클라우드 `company_documents`를 다시 읽되**, `saveState`가 `dirty` / `saving`이면 **덮어쓰지 않음** (거래명세 `App`의 두 번째 `useEffect`와 같은 규칙).
+
+- 아래 **모든** `loadCompanyDocument` / `saveCompanyDocument`를 쓰는 화면에 위 훅(또는 `tick` 의존 동기)을 연결함:
+  - **지출** `ExpensePage`
+  - **직원·급여** `StaffPayrollPage`
+  - **월 마감회의** `MonthlyMeetingPage` (ref로 기존 `applyState` 경로 재사용)
+  - **생두 주문 + 원두 별칭** `GreenBeanOrderPage` (한 번의 tick에 본문 + `beanNameAliases` 둘 다 갱신)
+  - **입출고** `InventoryStatusPage` (ref + `applyDocument`)
+  - **메모** `MemoPage` (ref + `applyPersisted`)
+
+- 이미 맞춰 둔 것  
+  - **거래명세** `App.tsx` + **원두별 매출** `BeanSalesAnalysisPage`의 `cloudDocRefreshTick` 사용은 그대로.
+
+- **명세↔입고 수동 매핑**  
+  - `BeanSalesAnalysisPage`에서 `syncStatementInventoryManualsFromCloud`에 `cloudDocRefreshTick`을 의존성에 넣어, **주기/탭 복귀**마다 서버로부터 다시 맞춤.  
+  - **명세↔입고 모달** `StatementInventoryLinkModal`은 모달이 열린 상태에서 `tick`이 바뀌면 **이미 하던** 클라우드 `statement` / `inventory` / 수동매핑 동기 로직이 다시 돌게 함.
+
+## 동작
+
+- **여러 PC·여러 직원**이 같은 회사로 쓰는 경우: 상대가 저장한 뒤, **다른 쪽**은 탭을 잠깐만 바꿨다가 돌아오거나(또는 최대 **약 90초**), 모달/분석 화면을 열어 두었다면 **같은 갱신 틱**으로 서버 본이 다시 읽힙니다.  
+- **초 단위 푸시(Realtime)** 는 넣지 않았고, 기존 런타임(가시성 + 90초)과 **동일한 트리거**에 맞췄습니다.  
+- **편집 중(저장 필요/저장 중)** 인 문서는 덮어쓰지 않아, 쓰다 만 내용이 날아가지 않게 했습니다.
+
+`npm run build`는 통과했습니다.
+
+---
+
+_**User**_
+
+아니 내가 말한 바로바로 반영된다는게 뭔지 모르겠어? 원두별 매출 분석에서는 수정하면 다른 환경에는 바로 수정이 되어서 보인다고 새로고침을 안해도 근데 거래명세서 이거는 안되고 있잖아 이해가 안되는거야?
+원두별 매출 분석에서는 거래명세서 관리에 있는 //*[@id="root"]/div/header/section/div[2]/header/div[1]/div/div/span
+이런게 없어도 잘 관리 되고있는거같은데 이해가안돼?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user is confused about the difference in behavior between two scenarios. The user observes different behaviors between two scenarios: 
+- Bean Sales Analysis updates immediately across environments without refresh
+- Statement/transaction behaves differently, with issues around UI elements like a span in the header related to "statement management"
+
+The key difference appears to be in how changes propagate - Bean Sales shows real-time updates while Statement/transaction may have synchronization delays or different update mechanisms. The user specifically mentions an XPath pointing to a header element that likely indicates save status or sync state, which works in Statement/transaction but not in Bean Sales.
+
+The issue seems to center on the save status indicator in the app header, which functions properly in one scenario but not the other. This suggests a potential inconsistency in how UI elements respond to data changes between different parts of the application. The user notes that Bean Sales feels instant across environments without requiring the status UI, whereas the Statement page has this UI but exhibits inconsistent syncing behavior. The key differences lie in how each component handles data synchronization and UI updates.
+
+- Bean Sales likely benefits from immediate localStorage events, cloudDocRefreshTick, and STATEMENT_RECORDS_SAVED_EVENT handling, especially when operating remotely.
+- Statement () in App.tsx includes a save status UI and pulls from the cloud on tick only when not dirty, which could explain its less responsive behavior compared to Bean Sales. - Bean Sales analysis page may be read-only and analyze statement records from localStorage or cloud, with edits possibly affecting mappings or linking rather than the main statement in App.
+- Edits on App's statement page in browser A could trigger updates in browser B through cloudDocRefreshTick, loadCompanyDocument, localStorage, or events. If editing the statement in one browser tab and viewing it in another, the dirty state check may prevent updates or cause stale data loading. The user may be confusing the main statement view with the Bean Sales analysis view. The statement management UI includes a save indicator, but cross-device updates still require refresh, unlike Bean Sales which works without such indicators. The behavior differences likely stem from how each component handles synchronization and UI updates.</details></think>
+
+_**Agent (default)**_
+
+거래명세(앱)와 원두별 매출 화면이 데이터를 읽는 방식이 어떻게 다른지 코드로 확인 중입니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "storage|STATEMENT|statementSaveState|cloudDocRefreshTick|statement-records"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "storage|STATEMENT|statementSaveState|cloudDocRefreshTick|statement-records",
+  "topFiles": [
+    {
+      "matchCount": 66,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 66
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The statement page (App) cloud pull on `cloudDocRefreshTick` skips when:</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "STATEMENT_RECORDS_SAVED_EVENT|addEventListener"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "STATEMENT_RECORDS_SAVED_EVENT|addEventListener",
+  "topFiles": [
+    {
+      "matchCount": 12,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 12
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The app fails to use addEventListener for STATEMENT_RECORDS_SAVED_EVENT, which prevents it from updating the records state.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "PageSaveStatus|saveState|statementSave"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "PageSaveStatus|saveState|statementSave",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "PageSaveStatus|statementSaveState"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "PageSaveStatus|statementSaveState",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- BeanSalesAnalysisPage lacks PageSaveStatus, confirming the user's observation about the missing "" span in the header.</details></think>
