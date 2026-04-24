@@ -1604,18 +1604,6 @@ function ExpensePage() {
           <p className="page-status-message" role="status" aria-live="polite">
             {statusMessage}
           </p>
-          {mode === 'cloud' && activeCompanyId ? (
-            <div className="expense-cloud-save-wrap">
-              <button
-                type="button"
-                className="primary-button expense-cloud-save-button"
-                onClick={() => void handleSaveToCloud()}
-                disabled={saveState === 'saving' || saveState === 'saved'}
-              >
-                {saveState === 'saving' ? '저장 중…' : '클라우드에 저장'}
-              </button>
-            </div>
-          ) : null}
           <PageSaveStatus mode={mode} saveState={saveState} lastSavedAt={lastSavedAt} />
         </div>
 
@@ -1695,6 +1683,28 @@ function ExpensePage() {
               >
                 +
               </button>
+              {mode === 'cloud' && activeCompanyId ? (
+                <button
+                  type="button"
+                  className={
+                    saveState === 'saving' || saveState === 'saved'
+                      ? 'ghost-button expense-add-row-mini expense-cloud-save-mini expense-cloud-save-mini--synced'
+                      : 'ghost-button expense-add-row-mini expense-cloud-save-mini expense-cloud-save-mini--pending'
+                  }
+                  onClick={() => void handleSaveToCloud()}
+                  disabled={saveState === 'saving' || saveState === 'saved'}
+                  title={
+                    saveState === 'saving'
+                      ? '클라우드 저장 중'
+                      : saveState === 'saved'
+                        ? '클라우드에 반영됨 (수정 시 다시 누르세요)'
+                        : '클라우드에 저장 (지출 목록 반영)'
+                  }
+                  aria-label="클라우드에 저장"
+                >
+                  {saveState === 'saving' ? '…' : '☁'}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={

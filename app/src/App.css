@@ -947,10 +947,20 @@
   margin: 0 0 12px;
 }
 
-.expense-cloud-save-wrap {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
+.expense-cloud-save-mini--pending {
+  color: #1d4ed8;
+  border-color: #3b82f6;
+  background: #eff6ff;
+  font-size: 15px;
+}
+
+.expense-cloud-save-mini--synced,
+.expense-cloud-save-mini:disabled {
+  color: #94a3b8;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  cursor: default;
+  opacity: 0.9;
 }
 
 .page-status-message,
