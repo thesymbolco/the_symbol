@@ -4455,6 +4455,17 @@
   letter-spacing: 0.02em;
 }
 
+.inventory-daily-journal-card-cycle-remove {
+  margin-left: 6px;
+  border: 0;
+  background: transparent;
+  color: currentColor;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
 .inventory-daily-journal-card-cycle-badge.is-dark {
   background: rgba(124, 58, 237, 0.1);
   color: #6b21a8;

@@ -1474,16 +1474,43 @@ function DailyRoastingJournal({
                       {entry.darkCycles > 0 ? (
                         <span className="inventory-daily-journal-card-cycle-badge is-dark">
                           다크 {entry.darkCycles}c
+                          <button
+                            type="button"
+                            className="inventory-daily-journal-card-cycle-remove"
+                            onClick={() => onChangeBlendingCycles('dark', entry.day, 0)}
+                            aria-label={`${entry.day}일 다크 사이클 삭제`}
+                            title="삭제"
+                          >
+                            ×
+                          </button>
                         </span>
                       ) : null}
                       {entry.lightCycles > 0 ? (
                         <span className="inventory-daily-journal-card-cycle-badge is-light">
                           라이트 {entry.lightCycles}c
+                          <button
+                            type="button"
+                            className="inventory-daily-journal-card-cycle-remove"
+                            onClick={() => onChangeBlendingCycles('light', entry.day, 0)}
+                            aria-label={`${entry.day}일 라이트 사이클 삭제`}
+                            title="삭제"
+                          >
+                            ×
+                          </button>
                         </span>
                       ) : null}
                       {entry.decafCycles > 0 ? (
                         <span className="inventory-daily-journal-card-cycle-badge is-decaf">
                           디카페인 {entry.decafCycles}c
+                          <button
+                            type="button"
+                            className="inventory-daily-journal-card-cycle-remove"
+                            onClick={() => onChangeBlendingCycles('decaf', entry.day, 0)}
+                            aria-label={`${entry.day}일 디카페인 사이클 삭제`}
+                            title="삭제"
+                          >
+                            ×
+                          </button>
                         </span>
                       ) : null}
                     </div>
