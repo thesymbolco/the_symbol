@@ -18,6 +18,7 @@ import { normalizeInventoryStatusState } from './inventoryStatusUtils'
 import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'
 import { STATEMENT_RECORDS_SAVED_EVENT } from './MonthlyMeetingPage'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument } from './lib/companyDocuments'
+import { loadStatementRecordsMirror } from './statementRecordsMirror'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 import StatementInventoryLinkModal from './StatementInventoryLinkModal'
 
@@ -31,10 +32,6 @@ type StatementRecord = {
   taxAmount: number
   totalAmount: number
   clientName: string
-}
-
-type StatementPageDocumentLike = {
-  records?: StatementRecord[]
 }
 
 type InventoryPageDocumentLike = {
@@ -76,8 +73,6 @@ type BeanSalesData = {
   /** 매출액 − 추정 원가액 */
   estimatedProfitAmount: number | null
 }
-
-const STATEMENT_RECORDS_KEY = 'statement-records-v1'
 
 /** 파이/막대/범례 공통: 매출 0 제외 뒤 상위 N (동일 값 유지) */
 const BEAN_SALES_CHART_TOP = 10
@@ -140,57 +135,17 @@ function BeanSalesAnalysisPage() {
 
   useEffect(() => {
     let cancelled = false
-    const readLocalRecords = (): StatementRecord[] => {
-      try {
-        const saved = window.localStorage.getItem(STATEMENT_RECORDS_KEY)
-        if (!saved) {
-          return []
-        }
-        const parsed = JSON.parse(saved) as StatementRecord[]
-        return Array.isArray(parsed) ? parsed : []
-      } catch {
-        return []
-      }
-    }
-
-    const loadStatementRecords = async () => {
-      const local = readLocalRecords()
-      const preferRemote = cloudDocRefreshTick > 0
-      if (local.length > 0 && !preferRemote) {
-        setStatementRecordsRaw(local)
-      }
-      if (mode === 'cloud' && activeCompanyId) {
-        try {
-          const remote = await loadCompanyDocument<StatementPageDocumentLike>(
-            activeCompanyId,
-            COMPANY_DOCUMENT_KEYS.statementPage,
-          )
-          if (cancelled) {
-            return
-          }
-          if (Array.isArray(remote?.records)) {
-            if (preferRemote || local.length === 0) {
-              setStatementRecordsRaw(remote.records)
-            } else {
-              setStatementRecordsRaw(local)
-            }
-            return
-          }
-        } catch (error) {
-          console.error('원두별 매출 분석: 거래명세 클라우드 문서를 읽지 못했습니다.', error)
-        }
-      }
-      if (local.length > 0) {
-        if (!cancelled) {
-          setStatementRecordsRaw(local)
-        }
-        return
-      }
+    const run = async () => {
+      const rows = await loadStatementRecordsMirror<StatementRecord>({
+        mode,
+        companyId: activeCompanyId,
+        cloudDocRefreshTick,
+      })
       if (!cancelled) {
-        setStatementRecordsRaw([])
+        setStatementRecordsRaw(rows)
       }
     }
-    void loadStatementRecords()
+    void run()
     return () => {
       cancelled = true
     }

@@ -24,13 +24,13 @@ import MonthlyMeetingPage, {
   STATEMENT_RECORDS_STORAGE_KEY,
 } from './MonthlyMeetingPage'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin.ts'
-import PageSaveStatus from './components/PageSaveStatus'
 import {
   buildStyledStatementInputListBuffer,
   buildStyledStatementMonthlySummaryBuffer,
   statementInputListDefaultColumnWidths,
 } from './statementExcelStyledExport.ts'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
+import { writeStatementRecordsToMirror } from './statementRecordsMirror'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider.tsx'
 import './App.css'
@@ -1516,7 +1516,6 @@ function App() {
   const [isMasterItemsStorageReady, setIsMasterItemsStorageReady] = useState(false)
   const [isStatementCloudReady, setIsStatementCloudReady] = useState(mode === 'local')
   const {
-    lastSavedAt: statementLastSavedAt,
     markDocumentDirty: markStatementDirty,
     markDocumentError: markStatementError,
     markDocumentSaved: markStatementSaved,
@@ -1758,12 +1757,7 @@ function App() {
     if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
-    } catch {
-      // ignore
-    }
-    window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
+    writeStatementRecordsToMirror(records)
   }, [activeCompanyId, isRecordsStorageReady, mode, records])
 
   useEffect(() => {
@@ -3897,11 +3891,15 @@ function App() {
                     {mode === 'cloud' ? '회사 공용 문서' : '개인 브라우저 문서'}
                   </span>
                   {activePage === 'statements' ? (
-                    <PageSaveStatus
-                      mode={mode}
-                      saveState={statementSaveState}
-                      lastSavedAt={statementLastSavedAt}
-                    />
+                    mode !== 'cloud' ? (
+                      <span className="page-hero-pill">브라우저에 자동 저장</span>
+                    ) : statementSaveState === 'saving' ? (
+                      <span className="page-hero-pill page-save-state--saving">클라우드에 반영 중…</span>
+                    ) : statementSaveState === 'error' ? (
+                      <span className="page-hero-pill page-save-state--error">클라우드 반영 실패 — 다시 저장해 주세요</span>
+                    ) : (
+                      <span className="page-hero-pill">클라우드 자동 반영 · 원두·명세 동일 데이터</span>
+                    )
                   ) : null}
                 </div>
               </div>

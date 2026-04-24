@@ -75278,7 +75278,7 @@ _**Agent (default)**_
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
 
 </details>
 </tool-use>
@@ -75287,3 +75287,342 @@ _**Agent (default)**_
 <summary>Tool use: **read_file_v2**</summary>
 
 </details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to identify where to add `useCallback` for `persistStatementPageToCloudNow` that accepts `nextRecords: StatementRecord[]` and relies on current `pricingRules`, `masterItems`, and other values from its closure.
+- Look for the function definition or usage of `persistStatementPageToCloudNow`
+- Identify the closure variables: `pricingRules`, `masterItems`, etc.
+- Determine the appropriate location to wrap with `useCallback`
+- Ensure dependencies are correctly specified in the dependency array The `handleDelete` function is updated to use `useCallback` and includes a dependency array. It filters out the deleted record and, in cloud mode, sends the updated records to the cloud. The function also resets the form if the deleted record was being edited.
+
+- The `useCallback` wrapper ensures the function reference remains stable across renders.
+- Dependencies like `editingRecordId`, `resetStatementFormAfterSave`, `setRecords`, `mode`, `activeCompanyId`, `nextRecords`, `pricingRules`, `masterItems`, `statementTemplateBase64`, and `statementTemplateFileName` are included in the dependency array.
+- The function updates the UI by filtering out the deleted record and triggers a cloud update if necessary. The `handleDelete` function was updated to use `useCallback` with a proper dependency array. The function now filters out the deleted record and resets the form if needed, avoiding the React anti-pattern of using an async IIFE inside the updater function.
+
+- The `setRecords` call uses a pure updater function that filters records without side effects.
+- Dependencies include `editingRecordId`, `resetStatementFormAfterSave`, and `setRecords`.
+- The function avoids async operations within state updaters to maintain React's purity requirements. No - I need to compute `nextRecords` and then setRecords, then async save:
+- Compute `nextRecords` by filtering out the deleted record
+- Update state with `setRecords` using a pure updater function
+- In cloud mode, send the updated records to the cloud with `pricingRules`, `masterItems`, and template data
+- Reset form if needed when deleting the currently edited record The code snippet shows an asynchronous operation that saves a company document and updates local state. It uses `queueMicrotask` to defer execution, calls `markStatementSaving()` before saving, and `markStatementSaved()` after saving. The function dispatches a custom event upon successful save and handles potential errors during the save process. It also updates the `statementCloudSaveSigRef` with a signature of the saved payload.
+
+- The `saveCompanyDocument` function is called with parameters including `activeCompanyId`, `COMPANY_DOCUMENT_KEYS.statementPage`, `payload`, and `user?.id`.
+- Local state is updated via `writeStatementPageLocalState(payload)`.
+- A signature of the payload is generated and stored in `statementCloudSaveSigRef`.
+- Events are dispatched to indicate saving and saved states.
+- The function is wrapped in a try-catch block to handle potential errors during the save process.
+
+No - I need to compute `nextRecords` and then setRecords, then async The `persistStatementPageToCloudNow` function is wrapped with `useCallback` to ensure stable references across renders. It computes `nextRecords` by filtering out the deleted record, updates the state using `setRecords` with a pure updater function, and asynchronously saves the updated records to the cloud in cloud mode. The dependency array includes all relevant variables such as `activeCompanyId`, `pricingRules`, `masterItems`, and `statementTemplateBase64`.
+
+- Handles errors during cloud save by logging them and marking the statement as having an error.
+- Uses `queueMicrotask` to defer execution and ensures proper state updates with `markStatementSaving` and `markStatementSaved`.
+- Dispatches custom events to indicate saving and saved states.
+- Updates local state via `writeStatementPageLocalState` and stores a payload signature in `statementCloudSaveSigRef`.
+- Wraps the save logic in a try-catch block to manage potential errors during the save process. The `setRecords` callback uses `pricingRules` from the closure, which may be outdated; however, `nextRecords` is computed correctly. To avoid calling `markStatementSaving` inside the pure `setState` updater, `queueMicrotask` defers execution until after `setState` returns.
+
+A duplicate save can occur because a debounced `useEffect` also runs when `records` updates. This effect:
+- Builds a payload from the new records (similar to the immediate save)
+- Checks if `nextSig === ref`  if so, it skips saving since the immediate save already completed and updated the reference. If an immediate save is still in flight and the reference hasn't been updated, the debounced effect might also schedule a save, causing two concurrent saves.
+
+**Fixes considered:**
+- Immediate save updates the reference only on success; however, the debounced effect may still run and schedule another save if it detects a dirty state, creating a race condition.
+- Using a `pendingImmediateSaveRef` to skip the debounced effect for one tick introduces complexity.
+- A simpler approach is to check `statementSaveState` in the save effectwhen marking dirty, if the state indicates an ongoing save from the delete operation, the effect should avoid triggering another save. The debounced effect does not block execution based on `statementSaveState`, as it always runs `markStatementDirty`.  
+
+The cleanest solution involves either:
+- Setting `statementCloudSaveSigRef` to a tentative value after scheduling the immediate save in `handleDelete`
+- Or, in the save effect, returning early when `statementSaveState === 'saving'` to prevent duplicate saves
+
+An alternative approach is to optimistically update `statementCloudSaveSigRef` with the new signature at the start of the immediate delete save, before waiting for the server response. Then the debounced effect sees a match and skips but if save fails, we need to reset the ref.
+
+7. **Simpler approach:** In handleDelete, don't use microtask; instead, compute nextRecords directly in the setRecords updater function and run the async save after:
+
+```javascript
+const handleDelete = (id: string) => {
+  if (editingRecordId === id) resetStatementFormAfterSave()
+  setRecords((current) => {
+    const nextRecords = current.filter((record) => record.id !== id)
+    return nextRecords
+  })
+``` The code should compute `nextRecords` before updating state in `setRecords`, not after. The `handleDelete` function filters records and prepares a payload for cloud sync before updating state. In cloud mode, it generates a signature of the payload and sends it to the cloud. A debounced effect may also trigger a save, potentially causing duplicates. The fix involves ensuring `statementCloudSaveSigRef` is updated after immediate saves or skipping the debounced effect when a save is already in progress. Alternatively, the `setRecords` updater can compute `nextRecords` directly and run the async save afterward. // Optimistically update signature and save immediately
+- Use `saveCompanyDocument` with `statementCloudSaveSigRef` update on success
+- Call `markStatementSaving` before async operation
+- Avoid async operations inside `setRecords` updater function
+
+**Correct pattern:**
+- Compute `nextRecords` before updating state
+- Run async save after `setRecords` update
+- Update `statementCloudSaveSigRef` only on success
+- Handle errors appropriately with `markStatementSaved` and `writeStatementPageLocalState` The `handleDelete` function filters out the record with the given ID and updates the state using a functional update to compute `nextRecords`. In cloud mode, it prepares a payload with the updated records and triggers an asynchronous save operation. The `setRecords` updater computes `nextRecords` directly before updating state, ensuring accurate data for the cloud save. The async save is executed after the state update, and the signature reference is updated only on successful completion. The `handleDelete` function filters out the record with the given ID and updates the state using a functional update to compute `nextRecords`. The async save is executed after the state update, and the signature reference is updated only on successful completion. Moving `setTimeout(0)` outside of the `setRecords` updater prevents potential warnings in React 18 and ensures proper execution timing. In cloud mode, when a record is deleted, the system schedules an asynchronous save operation after the state update commits. This is done using `queueMicrotask` to ensure the save runs after React has processed the state change. The payload for the save is built from `nextRecords`, which is computed within the `setRecords` updater function. Since `nextRecords` is calculated before updating state, it reflects the correct data for the cloud sync. The `pricingRules` used in the payload are taken from the closure at the time the delete action was triggered, ensuring consistency. The `queueMicrotask` ensures that the save operation doesn't interfere with React's rendering cycle, preventing potential warnings in React 18. The actual save is scheduled after the current JavaScript stack clears, allowing React to finish its update phase first. The `setRecords` updater function filters out the record with the specified ID and computes `nextRecords` before updating state. In cloud mode, it builds a payload using `nextRecords` and schedules an async save using `queueMicrotask` after the state update commits. The payload includes pricing rules and other relevant data, and the signature is generated before saving. This ensures the save operation runs after React finishes its update phase, preventing warnings in React 18. The async save is triggered with `markStatementSaving` and `saveCompanyDocument`, and the signature reference is updated only on successful completion. The `handleDelete` function filters out the record with the specified ID and computes `nextRecords` before updating state. In cloud mode, it builds a payload using `nextRecords` and schedules an async save using `queueMicrotask` after the state update commits. The payload includes pricing rules and other relevant data, and the signature is generated before saving. This ensures the save operation runs after React finishes its update phase, preventing warnings in React 18. The async save is triggered with `markStatementSaving` and `saveCompanyDocument`, and the signature reference is updated only on successful completion.
+
+The `queueMicrotask` ensures the save runs after React processes the state change, avoiding interference with rendering. The actual save is scheduled after the current JavaScript stack clears, allowing React to finish its update phase first. The `setRecords` updater function filters out the record with the specified ID and computes `nextRecords` before updating state. In cloud mode, it builds a payload using `next</details></think>
+
+_**Agent (default)**_
+
+삭제(`handleDelete`)는 state만 지우고 클라우드는 600ms 뒤에만 올라갑니다. 그 사이에 새로고침하면 `loadStatementState`가 **서버의 옛 `records`로** 덮어써서 삭제가 복구됩니다. 삭제 직후 **즉시** `saveCompanyDocument` + 시그 ref 갱신으로 맞춥니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "App.tsx",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "handleDelete|삭제|filter.*id"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "handleDelete|삭제|filter.*id",
+  "topFiles": [
+    {
+      "matchCount": 16,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 16
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "handleDelete|inlineEdit|inline.*Delete"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "handleDelete|inlineEdit|inline.*Delete",
+  "topFiles": [
+    {
+      "matchCount": 29,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 29
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-BU4VKu2n.css    151.20 kB │ gzip:  25.15 kB
+dist/assets/index-w1eY54mH.js   2,633.65 kB │ gzip: 748.66 kB
+
+✓ built in 430ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Give the user a direct response.</details></think>
+
+_**Agent (default)**_
+
+욕설에 맞대응하진 않겠습니다. **기술적으로만** 말하겠습니다.
+
+## 왜 “삭제했는데 새로고침하면 다시 뜨냐” (버그)
+
+클라우드에서는 **Supabase `statement-page`가 정본**이고, **첫 로드**가 그걸로 `records`를 덮어씁니다.  
+그런데 **행 삭제**는 예전엔 `setRecords`만 하고, **서버에 반영**은 **600ms 디바운스 저장** 뒤였어요.  
+그래서 **삭제한 직후 F5** 하면, 아직 서버엔 **삭제 전 전체 `records`** 가 남아 있고, 새로고침 시 그게 다시 읽혀 **삭제가 취소된 것처럼** 보였습니다.  
+이건 “동기화가 이상한” 게 맞고, **원두 화면만 잘난 척하는** 게 아니라 **거래명세 삭제 쪽 흐름이 약한** 거였습니다.
+
+## 방금 한 수정
+
+**거래명세 `records` 한 줄 삭제**(`handleDelete`)할 때, 클라우드 모드면 **디바운스 기다리지 않고** 곧바로 `saveCompanyDocument`로 **서버+로컬 정본**을 맞추도록 바꿨습니다. (시그 ref도 같이 맞춰서 자동저장 effect랑 **중복 “저장 필요” 루프**도 덜 꼬이게)
+
+그래서 **정상 완료된 뒤** 새로고침하면, 서버에도 이미 반영돼 **지운 줄이 다시 생기는 현상**은 이 경로에선 막는 게 맞습니다.  
+(네트워크 실패로 저장이 깨지면, 그때는 실패/재시도가 나와야 하고, 그건 예전이나 지금이나 마찬가지입니다.)
+
+## “원두에서 고치면 다른 PC에 바로”에 대해
+
+**원두별 매출 분석**은 **거래명세 `company_documents`를 “가져다 읽기”** 위주이고, **거래를 저장하는 UI가 거래명세 쪽**입니다.  
+**다른 PC**에서 “0초 실시간 푸시”는 **Realtime 구독이 없으면** 항상 **한 번은 서버를 읽는 타이밍**이 있어서, “새로고침이 전혀 없이 항상 동시”까진 코드만으로 단정하긴 어렵습니다.  
+다만 **이번에 고친 건**: 말씀하신 **“삭제 후 새로고침해도 복원”** 같은 **명세 쪽 병**에 가깝고, 그건 **의도한 동작이 아니었고** 막아야 맞는 부분이었습니다.
+
+한마디로: **“삭제가 서버에 안 올라간 채 F5”** 가 원인이었고, **삭제 시엔 곧바로 upsert** 하게 바꿨습니다.
+
+---
+
+_**User**_
+
+아니 데이터 관리 하는걸 원두별 매출 분석이랑 똑같이 만들어 달라는데 그게 어려워? 뭐하는거야?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants statement/transaction data management to function identically to Bean Sales Analysis. The user wants the statement/transaction data management to mirror Bean Sales Analysis exactly, including reading from `STATEMENT_RECORDS_KEY` and using `loadCompanyDocument(statementPage)`, listening to `STATEMENT_RECORDS_SAVED_EVENT` to bump ticks and reload, employing `cloudDocRefreshTick` with `preferRemote` logic, and avoiding `useDocumentSaveUi` for dirty/saving loops on statement data itself. The app statement page owns its `records` state.
+
+- Bean Sales reads from `STATEMENT_RECORDS_KEY` / `loadCompanyDocument(statementPage)`
+- Listens to `STATEMENT_RECORDS_SAVED_EVENT`  bumps tick  reloads
+- Uses `cloudDocRefreshTick` with `preferRemote` logic
+- No `useDocumentSaveUi` dirty/saving loop on statement data itself
+- App statement page owns `records` state The statement management should mirror bean sales' data flow exactly, including debounced cloud save, immediate delete save, and PageSaveStatus (/ / ). To achieve this, the user may opt to either remove or simplify the save status UI for a seamless experience, or align the read path with bean sales' local-first pattern using events, ticks, and prefer-remote logic. - **Option C:** Align statement data management with bean sales by mirroring its data flow exactly.
+
+The statement pages data layer should mirror bean sales' approach:
+- Use `STATEMENT_RECORDS_SAVED_EVENT` + `statement-records` + cloud load on tick</details></think>
