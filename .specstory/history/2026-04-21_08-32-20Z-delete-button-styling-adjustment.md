@@ -58471,3 +58471,4358 @@ _**Agent (default)**_
 
 정리하면, **“클라우드 + 같은 팀이면, 의도는 기기를 넘어 맞는 데이터”**에 가깝고, **“로컬 모드/오프라인/동시편집/저장 실패”** 는 여전히 예외가 됩니다.  
 특정 화면만 더 확실히 보고 싶다면(예: 팀·로그인 없을 때의 동작) 그 흐름을 짚어 달라고 하시면 그 경로 기준으로만 짧게 답하겠습니다.
+
+---
+
+_**User**_
+
+그럼 개발을 클라우드로 하는게 편한건가? 일단 지금 배포상에서는 원두별 매출 비율 원형 그래프랑 원두별 이익 비율 원형 그래프가 이상하게 덜 그려지고 원두별 이익 금액에는 색깔이 적용이 안되어있네 로컬상에서도 그렇네
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user is asking two things:
+- [No further details provided]</details></think>
+
+_**Agent (default)**_
+
+개발을 클라우드로 하면 편한지는 짧게 답하고, 그래프·색상 버그는 코드를 찾아 수정합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+
+Parameters:
+
+```json
+{
+  "explanation": "",
+  "includePattern": "/Users/parkcg/The Symbol_Edit/app/src",
+  "query": "Where are 원두별 매출 비율 pie chart and 원두별 이익 비율 rendered?",
+  "topK": 10
+}
+```
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 98,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 661
+          },
+          {
+            "lineNumber": 662
+          },
+          {
+            "lineNumber": 663,
+            "text": "          \u003cdiv className=\"chart-grid bean-sales-chart-grid--profit\"\u003e"
+          },
+          {
+            "lineNumber": 664,
+            "text": "            \u003cdiv className=\"chart-container\"\u003e"
+          },
+          {
+            "lineNumber": 665,
+            "text": "              \u003ch3\u003e원두별 이익 비율\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 666,
+            "text": "              {rowsWithKnownProfit.length === 0 ? ("
+          },
+          {
+            "lineNumber": 667,
+            "text": "                \u003cp className=\"bean-sales-chart-empty\"\u003e생두 주문이 있으면 품목별 이익(추정)을 계산합니다.\u003c/p\u003e"
+          },
+          {
+            "lineNumber": 668,
+            "text": "              ) : profitPieChartData.length === 0 ? ("
+          },
+          {
+            "lineNumber": 669,
+            "text": "                \u003cp className=\"bean-sales-chart-empty\"\u003e흑자(추정) 품목이 없습니다.\u003c/p\u003e"
+          },
+          {
+            "lineNumber": 670,
+            "text": "              ) : ("
+          },
+          {
+            "lineNumber": 671,
+            "text": "                \u003c\u003e"
+          },
+          {
+            "lineNumber": 672,
+            "text": "                  \u003cResponsiveContainer width=\"100%\" height={300}\u003e"
+          },
+          {
+            "lineNumber": 673,
+            "text": "                    \u003cPieChart\u003e"
+          },
+          {
+            "lineNumber": 674,
+            "text": "                      \u003cPie"
+          },
+          {
+            "lineNumber": 675,
+            "text": "                        data={profitPieChartData}"
+          },
+          {
+            "lineNumber": 676,
+            "text": "                        dataKey=\"estimatedProfitAmount\""
+          },
+          {
+            "lineNumber": 677,
+            "text": "                        nameKey=\"beanName\""
+          },
+          {
+            "lineNumber": 678,
+            "text": "                        cx=\"50%\""
+          },
+          {
+            "lineNumber": 679,
+            "text": "                        cy=\"50%\""
+          },
+          {
+            "lineNumber": 680,
+            "text": "                        innerRadius={58}"
+          },
+          {
+            "lineNumber": 681,
+            "text": "                        outerRadius={94}"
+          },
+          {
+            "lineNumber": 682,
+            "text": "                        paddingAngle={2}"
+          },
+          {
+            "lineNumber": 683,
+            "text": "                        label={false}"
+          },
+          {
+            "lineNumber": 684,
+            "text": "                      \u003e"
+          },
+          {
+            "lineNumber": 685,
+            "text": "                        {profitPieChartData.map((entry, index) =\u003e ("
+          },
+          {
+            "lineNumber": 686,
+            "text": "                          \u003cCell key={&#96;profit-pie-${index}&#96;} fill={entry.fill} /\u003e"
+          },
+          {
+            "lineNumber": 687,
+            "text": "                        ))}"
+          },
+          {
+            "lineNumber": 688,
+            "text": "                      \u003c/Pie\u003e"
+          },
+          {
+            "lineNumber": 689,
+            "text": "                      \u003cTooltip"
+          },
+          {
+            "lineNumber": 690,
+            "text": "                        formatter={(value) =\u003e &#96;${formatCurrency(Number(value))}원&#96;}"
+          },
+          {
+            "lineNumber": 691,
+            "text": "                        labelFormatter={(_, payload) =\u003e payload?.[0]?.payload?.beanName ?? ''}"
+          },
+          {
+            "lineNumber": 692,
+            "text": "                        contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}"
+          },
+          {
+            "lineNumber": 693,
+            "text": "                      /\u003e"
+          },
+          {
+            "lineNumber": 694,
+            "text": "                    \u003c/PieChart\u003e"
+          },
+          {
+            "lineNumber": 695,
+            "text": "                  \u003c/ResponsiveContainer\u003e"
+          },
+          {
+            "lineNumber": 696,
+            "text": "                  \u003cdiv className=\"bean-sales-pie-legend\" aria-label=\"원두별 이익(추정) 비율 범례\"\u003e"
+          },
+          {
+            "lineNumber": 697,
+            "text": "                    {profitPieChartData.map"
+          },
+          {
+            "lineNumber": 708
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1324,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1323
+          },
+          "startPosition": {
+            "line": 97
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 99
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 98
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.5025391578674316
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 98,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 593
+          },
+          {
+            "lineNumber": 594,
+            "text": "        ) : null}"
+          },
+          {
+            "lineNumber": 595,
+            "text": "      \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 596
+          },
+          {
+            "lineNumber": 597,
+            "text": "      {viewMode === 'revenue' \u0026\u0026 ("
+          },
+          {
+            "lineNumber": 598,
+            "text": "        \u003cdiv className=\"analysis-section\"\u003e"
+          },
+          {
+            "lineNumber": 599,
+            "text": "          \u003cdiv className=\"chart-grid\"\u003e"
+          },
+          {
+            "lineNumber": 600,
+            "text": "            \u003cdiv className=\"chart-container\"\u003e"
+          },
+          {
+            "lineNumber": 601,
+            "text": "              \u003ch3\u003e원두별 매출 비율\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 602,
+            "text": "              \u003cResponsiveContainer width=\"100%\" height={300}\u003e"
+          },
+          {
+            "lineNumber": 603,
+            "text": "                \u003cPieChart\u003e"
+          },
+          {
+            "lineNumber": 604,
+            "text": "                  \u003cPie"
+          },
+          {
+            "lineNumber": 605,
+            "text": "                    data={revenueChartData}"
+          },
+          {
+            "lineNumber": 606,
+            "text": "                    dataKey=\"totalRevenue\""
+          },
+          {
+            "lineNumber": 607,
+            "text": "                    nameKey=\"beanName\""
+          },
+          {
+            "lineNumber": 608,
+            "text": "                    cx=\"50%\""
+          },
+          {
+            "lineNumber": 609,
+            "text": "                    cy=\"50%\""
+          },
+          {
+            "lineNumber": 610,
+            "text": "                    innerRadius={58}"
+          },
+          {
+            "lineNumber": 611,
+            "text": "                    outerRadius={94}"
+          },
+          {
+            "lineNumber": 612,
+            "text": "                    paddingAngle={2}"
+          },
+          {
+            "lineNumber": 613,
+            "text": "                    label={false}"
+          },
+          {
+            "lineNumber": 614,
+            "text": "                  \u003e"
+          },
+          {
+            "lineNumber": 615,
+            "text": "                    {revenueChartData.map((entry, index) =\u003e ("
+          },
+          {
+            "lineNumber": 616,
+            "text": "                      \u003cCell key={&#96;cell-${index}&#96;} fill={entry.fill} /\u003e"
+          },
+          {
+            "lineNumber": 617,
+            "text": "                    ))}"
+          },
+          {
+            "lineNumber": 618,
+            "text": "                  \u003c/Pie\u003e"
+          },
+          {
+            "lineNumber": 619,
+            "text": "                  \u003cTooltip"
+          },
+          {
+            "lineNumber": 620,
+            "text": "                    formatter={(value) =\u003e &#96;${formatCurrency(Number(value))}원&#96;}"
+          },
+          {
+            "lineNumber": 621,
+            "text": "                    labelFormatter={(_, payload) =\u003e payload?.[0]?.payload?.beanName ?? ''}"
+          },
+          {
+            "lineNumber": 622,
+            "text": "                    contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}"
+          },
+          {
+            "lineNumber": 623,
+            "text": "                  /\u003e"
+          },
+          {
+            "lineNumber": 624,
+            "text": "                \u003c/PieChart\u003e"
+          },
+          {
+            "lineNumber": 625,
+            "text": "              \u003c/ResponsiveContainer\u003e"
+          },
+          {
+            "lineNumber": 626,
+            "text": "              \u003cdiv className=\"bean-sales-pie-legend\" aria-label=\"원두별 매출 비율 범례\"\u003e"
+          },
+          {
+            "lineNumber": 627,
+            "text": "                {revenueChartData.map((data) =\u003e ("
+          },
+          {
+            "lineNumber": 628,
+            "text": "                  \u003cdiv key={data.beanName} className=\"bean-sales-pie-legend__item\" title={data.beanName}\u003e"
+          },
+          {
+            "lineNumber": 629,
+            "text": "                    \u003cspan className=\"bean-sales-pie-legend__dot\" style={{ background: data.fill }} /\u003e"
+          },
+          {
+            "lineNumber": 630,
+            "text": "                    \u003cspan className=\"bean-sales-pie-legend__name\"\u003e{shortenBeanName(data.beanName, 16)}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 631,
+            "text": "                    \u003cspan className=\"bean-sales-pie-legend__value\"\u003e"
+          },
+          {
+            "lineNumber": 632,
+            "text": "                      {totalRevenue \u003e 0 ? ((data.totalRevenue / totalRevenue) * 100).toFixed(1) : '0.0'}%"
+          },
+          {
+            "lineNumber": 633,
+            "text": "                    \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 634,
+            "text": "                  \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 635,
+            "text": "                ))}"
+          },
+          {
+            "lineNumber": 636,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 637,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 638
+          },
+          {
+            "lineNumber": 639,
+            "text": "            \u003cdiv className=\"chart-container\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1324,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1323
+          },
+          "startPosition": {
+            "line": 97
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 99
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 98
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4773308038711548
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 98,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 710
+          },
+          {
+            "lineNumber": 711,
+            "text": "              )}"
+          },
+          {
+            "lineNumber": 712,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 713
+          },
+          {
+            "lineNumber": 714,
+            "text": "            \u003cdiv className=\"chart-container\"\u003e"
+          },
+          {
+            "lineNumber": 715,
+            "text": "              \u003ch3\u003e원두별 이익 금액\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 716,
+            "text": "              {rowsWithKnownProfit.length === 0 ? ("
+          },
+          {
+            "lineNumber": 717,
+            "text": "                \u003cp className=\"bean-sales-chart-empty\"\u003e생두 주문이 있으면 품목별 이익(추정)을 계산합니다.\u003c/p\u003e"
+          },
+          {
+            "lineNumber": 718,
+            "text": "              ) : ("
+          },
+          {
+            "lineNumber": 719,
+            "text": "                \u003cResponsiveContainer width=\"100%\" height={300}\u003e"
+          },
+          {
+            "lineNumber": 720,
+            "text": "                  \u003cBarChart"
+          },
+          {
+            "lineNumber": 721,
+            "text": "                    data={profitBarChartData}"
+          },
+          {
+            "lineNumber": 722,
+            "text": "                    layout=\"vertical\""
+          },
+          {
+            "lineNumber": 723,
+            "text": "                    margin={{ top: 4, right: 8, bottom: 4, left: 8 }}"
+          },
+          {
+            "lineNumber": 724,
+            "text": "                  \u003e"
+          },
+          {
+            "lineNumber": 725,
+            "text": "                    \u003cCartesianGrid strokeDasharray=\"2 4\" horizontal={false} /\u003e"
+          },
+          {
+            "lineNumber": 726,
+            "text": "                    \u003cXAxis"
+          },
+          {
+            "lineNumber": 727,
+            "text": "                      type=\"number\""
+          },
+          {
+            "lineNumber": 728,
+            "text": "                      tickFormatter={(value) =\u003e &#96;${Math.round(value / 10000)}만&#96;}"
+          },
+          {
+            "lineNumber": 729,
+            "text": "                      tick={{ fontSize: 12 }}"
+          },
+          {
+            "lineNumber": 730,
+            "text": "                    /\u003e"
+          },
+          {
+            "lineNumber": 731,
+            "text": "                    \u003cYAxis"
+          },
+          {
+            "lineNumber": 732,
+            "text": "                      type=\"category\""
+          },
+          {
+            "lineNumber": 733,
+            "text": "                      dataKey=\"beanName\""
+          },
+          {
+            "lineNumber": 734,
+            "text": "                      width={116}"
+          },
+          {
+            "lineNumber": 735,
+            "text": "                      tick={{ fontSize: 12 }}"
+          },
+          {
+            "lineNumber": 736,
+            "text": "                      tickFormatter={(value) =\u003e shortenBeanName(String(value), 10)}"
+          },
+          {
+            "lineNumber": 737,
+            "text": "                    /\u003e"
+          },
+          {
+            "lineNumber": 738,
+            "text": "                    \u003cTooltip"
+          },
+          {
+            "lineNumber": 739,
+            "text": "                      formatter={(value) =\u003e {"
+          },
+          {
+            "lineNumber": 740,
+            "text": "                        const n = Number(value)"
+          },
+          {
+            "lineNumber": 741,
+            "text": "                        return &#96;${n \u003e= 0 ? '' : '−'}${formatCurrency(Math.abs(n))}원&#96;"
+          },
+          {
+            "lineNumber": 742,
+            "text": "                      }}"
+          },
+          {
+            "lineNumber": 743,
+            "text": "                      labelFormatter={(label) =\u003e String(label)}"
+          },
+          {
+            "lineNumber": 744,
+            "text": "                      contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}"
+          },
+          {
+            "lineNumber": 745,
+            "text": "                    /\u003e"
+          },
+          {
+            "lineNumber": 746,
+            "text": "                    \u003cBar dataKey=\"estimatedProfitAmount\" fill=\"#1b5e20\" radius={[0, 2, 2, 0]} /\u003e"
+          },
+          {
+            "lineNumber": 747,
+            "text": "                  \u003c/BarChart\u003e"
+          },
+          {
+            "lineNumber": 748,
+            "text": "                \u003c/ResponsiveContainer\u003e"
+          },
+          {
+            "lineNumber": 749,
+            "text": "              )}"
+          },
+          {
+            "lineNumber": 750,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 751,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 752
+          },
+          {
+            "lineNumber": 753,
+            "text": "          \u003cdiv className=\"revenue-summary-table revenue-summary-table--no-hscroll\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1324,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1323
+          },
+          "startPosition": {
+            "line": 97
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 99
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 98
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3949047327041626
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 98,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 636
+          },
+          {
+            "lineNumber": 637,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 638
+          },
+          {
+            "lineNumber": 639,
+            "text": "            \u003cdiv className=\"chart-container\"\u003e"
+          },
+          {
+            "lineNumber": 640,
+            "text": "              \u003ch3\u003e원두별 매출 금액\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 641,
+            "text": "              \u003cResponsiveContainer width=\"100%\" height={300}\u003e"
+          },
+          {
+            "lineNumber": 642,
+            "text": "                \u003cBarChart data={revenueChartData} layout=\"vertical\" margin={{ top: 4, right: 8, bottom: 4, left: 8 }}\u003e"
+          },
+          {
+            "lineNumber": 643,
+            "text": "                  \u003cCartesianGrid strokeDasharray=\"2 4\" horizontal={false} /\u003e"
+          },
+          {
+            "lineNumber": 644,
+            "text": "                  \u003cXAxis type=\"number\" tickFormatter={(value) =\u003e &#96;${Math.round(value / 10000)}만&#96;} tick={{ fontSize: 12 }} /\u003e"
+          },
+          {
+            "lineNumber": 645,
+            "text": "                  \u003cYAxis"
+          },
+          {
+            "lineNumber": 646,
+            "text": "                    type=\"category\""
+          },
+          {
+            "lineNumber": 647,
+            "text": "                    dataKey=\"beanName\""
+          },
+          {
+            "lineNumber": 648,
+            "text": "                    width={116}"
+          },
+          {
+            "lineNumber": 649,
+            "text": "                    tick={{ fontSize: 12 }}"
+          },
+          {
+            "lineNumber": 650,
+            "text": "                    tickFormatter={(value) =\u003e shortenBeanName(String(value), 10)}"
+          },
+          {
+            "lineNumber": 651,
+            "text": "                  /\u003e"
+          },
+          {
+            "lineNumber": 652,
+            "text": "                  \u003cTooltip"
+          },
+          {
+            "lineNumber": 653,
+            "text": "                    formatter={(value) =\u003e &#96;${formatCurrency(Number(value))}원&#96;}"
+          },
+          {
+            "lineNumber": 654,
+            "text": "                    labelFormatter={(label) =\u003e String(label)}"
+          },
+          {
+            "lineNumber": 655,
+            "text": "                    contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}"
+          },
+          {
+            "lineNumber": 656,
+            "text": "                  /\u003e"
+          },
+          {
+            "lineNumber": 657,
+            "text": "                  \u003cBar dataKey=\"totalRevenue\" fill=\"#8884d8\" /\u003e"
+          },
+          {
+            "lineNumber": 658,
+            "text": "                \u003c/BarChart\u003e"
+          },
+          {
+            "lineNumber": 659,
+            "text": "              \u003c/ResponsiveContainer\u003e"
+          },
+          {
+            "lineNumber": 660,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 661,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 662
+          },
+          {
+            "lineNumber": 663,
+            "text": "          \u003cdiv className=\"chart-grid bean-sales-chart-grid--profit\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1324,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1323
+          },
+          "startPosition": {
+            "line": 97
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 99
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 98
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.35275349020957947
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 98,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 695
+          },
+          {
+            "lineNumber": 696,
+            "text": "                  \u003cdiv className=\"bean-sales-pie-legend\" aria-label=\"원두별 이익(추정) 비율 범례\"\u003e"
+          },
+          {
+            "lineNumber": 697,
+            "text": "                    {profitPieChartData.map((data) =\u003e ("
+          },
+          {
+            "lineNumber": 698,
+            "text": "                      \u003cdiv key={data.beanName} className=\"bean-sales-pie-legend__item\" title={data.beanName}\u003e"
+          },
+          {
+            "lineNumber": 699,
+            "text": "                        \u003cspan className=\"bean-sales-pie-legend__dot\" style={{ background: data.fill }} /\u003e"
+          },
+          {
+            "lineNumber": 700,
+            "text": "                        \u003cspan className=\"bean-sales-pie-legend__name\"\u003e{shortenBeanName(data.beanName, 16)}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 701,
+            "text": "                        \u003cspan className=\"bean-sales-pie-legend__value\"\u003e"
+          },
+          {
+            "lineNumber": 702,
+            "text": "                          {totalPositiveProfit \u003e 0"
+          },
+          {
+            "lineNumber": 703,
+            "text": "                            ? ((data.estimatedProfitAmount ?? 0) / totalPositiveProfit * 100).toFixed(1)"
+          },
+          {
+            "lineNumber": 704,
+            "text": "                            : '0.0'}"
+          },
+          {
+            "lineNumber": 705,
+            "text": "                          %"
+          },
+          {
+            "lineNumber": 706,
+            "text": "                        \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 707,
+            "text": "                      \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 708,
+            "text": "                    ))}"
+          },
+          {
+            "lineNumber": 709,
+            "text": "                  \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 710,
+            "text": "                \u003c/\u003e"
+          },
+          {
+            "lineNumber": 711,
+            "text": "              )}"
+          },
+          {
+            "lineNumber": 712,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 713
+          },
+          {
+            "lineNumber": 714,
+            "text": "            \u003cdiv className=\"chart-container\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1324,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1323
+          },
+          "startPosition": {
+            "line": 97
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 99
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 98
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3522551953792572
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1460,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3632,
+            "text": "(_, index) =\u003e {"
+          },
+          {
+            "lineNumber": 3639
+          },
+          {
+            "lineNumber": 3640,
+            "text": "                                          cx=\"32%\""
+          },
+          {
+            "lineNumber": 3641,
+            "text": "                                          cy=\"28%\""
+          },
+          {
+            "lineNumber": 3642,
+            "text": "                                          r=\"92%\""
+          },
+          {
+            "lineNumber": 3643,
+            "text": "                                          fx=\"28%\""
+          },
+          {
+            "lineNumber": 3644,
+            "text": "                                          fy=\"22%\""
+          },
+          {
+            "lineNumber": 3645,
+            "text": "                                        \u003e"
+          },
+          {
+            "lineNumber": 3646,
+            "text": "                                          \u003cstop offset=\"0%\" stopColor={hi} /\u003e"
+          },
+          {
+            "lineNumber": 3647,
+            "text": "                                          \u003cstop offset=\"45%\" stopColor={base} /\u003e"
+          },
+          {
+            "lineNumber": 3648,
+            "text": "                                          \u003cstop offset=\"100%\" stopColor={lo} /\u003e"
+          },
+          {
+            "lineNumber": 3649,
+            "text": "                                        \u003c/radialGradient\u003e"
+          },
+          {
+            "lineNumber": 3650,
+            "text": "                                      )"
+          },
+          {
+            "lineNumber": 3651,
+            "text": "                                    })}"
+          },
+          {
+            "lineNumber": 3652,
+            "text": "                                  \u003c/defs\u003e"
+          },
+          {
+            "lineNumber": 3653,
+            "text": "                                  \u003cPie"
+          },
+          {
+            "lineNumber": 3654,
+            "text": "                                    data={activeMonthBeanOutboundSharePie}"
+          },
+          {
+            "lineNumber": 3655,
+            "text": "                                    dataKey=\"value\""
+          },
+          {
+            "lineNumber": 3656,
+            "text": "                                    nameKey=\"name\""
+          },
+          {
+            "lineNumber": 3657,
+            "text": "                                    cx=\"50%\""
+          },
+          {
+            "lineNumber": 3658,
+            "text": "                                    cy=\"50%\""
+          },
+          {
+            "lineNumber": 3659,
+            "text": "                                    innerRadius=\"38%\""
+          },
+          {
+            "lineNumber": 3660,
+            "text": "                                    outerRadius=\"72%\""
+          },
+          {
+            "lineNumber": 3661,
+            "text": "                                    paddingAngle={0.4}"
+          },
+          {
+            "lineNumber": 3662,
+            "text": "                                    cornerRadius={3}"
+          },
+          {
+            "lineNumber": 3663,
+            "text": "                                    stroke=\"#f4f2f0\""
+          },
+          {
+            "lineNumber": 3664,
+            "text": "                                    strokeWidth={2}"
+          },
+          {
+            "lineNumber": 3665,
+            "text": "                                    isAnimationActive={false}"
+          },
+          {
+            "lineNumber": 3666,
+            "text": "                                    style="
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 3904,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 3903
+          },
+          "startPosition": {
+            "line": 1459
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1453
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1452
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3386712074279785
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1337,
+            "text": "export default function GreenBeanOrderPage() {"
+          },
+          {
+            "lineNumber": 3288,
+            "text": "(card) =\u003e ("
+          },
+          {
+            "lineNumber": 3322
+          },
+          {
+            "lineNumber": 3323,
+            "text": "                        tickFormatter={(v) =\u003e"
+          },
+          {
+            "lineNumber": 3324,
+            "text": "                          card.id === 'qty' ? currencyFormatter.format(Number(v ?? 0)) : formatAxisMoney(Number(v))"
+          },
+          {
+            "lineNumber": 3325,
+            "text": "                        }"
+          },
+          {
+            "lineNumber": 3326,
+            "text": "                        width={56}"
+          },
+          {
+            "lineNumber": 3327,
+            "text": "                        tick={{ fontSize: 10 }}"
+          },
+          {
+            "lineNumber": 3328,
+            "text": "                      /\u003e"
+          },
+          {
+            "lineNumber": 3329,
+            "text": "                      \u003cTooltip"
+          },
+          {
+            "lineNumber": 3330,
+            "text": "                        contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0' }}"
+          },
+          {
+            "lineNumber": 3331,
+            "text": "                        formatter={(value) =\u003e {"
+          },
+          {
+            "lineNumber": 3332,
+            "text": "                          const v = Number(value ?? 0)"
+          },
+          {
+            "lineNumber": 3333,
+            "text": "                          return [card.id === 'qty' ? &#96;${currencyFormatter.format(v)} kg&#96; : formatMoney(v), card.title]"
+          },
+          {
+            "lineNumber": 3334,
+            "text": "                        }}"
+          },
+          {
+            "lineNumber": 3335,
+            "text": "                        labelFormatter={(label) =\u003e &#96;${label}&#96;}"
+          },
+          {
+            "lineNumber": 3336,
+            "text": "                      /\u003e"
+          },
+          {
+            "lineNumber": 3337,
+            "text": "                      \u003cArea"
+          },
+          {
+            "lineNumber": 3338,
+            "text": "                        type=\"monotone\""
+          },
+          {
+            "lineNumber": 3339,
+            "text": "                        dataKey={card.lineKey}"
+          },
+          {
+            "lineNumber": 3340,
+            "text": "                        stroke={card.areaColor}"
+          },
+          {
+            "lineNumber": 3341,
+            "text": "                        strokeWidth={2.5}"
+          },
+          {
+            "lineNumber": 3342,
+            "text": "                        fill={&#96;url(#green-bean-${card.id}-fill)&#96;}"
+          },
+          {
+            "lineNumber": 3343,
+            "text": "                        fillOpacity={1}"
+          },
+          {
+            "lineNumber": 3344,
+            "text": "                        dot={{ r: 3, strokeWidth: 1.5, fill: '#fff' }}"
+          },
+          {
+            "lineNumber": 3345,
+            "text": "                        activeDot={{ r: 5 }}"
+          },
+          {
+            "lineNumber": 3351,
+            "text": "            )"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 3557,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 3556
+          },
+          "startPosition": {
+            "line": 1336
+          }
+        },
+        "relativeWorkspacePath": "./app/src/GreenBeanOrderPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1328
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1328
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1329
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1328
+              }
+            },
+            {
+              "endPosition": {
+                "column": 14,
+                "line": 3274
+              },
+              "startPosition": {
+                "column": 14,
+                "line": 3274
+              }
+            },
+            {
+              "endPosition": {
+                "column": 15,
+                "line": 3275
+              },
+              "startPosition": {
+                "column": 39,
+                "line": 3274
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.32650959491729736
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1460,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3594,
+            "text": " activeMonthBeanOutboundPieTotal \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 3595,
+            "text": "                          \u003cdiv"
+          },
+          {
+            "lineNumber": 3596,
+            "text": "                            className=\"meeting-outbound-share-donut-frame\""
+          },
+          {
+            "lineNumber": 3597,
+            "text": "                            onMouseLeave={(e) =\u003e {"
+          },
+          {
+            "lineNumber": 3598,
+            "text": "                              const next = e.relatedTarget as HTMLElement | null"
+          },
+          {
+            "lineNumber": 3599,
+            "text": "                              if (next?.closest?.('.recharts-tooltip-wrapper')) {"
+          },
+          {
+            "lineNumber": 3600,
+            "text": "                                return"
+          },
+          {
+            "lineNumber": 3601,
+            "text": "                              }"
+          },
+          {
+            "lineNumber": 3602,
+            "text": "                              if (next \u0026\u0026 e.currentTarget.contains(next)) {"
+          },
+          {
+            "lineNumber": 3603,
+            "text": "                                return"
+          },
+          {
+            "lineNumber": 3604,
+            "text": "                              }"
+          },
+          {
+            "lineNumber": 3605,
+            "text": "                              setOutboundPieHoveredSliceIndex(null)"
+          },
+          {
+            "lineNumber": 3606,
+            "text": "                            }}"
+          },
+          {
+            "lineNumber": 3607,
+            "text": "                          \u003e"
+          },
+          {
+            "lineNumber": 3608,
+            "text": "                            \u003cdiv className=\"meeting-outbound-share-chart-area\"\u003e"
+          },
+          {
+            "lineNumber": 3609,
+            "text": "                              \u003cResponsiveContainer width=\"100%\" height=\"100%\"\u003e"
+          },
+          {
+            "lineNumber": 3610,
+            "text": "                                \u003cPieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}\u003e"
+          },
+          {
+            "lineNumber": 3611,
+            "text": "                                  \u003cdefs\u003e"
+          },
+          {
+            "lineNumber": 3612,
+            "text": "                                    \u003cfilter"
+          },
+          {
+            "lineNumber": 3613,
+            "text": "                                      id={outboundPieFilterId}"
+          },
+          {
+            "lineNumber": 3614,
+            "text": "                                      x=\"-45%\""
+          },
+          {
+            "lineNumber": 3615,
+            "text": "                                      y=\"-45%\""
+          },
+          {
+            "lineNumber": 3616,
+            "text": "                                      width=\"190%\""
+          },
+          {
+            "lineNumber": 3617,
+            "text": "                                      height=\"190%\""
+          },
+          {
+            "lineNumber": 3618,
+            "text": "                                    \u003e"
+          },
+          {
+            "lineNumber": 3619,
+            "text": "                                      \u003cfeDropShadow"
+          },
+          {
+            "lineNumber": 3620,
+            "text": "                                        dx=\"0\""
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 3904,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 3903
+          },
+          "startPosition": {
+            "line": 1459
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1453
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1452
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.32411670684814453
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1460,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3569
+          },
+          {
+            "lineNumber": 3570,
+            "text": "                        aria-controls=\"meeting-outbound-share-panel\""
+          },
+          {
+            "lineNumber": 3571,
+            "text": "                        aria-label={"
+          },
+          {
+            "lineNumber": 3572,
+            "text": "                          outboundShareChartOpen"
+          },
+          {
+            "lineNumber": 3573,
+            "text": "                            ? &#96;${activeMonth} 생두별 출고 비율 그래프 접기&#96;"
+          },
+          {
+            "lineNumber": 3574,
+            "text": "                            : &#96;${activeMonth} 생두별 출고 비율 그래프 펼치기&#96;"
+          },
+          {
+            "lineNumber": 3575,
+            "text": "                        }"
+          },
+          {
+            "lineNumber": 3576,
+            "text": "                      \u003e"
+          },
+          {
+            "lineNumber": 3577,
+            "text": "                        {outboundShareChartOpen ? '−' : '+'}"
+          },
+          {
+            "lineNumber": 3578,
+            "text": "                      \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 3579,
+            "text": "                      \u003cspan className=\"meeting-mini-chart-caption meeting-outbound-share-toggle-label\" id=\"meeting-outbound-share-heading\"\u003e"
+          },
+          {
+            "lineNumber": 3580,
+            "text": "                        {activeMonth} 생두별 출고 비율"
+          },
+          {
+            "lineNumber": 3581,
+            "text": "                      \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3582,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3583
+          },
+          {
+            "lineNumber": 3584,
+            "text": "                    {outboundShareChartOpen ? ("
+          },
+          {
+            "lineNumber": 3585,
+            "text": "                      \u003cdiv"
+          },
+          {
+            "lineNumber": 3586,
+            "text": "                        className=\"meeting-outbound-share-panel\""
+          },
+          {
+            "lineNumber": 3587,
+            "text": "                        id=\"meeting-outbound-share-panel\""
+          },
+          {
+            "lineNumber": 3588,
+            "text": "                        role=\"img\""
+          },
+          {
+            "lineNumber": 3589,
+            "text": "                        aria-labelledby=\"meeting-outbound-share-heading\""
+          },
+          {
+            "lineNumber": 3590,
+            "text": "                      \u003e"
+          },
+          {
+            "lineNumber": 3591,
+            "text": "                        \u003cp className=\"muted tiny meeting-outbound-share-sub\"\u003e"
+          },
+          {
+            "lineNumber": 3592,
+            "text": "                          표의 생두 열 합을 100%로 둔 비율입니다."
+          },
+          {
+            "lineNumber": 3593,
+            "text": "                        \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 3594,
+            "text": "                        {activeMonthBeanOutboundSharePie.length \u003e 0 \u0026\u0026 activeMonthBeanOutboundPieTotal \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 3595,
+            "text": "                          \u003cdiv"
+          },
+          {
+            "lineNumber": 3596,
+            "text": "                            className=\"meeting-outbound-share-donut-frame\""
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 3904,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 3903
+          },
+          "startPosition": {
+            "line": 1459
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1453
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1452
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3136812448501587
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1460,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3679,
+            "text": "({ active: tipActive, payload }) =\u003e {"
+          },
+          {
+            "lineNumber": 3694
+          },
+          {
+            "lineNumber": 3695,
+            "text": "                                              {pct.toFixed(1)}%"
+          },
+          {
+            "lineNumber": 3696,
+            "text": "                                            \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3697,
+            "text": "                                            \u003cspan className=\"meeting-outbound-share-tooltip-kg\"\u003e"
+          },
+          {
+            "lineNumber": 3698,
+            "text": "                                              {meetingAmountDisplayFormatter.format(value)} kg"
+          },
+          {
+            "lineNumber": 3699,
+            "text": "                                            \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3700,
+            "text": "                                          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3701,
+            "text": "                                        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3702,
+            "text": "                                      )"
+          },
+          {
+            "lineNumber": 3703,
+            "text": "                                    }}"
+          },
+          {
+            "lineNumber": 3704,
+            "text": "                                  /\u003e"
+          },
+          {
+            "lineNumber": 3705,
+            "text": "                                \u003c/PieChart\u003e"
+          },
+          {
+            "lineNumber": 3706,
+            "text": "                              \u003c/ResponsiveContainer\u003e"
+          },
+          {
+            "lineNumber": 3707,
+            "text": "                            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3708,
+            "text": "                            \u003cul className=\"meeting-outbound-donut-legend\"\u003e"
+          },
+          {
+            "lineNumber": 3709,
+            "text": "                              {outboundDonutLegendRows.map((row) =\u003e {"
+          },
+          {
+            "lineNumber": 3710,
+            "text": "                                const isHovered = outboundPieHoveredSliceIndex === row.sliceIndex"
+          },
+          {
+            "lineNumber": 3711,
+            "text": "                                return ("
+          },
+          {
+            "lineNumber": 3712,
+            "text": "                                  \u003cli"
+          },
+          {
+            "lineNumber": 3713,
+            "text": "                                    key={&#96;${row.name}-${row.sliceIndex}&#96;}"
+          },
+          {
+            "lineNumber": 3714,
+            "text": "                                    className={&#96;meeting-outbound-donut-legend-item${isHovered ? ' is-pie-hovered' : ''}&#96;}"
+          },
+          {
+            "lineNumber": 3715,
+            "text": "                                    onMouseEnter={() =\u003e setOutboundPieHoveredSliceIndex(row.sliceIndex)}"
+          },
+          {
+            "lineNumber": 3716,
+            "text": "                                  \u003e"
+          },
+          {
+            "lineNumber": 3717,
+            "text": "                                    \u003cspan"
+          },
+          {
+            "lineNumber": 3718,
+            "text": "                                      className=\"meeting-outbound-donut-legend-swatch\""
+          },
+          {
+            "lineNumber": 3719,
+            "text": "                                      style={{ backgroundColor: row.fill }}"
+          },
+          {
+            "lineNumber": 3720,
+            "text": "                                      aria-hidden"
+          },
+          {
+            "lineNumber": 3721,
+            "text": "                                    /\u003e"
+          },
+          {
+            "lineNumber": 3722,
+            "text": "                                    \u003cspan className=\"meeting-outbound-donut-legend-name\"\u003e{row.name}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3723,
+            "text": "                                    \u003cspan className=\"meeting-outbound-donut-legend-pct\"\u003e"
+          },
+          {
+            "lineNumber": 3724,
+            "text": "                                      {row.pct.toFixed(1)}%"
+          },
+          {
+            "lineNumber": 3725,
+            "text": "                                    \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3726,
+            "text": "                                    \u003cspan className=\"meeting-outbound-donut-legend-kg\"\u003e"
+          },
+          {
+            "lineNumber": 3727,
+            "text": "                                      {meetingAmountDisplayFormatter.format(row.value)} kg"
+          },
+          {
+            "lineNumber": 3728,
+            "text": "                                    \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3729,
+            "text": "                                  \u003c/li\u003e"
+          },
+          {
+            "lineNumber": 3730,
+            "text": "                                )"
+          },
+          {
+            "lineNumber": 3731,
+            "text": "                              })}"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 3904,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 3903
+          },
+          "startPosition": {
+            "line": 1459
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1453
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1452
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.31150949001312256
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1460,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 2155,
+            "text": "const activeMonthBeanOutboundSharePie = () =\u003e {"
+          },
+          {
+            "lineNumber": 2161,
+            "text": "for (let i = aggIdx + 1; i \u003c data.productionColumns.length; i++) {"
+          },
+          {
+            "lineNumber": 2167
+          },
+          {
+            "lineNumber": 2168,
+            "text": "      if (v \u003e 0) {"
+          },
+          {
+            "lineNumber": 2169,
+            "text": "        items.push({ name: label, value: v })"
+          },
+          {
+            "lineNumber": 2170,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2171,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2172,
+            "text": "    return items"
+          },
+          {
+            "lineNumber": 2173,
+            "text": "  }, ["
+          },
+          {
+            "lineNumber": 2174,
+            "text": "    activeMonthState.productionRow.values,"
+          },
+          {
+            "lineNumber": 2175,
+            "text": "    data.productionColumns,"
+          },
+          {
+            "lineNumber": 2176,
+            "text": "    outboundAggregateColumnIndex,"
+          },
+          {
+            "lineNumber": 2177,
+            "text": "  ])"
+          },
+          {
+            "lineNumber": 2178
+          },
+          {
+            "lineNumber": 2179,
+            "text": "  const activeMonthBeanOutboundPieTotal = useMemo("
+          },
+          {
+            "lineNumber": 2180,
+            "text": "    () =\u003e activeMonthBeanOutboundSharePie.reduce((sum, row) =\u003e sum + row.value, 0),"
+          },
+          {
+            "lineNumber": 2181,
+            "text": "    [activeMonthBeanOutboundSharePie],"
+          },
+          {
+            "lineNumber": 2182,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2183
+          },
+          {
+            "lineNumber": 2184,
+            "text": "  /** 범례: 퍼센트 높은 순 — sliceIndex로 도넛 조각·색과 대응 */"
+          },
+          {
+            "lineNumber": 2185,
+            "text": "  const outboundDonutLegendRows = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2186,
+            "text": "    const total = activeMonthBeanOutboundPieTotal"
+          },
+          {
+            "lineNumber": 2187,
+            "text": "    if (total \u003c= 0 || activeMonthBeanOutboundSharePie.length === 0) {"
+          },
+          {
+            "lineNumber": 2188,
+            "text": "      return [] as Array\u003c{"
+          },
+          {
+            "lineNumber": 2189,
+            "text": "        name: string"
+          },
+          {
+            "lineNumber": 2190,
+            "text": "        value: number"
+          },
+          {
+            "lineNumber": 2191,
+            "text": "        sliceIndex: number"
+          },
+          {
+            "lineNumber": 2192,
+            "text": "        pct: number"
+          },
+          {
+            "lineNumber": 2193,
+            "text": "        fill: string"
+          },
+          {
+            "lineNumber": 2194,
+            "text": "      }\u003e"
+          },
+          {
+            "lineNumber": 2195,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2196,
+            "text": "    return activeMonthBeanOutboundSharePie"
+          },
+          {
+            "lineNumber": 2197,
+            "text": "      .map((row, sliceIndex) =\u003e ({"
+          },
+          {
+            "lineNumber": 2198,
+            "text": "        name: row.name,"
+          },
+          {
+            "lineNumber": 2199,
+            "text": "        value: row.value,"
+          },
+          {
+            "lineNumber": 2200,
+            "text": "        sliceIndex,"
+          },
+          {
+            "lineNumber": 2201,
+            "text": "        pct: (row.value / total) * 100,"
+          },
+          {
+            "lineNumber": 2202,
+            "text": "        fill: OUTBOUND_SHARE_PIE_COLORS[sliceIndex % OUTBOUND_SHARE_PIE_COLORS.length],"
+          },
+          {
+            "lineNumber": 2203,
+            "text": "      }))"
+          },
+          {
+            "lineNumber": 2204,
+            "text": "      .sort((a, b) =\u003e b.pct - a.pct || b.value - a.value)"
+          },
+          {
+            "lineNumber": 2205,
+            "text": "  }, [activeMonthBeanOutboundPieTotal, activeMonthBeanOutboundSharePie])"
+          },
+          {
+            "lineNumber": 2206
+          },
+          {
+            "lineNumber": 2207,
+            "text": "  /** 보기 모드에서는 집계 월 매출이 없는(0·미입력) 거래처 행만 숨김. 합계·생두비용·순이익은 유지. */"
+          },
+          {
+            "lineNumber": 2208,
+            "text": "  const roastingSalesDisplayRows = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2209,
+            "text": "    const indexed = computedRoastingSales.map((row, rowIndex) =\u003e ({ row, rowIndex }))"
+          },
+          {
+            "lineNumber": 2220,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 3904,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 3903
+          },
+          "startPosition": {
+            "line": 1459
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1453
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1452
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3095082938671112
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 98,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 751
+          },
+          {
+            "lineNumber": 752
+          },
+          {
+            "lineNumber": 753,
+            "text": "          \u003cdiv className=\"revenue-summary-table revenue-summary-table--no-hscroll\"\u003e"
+          },
+          {
+            "lineNumber": 754,
+            "text": "            \u003ch3\u003e매출 요약\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 755,
+            "text": "            \u003ctable className=\"bean-sales-revenue-table\"\u003e"
+          },
+          {
+            "lineNumber": 756,
+            "text": "              \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 757,
+            "text": "                \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 758,
+            "text": "                  \u003cth\u003e원두명\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 759,
+            "text": "                  \u003cth\u003e매출액\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 760,
+            "text": "                  \u003cth\u003e매출 비율\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 761,
+            "text": "                  \u003cth\u003e수량\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 762,
+            "text": "                  \u003cth\u003e매출 평균단가\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 763,
+            "text": "                  \u003cth\u003e최근 주문\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 764,
+            "text": "                  \u003cth\u003e원가액\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 765,
+            "text": "                  \u003cth\u003e이익\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 766,
+            "text": "                  \u003cth\u003e스프레드\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 767,
+            "text": "                  \u003cth\u003e거래처 수\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 768,
+            "text": "                  \u003cth\u003e거래 건수\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 769,
+            "text": "                  \u003cth\u003e수정\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 770,
+            "text": "                \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 771,
+            "text": "              \u003c/thead\u003e"
+          },
+          {
+            "lineNumber": 772,
+            "text": "              \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 773,
+            "text": "                {beanSalesAnalysis"
+          },
+          {
+            "lineNumber": 774,
+            "text": "                  .filter(data =\u003e data.totalRevenue \u003e 0)"
+          },
+          {
+            "lineNumber": 775,
+            "text": "                  .map(data =\u003e ("
+          },
+          {
+            "lineNumber": 776,
+            "text": "                    \u003ctr key={data.beanName}\u003e"
+          },
+          {
+            "lineNumber": 777,
+            "text": "                      \u003ctd\u003e\u003cstrong\u003e{data.beanName}\u003c/strong\u003e\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 827,
+            "text": "                  )"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1324,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1323
+          },
+          "startPosition": {
+            "line": 97
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 99
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 98
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3072985112667084
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1460,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3664
+          },
+          {
+            "lineNumber": 3665,
+            "text": "                                    isAnimationActive={false}"
+          },
+          {
+            "lineNumber": 3666,
+            "text": "                                    style={{ filter: &#96;url(#${outboundPieFilterId})&#96; }}"
+          },
+          {
+            "lineNumber": 3667,
+            "text": "                                    onMouseEnter={(_entry, index) =\u003e {"
+          },
+          {
+            "lineNumber": 3668,
+            "text": "                                      setOutboundPieHoveredSliceIndex(index)"
+          },
+          {
+            "lineNumber": 3669,
+            "text": "                                    }}"
+          },
+          {
+            "lineNumber": 3670,
+            "text": "                                  \u003e"
+          },
+          {
+            "lineNumber": 3671,
+            "text": "                                    {activeMonthBeanOutboundSharePie.map((_, index) =\u003e ("
+          },
+          {
+            "lineNumber": 3672,
+            "text": "                                      \u003cCell"
+          },
+          {
+            "lineNumber": 3673,
+            "text": "                                        key={&#96;${activeMonth}-pie-${index}&#96;}"
+          },
+          {
+            "lineNumber": 3674,
+            "text": "                                        fill={&#96;url(#${outboundPieGradId(index)})&#96;}"
+          },
+          {
+            "lineNumber": 3675,
+            "text": "                                      /\u003e"
+          },
+          {
+            "lineNumber": 3676,
+            "text": "                                    ))}"
+          },
+          {
+            "lineNumber": 3677,
+            "text": "                                  \u003c/Pie\u003e"
+          },
+          {
+            "lineNumber": 3678,
+            "text": "                                  \u003cTooltip"
+          },
+          {
+            "lineNumber": 3679,
+            "text": "                                    content={({ active: tipActive, payload }) =\u003e {"
+          },
+          {
+            "lineNumber": 3680,
+            "text": "                                      if (!tipActive || !payload?.length) {"
+          },
+          {
+            "lineNumber": 3681,
+            "text": "                                        return null"
+          },
+          {
+            "lineNumber": 3682,
+            "text": "                                      }"
+          },
+          {
+            "lineNumber": 3683,
+            "text": "                                      const row = payload[0]"
+          },
+          {
+            "lineNumber": 3684,
+            "text": "                                      const name = String(row.name ?? '')"
+          },
+          {
+            "lineNumber": 3685,
+            "text": "                                      const value = Number(row.value ?? 0)"
+          },
+          {
+            "lineNumber": 3686,
+            "text": "                                      const pct ="
+          },
+          {
+            "lineNumber": 3687,
+            "text": "                                        activeMonthBeanOutboundPieTotal \u003e 0"
+          },
+          {
+            "lineNumber": 3688,
+            "text": "                                          ? (value / activeMonthBeanOutboundPieTotal) * 100"
+          },
+          {
+            "lineNumber": 3689,
+            "text": "                                          : 0"
+          },
+          {
+            "lineNumber": 3690,
+            "text": "                                      return ("
+          },
+          {
+            "lineNumber": 3691,
+            "text": "                                        \u003cdiv className=\"meeting-chart-tooltip meeting-outbound-share-tooltip\"\u003e"
+          },
+          {
+            "lineNumber": 3692,
+            "text": "                                          \u003cdiv className=\"meeting-outbound-share-tooltip-name\"\u003e{name}\u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3693,
+            "text": "                                          \u003cdiv className=\"meeting-outbound-share-tooltip-meta\"\u003e"
+          },
+          {
+            "lineNumber": 3694,
+            "text": "                                            \u003cspan className=\"meeting-outbound-share-tooltip-pct\"\u003e"
+          },
+          {
+            "lineNumber": 3695,
+            "text": "                                              {pct.toFixed(1)}%"
+          },
+          {
+            "lineNumber": 3696,
+            "text": "                                            \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3703,
+            "text": "                                    }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 3904,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 3903
+          },
+          "startPosition": {
+            "line": 1459
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1453
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1452
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3026289939880371
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1,
+            "text": " 'react'"
+          },
+          {
+            "lineNumber": 2,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 3,
+            "text": "  CartesianGrid,"
+          },
+          {
+            "lineNumber": 4,
+            "text": "  Cell,"
+          },
+          {
+            "lineNumber": 5,
+            "text": "  Line,"
+          },
+          {
+            "lineNumber": 6,
+            "text": "  LineChart,"
+          },
+          {
+            "lineNumber": 7,
+            "text": "  Pie,"
+          },
+          {
+            "lineNumber": 8,
+            "text": "  PieChart,"
+          },
+          {
+            "lineNumber": 9,
+            "text": "  ResponsiveContainer,"
+          },
+          {
+            "lineNumber": 10,
+            "text": "  Tooltip,"
+          },
+          {
+            "lineNumber": 11,
+            "text": "  XAxis,"
+          },
+          {
+            "lineNumber": 12,
+            "text": "  YAxis,"
+          },
+          {
+            "lineNumber": 13,
+            "text": "} from 'recharts'"
+          },
+          {
+            "lineNumber": 14,
+            "text": "import PageSaveStatus from './components/PageSaveStatus'"
+          },
+          {
+            "lineNumber": 15,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 16,
+            "text": "  EXPENSE_PAGE_SAVED_EVENT,"
+          },
+          {
+            "lineNumber": 17,
+            "text": "  EXPENSE_PAGE_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 18,
+            "text": "  readExpensePageStateFromStorage,"
+          },
+          {
+            "lineNumber": 19,
+            "text": "  type ExpenseRecord,"
+          },
+          {
+            "lineNumber": 20,
+            "text": "} from './ExpensePage'"
+          },
+          {
+            "lineNumber": 21,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 22,
+            "text": "  getGreenBeanOrderMonthAggregate,"
+          },
+          {
+            "lineNumber": 23,
+            "text": "  GREEN_BEAN_ORDER_SAVED_EVENT,"
+          },
+          {
+            "lineNumber": 24,
+            "text": "  GREEN_BEAN_ORDER_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 25,
+            "text": "} from './GreenBeanOrderPage'"
+          },
+          {
+            "lineNumber": 26,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 27,
+            "text": "  INVENTORY_STATUS_CACHE_EVENT,"
+          },
+          {
+            "lineNumber": 28,
+            "text": "  INVENTORY_STATUS_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 29,
+            "text": "  inventoryPageScopedKey,"
+          },
+          {
+            "lineNumber": 30,
+            "text": "} from './InventoryStatusPage'"
+          },
+          {
+            "lineNumber": 31,
+            "text": "import { exportStyledMeetingMonthExcel, sanitizeExcelFileBaseName } from './monthlyMeetingExcelStyledExport'"
+          },
+          {
+            "lineNumber": 32,
+            "text": "import { dayIndexForReferenceDate } from './inventoryStatusUtils'"
+          },
+          {
+            "lineNumber": 33,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 34,
+            "text": "  monthlyMeetingData,"
+          },
+          {
+            "lineNumber": 35,
+            "text": "  type MeetingMonthlyRow,"
+          },
+          {
+            "lineNumber": 36,
+            "text": "  type MeetingProductionRow,"
+          },
+          {
+            "lineNumber": 37,
+            "text": "  type MeetingStoreSalesRow,"
+          },
+          {
+            "lineNumber": 38,
+            "text": "  type MeetingValueRow,"
+          },
+          {
+            "lineNumber": 39,
+            "text": "  type MonthlyMeetingData,"
+          },
+          {
+            "lineNumber": 40,
+            "text": "} from './monthlyMeetingData'"
+          },
+          {
+            "lineNumber": 41,
+            "text": "import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'"
+          },
+          {
+            "lineNumber": 42,
+            "text": "import { useDocumentSaveUi } from './lib/documentSaveUi'"
+          },
+          {
+            "lineNumber": 43,
+            "text": "import { useAppRuntime } from './providers/AppRuntimeProvider'"
+          },
+          {
+            "lineNumber": 44,
+            "text": "import { BLENDING_DARK_BEAN_NAME } from './inventoryBlendRecipes'"
+          },
+          {
+            "lineNumber": 45
+          },
+          {
+            "lineNumber": 46,
+            "text": "/** 출고 표에서 생두 열과 구분하기 위한 기본 수동 품목(더치·디저트 등) 헤더 */"
+          },
+          {
+            "lineNumber": 47,
+            "text": "const MEETING_OUTBOUND_MANUAL_COLUMN_LABELS = new Set("
+          },
+          {
+            "lineNumber": 48,
+            "text": "  monthlyMeetingData.productionColumns.slice(1).map((label) =\u003e label.trim()),"
+          },
+          {
+            "lineNumber": 49,
+            "text": ")"
+          },
+          {
+            "lineNumber": 50,
+            "text": "const MEETING_OUTBOUND_TOTAL_EXCLUDED_BEAN_NAMES = new Set(["
+          },
+          {
+            "lineNumber": 51,
+            "text": "  BLENDING_DARK_BEAN_NAME,"
+          },
+          {
+            "lineNumber": 52,
+            "text": "  'Blending-Dark',"
+          },
+          {
+            "lineNumber": 53,
+            "text": "])"
+          },
+          {
+            "lineNumber": 54
+          },
+          {
+            "lineNumber": 55,
+            "text": "/** 생두 비율 도넛 — 채도 낮은 톤온톤(원두·로스터리 느낌), 무지개색 피함 */"
+          },
+          {
+            "lineNumber": 56,
+            "text": "const OUTBOUND_SHARE_PIE_COLORS = ["
+          },
+          {
+            "lineNumber": 57,
+            "text": "  '#3f3a36',"
+          },
+          {
+            "lineNumber": 58,
+            "text": "  '#5c524a',"
+          },
+          {
+            "lineNumber": 59,
+            "text": "  '#6f6358',"
+          },
+          {
+            "lineNumber": 60,
+            "text": "  '#8a7b6c',"
+          },
+          {
+            "lineNumber": 61,
+            "text": "  '#4d5c52',"
+          },
+          {
+            "lineNumber": 62,
+            "text": "  '#5a5f66',"
+          },
+          {
+            "lineNumber": 63,
+            "text": "  '#6b6560',"
+          },
+          {
+            "lineNumber": 64,
+            "text": "  '#7d7268',"
+          },
+          {
+            "lineNumber": 65,
+            "text": "  '#8b806f',"
+          },
+          {
+            "lineNumber": 66,
+            "text": "  '#52575e',"
+          },
+          {
+            "lineNumber": 67,
+            "text": "]"
+          },
+          {
+            "lineNumber": 68
+          },
+          {
+            "lineNumber": 69,
+            "text": "const clampByte = (n: number) =\u003e Math.max(0, Math.min(255, Math.round(n)))"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 74,
+            "line": 68
+          },
+          "startPosition": {
+            "column": 74
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.3022685945034027
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 98,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 863
+          },
+          {
+            "lineNumber": 864,
+            "text": "      ) : null}"
+          },
+          {
+            "lineNumber": 865
+          },
+          {
+            "lineNumber": 866,
+            "text": "      {viewMode === 'detailed' \u0026\u0026 ("
+          },
+          {
+            "lineNumber": 867,
+            "text": "        \u003cdiv className=\"analysis-section\"\u003e"
+          },
+          {
+            "lineNumber": 868,
+            "text": "          \u003ch2\u003e상세 분석\u003c/h2\u003e"
+          },
+          {
+            "lineNumber": 869,
+            "text": "          {beanSalesAnalysis.map(data =\u003e ("
+          },
+          {
+            "lineNumber": 870,
+            "text": "            \u003cdiv key={data.beanName} className=\"detailed-bean-analysis\"\u003e"
+          },
+          {
+            "lineNumber": 871,
+            "text": "              \u003cdiv className=\"bean-analysis-header\"\u003e"
+          },
+          {
+            "lineNumber": 872,
+            "text": "                \u003ch3\u003e{data.beanName}\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 873,
+            "text": "                \u003cdiv className=\"bean-metrics\"\u003e"
+          },
+          {
+            "lineNumber": 874,
+            "text": "                  \u003cspan className=\"metric\"\u003e"
+          },
+          {
+            "lineNumber": 875,
+            "text": "                    매출 {formatCurrency(data.totalRevenue)}원"
+          },
+          {
+            "lineNumber": 876,
+            "text": "                  \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 877,
+            "text": "                  \u003cspan className=\"metric\"\u003e"
+          },
+          {
+            "lineNumber": 878,
+            "text": "                    수량 {formatNumber(data.totalQuantity)}개"
+          },
+          {
+            "lineNumber": 879,
+            "text": "                  \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 880,
+            "text": "                  \u003cspan className=\"metric\"\u003e"
+          },
+          {
+            "lineNumber": 881,
+            "text": "                    평균단가 {formatCurrency(data.avgUnitPrice)}원"
+          },
+          {
+            "lineNumber": 882,
+            "text": "                  \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 883,
+            "text": "                  {data.latestGreenWonPerKg != null ? ("
+          },
+          {
+            "lineNumber": 884,
+            "text": "                    \u003cspan className=\"metric\"\u003e"
+          },
+          {
+            "lineNumber": 885,
+            "text": "                      최근 생두주문 {formatCurrency(data.latestGreenWonPerKg)}원/kg · {data.latestGreenOrderDate ?? ''}"
+          },
+          {
+            "lineNumber": 886,
+            "text": "                    \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 887,
+            "text": "                  ) : ("
+          },
+          {
+            "lineNumber": 888,
+            "text": "                    \u003cspan className=\"metric bean-sales-td-muted\"\u003e생두 주문 일자 기록 없음\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 889,
+            "text": "                  )}"
+          },
+          {
+            "lineNumber": 890,
+            "text": "                  {data.spreadVsGreenOrder != null ? ("
+          },
+          {
+            "lineNumber": 891,
+            "text": "                    \u003cspan"
+          },
+          {
+            "lineNumber": 892,
+            "text": "                      className={"
+          },
+          {
+            "lineNumber": 893,
+            "text": "                        data.spreadVsGreenOrder \u003e= 0 ? 'metric bean-sales-spread-pos' : 'metric bean-sales-spread-neg'"
+          },
+          {
+            "lineNumber": 894,
+            "text": "                      }"
+          },
+          {
+            "lineNumber": 895,
+            "text": "                    \u003e"
+          },
+          {
+            "lineNumber": 896,
+            "text": "                      스프레드{' '}"
+          },
+          {
+            "lineNumber": 897,
+            "text": "                      {data.spreadVsGreenOrder \u003e= 0 ? '+' : '−'}"
+          },
+          {
+            "lineNumber": 898,
+            "text": "                      {formatCurrency(Math.abs(data.spreadVsGreenOrder))}원"
+          },
+          {
+            "lineNumber": 899,
+            "text": "                    \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 900,
+            "text": "                  ) : null}"
+          },
+          {
+            "lineNumber": 901,
+            "text": "                \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 902,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 903
+          },
+          {
+            "lineNumber": 904,
+            "text": "              \u003cdiv className=\"client-breakdown\"\u003e"
+          },
+          {
+            "lineNumber": 918,
+            "text": "          )"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1324,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1323
+          },
+          "startPosition": {
+            "line": 97
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 99
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 98
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2967493534088135
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "이익 비율|매출 비율|BeanSales"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "이익 비율|매출 비율|BeanSales",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 11,
+      "uri": "app/src/beanSalesAnalysisExcelExport.ts"
+    },
+    {
+      "matchCount": 13,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 100,
+      "uri": ".specstory/history/2026-04-21_08-32-20Z-delete-button-styling-adjustment.md"
+    }
+  ],
+  "totalFiles": 4,
+  "totalMatches": 126
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to read the full BeanSalesAnalysisPage.tsx file around the specified area.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to examine profitPieChartData and profitBarChartData. The issue with pie charts "being less drawn" might be due to:
+
+- Data formatting issues
+- Chart rendering configuration
+- Missing or invalid data points
+- Browser compatibility problems
+- Memory constraints in charting libraries</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.css",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "bean-sales|chart-container|Recharts|pie"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "bean-sales|chart-container|Recharts|pie",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.css",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "bean-sales"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "bean-sales",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "bean-sales"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "bean-sales",
+  "topFiles": [
+    {
+      "matchCount": 17,
+      "uri": ".specstory/history/2026-04-21_08-32-20Z-delete-button-styling-adjustment.md"
+    },
+    {
+      "matchCount": 52,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ],
+  "totalFiles": 2,
+  "totalMatches": 69
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The styles are inline within the BeanSalesAnalysisPage component.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/package.json</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Recharts 3.8.1 may include API changes or breaking changes from version 2. Recharts 3 migration may affect `dataKey` behavior and Pie chart rendering. For Pie charts, Cell components require attention due to potential API changes. 
+
+Key issues identified:
+- Pie charts appear partially drawn in both production and local environments
+- Profit bar chart uses single fill color `#1b5e20` but should have per-segment coloring like revenue bar (`#8884d8`)
+- Revenue bar uses single color `#8884d8` for all segments, similar to profit bar's single color approach
+- Profit bar has additional radius property but still uses single fill color instead of segment-specific colors The Bar component does not use per-item fill colors unless `<Cell />` components are manually added inside `<Bar>`. To fix the profit bar, implement:
+
+- `<Bar dataKey="estimatedProfitAmount" radius={[0, 2, 2, 0]}>`
+- Map over `profitBarChartData` to create `<Cell>` elements with individual fills
+
+Same approach applies to revenue bar if segment-specific coloring is needed.
+
+For pie charts showing   (incomplete rendering) in Recharts 3:
+- Search for recharts 3 pie incomplete rendering issues. - Add **stroke="#fff"** to Pie charts to separate segments.
+- Use **isAnimationActive={false}** to prevent SVG glitches.
+- Apply **ResponsiveContainer** with **minWidth** and **minHeight** for proper sizing in Recharts 2.7+.
+- Ensure container wrappers have explicit dimensions or use `minHeight: 300` when using flex/grid layouts.
+- Confirm that `cx` and `cy` values are strings like `"50%"` in Recharts 3 Pie charts. Recharts 3 may cause issues with Pie charts, particularly with `paddingAngle` and small slices. To address rendering problems:
+
+- Add `minHeight={300}` and `width="100%"` to ResponsiveContainer
+- Include wrapper styles with `min-height: 300px` and `width: 100%`
+- Set `isAnimationActive={false}` on Pie and Bar components
+- Use `<Cell />` components within `<Bar />` for segment-specific colors
+- For Pie charts, apply `stroke="#fff"` or `strokeWidth={0}` to prevent clipping or subpixel rendering issues Recharts 3 may have changed how `composing` works, especially for `Pie` charts with only positive values. For profit and revenue pies, only positive values are used, which is fine.
+
+- The sum of the top 10 pie slices equals the sum of the top 10 revenues, not the full total.
+- The legend percentage uses `totalRevenue`, but the pie chart only displays the top 10 slices.
+- Line 632 calculates percentage as `(data.totalRevenue / totalRevenue) * 100`, which reflects the full total, not the pies actual slice sum. The visual should display a full circle where each sector's angle reflects its proportion relative to the sum of the top 10 slices, not the entire total revenue. In Recharts, sector angles are calculated as (value / sumOfTop10Values) * 360. Therefore, the pie chart represents 100% of the top 10 revenues only. The legend percentages, however, reflect each items share of total company revenue  causing a mismatch between the pies visual representation and the legend totals. This discrepancy is a product bug rather than an incomplete rendering issue. Actually, "incomplete pie" could mean a missing gap or only part of the circle, possibly due to:
+- SVG viewBox clipping
+- Inner radius too large relative to outer radius on small containers
+- Recharts 3 bugs with percentage cx/cy
+
+To address this:
+- Add `className="bean-sales-pie-wrap"` on ResponsiveContainer's parent with `min-height: 300px; position: relative;`
+- Add `isAnimationActive={false}` for Pie and Bar components
+- Add `stroke="#fff"` and `strokeWidth={1}` on Pie for clear segment separation
+- For Bar charts, use `<Cell>` components with individual fills from data</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.tsx",
+  "path": "/Users/parkcg/The Symbol_Edit/app/node_modules/recharts",
+  "pattern": "ResponsiveContainer"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/node_modules/recharts",
+  "pattern": "ResponsiveContainer",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **0** results in **1** directory</summary>
+
+Directory: **/Users/parkcg/The Symbol_Edit/app/node_modules/recharts** (0 files)
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/node_modules/recharts",
+  "pattern": "function ResponsiveContainer"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/node_modules/recharts",
+  "pattern": "function ResponsiveContainer",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/node_modules/recharts/package.json</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/node_modules/recharts/types",
+  "pattern": "ResponsiveContainer"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/node_modules/recharts/types",
+  "pattern": "ResponsiveContainer",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.d.ts",
+  "path": "/Users/parkcg/The Symbol_Edit/app/node_modules/recharts",
+  "pattern": "ResponsiveContainer"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/node_modules/recharts",
+  "pattern": "ResponsiveContainer",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **0** results in **1** directory</summary>
+
+Directory: **/Users/parkcg/The Symbol_Edit/app/node_modules/recharts** (0 files)
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/node_modules/recharts/types/index.d.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/node_modules/recharts/types/polar/Pie.d.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/node_modules/recharts/types/component/ResponsiveContainer.d.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll set `minWidth={0}` and `minHeight={300}` on ResponsiveContainer to help with grid layout. For Recharts 3 Pie component, there are known issues with data spread and animation behavior. The `isAnimationActive` property should be reviewed. Additionally, **nameKey** must be properly set for sectors in Recharts 3.
+
+A known issue exists with **incomplete pies** when using numeric `innerRadius` and `outerRadius` values with a resized container that starts at 0 size. This causes incorrect rendering until a resize occurs. To fix this:
+
+- Set `minWidth={0} minHeight={300}` on the parent container
+- Add `debounce={50}` to ResponsiveContainer for initial sizing
+- Use `debounce={32}` on ResponsiveContainer to prevent rapid zero-size measurements
+
+1. Apply these fixes to resolve pie rendering issues with dynamic sizing.</details></think>
+
+_**Agent (default)**_
+
+개발은 팀/클라우드 연동이 필요할 때 **클라우드 모드**로 쓰는 편이 맞고, UI 버그는 Recharts 3 + CSS 그리드에서 흔한 **캔버스 크기·막대 색** 이슈로 보입니다. `chart-container`에 `min-width: 0`을 주고, `ResponsiveContainer`에 `minWidth`/`minHeight`를 지정하며, 막대는 `Bar`+`Cell`로 품목별 색을 적용하고, 파이는 애니메이션/스트로크로 그리기 불완전 현상을 줄입니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Wait I changed the `chartColors` constant.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "ResponsiveContainer"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "ResponsiveContainer",
+  "topFiles": [
+    {
+      "matchCount": 9,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 9
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "BarChart|PieChart"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "BarChart|PieChart",
+  "topFiles": [
+    {
+      "matchCount": 17,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 17
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Run the build and lint processes. Fix the chartColors issue by addressing the variable name collision with the existing pattern; chartColors now uses `useMemo`. The useMemo hook was correctly added for chartColors to address variable name collision. The eslint rule for profitBarChartData doesn't require chartColors since it uses inline colors. React hooks order was verified to ensure proper placement of useMemo before revenueChartData, maintaining valid hook ordering.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+src/BeanSalesAnalysisPage.tsx(665,51): error TS6133: 'i' is declared but its value is never read.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 650 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-soYN0KTb.css    150.46 kB │ gzip:  25.04 kB
+dist/assets/index-Da9dLTLy.js   2,624.61 kB │ gzip: 746.28 kB
+
+✓ built in 519ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+### 개발을 클라우드로?
+
+- **팀·배포 환경과 똑같이** 맞추고 싶으면(로그인, 회사 문서, 저장 흐름) **클라우드 모드로 개발**하는 쪽이 보통 맞아요.  
+- **빠른 UI·로컬 데이터만** 보면 **로컬 모드**가 가볍습니다. “편하다”는 건 **무엇을 검증하느냐**에 따라 갈려요.
+
+---
+
+### 원형 그래프 / 이익 막대 색 (수정한 내용)
+
+배포·로컬 **둘 다** 나올 수 있는 원인이었어요.
+
+1. **CSS 그리드 + Recharts 3**  
+   `1fr 1fr` 그리드 안에서 `min-width`가 기본값이면, 차트 너비가 0에 가깝게 잡혀 **도넛이 잘리거나 이상하게** 보일 수 있어요.  
+   → `.chart-container`에 **`min-width: 0`**, `ResponsiveContainer`에 **`minWidth={0}` `minHeight={300}` `debounce={50}`** 를 넣었어요.
+
+2. **이익 금액 막대**  
+   `profitBarChartData`에 `fill`을 넣어 두고도, Recharts `Bar`는 **자식 `Cell`이 있어야** 막대마다 색이 적용돼요.  
+   → **`Bar` 안에 `Cell`로 `entry.fill` 적용** (적자는 빨강, 흑자는 초록 그대로).
+
+3. **매출 금액 막대**  
+   파이/범례와 **같은 팔레트**로 맞추려고, 매출 막대도 **`Cell` + `revenueChartData`의 `fill`**.
+
+4. **파이**  
+   측정/애니메이션에 따른 깜빡임·불완전 렌더를 줄이려고 **`isAnimationActive={false}`**, 구간 사이 **흰 `stroke`**.
+
+`npm run build`까지 통과해 두었어요. 배포 반영 후에도 이상하면, 스크린이랑 **브라우저·해상도**만 알려주시면 그에 맞춰 더 볼 수 있어요.
+
+---
+
+_**User**_
+
+원두별 이익 금액 막대 그래프 색상이 원두별로 다 똑같이 짙은 초록색으로 되어있어
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user reports that the profit amount bar chart displays all bars in dark green instead of individual bean variety colors.</details></think>
+
+_**Agent (default)**_
+
+`profitBarChartData`가 흑자일 때 항상 `#1b5e20`로만 채우고 있어 `Cell`이 같은 색을 씁니다. 파이/매출 막대와 같이 `chartColors`로 품목별 색을 지정하겠습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll update profitBarChartData to use chartColors by index for non-negative bars and keep a distinct red for negative values.
+- Use chartColors array for non-negative bars
+- Maintain distinct red color for negative bars
+- Consider muted red variant for negative values The profit bar chart data now uses chartColors for non-negative bars and applies a distinct red color (#b71c1c) to negative values.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 650 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-soYN0KTb.css    150.46 kB │ gzip:  25.04 kB
+dist/assets/index-CorPqB0l.js   2,624.63 kB │ gzip: 746.30 kB
+
+✓ built in 521ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+원인은 `profitBarChartData`를 만들 때 흑자면 전부 `fill: '#1b5e20'`로만 넣고 있어서, `Cell`이 있어도 **막대마다 같은 색**이 나온 것이었습니다.
+
+이제 **매출 파이/매출 막대와 동일한 `chartColors` 팔레트**로 순서(index)에 맞게 넣고, **적자만** 이전처럼 `#b71c1c`로 두었습니다. 빌드도 통과했습니다.
+
+---
+
+_**User**_
+
+//*[@id="root"]/div/div[1]/main/section/div[2]/div[1]/button 이 표시 뜨는건 없애줄라 x 표시가 두개씩 뜨네 거래명세 관리에 검색하는 곳에서 그리고 거래명세서 입력하고 입력하기 눌렀을때 저장되었습니다 하는 어떠한 2초동안 메세지가 어딘가에 떴음 좋겠네
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user has multiple requests.</details></think>
+
+_**Agent (default)**_
+
+거래명세 관리 검색 영역의 중복 X 버튼을 제거하고, 거래명세 입력 완료 시 약 2초간 ‘저장되었습니다’ 토스트를 표시합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.tsx",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "거래명세|statementEntry|StatementEntry|명세"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "거래명세|statementEntry|StatementEntry|명세",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "matchCount": 4,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 9,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MemoPage.tsx"
+    },
+    {
+      "matchCount": 22,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 5,
+  "totalMatches": 68
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "search|검색"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "search|검색",
+  "topFiles": [
+    {
+      "matchCount": 9,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 9
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statementEntry|입력하기|StatementEntry"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statementEntry|입력하기|StatementEntry",
+  "topFiles": [
+    {
+      "matchCount": 11,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 11
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The duplicate X appears because `type="search"` in WebKit/Blink browsers displays a native clear button when there is a value present.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "입력하기|addRecord|setRecords\\("
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "입력하기|addRecord|setRecords\\(",
+  "topFiles": [
+    {
+      "matchCount": 7,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 7
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statement-entry-form|handleStatementEntry|onSubmit"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statement-entry-form|handleStatementEntry|onSubmit",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "function handleSubmit|const handleSubmit"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "function handleSubmit|const handleSubmit",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "입력하기"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "입력하기",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.tsx",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "type=\\\"submit\\\"|primary-button"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "type=\\\"submit\\\"|primary-button",
+  "topFiles": [
+    {
+      "matchCount": 8,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 8
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>

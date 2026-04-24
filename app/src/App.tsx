@@ -1395,6 +1395,8 @@ function App() {
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7))
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [statementEntryModalOpen, setStatementEntryModalOpen] = useState(false)
+  const [statementSaveToastVisible, setStatementSaveToastVisible] = useState(false)
+  const statementSaveToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [bulkItemPickerOpen, setBulkItemPickerOpen] = useState(false)
   const [bulkItemPickerQuery, setBulkItemPickerQuery] = useState('')
   const [bulkItemPickerPick, setBulkItemPickerPick] = useState<{
@@ -1603,6 +1605,14 @@ function App() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [statementEntryModalOpen, bulkItemPickerOpen, isAdminUnlockDialogOpen])
+
+  useEffect(() => {
+    return () => {
+      if (statementSaveToastTimerRef.current) {
+        clearTimeout(statementSaveToastTimerRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (
@@ -3073,6 +3083,15 @@ function App() {
     }
 
     resetStatementFormAfterSave()
+
+    if (statementSaveToastTimerRef.current) {
+      clearTimeout(statementSaveToastTimerRef.current)
+    }
+    setStatementSaveToastVisible(true)
+    statementSaveToastTimerRef.current = setTimeout(() => {
+      setStatementSaveToastVisible(false)
+      statementSaveToastTimerRef.current = null
+    }, 2000)
   }
 
   const handleCancelStatementEdit = () => {
@@ -3733,10 +3752,14 @@ function App() {
             <div className="statements-records-filterbar">
               <div className="statements-records-search">
                 <input
-                  type="search"
+                  type="text"
                   value={recordsSearchQuery}
                   onChange={(event) => setRecordsSearchQuery(event.target.value)}
                   placeholder="거래처·품목·메모 검색"
+                  autoComplete="off"
+                  inputMode="search"
+                  enterKeyHint="search"
+                  aria-label="입력 목록 검색"
                 />
                 {recordsSearchQuery ? (
                   <button
@@ -5161,12 +5184,14 @@ function App() {
             <label className="inventory-reset-dialog-field">
               <span className="inventory-reset-dialog-label">품목 검색</span>
               <input
-                type="search"
+                type="text"
                 className="statement-bulk-item-dialog-search"
                 value={bulkItemPickerQuery}
                 onChange={(event) => setBulkItemPickerQuery(event.target.value)}
                 placeholder="이름 일부로 좁히기"
                 autoComplete="off"
+                inputMode="search"
+                aria-label="품목 검색"
               />
             </label>
             <div className="statement-bulk-item-dialog-toolbar">
@@ -5350,6 +5375,11 @@ function App() {
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+      {statementSaveToastVisible ? (
+        <div className="statement-entry-save-toast" role="status" aria-live="polite">
+          저장되었습니다
         </div>
       ) : null}
     </div>

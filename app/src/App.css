@@ -1444,6 +1444,22 @@
   cursor: pointer;
 }
 
+.statement-entry-save-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: 12000;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+}
+
 .statements-records-chips {
   display: flex;
   flex-wrap: wrap;
