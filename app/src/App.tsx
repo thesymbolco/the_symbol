@@ -258,7 +258,12 @@ type StatementRecord = {
   supplyAmount: number
   taxAmount: number
   totalAmount: number
+  createdAt?: string
 }
+
+type StatementSortColumn = 'no' | 'deliveryDate' | 'clientName'
+type StatementSortDirection = 'asc' | 'desc'
+type StatementSortConfig = { column: StatementSortColumn; direction: StatementSortDirection } | null
 
 type FormState = {
   deliveryDate: string
@@ -1208,7 +1213,7 @@ const pickLatestDate = (dates: string[]) => {
   return filtered.at(-1) ?? ''
 }
 
-/** 납품일 연·월(YYYY-MM)이 같은 건끼리, 납품일·거래처·id 순으로 월 내 몇 번째인지(1부터). */
+/** 납품일 연·월(YYYY-MM)이 같은 건끼리, 납품일·거래처·생성시각 순으로 월 내 몇 번째인지(1부터). */
 const statementRecordDeliveryMonthSeqById = (records: StatementRecord[]): Map<string, number> => {
   const byMonth = new Map<string, StatementRecord[]>()
   for (const r of records) {
@@ -1234,14 +1239,14 @@ const statementRecordDeliveryMonthSeqById = (records: StatementRecord[]): Map<st
       if (c !== 0) {
         return c
       }
-      return a.id.localeCompare(b.id)
+      return (a.createdAt ?? '').localeCompare(b.createdAt ?? '')
     })
     sorted.forEach((rec, i) => idToSeq.set(rec.id, i + 1))
   }
   return idToSeq
 }
 
-/** 목록·저장 배열: 납품일 최신순. 같은 날짜는 거래처·id 역순(월 내 번호가 큰 쪽이 위). */
+/** 목록·저장 배열: 납품일 최신순. 같은 날짜는 거래처·생성시각 역순(월 내 번호가 큰 쪽이 위). */
 const compareStatementRecordsNewestFirst = (a: StatementRecord, b: StatementRecord) => {
   const dateCompare = b.deliveryDate.localeCompare(a.deliveryDate)
   if (dateCompare !== 0) {
@@ -1251,8 +1256,10 @@ const compareStatementRecordsNewestFirst = (a: StatementRecord, b: StatementReco
   if (clientCompare !== 0) {
     return clientCompare
   }
-  return b.id.localeCompare(a.id)
+  return (b.createdAt ?? '').localeCompare(a.createdAt ?? '')
 }
+
+const SORT_ARROW: Record<StatementSortDirection, string> = { asc: ' ▲', desc: ' ▼' }
 
 function App() {
   const { mode, activeCompany, activeCompanyId, user, signOut } = useAppRuntime()
@@ -1349,6 +1356,7 @@ function App() {
   const [recordsNoteFilter, setRecordsNoteFilter] = useState<'all' | '부가세 별도' | '부가세 없음'>(
     'all',
   )
+  const [statementSort, setStatementSort] = useState<StatementSortConfig>(null)
   const [inlineEditRecordId, setInlineEditRecordId] = useState<string | null>(null)
   const [inlineEditDraft, setInlineEditDraft] = useState<{
     deliveryDate: string
@@ -2108,8 +2116,9 @@ function App() {
     const startOfWeekIso = startOfWeek.toISOString().slice(0, 10)
     const currentMonth = todayIso.slice(0, 7)
     const query = recordsSearchQuery.trim().toLowerCase()
+    const seqById = statementDeliveryMonthSeqById
 
-    return statementPreviewRecords.filter((record) => {
+    const filtered = statementPreviewRecords.filter((record) => {
       if (recordsRangeFilter === 'year' && !record.deliveryDate.startsWith(selectedYear)) {
         return false
       }
@@ -2130,7 +2139,22 @@ function App() {
       }
       return true
     })
-  }, [statementPreviewRecords, recordsRangeFilter, recordsNoteFilter, recordsSearchQuery, selectedYear])
+
+    if (!statementSort) {
+      return filtered
+    }
+
+    const dir = statementSort.direction === 'asc' ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      if (statementSort.column === 'no') {
+        return dir * ((seqById.get(a.id) ?? 0) - (seqById.get(b.id) ?? 0))
+      }
+      if (statementSort.column === 'deliveryDate') {
+        return dir * a.deliveryDate.localeCompare(b.deliveryDate)
+      }
+      return dir * a.clientName.localeCompare(b.clientName, 'ko')
+    })
+  }, [statementPreviewRecords, recordsRangeFilter, recordsNoteFilter, recordsSearchQuery, selectedYear, statementSort, statementDeliveryMonthSeqById])
 
   const visibleTotals = useMemo(() => {
     return visibleRecords.reduce(
@@ -2706,6 +2730,7 @@ function App() {
         supplyAmount,
         taxAmount,
         totalAmount: supplyAmount + taxAmount,
+        createdAt: new Date().toISOString(),
       })
     }
 
@@ -3105,6 +3130,7 @@ function App() {
       }
     }
 
+    const existingRecord = editingRecordId ? records.find((r) => r.id === editingRecordId) : null
     const nextRecord: StatementRecord = {
       id: editingRecordId ?? crypto.randomUUID(),
       deliveryDate: form.deliveryDate,
@@ -3120,6 +3146,7 @@ function App() {
       supplyAmount: calculatedAmounts.supplyAmount,
       taxAmount: calculatedAmounts.taxAmount,
       totalAmount: calculatedAmounts.totalAmount,
+      createdAt: existingRecord?.createdAt ?? new Date().toISOString(),
     }
 
     if (editingRecordId) {
@@ -3246,6 +3273,18 @@ function App() {
         .sort(compareStatementRecordsNewestFirst),
     )
     setInlineEditRecordId(null)
+  }
+
+  const handleToggleStatementSort = (column: StatementSortColumn) => {
+    setStatementSort((prev) => {
+      if (prev?.column === column) {
+        if (prev.direction === 'asc') {
+          return { column, direction: 'desc' }
+        }
+        return null
+      }
+      return { column, direction: 'asc' }
+    })
   }
 
   const handleCalendarShiftMonth = (delta: number) => {
@@ -3868,10 +3907,26 @@ function App() {
               <table>
                 <thead>
                   <tr>
-                    <th title="납품일이 속한 달에서, 납품일·거래처 순으로 몇 번째 건인지">번호</th>
-                    <th>납품일</th>
+                    <th
+                      className="sortable-th"
+                      title="납품일이 속한 달에서, 납품일·거래처·입력순으로 몇 번째 건인지"
+                      onClick={() => handleToggleStatementSort('no')}
+                    >
+                      번호{statementSort?.column === 'no' ? SORT_ARROW[statementSort.direction] : ''}
+                    </th>
+                    <th
+                      className="sortable-th"
+                      onClick={() => handleToggleStatementSort('deliveryDate')}
+                    >
+                      납품일{statementSort?.column === 'deliveryDate' ? SORT_ARROW[statementSort.direction] : ''}
+                    </th>
                     <th>횟수</th>
-                    <th>거래처명</th>
+                    <th
+                      className="sortable-th"
+                      onClick={() => handleToggleStatementSort('clientName')}
+                    >
+                      거래처명{statementSort?.column === 'clientName' ? SORT_ARROW[statementSort.direction] : ''}
+                    </th>
                     <th>품목</th>
                     <th>규격/단위</th>
                     <th>수량</th>

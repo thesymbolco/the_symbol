@@ -1277,6 +1277,15 @@
   border-radius: 18px;
 }
 
+.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.sortable-th:hover {
+  background: #e8edf3;
+}
+
 /* ===== 거래명세 페이지 UX 확장 ===== */
 
 .statement-client-snapshot {

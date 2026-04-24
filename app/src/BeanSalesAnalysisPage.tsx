@@ -542,13 +542,20 @@ function BeanSalesAnalysisPage() {
     [rowsWithKnownProfit],
   )
 
+  const profitBarColors = [
+    '#2e7d32', '#1565c0', '#6a1b9a', '#e65100', '#00838f',
+    '#4e342e', '#37474f', '#558b2f', '#ad1457', '#283593',
+  ]
+
   const profitBarChartData = useMemo(() => {
     return [...rowsWithKnownProfit]
       .sort((a, b) => (b.estimatedProfitAmount ?? 0) - (a.estimatedProfitAmount ?? 0))
       .slice(0, BEAN_SALES_CHART_TOP)
-      .map((data) => ({
+      .map((data, index) => ({
         ...data,
-        fill: (data.estimatedProfitAmount ?? 0) >= 0 ? '#1b5e20' : '#b71c1c',
+        fill: (data.estimatedProfitAmount ?? 0) >= 0
+          ? profitBarColors[index % profitBarColors.length]
+          : '#b71c1c',
       }))
   }, [rowsWithKnownProfit])
 
@@ -700,7 +707,7 @@ function BeanSalesAnalysisPage() {
           <div className="chart-grid">
             <div className="chart-container">
               <h3>원두별 매출 비율</h3>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer key={`rev-pie-${revenueChartData.length}`} width="100%" height={300}>
                 <PieChart>
                   <Pie
                     data={revenueChartData}
@@ -712,6 +719,7 @@ function BeanSalesAnalysisPage() {
                     outerRadius={94}
                     paddingAngle={2}
                     label={false}
+                    isAnimationActive={false}
                   >
                     {revenueChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -770,7 +778,7 @@ function BeanSalesAnalysisPage() {
                 <p className="bean-sales-chart-empty">흑자(추정) 품목이 없습니다.</p>
               ) : (
                 <>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer key={`profit-pie-${profitPieChartData.length}`} width="100%" height={300}>
                     <PieChart>
                       <Pie
                         data={profitPieChartData}
@@ -782,6 +790,7 @@ function BeanSalesAnalysisPage() {
                         outerRadius={94}
                         paddingAngle={2}
                         label={false}
+                        isAnimationActive={false}
                       >
                         {profitPieChartData.map((entry, index) => (
                           <Cell key={`profit-pie-${index}`} fill={entry.fill} />
@@ -844,7 +853,11 @@ function BeanSalesAnalysisPage() {
                       labelFormatter={(label) => String(label)}
                       contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
                     />
-                    <Bar dataKey="estimatedProfitAmount" fill="#1b5e20" radius={[0, 2, 2, 0]} />
+                    <Bar dataKey="estimatedProfitAmount" radius={[0, 2, 2, 0]}>
+                      {profitBarChartData.map((entry, index) => (
+                        <Cell key={`profit-bar-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -1194,6 +1207,7 @@ function BeanSalesAnalysisPage() {
           padding: 20px;
           border-radius: 8px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          min-width: 0;
         }
 
         .chart-container h3 {
