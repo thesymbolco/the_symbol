@@ -63143,3 +63143,212 @@ _**Agent (default)**_
 
 <think><details><summary>Thought Process</summary>
 The delete button uses the `ghost-button` class with a `-` symbol, while the add button uses `expense-add-row-mini`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Row delete uses `-` which is not circular, whereas `+` is circular.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/App.css"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.css"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+반영했습니다.
+
+### 변경 요약
+- **상단** `page-status-bar`에 있던 큰 `클라우드에 저장` 버튼은 **뺐습니다.**
+- **`O월 지출 목록` 제목줄**에서 **`+` 행 추가 버튼 바로 옆**에 **같은 동그란 말줄(28×28, `+`·`expense-add-row-mini`와 동일 계열)**으로 두었습니다.
+  - **저장이 필요할 때(미반영·실패)**: 파란 테두리·배경(`--pending`) — **누르면** 클라우드 저장
+  - **반영됨/저장 중**: 회색·비활성 — 삭제 `−`와 **역할이 겹치지 않음**
+- 표기는 **`☁` 한 글자** + 툴팁/aria로 전체 문구(클라우드에 저장) 안내, 저장 중일 때는 **`…`**
+- `PageSaveStatus`는 **그대로** 옆에 두어, 텍스트로도 저장 상태를 볼 수 있게 했습니다.
+
+이제 `☁`는 행 **삭제 `−`와 멀리** 있고, `+`만 행을 추가하므로 **삭제와 헷갈릴 일**도 줄어듭니다.
+
+---
+
+_**User**_
+
+삭제버튼은 어차피 누르면 바로 클라우드 동기화되게 해줄래?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When deleting an expense from the list, the delete button should automatically trigger cloud synchronization in cloud mode, eliminating the need to manually press the cloud save button afterward. This ensures immediate cloud updates upon deletion.
+
+- Delete button should trigger cloud sync in cloud mode
+- No manual cloud save button press required after deletion
+- Immediate cloud update upon deletion</details></think>
+
+_**Agent (default)**_
+
+행 삭제 직후 클라우드에 반영하도록 `handleDeleteExpenseRow`에 저장 로직을 연결합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll create a small helper function to save the `ExpensePageState` to cloud storage, with a no-op fallback for local mode. This helper will be called from both `handleSaveToCloud` and `handleDeleteExpenseRow` functions. I'll create a helper function `commitPageStateToCloud` that takes an explicit `ExpensePageState` parameter and performs the same cloud saving logic as `handleSaveToCloud`. This function will be called by both `handleSaveToCloud` and `handleDeleteExpenseRow`.
+
+- `handleSaveToCloud` will call `commitPageStateToCloud(pageState)`
+- `handleDeleteExpenseRow` will compute `nextState`, update `pageState` with `setPageState(nextState)`, and then call `commitPageStateToCloud(nextState)` if cloud storage is enabled
+
+The order of operations ensures proper sequencing:
+1. Compute `nextState` by filtering records
+2. Update state with `setPageState(nextState)`
+3. Commit to cloud storage (if enabled) with `commitPageStateToCloud(nextState)` setPageState(nextState)  
+3. await saveCompanyDocument(..., nextState) - this uses the same nextState, correct.
+
+For handleSaveToCloud, we use pageState from closure - when user clicks save, pageState is current. Good.
+
+I'll add:
+
+- A `commitExpenseStateToCloud` helper function that saves the expense page state to cloud storage
+- The function checks if cloud mode is enabled and active company exists
+- It marks document as saving, saves to cloud, syncs last cloud reference, and marks as saved
+- This function will be called from both `handleSaveToCloud` and `handleDeleteExpenseRow` after state updates When cloud saving fails, an error is logged, the document is marked as having an error, and the error is re-thrown. The `handleSaveToCloud` function now calls `commitExpenseStateToCloud` with `pageState` and shows appropriate status messages based on success or failure. The `handleDeleteExpenseRow` function filters out the deleted record and updates the state. After updating the state, it calls `commitExpenseStateToCloud` to save changes to cloud storage. For deletion confirmation, it uses `window.confirm` before proceeding. On successful deletion, it sets a status message indicating the row was deleted and cloud-synced. If cloud saving fails, it logs the error and re-throws it. The function also handles unpinning the record if needed. 
+
+- Filters out deleted record from state
+- Updates state with `setPageState`
+- Calls `commitExpenseStateToCloud` after state update
+- Shows status message on successful deletion
+- Handles cloud save errors with logging and re-throwing
+- Manages pinned record unpinning when deleted Filters out the deleted record from state, updates state with `setPageState`, and calls `commitExpenseStateToCloud` after state update. Shows status message on successful deletion and handles cloud save errors with logging and re-throwing. Manages pinned record unpinning when deleted.</details></think>
+
+_**Agent (default)**_
+
+삭제 직후 `nextState`로 클라우드에 올리도록 하고, `handleSaveToCloud`와 공유하는 `commitExpenseStateToCloud` 헬퍼를 추가합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+Status: **loading**
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>

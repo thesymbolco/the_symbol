@@ -863,31 +863,36 @@ function ExpensePage() {
     }
   }, [pageState, isStorageReady, mode, markDocumentDirty, markDocumentSaved])
 
+  const commitExpenseStateToCloud = useCallback(
+    async (state: ExpensePageState) => {
+      if (mode !== 'cloud' || !activeCompanyId) {
+        return
+      }
+      markDocumentSaving()
+      try {
+        await saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.expensePage, state, user?.id)
+        syncLastCloudRefFromState(state)
+        markDocumentSaved()
+      } catch (error) {
+        console.error('지출표 클라우드 저장에 실패했습니다.', error)
+        markDocumentError()
+        throw error
+      }
+    },
+    [activeCompanyId, mode, markDocumentError, markDocumentSaved, markDocumentSaving, syncLastCloudRefFromState, user?.id],
+  )
+
   const handleSaveToCloud = useCallback(async () => {
     if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
-    markDocumentSaving()
     try {
-      await saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.expensePage, pageState, user?.id)
-      syncLastCloudRefFromState(pageState)
-      markDocumentSaved()
+      await commitExpenseStateToCloud(pageState)
       setStatusMessage('클라우드에 저장했습니다.')
-    } catch (error) {
-      console.error('지출표 클라우드 저장에 실패했습니다.', error)
-      markDocumentError()
+    } catch {
       setStatusMessage('클라우드 저장에 실패했습니다.')
     }
-  }, [
-    activeCompanyId,
-    mode,
-    pageState,
-    markDocumentError,
-    markDocumentSaved,
-    markDocumentSaving,
-    syncLastCloudRefFromState,
-    user?.id,
-  ])
+  }, [activeCompanyId, mode, pageState, commitExpenseStateToCloud])
 
   useEffect(() => {
     if (mode !== 'cloud' || !activeCompanyId) {
@@ -1152,10 +1157,21 @@ function ExpensePage() {
     if (pinnedRecordId === recordId) {
       setPinnedRecordId('')
     }
-    setPageState((current) => ({
-      ...current,
-      records: current.records.filter((record) => record.id !== recordId),
-    }))
+    const nextState: ExpensePageState = {
+      ...pageState,
+      records: pageState.records.filter((record) => record.id !== recordId),
+    }
+    setPageState(nextState)
+    if (mode === 'cloud' && activeCompanyId) {
+      void (async () => {
+        try {
+          await commitExpenseStateToCloud(nextState)
+          setStatusMessage('해당 지출을 삭제하고 클라우드에 반영했습니다.')
+        } catch {
+          setStatusMessage('이 브라우저에서만 삭제되었고, 클라우드 동기화에 실패했습니다. 나중에 다시 저장해 주세요.')
+        }
+      })()
+    }
   }
 
   const getDateDraftKey = (recordId: string, field: 'expenseDate' | 'dueDate') => `${recordId}:${field}`
