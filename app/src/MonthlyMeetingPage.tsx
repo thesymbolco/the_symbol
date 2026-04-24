@@ -83,6 +83,7 @@ const pieShadeStops = (hex: string) => {
 }
 
 export const MONTHLY_MEETING_DATA_KEY = 'monthly-meeting-data-v2'
+export const MONTHLY_MEETING_SAVED_EVENT = 'monthly-meeting-saved'
 /** 로스팅실 매출 거래명세 집계 기준 연·월 (`YYYY-MM`) */
 const ROASTING_REF_YM_STORAGE_KEY = 'monthly-meeting-roasting-ref-ym-v1'
 /** 1~5번 섹션 +/- 접힘 상태 */
@@ -1389,6 +1390,7 @@ const readMonthlyMeetingPageStateFromStorage = (): MonthlyMeetingPageState => {
 const writeMonthlyMeetingPageStateToStorage = (state: MonthlyMeetingPageState) => {
   try {
     window.localStorage.setItem(MONTHLY_MEETING_DATA_KEY, JSON.stringify(state))
+    window.dispatchEvent(new Event(MONTHLY_MEETING_SAVED_EVENT))
   } catch {
     // ignore
   }
@@ -1505,6 +1507,40 @@ function MonthlyMeetingPage() {
   const outboundPieGfxId = useId().replace(/:/g, '')
   const outboundPieFilterId = `meetingOutboundPieDepth-${outboundPieGfxId}`
   const outboundPieGradId = (index: number) => `meetingOutboundPieGrad-${outboundPieGfxId}-${index}`
+  const [externalSyncTick, setExternalSyncTick] = useState(0)
+
+  useEffect(() => {
+    const onExternalSync = () => setExternalSyncTick((n) => n + 1)
+    window.addEventListener(MONTHLY_MEETING_SAVED_EVENT, onExternalSync)
+    return () => {
+      window.removeEventListener(MONTHLY_MEETING_SAVED_EVENT, onExternalSync)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId || externalSyncTick === 0) {
+      return
+    }
+    let cancelled = false
+    const syncFromCloud = async () => {
+      try {
+        const remoteState = await loadCompanyDocument<MonthlyMeetingPageState>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
+        )
+        if (cancelled || !remoteState) {
+          return
+        }
+        setPageState(normalizeMonthlyMeetingPageState(remoteState))
+      } catch (error) {
+        console.error('월마감 회의 외부 동기화 실패', error)
+      }
+    }
+    void syncFromCloud()
+    return () => {
+      cancelled = true
+    }
+  }, [activeCompanyId, externalSyncTick, mode])
 
   const applyGreenBeanOrderToRoastingBeanCost = () => {
     const ref = parseYm(roastingSalesReferenceYm)

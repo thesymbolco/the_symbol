@@ -1377,6 +1377,40 @@ export default function GreenBeanOrderPage() {
   const [aliasDraftRows, setAliasDraftRows] = useState<BeanNameAliasEntry[]>(() => readCustomBeanNameAliases())
   const [aliasRevision, setAliasRevision] = useState(0)
   const isAlmaRefreshAvailable = import.meta.env.DEV
+  const [externalSyncTick, setExternalSyncTick] = useState(0)
+
+  useEffect(() => {
+    const onExternalSync = () => setExternalSyncTick((n) => n + 1)
+    window.addEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, onExternalSync)
+    return () => {
+      window.removeEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, onExternalSync)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId || externalSyncTick === 0) {
+      return
+    }
+    let cancelled = false
+    const syncFromCloud = async () => {
+      try {
+        const remotePersisted = await loadCompanyDocument<GreenBeanOrderPersisted>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
+        )
+        if (cancelled || !remotePersisted) {
+          return
+        }
+        setPersisted(normalizePersisted(remotePersisted))
+      } catch (error) {
+        console.error('생두 주문 외부 동기화 실패', error)
+      }
+    }
+    void syncFromCloud()
+    return () => {
+      cancelled = true
+    }
+  }, [activeCompanyId, externalSyncTick, mode])
 
   useEffect(() => {
     let cancelled = false

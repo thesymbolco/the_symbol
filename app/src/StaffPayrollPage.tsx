@@ -8,6 +8,7 @@ import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
 export const STAFF_PAYROLL_STORAGE_KEY = 'staff-payroll-v1'
+export const STAFF_PAYROLL_SAVED_EVENT = 'staff-payroll-saved'
 
 const today = new Date().toISOString().slice(0, 10)
 
@@ -200,6 +201,7 @@ const readStaffPayrollPageStateFromStorage = (): StaffPayrollPageState => {
 const writeStaffPayrollPageStateToStorage = (state: StaffPayrollPageState) => {
   try {
     window.localStorage.setItem(STAFF_PAYROLL_STORAGE_KEY, JSON.stringify(state))
+    window.dispatchEvent(new Event(STAFF_PAYROLL_SAVED_EVENT))
   } catch {
     // ignore
   }
@@ -242,6 +244,40 @@ function StaffPayrollPage() {
   const [isUnlockDialogOpen, setIsUnlockDialogOpen] = useState(false)
   const [unlockPin, setUnlockPin] = useState('')
   const [unlockError, setUnlockError] = useState('')
+  const [externalSyncTick, setExternalSyncTick] = useState(0)
+
+  useEffect(() => {
+    const onExternalSync = () => setExternalSyncTick((n) => n + 1)
+    window.addEventListener(STAFF_PAYROLL_SAVED_EVENT, onExternalSync)
+    return () => {
+      window.removeEventListener(STAFF_PAYROLL_SAVED_EVENT, onExternalSync)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId || externalSyncTick === 0) {
+      return
+    }
+    let cancelled = false
+    const syncFromCloud = async () => {
+      try {
+        const remoteState = await loadCompanyDocument<StaffPayrollPageState>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.staffPayrollPage,
+        )
+        if (cancelled || !remoteState) {
+          return
+        }
+        setPageState(normalizePageState(remoteState))
+      } catch (error) {
+        console.error('직원·급여 외부 동기화 실패', error)
+      }
+    }
+    void syncFromCloud()
+    return () => {
+      cancelled = true
+    }
+  }, [activeCompanyId, externalSyncTick, mode])
 
   useEffect(() => {
     let cancelled = false

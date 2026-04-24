@@ -1680,6 +1680,7 @@ function InventoryStatusPage() {
   const [baselineState, setBaselineState] = useState<InventoryStatusState>(() =>
     createDefaultInventoryStatusState(),
   )
+  const [externalSyncTick, setExternalSyncTick] = useState(0)
   const [templateBase64, setTemplateBase64] = useState<string | null>(null)
   const [templateFileName, setTemplateFileName] = useState<string>('')
   const [roastingViewMode, setRoastingViewMode] = useState<RoastingViewMode>('daily')
@@ -1720,6 +1721,44 @@ function InventoryStatusPage() {
   const [nameEditUnlockPin, setNameEditUnlockPin] = useState('')
   const [nameEditUnlockError, setNameEditUnlockError] = useState('')
   const nameEditUnlockPinInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const onExternalSync = () => setExternalSyncTick((n) => n + 1)
+    window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, onExternalSync)
+    return () => {
+      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, onExternalSync)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId || externalSyncTick === 0) {
+      return
+    }
+    let cancelled = false
+    const syncFromCloud = async () => {
+      try {
+        const remoteDocument = await loadCompanyDocument<InventoryPageDocument>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.inventoryPage,
+        )
+        if (cancelled || !remoteDocument) {
+          return
+        }
+        const normalized = normalizeInventoryPageDocument(remoteDocument)
+        setInventoryState(normalized.inventoryState)
+        setBaselineState(normalized.baselineState)
+        setTemplateBase64(normalized.templateBase64)
+        setTemplateFileName(normalized.templateFileName)
+        setHistoryNotes(normalized.historyNotes)
+      } catch (error) {
+        console.error('입출고 현황 외부 동기화 실패', error)
+      }
+    }
+    void syncFromCloud()
+    return () => {
+      cancelled = true
+    }
+  }, [activeCompanyId, externalSyncTick, mode])
 
   useEffect(() => {
     let cancelled = false

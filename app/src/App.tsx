@@ -605,9 +605,11 @@ const statementRecordById = (list: StatementRecord[]) => {
 }
 
 /**
- * 클라우드 F5·삭제 직후: 서버가 아직 upsert를 반영하지 않았는데, 로컬은 이미 삭제(또는 미반영 입력)을 반영한 경우.
- * id 집합이 한쪽이 다른쪽의 부분집합이고, 겹치는 id의 row 내용이 같으면 `records`만 로컬(더 짧은/긴)을 따른다.
- * (동시에 다른 팀원이 id를 추가·삭제한 충돌은 여전히 `remote` 기준)
+ * 클라우드 F5·삭제 직후(서버가 늦고 로컬은 이미 삭제)만: 로컬 id 집합 ⊂ 서버, 건수는 로컬이 적을 때
+ * 겹치는 id의 row가 같으면 `records`는 로컬(짧은 쪽)을 쓴다.
+ *
+ * (서버가 짧고 로컬이 길 때는 "다른 기기에서 삭제" vs "이 기기에서 아직 미동기화 추가"를 구분할 수 없으므로
+ * 그 경우는 `remote`가 정본 — 여기서는 병합하지 않고 아래 `return remote`에 맡긴다)
  */
 const mergeStatementPageDocumentOnCloudLoad = (
   local: StatementPageDocument,
@@ -630,16 +632,6 @@ const mergeStatementPageDocumentOnCloudLoad = (
   const lSubsetR = [...Lids].every((id) => Rids.has(id))
   if (lSubsetR && Lids.size < Rids.size) {
     for (const id of Lids) {
-      if (!sameRow(id)) {
-        return remote
-      }
-    }
-    return { ...remote, records: L }
-  }
-
-  const rSubsetL = [...Rids].every((id) => Lids.has(id))
-  if (rSubsetL && Rids.size < Lids.size) {
-    for (const id of Rids) {
       if (!sameRow(id)) {
         return remote
       }

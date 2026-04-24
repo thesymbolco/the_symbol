@@ -13,6 +13,7 @@ import type { DocumentSaveState } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
 export const MEMO_PAGE_STORAGE_KEY = 'memo-page-data-v1'
+export const MEMO_PAGE_SAVED_EVENT = 'memo-page-saved'
 
 export type MemoScope =
   | 'general'
@@ -353,6 +354,49 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
   const [editLinkBody, setEditLinkBody] = useState('')
   /** 입출고 히스토리 기준일 YYYY-MM-DD */
   const [editLinkDate, setEditLinkDate] = useState('')
+  const [externalSyncTick, setExternalSyncTick] = useState(0)
+
+  useEffect(() => {
+    const onExternalSync = () => setExternalSyncTick((n) => n + 1)
+    window.addEventListener(MEMO_PAGE_SAVED_EVENT, onExternalSync)
+    return () => {
+      window.removeEventListener(MEMO_PAGE_SAVED_EVENT, onExternalSync)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (runtimeMode !== 'cloud' || !activeCompanyId || externalSyncTick === 0) {
+      return
+    }
+    let cancelled = false
+    const syncFromCloud = async () => {
+      try {
+        const remotePersisted = await loadCompanyDocument<MemoPagePersisted>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.memoPage,
+        )
+        if (cancelled || !remotePersisted) {
+          return
+        }
+        const nextItems = [...(remotePersisted.items ?? [])].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        const nextTodos = [...(remotePersisted.todos ?? [])].sort((a, b) => {
+          if (a.done !== b.done) {
+            return a.done ? 1 : -1
+          }
+          return b.createdAt.localeCompare(a.createdAt)
+        })
+        setItems(nextItems)
+        setTodos(nextTodos)
+        setDailyByDate(pruneDailyByDate(remotePersisted.dailyByDate))
+      } catch (error) {
+        console.error('메모 외부 동기화 실패', error)
+      }
+    }
+    void syncFromCloud()
+    return () => {
+      cancelled = true
+    }
+  }, [activeCompanyId, externalSyncTick, runtimeMode])
 
   useEffect(() => {
     let cancelled = false
@@ -470,6 +514,7 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
     }
     try {
       window.localStorage.setItem(MEMO_PAGE_STORAGE_KEY, JSON.stringify(payload))
+      window.dispatchEvent(new Event(MEMO_PAGE_SAVED_EVENT))
     } catch {
       setStatusMessage('저장 실패 (저장 공간 확인 필요)')
     }
@@ -497,6 +542,7 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
         lastSyncedPayloadRef.current = JSON.stringify(payload)
         try {
           window.localStorage.setItem(MEMO_PAGE_STORAGE_KEY, JSON.stringify(payload))
+          window.dispatchEvent(new Event(MEMO_PAGE_SAVED_EVENT))
         } catch {
           // ignore
         }

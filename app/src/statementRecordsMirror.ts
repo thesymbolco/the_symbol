@@ -31,33 +31,33 @@ export function writeStatementRecordsToMirror(records: unknown): void {
 }
 
 /**
- * BeanSales · 거래명세가 공유하는 “로컬 우선, tick 시 클라우드, 이벤트로 재로드” 패턴
+ * BeanSales 등: 클라우드일 때는 **항상** 먼저 `company_documents`를 읽는다(다른 PC/탭이 최신이면 local만 보면 꼬임).
+ * `cloudDocRefreshTick`은 “창/주기 끌기”는 그대로 두고, 0 tick에서도 **최초 로드**에 서버를 쓰기 위한 것이 아님(옛: tick 0+로컬 있으면 서버를 아예 안 읽는 버그).
  */
 export async function loadStatementRecordsMirror<T = unknown>(options: {
   mode: 'local' | 'cloud'
   companyId: string | null
+  /** `BeanSalesAnalysisPage` 등 effect 의존성용 — 탭 복귀/주기마다 재로드 */
   cloudDocRefreshTick: number
 }): Promise<T[]> {
+  const { mode, companyId, cloudDocRefreshTick: _cloudDocRefreshTick } = options
+  void _cloudDocRefreshTick
   const local = readStatementRecordsFromLocalStorage<T>()
-  const preferRemote = options.cloudDocRefreshTick > 0
-  if (local.length > 0 && !preferRemote) {
+
+  if (mode === 'local' || !companyId) {
     return local
   }
-  if (options.mode === 'cloud' && options.companyId) {
-    try {
-      const remote = await loadCompanyDocument<StatementPageDocumentLike>(
-        options.companyId,
-        COMPANY_DOCUMENT_KEYS.statementPage,
-      )
-      if (Array.isArray(remote?.records)) {
-        if (preferRemote || local.length === 0) {
-          return remote.records as T[]
-        }
-        return local
-      }
-    } catch (error) {
-      console.error('statementRecordsMirror: 클라우드에서 거래명세 records를 읽지 못했습니다.', error)
+
+  try {
+    const remote = await loadCompanyDocument<StatementPageDocumentLike>(
+      companyId,
+      COMPANY_DOCUMENT_KEYS.statementPage,
+    )
+    if (remote && Array.isArray(remote.records)) {
+      return remote.records as T[]
     }
+  } catch (error) {
+    console.error('statementRecordsMirror: 클라우드에서 거래명세 records를 읽지 못했습니다.', error)
   }
   if (local.length > 0) {
     return local
