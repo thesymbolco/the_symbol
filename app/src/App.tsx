@@ -258,6 +258,8 @@ type StatementRecord = {
   supplyAmount: number
   taxAmount: number
   totalAmount: number
+  /** 이분 기준 월·번 순: 마지막으로 저장한 건이 해당 월에서 가장 큰 번호 */
+  savedAt?: string
 }
 
 type FormState = {
@@ -994,11 +996,15 @@ const resolveStatementPricingForClientItem = (
   return null
 }
 
-const normalizeLoadedRecords = (records: Array<StatementRecord & { note?: string }>) =>
-  records.map((record) => ({
-    ...record,
-    note: record.note ?? (record.taxAmount === 0 ? '부가세 없음' : '부가세 별도'),
-  }))
+const normalizeLoadedRecords = (records: Array<StatementRecord & { note?: string; savedAt?: string }>) =>
+  records.map((record) => {
+    const savedAt = typeof record.savedAt === 'string' && record.savedAt ? record.savedAt : undefined
+    return {
+      ...record,
+      note: record.note ?? (record.taxAmount === 0 ? '부가세 없음' : '부가세 별도'),
+      ...(savedAt ? { savedAt } : {}),
+    }
+  })
 
 const FILE_HANDLE_DB_NAME = 'statement-file-handle-db'
 const FILE_HANDLE_STORE_NAME = 'handles'
@@ -1231,7 +1237,15 @@ const pickLatestDate = (dates: string[]) => {
   return filtered.at(-1) ?? ''
 }
 
-/** 납품일 연·월(YYYY-MM)이 같은 건끼리, 납품일·거래처·id 순으로 월 내 몇 번째인지(1부터). */
+/** 납품월이 같은 건: 저장 순(오래될수록 1, 가장 나중에 저장한 건이 해당 월 최대 번호). 예전 데이터는 납품일·거래처·id */
+
+const monthSeqSortKey = (r: StatementRecord) => {
+  if (r.savedAt) {
+    return r.savedAt
+  }
+  return `${r.deliveryDate}\0${r.clientName}\0${r.id}`
+}
+
 const statementRecordDeliveryMonthSeqById = (records: StatementRecord[]): Map<string, number> => {
   const byMonth = new Map<string, StatementRecord[]>()
   for (const r of records) {
@@ -1248,17 +1262,7 @@ const statementRecordDeliveryMonthSeqById = (records: StatementRecord[]): Map<st
   }
   const idToSeq = new Map<string, number>()
   for (const list of byMonth.values()) {
-    const sorted = [...list].sort((a, b) => {
-      const d = a.deliveryDate.localeCompare(b.deliveryDate)
-      if (d !== 0) {
-        return d
-      }
-      const c = a.clientName.localeCompare(b.clientName, 'ko')
-      if (c !== 0) {
-        return c
-      }
-      return a.id.localeCompare(b.id)
-    })
+    const sorted = [...list].sort((a, b) => monthSeqSortKey(a).localeCompare(monthSeqSortKey(b)))
     sorted.forEach((rec, i) => idToSeq.set(rec.id, i + 1))
   }
   return idToSeq
@@ -1278,7 +1282,7 @@ const compareStatementRecordsNewestFirst = (a: StatementRecord, b: StatementReco
 }
 
 function App() {
-  const { mode, activeCompany, activeCompanyId, user, signOut } = useAppRuntime()
+  const { mode, activeCompany, activeCompanyId, user, signOut, cloudDocRefreshTick } = useAppRuntime()
   const [form, setForm] = useState<FormState>(() => defaultFormState())
   const [records, setRecords] = useState<StatementRecord[]>([])
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([])
@@ -1523,6 +1527,46 @@ function App() {
       cancelled = true
     }
   }, [activeCompanyId, mode, resetStatementSaveUi])
+
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId || cloudDocRefreshTick === 0) {
+      return
+    }
+    if (statementSaveState === 'dirty' || statementSaveState === 'saving') {
+      return
+    }
+    let cancelled = false
+    const pullRemote = async () => {
+      try {
+        const remoteState = await loadCompanyDocument<StatementPageDocument>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.statementPage,
+        )
+        if (cancelled) {
+          return
+        }
+        const toApply = remoteState
+          ? normalizeStatementPageDocument(remoteState)
+          : readStatementPageLocalState()
+        setRecords(toApply.records)
+        setPricingRules(toApply.pricingRules)
+        setMasterItems(toApply.masterItems)
+        setStatementTemplateBase64(toApply.statementTemplateBase64)
+        setStatementTemplateFileName(toApply.statementTemplateFileName)
+        setStatementTemplateUpdatedAt(toApply.statementTemplateUpdatedAt)
+        setStatementTemplateSettings(toApply.statementTemplateSettings)
+        if (remoteState) {
+          writeStatementPageLocalState(toApply)
+        }
+      } catch (error) {
+        console.error('거래명세: 다른 기기/탭 동기화용 클라우드 다시 읽기에 실패했습니다.', error)
+      }
+    }
+    void pullRemote()
+    return () => {
+      cancelled = true
+    }
+  }, [activeCompanyId, cloudDocRefreshTick, mode, statementSaveState])
 
   useEffect(() => {
     window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage)
@@ -2674,6 +2718,7 @@ function App() {
         supplyAmount,
         taxAmount,
         totalAmount: supplyAmount + taxAmount,
+        savedAt: new Date(Date.now() + newRecords.length).toISOString(),
       })
     }
 
@@ -3073,6 +3118,9 @@ function App() {
       }
     }
 
+    const existingSaved = editingRecordId
+      ? records.find((row) => row.id === editingRecordId)?.savedAt
+      : undefined
     const nextRecord: StatementRecord = {
       id: editingRecordId ?? crypto.randomUUID(),
       deliveryDate: form.deliveryDate,
@@ -3088,6 +3136,11 @@ function App() {
       supplyAmount: calculatedAmounts.supplyAmount,
       taxAmount: calculatedAmounts.taxAmount,
       totalAmount: calculatedAmounts.totalAmount,
+      ...(editingRecordId
+        ? existingSaved
+          ? { savedAt: existingSaved }
+          : {}
+        : { savedAt: new Date().toISOString() }),
     }
 
     if (editingRecordId) {
@@ -3849,7 +3902,7 @@ function App() {
               <table>
                 <thead>
                   <tr>
-                    <th title="납품일이 속한 달에서, 납품일·거래처 순으로 몇 번째 건인지">번호</th>
+                    <th title="같은 납품월에서 입력·저장한 순서(가장 나중에 저장한 건이 가장 큰 번호). 예전 데이터는 납품일·거래처 기준">번호</th>
                     <th>납품일</th>
                     <th>횟수</th>
                     <th>거래처명</th>

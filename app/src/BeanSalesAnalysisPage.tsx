@@ -96,7 +96,7 @@ const shortenBeanName = (name: string, max = 14): string => {
 }
 
 function BeanSalesAnalysisPage() {
-  const { mode, activeCompanyId } = useAppRuntime()
+  const { mode, activeCompanyId, cloudDocRefreshTick } = useAppRuntime()
   const [inventoryReadTick, setInventoryReadTick] = useState(0)
   const [greenOrderReadTick, setGreenOrderReadTick] = useState(0)
   const [manualMappingTick, setManualMappingTick] = useState(0)
@@ -155,7 +155,8 @@ function BeanSalesAnalysisPage() {
 
     const loadStatementRecords = async () => {
       const local = readLocalRecords()
-      if (local.length > 0) {
+      const preferRemote = cloudDocRefreshTick > 0
+      if (local.length > 0 && !preferRemote) {
         setStatementRecordsRaw(local)
       }
       if (mode === 'cloud' && activeCompanyId) {
@@ -168,7 +169,7 @@ function BeanSalesAnalysisPage() {
             return
           }
           if (Array.isArray(remote?.records)) {
-            if (local.length === 0) {
+            if (preferRemote || local.length === 0) {
               setStatementRecordsRaw(remote.records)
             } else {
               setStatementRecordsRaw(local)
@@ -193,7 +194,7 @@ function BeanSalesAnalysisPage() {
     return () => {
       cancelled = true
     }
-  }, [mode, activeCompanyId, statementRecordsTick])
+  }, [cloudDocRefreshTick, mode, activeCompanyId, statementRecordsTick])
 
   useEffect(() => {
     let cancelled = false
@@ -240,7 +241,7 @@ function BeanSalesAnalysisPage() {
     return () => {
       cancelled = true
     }
-  }, [mode, activeCompanyId, inventoryReadTick])
+  }, [cloudDocRefreshTick, mode, activeCompanyId, inventoryReadTick])
 
   useEffect(() => {
     let cancelled = false
@@ -272,7 +273,7 @@ function BeanSalesAnalysisPage() {
     return () => {
       cancelled = true
     }
-  }, [mode, activeCompanyId, greenOrderReadTick])
+  }, [cloudDocRefreshTick, mode, activeCompanyId, greenOrderReadTick])
 
   const statementRecords = useMemo(() => {
     return statementRecordsRaw.filter((record) => new Date(record.deliveryDate).getFullYear() === selectedYear)

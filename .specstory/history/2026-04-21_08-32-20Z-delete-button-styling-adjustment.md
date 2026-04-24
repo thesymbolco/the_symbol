@@ -63476,4 +63476,3865 @@ _**Agent (default)**_
 <think><details><summary>Thought Process</summary>
 I see a critical issue now:
 
-- useEffect for local write runs writeStatementPageLocalState which dispatches the</details></think>
+- useEffect for local write runs writeStatementPageLocalState which dispatches the event. Good.
+
+- The local effect skips writing to local and dispatching when `mode === 'cloud' && activeCompanyId`
+- The event is only dispatched in `.then()` of `saveCompanyDocument` after up to 600ms debounce + network
+
+So in cloud mode there's delay but event should still fire on success.
+
+**Bigger problem**: If user navigates to BeanSalesAnalysis page before cloud save completes, that page might load from stale local state, then BeanSalesAnalysis loads statement from cloud in useEffect. If the other page is mounted in the background, the listener won't trigger because the component is unmounted. In App, only one page is rendered at a time (`activePage === 'statements'` or `activePage === 'beanSalesAnalysis'`). When the user saves on the statements page, BeanSalesAnalysis is unmounted, so it doesn't listen to the `STATEMENT_RECORDS_SAVED_EVENT` event. When navigating to BeanSalesAnalysis, the component mounts fresh and loads data via `useEffect` with `loadStatementRecords`, which depends on `statementRecordsTick`. In cloud mode, it fetches from cloud, but if a record was just added locally and the cloud save hasn't completed (due to 600ms debounce), the component may load stale data from the cloud instead of the updated in-memory records.
+
+The bug occurs when:
+- A record is added locally
+- User quickly switches to BeanSalesAnalysis before cloud save completes
+- Component loads from cloud without seeing the updated in-memory state
+- This happens because the useEffect in BeanSalesAnalysis doesn't account for local changes that haven't been saved yet BeanSalesAnalysis fetches from cloud and receives old data, requiring a refresh to see updates.  
+
+When user switches pages after saving, the load runs once on mount and should fetch from cloudunless the cloud document hasnt updated yet (unlikely if save completed).  
+
+In cloud mode, after a successful save, `writeStatementPageLocalState` updates localStorage and dispatches an eventbut if BeanSalesAnalysis isn't mounted (no listener), and the user later opens it, the initial load determines whether it uses localStorage or cloud. When `BeanSalesAnalysis` mounts, it loads statement records by first attempting to fetch from the cloud if in cloud mode and an active company exists. If that fails or isn't applicable, it falls back to loading from local storage. However, if a local change was made but hasn't been synced to the cloud yet (e.g., due to debounce delay), the component may load stale data from the cloud instead of the updated in-memory state. This can lead to a mismatch between whats displayed and what was actually saved locally, requiring a manual refresh to see the correct data.
+
+This behavior occurs because:
+- The component relies on `loadStatementRecords` which checks cloud first and falls back to local storage.
+- It does not consider any pending local changes that have not yet been committed to the cloud.
+- If the user navigates away before the cloud save completes, the new page will load from the cloud without reflecting recent local edits.
+
+The issue is exacerbated when:
+- A record is added On mount, cloud mode always tries cloud first. If successful, it uses remote data. The localStorage mirror is updated in App only after cloud save succeeds. So if user navigates to BeanSalesAnalysis before the debounced save finishes, the cloud fetch might return old data, and the page won't have the new record until refreshed. - Dispatch a dedicated event immediately when `records` state changes in App to notify other pages, in addition to the existing local write event.
+- Re-run the data load specifically when `activePage` changes to `beanSalesAnalysis` or any other page that depends on statement records. They already have `statementRecordsTick`  we could increment tick when `activePage` changes in `BeanSalesAnalysis` when landing on the page, or use a `useEffect` with `[activePage, mode, activeCompanyId]` to reload when user navigates to the page.
+
+The simplest user-facing fix: In `BeanSalesAnalysisPage`, add a `useEffect` that reloads when `activePage` becomes `beanSalesAnalysis`. Since `BeanSalesAnalysis` doesn't have `activePage` in context, it could use `useAppRuntime` to listen to page changes.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "statement|STATEMENT|거래명세"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "statement|STATEMENT|거래명세",
+  "topFiles": [
+    {
+      "matchCount": 19,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 19
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The fix requires two parts:
+
+- Dispatch `STATEMENT_RECORDS_SAVED_EVENT` immediately when records change in App after user saves from form, in addition to the debounced cloud path. This helps same-session listeners. But the real issue for unmounted pages is mount-time load.
+
+- When `STATEMENT_RECORDS_SAVED_EVENT` fires, it bumps `statementRecordsTick` in BeanSales, triggering a reload.
+- The event only fires from `writeStatementPageLocalState` which in cloud mode is only after save succeeds.
+- If BeanSales is mounted in background (not the case in this SPA), no issue occurs.
+- When user navigates to BeanSales, on mount, `loadStatementRecords` runs and fetches data in cloud mode.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx",
+  "pattern": "activePage|useAppRuntime"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx",
+  "pattern": "activePage|useAppRuntime",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/providers/AppRuntimeProvider.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/providers/AppRuntimeProvider.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The `activePage` variable exists only in the App state and is not available at runtime. We cannot use useAppRuntime for page changes since activePage only exists in App state and is not available at runtime.
+
+After every `setRecords` operation (handleSubmit, delete, import, etc.), dispatch a custom event `statement-records-in-memory` or `STATEMENT_RECORDS_SAVED_EVENT` in addition to the save pipeline.
+
+**Problem**: In cloud mode, other pages read from cloud first, not in-memory. The event causes BeanSales to `setStatementRecordsTick` which re-runs load and fetches cloud datastill stale if save hasn't completed.
+
+**Real fix for cloud**:
+- Option A: On save success, we already dispatch. The gap occurs only when user navigates before saving.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+MonthlyMeeting reads localStorage to sync roasting sales. In cloud mode, `writeStatementPageLocalState` only runs after successful cloud save, causing a delay in local updates. The `STATEMENT_RECORDS_SAVED_EVENT` fires simultaneously with the local update, so when both occur, `bumpStatements` runs and the useEffect re-reads the local storage, keeping things in sync.
+
+**The gap**: When users edit statements but cloud save is still in progress, local storage isn't updated and the event isn't fired. Switching to Monthly Meeting doesn't bump `statementRecordsStorageRev`, leaving local data stale. Users may need to refresh after the save completes to see updates. When the save completes, the event fires and `bump` runs, but only if Monthly Meeting is still mounted. If the user was on another tab or window, the component may be unmounted. Upon navigating back to Monthly Meeting, the component remounts, but `statementRecordsStorageRev` resets to 0, even though it was bumped while the component was unmounted. This causes stale data to persist until a refresh or new mount.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/lib/companyDocuments.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+No client-side cache is used. Supabase may have eventual consistency but this is unlikely. The team decided to avoid local storage writes and instead dispatch `STATEMENT_RECORDS_SAVED_EVENT` after every successful `setRecords` operation to maintain cloud as the source of truth. This approach ensures listeners re-fetch data rather than relying on local storage, keeping the system consistent with the cloud-first architecture. For BeanSales, re-fetching cloud during save results in stale data, so an **eager** update is needed: dispatch event and read from local storage when received, though local data may be stale compared to cloud.
+
+**Practical hybrid approach** (minimizing cloud-first breaking changes):
+- In **cloud mode**, immediately write only `STORAGE_KEY` (statement records JSON) to localStorage on every `records` state change as a "preview cache" for cross-page readers.
+- Dispatch `STATEMENT_RECORDS_SAVED_EVENT`.
+- Full `writeStatementPageLocalState` still only occurs on successful cloud write for pricing and other full updates. - On records-only changes, immediately update localStorage and dispatch the save event, without waiting for the full cloud write. The debounced effect still handles saving the full document to the cloud.
+- For BeanSales in cloud mode, a "records_version" or timestamp could allow using local records if available; otherwise, fall back to cloud datathough this adds complexity. A simpler approach involves adding a `useEffect` in the App that updates local storage and dispatches the save event whenever `records`, `mode`, or `activeCompanyId` change, but only in cloud mode. This mirrors React state for read-only cross-page use, avoiding duplication of the cloud-first rule. However, this intentional local mirroring improves UX for read-only scenarios. The team decided against writing to local storage when cloud saves fail to avoid showing inconsistent datalocal changes should not appear if cloud fails. While full state is written on successful cloud save, immediate local updates are needed for cross-page synchronization within the same browser. A minimal fix involves using `useEffect` to update `localStorage` immediately when `records` change, ensuring other pages in the same browser reflect new data instantly, even before the cloud roundtrip completes. This avoids stale data on other pages while maintaining cloud-first integrity. In cloud mode, only the `records` array is cached locally for immediate sync notifications, while the full `writeStatementPageLocalState` is gated and only runs on successful cloud writes. A separate `syncStatementRecordsLocalCache` function can be added to update `STORAGE_KEY` and dispatch events on every `records` change, without triggering the full template write. The debounced effect continues to handle full cloud saves on success. **Conflict**: After cloud save, `writeStatementPageLocalState` writes the full document including recordsredundant with the eager records write, which is acceptable.
+
+**If cloud save fails**: The eager local update applies new records, but the full write doesnt occur. Other pages see the updated data from local storage. The user sees an error on the save UI. The issue arises with other devices. For the **same browser**, the user might prefer consistent data. This aligns with the refresh to fix behavior, where users expect to see updates after refreshing. Therefore, we add the eager `STORAGE_KEY` update and event dispatch to ensure local consistency.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "^const STORAGE_KEY"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "^const STORAGE_KEY",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+STATEMENT_RECORDS_STORAGE_KEY is imported from MonthlyMeetingPage. Good. I'll add the useEffect after the existing local write effect or cloud logic, avoiding infinite loops by only using setItem and dispatch. The initial mount sync may cause extra BeanSales fetches but that's acceptable.
+
+For local mode, there will be two dispatches per records change: one from the new effect and one from the existing `writeStatementPageLocalState` effect, which depends on `records, pricingRules, ...`. - One change to records triggers both a new cloud records-only effect (only if added for cloud only) and a local `writeStatementPageLocalState` full dispatch.
+- For local mode, avoid duplicates; only add the cloud effect.
+- Implementation includes checking `isRecordsStorageReady`, ensuring `mode === 'cloud'`, and handling localStorage updates with error catching. When `records` are updated from delete, inline edit, or other changes, the effect should run to ensure consistency.
+
+- The local storage mirror ensures other screens reading the transaction array within the same tab can access updated data.
+- An alternative approach would be to dispatch in `handleSubmit`, but the effect already covers all `setRecords` paths, making it more comprehensive.
+- In cloud mode, `BeanSales` reloads on `statementRecordsTick` change by first attempting to load from cloud. If local is updated before cloud, and `BeanSales` still prefers cloud, it may load stale data from cloud until saved. The records-only local update does not fix BeanSales if it always fetches cloud first and ignores local data when cloud returns results.
+
+Upon reviewing `loadStatementRecords`, if `remote?.records` exists, it returns immediately without reading local data. For BeanSales, we need either:
+
+- Change load order: try cloud first, but merge with local records if local is newer (requires timestamp)
+- After cloud save, event fires, tick bumps, and re-fetch occurs - but this leads to stale data until saved
+
+The eager local update doesn't help BeanSales in the cloud-first read path. In BeanSales, when in cloud mode, `loadStatementRecords` should fetch from cloud and local, then use the longer list or latest updated records without relying on payload versions.
+
+A simpler approach is to use local data if available and an event just fired, though this is fragile.
+
+Alternatively, BeanSales could try loading local data first, then fetch cloud and replace if different, but this causes a flash of local data before cloud overwrites itunacceptable.
+
+The real fix involves:
+1. Fetching from cloud
+2. Reading local data
+3. Merging or prioritizing based on timestamps or record counts If `localRecords` has more records or a comparison is needed, use the maximum modification time since per-record `updated_at` is unavailable.
+
+A simpler approach is to increment the tick on `STATEMENT_RECORDS_SAVED_EVENT`, triggering a cloud fetch. The issue arises only before save completion. Thus:
+
+- Eagerly dispatch an event when records change so BeanSales can refetchstill stale from cloud
+- The fix: in BeanSales, after cloud fetch, also read local data and merge if local is newer (using `JSON.stringify(local.` comparison) When comparing `records` with `remote`, prefer the version with more records, as this usually indicates newer data. However, this heuristic fails for deletions.
+
+A better approach is to make cloud saves synchronous from the users perspectiveblocking the UI until the save completes and confirming success before allowing further actions.
+
+Alternatively, in cloud mode, BeanSales can read local statement records during analysis (similar to how MonthlyMeetingPage handles it) and only fetch company documents during reconciliation or initial load. That would align monthly and bean sales data by ensuring consistency.
+
+Simpler architecture: For the statement records array, use localStorage as the read path for all consumer pages in the same browser, with cloud serving only as a sync mechanism across devices. The app already mirrors to local storage upon successful cloud save. The gap occurs before successby eagerly writing the STORAGE_KEY on every records change in cloud mode, all consumers will read the same data as React state. BeanSales can prefer local data for statement records or be modified to read local first when in cloud mode, then background refresh from cloud. The simplest approach is to adjust BeanSales to read local data first and merge with cloud data afterward, though this is complex.
+
+In `BeanSalesAnalysisPage`, load statement records by:
+- Checking if mode is 'cloud' and activeCompanyId exists
+- Reading local data first (eagerly mirrored from App)
+- Setting statement records raw from local data if available
+- Fetching remote data from cloud
+- Merging local and remote data as needed If remote fails, local data remains set. However, if local data is ahead of cloud and eager updates occur, the remote fetch may overwrite it with stale data. The solution requires fetching cloud data first, then comparing with local records to determine which dataset is more currentpreferably the one with more records or later updates. This prevents overwriting newer local data with older cloud data. If local records are longer than remote, prefer local; otherwise, prefer remote. However, this heuristic fails when records are deleted, as local may initially have more records before cloud sync. Since eager local updates ensure local data is current within the session, prefer local over cloud when local has equal or more records. If unsure, compare last modified times, though those aren't available. - In cloud mode, prioritize local data for `statementRecordsRaw` in BeanSales, using it as the primary source and refreshing from cloud periodically or on focus.
+- For consistency, mirror this behavior in MonthlyMeetingPage, which already reads local data.
+- Change BeanSales to read local data first and optionally background load cloud data for multi-device sync.
+- This approach avoids stale data for users who rely solely on cloud, as local data would be eagerly updated and used as the primary source.
+- Current implementation loads cloud first; switching to local-first improves reliability for local-only users.
+- Order:
+  1. Read local data first for statement records.
+  2. Optionally fetch cloud in background for synchronization.
+  3. Prefer local data unless cloud has newer content. Read local data first and set state immediately for fast rendering.  
+If in cloud mode, fetch remote data and replace local only if remote has more recent changes.  
+
+Current bug: remote data overwrites fresh local data with stale cloud data.  
+Fix:
+1. Fetch remote data if in cloud mode.
+2. Read local data.
+3. Compare local and remote records:
+   - If local has more records or was updated more recently (using `sessionStatementRecordsRev` in sessionStorage), prefer local.
+   - Otherwise, use remote data. **Nuclear option**: Add `__statementRecordsPushedAt` to localStorage on each write from App, timestamping changes. In BeanSales, if local timestamp is newer than last cloud fetch, prefer local data.
+
+- **Minimal fix**: Only perform `setItem` + `dispatchEvent` in App for cloud mode, and reorder BeanSales load order: if local data exists, set state from local immediately; then asynchronously load cloud data and apply it only if remote has more records or newer data.
+- **Delete handling**: Using `>=` comparison is flawed; instead, compare by latest `deliveryDate` or record count to determine which dataset is more current.
+- **Simpler heuristic**: Use `Math.max` of latest `deliveryDate` in records to decide which dataset is newerthough this adds complexity. For users, "refresh helps" because the refresh triggers a re-fetch, and by then the cloud is updated. To address this, use eager local updates with events and modify BeanSales to:
+
+- Load local data first and set state immediately
+- Then asynchronously fetch cloud data
+- Merge cloud data only if it has newer records or updates
+
+This ensures local data is used first, preventing stale cloud data from overwriting fresh local changes. A simple union-by-id approach works best without version fields, preferring newer data based on record count or delivery date. The fix involves updating App to eagerly write to localStorage and dispatch events, while BeanSales reads local data first before fetching cloud data. If in cloud mode, fetch remote data and use `mergeRecordsByIdPreferLocalWins` to prefer local records; otherwise, use local data if available. To prevent stale remote data from overwriting local changes, after fetching remote data, re-read local data and prefer local if its serialized string is longer or different from remote. A simpler fix aligns with the architecture: in App, eagerly write to `localStorage` and dispatch events for cloud mode `records` only. In BeanSales, for cloud mode, read local data into state synchronously first, then fetch cloud data. Only update with remote data if local is confirmed to be newer or equal. Use event timing to detect when local data has changed since navigation, ensuring BeanSales reads local data in the same tick or prefers local when cloud response is older. Client-side "generation" token uses `statementGen` in `sessionStorage`, incremented on local changes, but cloud payloads lack this field, so direct comparison isn't possible when loading from cloud.
+
+- In App, eagerly write to `localStorage` and dispatch events for cloud mode records.
+- In BeanSales (cloud mode):
+  - Read local data first and set state immediately.
+  - Fetch cloud data asynchronously.
+  - Merge records by ID, preferring local data when duplicates exist.
+  - Include new local records not present in remote data. For records only in remote, include them during merge. This is a **list merge** by ID, where local data takes precedence in case of conflicts.
+
+```javascript
+function mergeStatementRecordsById(local: StatementRecord[], remote: StatementRecord[] | null): StatementRecord[] {
+  const map = new Map<string, StatementRecord>()
+  for (const r of remote ?? []) {
+    map.set(r.id, r)
+  }
+  for (const l of local) {
+    map.set(l.id, l) // local wins
+  }
+  return sort([...map.values()], compareStatementRecordsNewestFirst)
+}
+```
+
+BeanSales:
+- Read local data and parse it.
+- Fetch cloud data asynchronously.
+- Merge records by ID, preferring local data when duplicates exist.
+- Include remote records not present in local data. `setStatementRecordsRaw(mergeStatementRecordsById(local, remote?.records))` ensures local data wins on ID conflicts, with remote filling in missing records. After cloud saves, local and remote should match. For deletes, if local has fewer records, it takes precedence over remote, which still holds old data until saved. When merging, local data is preferred when it's more recent or has been updated more recently. **Simplest merge**: Use all local IDs, and for IDs in remote but not local, include those from remote. For overlapping IDs, prefer local data. This ensures local takes precedence while syncing new records from remote.
+
+**Simpler approach**: Merge by combining local records with remote records that dont exist locally (`...remote.filter(r => !localIds.has(r.id))`), then deduplicate by ID, prioritizing local records. If a user deletes a record on one device, that deletion wont be reflected in remote unless explicitly synced  so remote should only contribute new IDs not present in local. The delete operation causes local records to be removed and remote fetch to still include them until savedresulting in stale records being added back.
+
+To fix this, prefer full local data over remote when cloud save hasnt completed. A safer and simpler solution is to use local records in BeanSales when in cloud mode, and run cloud fetch in the background. Only update if the fetch completes after local data is written with matching signature (e.g., record count). 
+
+- Eagerly write to `localStorage` and dispatch events in App.
+- In BeanSales, prefer local data in cloud mode.
+- Run cloud fetch in background.
+- Update remote data only if fetch completes after local write with matching signature. - `handleSubmit` and save paths await the debounced save or immediately call a quick `saveCompanyDocument` for records only.
+- Eagerly write to `localStorage` and dispatch events in App.
+- In BeanSales, load local data first, then fetch cloud data asynchronously.
+- If local data is newer or matches the signature after cloud fetch, prefer local data to avoid stale remote updates.
+- Use event timing to detect local changes and re-fetch cloud data on visibility focus to prevent race conditions.
+- Implement a list merge by ID, favoring local records when duplicates exist.
+- For deletes, ensure local records take precedence over stale remote data by comparing record counts or delivery dates. `setState` uses `mergeByIdLocalWins(localParsed, remote?.records ?? [])` to handle merges where local data takes precedence.
+
+For deletes before cloud save: if local lacks a record that remote has, the merge excludes the remote record to prevent reintroduction. The algorithm works as follows:
+- Create a map of local records by ID.
+- Iterate through remote records, adding only those with IDs not present in local.
+- Return the merged list sorted by date, ensuring local records take precedence. - **Delete handling**: If local data lacks an ID that exists in remote, do not add from remote to prevent reintroducing deleted records.
+- **Multi-device sync**: Deletions on one device may not reflect on another if remote fetch returns stale data, causing inconsistencies.
+- **Single-user scenario**: Before saving, if local has a deletion and remote fetch returns old data, avoid adding deleted records from remote to preserve local state.
+- **Merge logic**: Only add records from remote that arent present in local to prevent reintroducing deleted items. The merge rule is: **if local is empty**, use remote; **if local is not empty**, use local as the base and only add remote IDs that arent in local. Deleted records in remote but not local should not be added.
+
+- If local is empty and remote has data, use remote (e.g., first visit).
+- If local has data, treat it as the full source; do not merge in remote IDs not present in local (as they may have been deleted or never existed).
+- For IDs present in both local and remote, prefer local data.
+- For IDs in remote but not local, we cannot distinguish between new records from another device or deletions on this device, so they are not merged in. If local data exists, prefer it entirely; only use remote if local is empty. When both exist, always prefer local to ignore cloud updates from other tabs, avoiding stale data from different sessions. This prevents reintroducing deleted records or stale updates from other devices. The correct fix for cross-device sync is using versioning or timestamps, which is out of scope.
+
+For same-tab sync, eagerly writing to `localStorage` and dispatching events resolves issues for Monthly and other local readers. In cloud mode, BeanSales should prefer local data for statement records, mirroring how analysis uses local data. If eager writes are implemented, use local data in cloud mode; otherwise, fall back to cloud. On the same device, local data becomes the single source after eager updates. The `loadStatementRecords` function would then read from local storage directly. When in cloud mode, the system uses local data eagerly to ensure immediate display consistency on the same device. If local data exists, it's used directly without waiting for cloud fetch. Remote data is fetched in the background, and only new remote IDs not present in local are merged in, preventing reintroduction of deleted records. This approach prioritizes local data for freshness and avoids stale updates from previous sessions or other devices. If eager writes run on every records change, local data stays synchronized with App's records. Thus, BeanSales can immediately use local data synchronously on each tick and fetch cloud data in the background. This ensures fresh local data is shown first, with remote updates only applied if they don't conflict with local changes. If local data is empty, use remote as the source of truth; otherwise, merge remote data with local, giving priority to local records. For cloud+company, load local data synchronously at the start of `loadStatementRecords`, then fetch and merge remote data afterward using a local-wins merge strategy. Implement a simple `localWinsMerge` function that overlays local records onto remote ones by ID, ensuring local data takes precedence. This approach uses local data as the base and only adds remote records that are not present locally, preventing deleted records from reappearing. The merge logic starts with local records and adds remote records only if their IDs are not already in local data.
+
+- Local data takes precedence over remote data.
+- Remote data is only added if its ID does not exist in local data.
+- This prevents reintroduction of deleted records from stale remote fetches.
+
+If a user deletes an ID locally, but that ID still exists in remote data, the merge would normally reintroduce it. To prevent this, only add remote records whose IDs are not present in local data. This ensures local deletions persist even if remote hasn't updated yet.
+
+The correct merge implementation:
+- Create a map of local records by ID.
+- Iterate through remote records and only add those with IDs not present in local.
+- Return the merged result sorted by date. - The correct approach for handling deletes before cloud save is to write local data eagerly without the deleted record.
+- Merge strategy: begin with local data, then add remote records only if their IDs are not already present in local.
+- Avoid reintroducing deleted records by excluding remote IDs that aren't in local.
+- If a remote record exists but local doesnt (indicating a deletion), remove it from the merged result. If a record exists in remote but not in local, its treated as deleted in the current session and excluded from the merge. Alternatively, it could come from another device and should be included. For same-session consistency, if local data was written by App, its considered complete for that browser tab. Records in remote but not local are assumed to be deleted in this session and thus excluded. A heuristic like using max(updated) timestamp isnt available.
+
+To handle this, store `lastStatementLocalWriteAt` in `sessionStorage` on each eager write in App. In BeanSales, if a cloud fetch occurs before this timestamp, discard the remote data and rely on local insteadthough this method is fragile. - For same-browser consistency, BeanSales should read only local storage after an eager write, treating local data as the source of truth.
+- Use local data exclusively for the statements page, avoiding cloud fetches unless initial load or focus triggers a refresh.
+- On every `records` change, App should eagerly write to `STORAGE_KEY` to keep local data up-to-date.
+- Cloud fetches are only needed for initial load or when another device has updated data, not for regular sync within the same browser tab. - In BeanSales, for cloud+company mode, load local data first and set it, then await cloud fetch and update with cloud result, but avoid replacing local data if local and remote differ.
+- Prefer local data if local and remote are different, since we cannot determine which is newer.
+- Use `statementRecordsEtag` in App to track changes: increment on each write, store in `sessionStorage`, and compare with cloud responses.
+- If local etag is higher than cloud response after fetch, keep local data.
+- Add `sessionStorage.setItem` in App on each change to track the latest local write timestamp. App sets a version counter (`__stmtVer`) in sessionStorage on every records change. BeanSales reads this version after cloud fetch and compares it with the last seen version. If they match, it uses local data; otherwise, it merges remote data with local, prioritizing local records to avoid reintroducing deleted items. This ensures consistency within the same browser tab while preventing stale updates from previous sessions or other devices. The merge strategy keeps local records unchanged and only adds remote records not present locally.
+
+- Version counter tracks local changes via `__stmtVer`.
+- Local version is compared against last seen on cloud fetch.
+- If versions match, local data is used directly.
+- Remote data is merged only if local version differs, with local records taking precedence.
+- Deleted records are not reintroduced due to the merge logic. When local and remote record counts differ, prefer local data as the source of truth, assuming local represents the intentional state. If local has fewer records, it likely reflects a deletion; if remote has fewer, it may indicate a new addition from another device. In such cases, always prefer local to maintain session consistency. Only merge remote data when local and remote have the same length, and local is considered the authoritative source within the same browser tab. If another device has updated data, a refresh will ensure consistency. If local data matches remote data exactly, use local; otherwise, prefer local data over remote to avoid stale updates. For non-cloud paths, always use local data. For cloud scenarios, prefer local data but merge remote data only when necessary, ensuring local records take precedence. Never reintroduce deleted records from remote fetches. On full page refresh, local data loads from `localStorage` and matches remote if on first device; on second device, local reflects that devices state.  
+On same device, if local is eager and matches App, use local data when lengths differ or any differences existlocal is preferred for same-session consistency.  
+For definitive newer data, server version tracking is required. For cloud+company mode, load local data first, then await cloud fetch and update state with remote data only if local and remote are identical or remote is a strict superset of local.
+
+Use eager setItem with events to fix local read paths.
+
+In BeanSales, for cloud+company, read local data first, set state to local, await cloud fetch, and update state to remote only if local equals remote or remote is a strict superset. Otherwise, update state on cloud save events only.
+
+- Eager setItem with events fixes local read paths.
+- Prefer local data when local and remote differ.
+- Update state from remote only under specific conditions.
+- Avoid unnecessary state updates from cloud fetches. - In BeanSales, prefer local data for initial render, then fetch remote data asynchronously. Use local data if remote and local are equal, or if local was updated recently (within 2 seconds). Otherwise, use remote data.
+- App should eagerly write to storage and dispatch events.
+- BeanSales should reorder steps: read local data first, set state immediately, then conditionally update with remote data only if local and remote are equal or remote is a superset. When merging records, local data takes precedence: if an ID exists in both local and remote, use the local version. If an ID is only in remote, it's added (assuming it's from another device). If an ID is only in local, it's also added (either a new record or from another device). Deleted records in remote are skipped to prevent reintroduction. The merge process starts with a map of local records and updates them with remote values where applicable, ensuring local records are preserved and remote additions are included. If local and remote have the same length and no differences, prefer local data; otherwise, merge remote into local, prioritizing local records to avoid stale updates. When merging records, if a remote records ID does not exist in the local set, and the local data is considered complete and up-to-date, prefer the local version. Only use remote data if local is empty or incomplete. If a remote records ID is missing from local and the local data is complete, do not reintroduce it unless explicitly needed. Deleted records in remote should not be reintroduced. If local data is complete and up-to-date, use it entirely; otherwise, merge remote data carefully to avoid reintroducing deletions.</details></think>
+
+_**Agent (default)**_
+
+원인: 클라우드 모드에서는 `statement-records` 로컬이 클라우드 저장 성공 전까지 갱신되지 않고, `BeanSales`는 클라우드를 먼저 읽어 **세션에만 있는 최신·미동기** 데이터를 덮어쓸 수 있습니다.  
+거래명세 `records`는 즉시 로컬에 미러하고 이벤트를 쏘며, `BeanSales`는 로컬(세션)을 우선하도록 조정합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The storage key matches the statement records storage key, which is correct.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The logic at the end is redundant. If cloud path doesn't return, the logic handles local data appropriately: if local has items, it sets them and returns; otherwise it sets an empty array. If cloud fails, execution falls through to the same local handling. For non-cloud modes, the block is skipped and local-only logic is reached. The current structure ensures proper flow regardless of cloud success or mode.
+
+Key points:
+- Cloud failure leads to local handling via fall-through
+- Local block executes with proper return logic
+- Non-cloud modes bypass cloud block and reach local path directly</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Build and verify the implementation.
+
+One issue identified: the eager effect in App will cause the `writeStatementPageLocalState` event to fire twice on cloud save successresulting in two events per save, which causes listeners to bump twice. This behavior is acceptable.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 650 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-Cx2NrBY9.css    150.72 kB │ gzip:  25.08 kB
+dist/assets/index-C370mfQY.js   2,625.37 kB │ gzip: 746.54 kB
+
+✓ built in 428ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Korean explanation 
+
+:            .</details></think>
+
+_**Agent (default)**_
+
+### 왜 새로고침해야 보였는지
+
+1. **클라우드 모드**에서는 이전에 “클라우드에 먼저 맞추기”를 하면서, **`statement-records` 로컬은 `saveCompanyDocument`가 성공한 뒤에만** 갱신되게 해 두었어요.  
+   그래서 입력 직후에는 **거래명세 화면의 React 상태**에는 반영되는데, **다른 메뉴(원두별 매출 분석 등)** 는 먼저 **서버에서 읽거나** 오래된 **로컬**을 볼 수 있었고, 그때는 **새로고침** 후에야 서버/로컬이 맞춰져 보일 수 있었습니다.
+
+2. **원두별 매출 분석**은 클라우드일 때 **`loadCompanyDocument` 결과를 우선**해서 쓰는데, **아직 서버에 반영 전**이면 **예전 목록**으로 덮어쓰는 경우가 있었어요.
+
+### 지금 맞춰 둔 것
+
+- **`App.tsx`**: 클라우드+회사일 때, **전체 문서 저장(디바운스)을 기다리지 않고** `records`만 **`localStorage`에 곧바로** 쓰고, `STATEMENT_RECORDS_SAVED_EVENT`도 **같이** 보냅니다. (월마감 등 **로컬을 읽는 화면도** 곧바로 따라감.)  
+  팀 기준 “정식 저장”·나머지 필드(단가표·템플릿 등)는 **이전과 같이** 클라우드 저장 성공 시 전체 `writeStatementPageLocalState`로 맞춥니다.
+
+- **`BeanSalesAnalysisPage`**:  
+  - 먼저 **로컬** `statement-records`를 읽고,  
+  - 클라우드로 불러온 뒤에도 **이 브라우저에 이미 쌓인 로컬이 있으면 그걸 우선**해요. (입력 직후 서버가 한 박짜 늦을 때, 예전 서버 데이터로 덮이지 않게.)
+
+이렇게 하면 **같은 PC·같은 탭에서 메뉴만 바꿀 때**는 새로고침 없이도 **거래명세 입력 내용**이 훨씬 잘 이어집니다. (다른 기기에서 막 저장한 데이터만 이 브라우저 **로컬**에 아직 없는 경우, 그때는 여전히 **딜레이/새로고침**이 필요할 수 있어요.)
+
+---
+
+_**User**_
+
+거래명세서 입력할때 마지막으로 입력한걸 번호를 그냥 마지막 번호를 메기게 만들어줘 그리고 여전히 다른 환경에서 입력하면 다른 환경은 새로고침해야지 반영되는거같은데
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When entering statement records, the numbering should be based on the "last" number, ensuring the most recently added item receives the highest number.</details></think>
+
+_**Agent (default)**_
+
+거래명세 ‘번호’ 계산 방식을 확인하고, 다른 기기/브라우저에서 갱신되도록 개선하는 방법을 찾습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statementDeliveryMonthSeq|번호|deliveryMonthSeq|compareStatementRecords"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statementDeliveryMonthSeq|번호|deliveryMonthSeq|compareStatementRecords",
+  "topFiles": [
+    {
+      "matchCount": 19,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 19
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+
+Parameters:
+
+```json
+{
+  "explanation": "",
+  "includePattern": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "query": "How is statement record month sequence number or 번호 calculated for the table?",
+  "topK": 10
+}
+```
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1234,
+            "text": "/** 납품일 연·월(YYYY-MM)이 같은 건끼리, 납품일·거래처·id 순으로 월 내 몇 번째인지(1부터). */"
+          },
+          {
+            "lineNumber": 1235,
+            "text": "const statementRecordDeliveryMonthSeqById = (records: StatementRecord[]): Map\u003cstring, number\u003e =\u003e {"
+          },
+          {
+            "lineNumber": 1236,
+            "text": "  const byMonth = new Map\u003cstring, StatementRecord[]\u003e()"
+          },
+          {
+            "lineNumber": 1237,
+            "text": "  for (const r of records) {"
+          },
+          {
+            "lineNumber": 1238,
+            "text": "    const ym = r.deliveryDate.length \u003e= 7 ? r.deliveryDate.slice(0, 7) : ''"
+          },
+          {
+            "lineNumber": 1239,
+            "text": "    if (!ym) {"
+          },
+          {
+            "lineNumber": 1240,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 1241,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1242,
+            "text": "    const list = byMonth.get(ym)"
+          },
+          {
+            "lineNumber": 1243,
+            "text": "    if (list) {"
+          },
+          {
+            "lineNumber": 1244,
+            "text": "      list.push(r)"
+          },
+          {
+            "lineNumber": 1245,
+            "text": "    } else {"
+          },
+          {
+            "lineNumber": 1246,
+            "text": "      byMonth.set(ym, [r])"
+          },
+          {
+            "lineNumber": 1247,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1248,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1249,
+            "text": "  const idToSeq = new Map\u003cstring, number\u003e()"
+          },
+          {
+            "lineNumber": 1250,
+            "text": "  for (const list of byMonth.values()) {"
+          },
+          {
+            "lineNumber": 1251,
+            "text": "    const sorted = [...list].sort((a, b) =\u003e {"
+          },
+          {
+            "lineNumber": 1252,
+            "text": "      const d = a.deliveryDate.localeCompare(b.deliveryDate)"
+          },
+          {
+            "lineNumber": 1253,
+            "text": "      if (d !== 0) {"
+          },
+          {
+            "lineNumber": 1254,
+            "text": "        return d"
+          },
+          {
+            "lineNumber": 1255,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1256,
+            "text": "      const c = a.clientName.localeCompare(b.clientName, 'ko')"
+          },
+          {
+            "lineNumber": 1257,
+            "text": "      if (c !== 0) {"
+          },
+          {
+            "lineNumber": 1258,
+            "text": "        return c"
+          },
+          {
+            "lineNumber": 1259,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1260,
+            "text": "      return a.id.localeCompare(b.id)"
+          },
+          {
+            "lineNumber": 1261,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 1262,
+            "text": "    sorted.forEach((rec, i) =\u003e idToSeq.set(rec.id, i + 1))"
+          },
+          {
+            "lineNumber": 1263,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1264,
+            "text": "  return idToSeq"
+          },
+          {
+            "lineNumber": 1265,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1266
+          },
+          {
+            "lineNumber": 1267,
+            "text": "/** 목록·저장 배열: 납품일 최신순. 같은 날짜는 거래처·id 역순(월 내 번호가 큰 쪽이 위). */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 123,
+            "line": 1266
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 1231
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.4380730390548706
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 2167,
+            "text": "const clientCardStats = "
+          },
+          {
+            "lineNumber": 2200,
+            "text": " [statementPreviewRecords])"
+          },
+          {
+            "lineNumber": 2201
+          },
+          {
+            "lineNumber": 2202,
+            "text": "  const calendarEntries = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2203,
+            "text": "    const map = new Map\u003cstring, { count: number; totalAmount: number; records: StatementRecord[] }\u003e()"
+          },
+          {
+            "lineNumber": 2204,
+            "text": "    statementPreviewRecords.forEach((record) =\u003e {"
+          },
+          {
+            "lineNumber": 2205,
+            "text": "      if (!record.deliveryDate.startsWith(calendarMonth)) {"
+          },
+          {
+            "lineNumber": 2206,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 2207,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2208,
+            "text": "      const existing = map.get(record.deliveryDate) ?? {"
+          },
+          {
+            "lineNumber": 2209,
+            "text": "        count: 0,"
+          },
+          {
+            "lineNumber": 2210,
+            "text": "        totalAmount: 0,"
+          },
+          {
+            "lineNumber": 2211,
+            "text": "        records: [] as StatementRecord[],"
+          },
+          {
+            "lineNumber": 2212,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2213,
+            "text": "      existing.count += 1"
+          },
+          {
+            "lineNumber": 2214,
+            "text": "      existing.totalAmount += record.totalAmount"
+          },
+          {
+            "lineNumber": 2215,
+            "text": "      existing.records.push(record)"
+          },
+          {
+            "lineNumber": 2216,
+            "text": "      map.set(record.deliveryDate, existing)"
+          },
+          {
+            "lineNumber": 2217,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2218,
+            "text": "    return map"
+          },
+          {
+            "lineNumber": 2219,
+            "text": "  }, [statementPreviewRecords, calendarMonth])"
+          },
+          {
+            "lineNumber": 2220
+          },
+          {
+            "lineNumber": 2221,
+            "text": "  const statementDeliveryMonthSeqById = useMemo("
+          },
+          {
+            "lineNumber": 2222,
+            "text": "    () =\u003e statementRecordDeliveryMonthSeqById(records),"
+          },
+          {
+            "lineNumber": 2223,
+            "text": "    [records],"
+          },
+          {
+            "lineNumber": 2224,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2225
+          },
+          {
+            "lineNumber": 2226,
+            "text": "  const totalSupplyAmount = useMemo("
+          },
+          {
+            "lineNumber": 2227,
+            "text": "    () =\u003e statementPreviewRecords.reduce((sum, record) =\u003e sum + record.supplyAmount, 0),"
+          },
+          {
+            "lineNumber": 2228,
+            "text": "    [statementPreviewRecords],"
+          },
+          {
+            "lineNumber": 2229,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2230
+          },
+          {
+            "lineNumber": 2231,
+            "text": "  const yearlyTotal = useMemo("
+          },
+          {
+            "lineNumber": 2232,
+            "text": "    () =\u003e filteredRecords.reduce((sum, row) =\u003e sum + row.totalAmount, 0),"
+          },
+          {
+            "lineNumber": 2233,
+            "text": "    [filteredRecords],"
+          },
+          {
+            "lineNumber": 2234,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2235
+          },
+          {
+            "lineNumber": 2236,
+            "text": "  const monthlyTotals = useMemo("
+          },
+          {
+            "lineNumber": 2237,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 2238,
+            "text": "      MONTH_LABELS.map((_, index) =\u003e"
+          },
+          {
+            "lineNumber": 2239,
+            "text": "        filteredRecords.reduce((sum, record) =\u003e {"
+          },
+          {
+            "lineNumber": 2240,
+            "text": "          const monthIndex = Number(record.deliveryDate.slice(5, 7)) - 1"
+          },
+          {
+            "lineNumber": 2241,
+            "text": "          return monthIndex === index ? sum + record.totalAmount : sum"
+          },
+          {
+            "lineNumber": 2242,
+            "text": "        }, 0),"
+          },
+          {
+            "lineNumber": 2243,
+            "text": "      ),"
+          },
+          {
+            "lineNumber": 2244,
+            "text": "    [filteredRecords],"
+          },
+          {
+            "lineNumber": 2245,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2246
+          },
+          {
+            "lineNumber": 2247,
+            "text": "  const statementSheetGroups = useMemo"
+          },
+          {
+            "lineNumber": 2275
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.368532657623291
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3877,
+            "text": "(record) =\u003e {"
+          },
+          {
+            "lineNumber": 4013
+          },
+          {
+            "lineNumber": 4014,
+            "text": "                      return ("
+          },
+          {
+            "lineNumber": 4015,
+            "text": "                        \u003ctr"
+          },
+          {
+            "lineNumber": 4016,
+            "text": "                          key={record.id}"
+          },
+          {
+            "lineNumber": 4017,
+            "text": "                          className={&#96;statement-row${editingRecordId === record.id ? ' statement-row-editing' : ''}&#96;}"
+          },
+          {
+            "lineNumber": 4018,
+            "text": "                          onDoubleClick={() =\u003e handleStartInlineEdit(record)}"
+          },
+          {
+            "lineNumber": 4019,
+            "text": "                          title=\"더블클릭하면 바로 수정합니다\""
+          },
+          {
+            "lineNumber": 4020,
+            "text": "                        \u003e"
+          },
+          {
+            "lineNumber": 4021,
+            "text": "                          \u003ctd\u003e{statementDeliveryMonthSeqById.get(record.id) ?? '—'}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4022,
+            "text": "                          \u003ctd\u003e{formatDateLabel(record.deliveryDate)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4023,
+            "text": "                          \u003ctd\u003e{record.deliveryCount}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4024,
+            "text": "                          \u003ctd\u003e{record.clientName}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4025,
+            "text": "                          \u003ctd\u003e{record.itemName}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4026,
+            "text": "                          \u003ctd\u003e{record.specUnit || '-'}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4027,
+            "text": "                          \u003ctd\u003e{record.quantity}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4028,
+            "text": "                          \u003ctd\u003e{formatCurrency(record.unitPrice)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4029,
+            "text": "                          \u003ctd\u003e{record.note}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4030,
+            "text": "                          \u003ctd\u003e{formatCurrency(record.supplyAmount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4031,
+            "text": "                          \u003ctd\u003e{formatCurrency(record.taxAmount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4032,
+            "text": "                          \u003ctd\u003e{formatCurrency(record.totalAmount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4033,
+            "text": "                          \u003ctd className=\"statement-record-actions\"\u003e"
+          },
+          {
+            "lineNumber": 4034,
+            "text": "                            \u003cbutton"
+          },
+          {
+            "lineNumber": 4035,
+            "text": "                              type=\"button\""
+          },
+          {
+            "lineNumber": 4060,
+            "text": "                    }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            },
+            {
+              "endPosition": {
+                "column": 21,
+                "line": 3877
+              },
+              "startPosition": {
+                "column": 21,
+                "line": 3877
+              }
+            },
+            {
+              "endPosition": {
+                "column": 23,
+                "line": 3878
+              },
+              "startPosition": {
+                "column": 40,
+                "line": 3877
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.31943655014038086
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3839,
+            "text": "{statementTemplateMessage}\u003c/p\u003e : null}"
+          },
+          {
+            "lineNumber": 3840,
+            "text": "          {statementTemplateFileName ? ("
+          },
+          {
+            "lineNumber": 3841,
+            "text": "            \u003cp className=\"local-save-status\"\u003e"
+          },
+          {
+            "lineNumber": 3842,
+            "text": "              일반 저장은 &#96;입력목록 엑셀 저장&#96;, 양식 반영 저장은 아래 거래명세표의 &#96;선택 문서 양식 저장&#96;을 사용하세요."
+          },
+          {
+            "lineNumber": 3843,
+            "text": "            \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 3844,
+            "text": "          ) : null}"
+          },
+          {
+            "lineNumber": 3845
+          },
+          {
+            "lineNumber": 3846,
+            "text": "          \u003cdiv className=\"statements-table-viewport\"\u003e"
+          },
+          {
+            "lineNumber": 3847,
+            "text": "          {activeView === 'records' ? ("
+          },
+          {
+            "lineNumber": 3848,
+            "text": "            \u003cdiv className=\"table-wrapper statements-main-table-hscroll\" ref={statementMainTableScrollRef}\u003e"
+          },
+          {
+            "lineNumber": 3849,
+            "text": "              \u003ctable\u003e"
+          },
+          {
+            "lineNumber": 3850,
+            "text": "                \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 3851,
+            "text": "                  \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 3852,
+            "text": "                    \u003cth title=\"납품일이 속한 달에서, 납품일·거래처 순으로 몇 번째 건인지\"\u003e번호\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3853,
+            "text": "                    \u003cth\u003e납품일\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3854,
+            "text": "                    \u003cth\u003e횟수\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3855,
+            "text": "                    \u003cth\u003e거래처명\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3856,
+            "text": "                    \u003cth\u003e품목\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3857,
+            "text": "                    \u003cth\u003e규격/단위\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3858,
+            "text": "                    \u003cth\u003e수량\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3859,
+            "text": "                    \u003cth\u003e단가\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3860,
+            "text": "                    \u003cth\u003e과세구분\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3861,
+            "text": "                    \u003cth\u003e공급가액\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3862,
+            "text": "                    \u003cth\u003e세액\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3863,
+            "text": "                    \u003cth\u003e계\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3864,
+            "text": "                    \u003cth\u003e\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3865,
+            "text": "                  \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 3866,
+            "text": "                \u003c/thead\u003e"
+          },
+          {
+            "lineNumber": 3867,
+            "text": "                \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 3868,
+            "text": "                  {"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3147347867488861
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3866
+          },
+          {
+            "lineNumber": 3867,
+            "text": "                \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 3868,
+            "text": "                  {visibleRecords.length === 0 ? ("
+          },
+          {
+            "lineNumber": 3869,
+            "text": "                    \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 3870,
+            "text": "                      \u003ctd colSpan={13} className=\"empty-state\"\u003e"
+          },
+          {
+            "lineNumber": 3871,
+            "text": "                        {records.length === 0"
+          },
+          {
+            "lineNumber": 3872,
+            "text": "                          ? '아직 저장된 거래명세서가 없습니다.'"
+          },
+          {
+            "lineNumber": 3873,
+            "text": "                          : '현재 조건에 맞는 건이 없습니다. 필터나 검색어를 변경해 보세요.'}"
+          },
+          {
+            "lineNumber": 3874,
+            "text": "                      \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 3875,
+            "text": "                    \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 3876,
+            "text": "                  ) : ("
+          },
+          {
+            "lineNumber": 3877,
+            "text": "                    visibleRecords.map((record) =\u003e {"
+          },
+          {
+            "lineNumber": 3878,
+            "text": "                      const isInlineEditing = inlineEditRecordId === record.id"
+          },
+          {
+            "lineNumber": 3879,
+            "text": "                      if (isInlineEditing) {"
+          },
+          {
+            "lineNumber": 3880,
+            "text": "                        return ("
+          },
+          {
+            "lineNumber": 3881,
+            "text": "                          \u003ctr key={record.id} className=\"statement-row-editing\"\u003e"
+          },
+          {
+            "lineNumber": 3882,
+            "text": "                            \u003ctd\u003e{statementDeliveryMonthSeqById.get(record.id) ?? '—'}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 3883,
+            "text": "                            \u003ctd\u003e"
+          },
+          {
+            "lineNumber": 3884,
+            "text": "                              \u003cinput"
+          },
+          {
+            "lineNumber": 3885,
+            "text": "                                type=\"date\""
+          },
+          {
+            "lineNumber": 3886,
+            "text": "                                value={inlineEditDraft.deliveryDate}"
+          },
+          {
+            "lineNumber": 3887,
+            "text": "                                onChange={(event) =\u003e"
+          },
+          {
+            "lineNumber": 3888,
+            "text": "                                  setInlineEditDraft((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 3889,
+            "text": "                                    ...current,"
+          },
+          {
+            "lineNumber": 3890,
+            "text": "                                    deliveryDate: event.target.value,"
+          },
+          {
+            "lineNumber": 3891,
+            "text": "                                  }))"
+          },
+          {
+            "lineNumber": 3892,
+            "text": "                                }"
+          },
+          {
+            "lineNumber": 3893,
+            "text": "                              /\u003e"
+          },
+          {
+            "lineNumber": 3894,
+            "text": "                            \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 3895,
+            "text": "                            \u003ctd\u003e"
+          },
+          {
+            "lineNumber": 3896,
+            "text": "                              \u003cinput"
+          },
+          {
+            "lineNumber": 3897,
+            "text": "                                type=\"text\""
+          },
+          {
+            "lineNumber": 3898,
+            "text": "                                value={inlineEditDraft.deliveryCount}"
+          },
+          {
+            "lineNumber": 3899,
+            "text": "                                onChange={(event) =\u003e"
+          },
+          {
+            "lineNumber": 3900,
+            "text": "                                  setInlineEditDraft((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 3901,
+            "text": "                                    ...current,"
+          },
+          {
+            "lineNumber": 3902,
+            "text": "                                    deliveryCount: event.target.value,"
+          },
+          {
+            "lineNumber": 3903,
+            "text": "                                  }))"
+          },
+          {
+            "lineNumber": 3904,
+            "text": "                                }"
+          },
+          {
+            "lineNumber": 3905,
+            "text": "                              /\u003e"
+          },
+          {
+            "lineNumber": 3906,
+            "text": "                            \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 3907,
+            "text": "                            \u003ctd\u003e"
+          },
+          {
+            "lineNumber": 3908,
+            "text": "                              \u003cinput"
+          },
+          {
+            "lineNumber": 4060,
+            "text": "                    }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.31144869327545166
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3356
+          },
+          {
+            "lineNumber": 3357
+          },
+          {
+            "lineNumber": 3358,
+            "text": "  const exportStatementsToExcel = async () =\u003e {"
+          },
+          {
+            "lineNumber": 3359,
+            "text": "    const totalTaxAmount = statementPreviewRecords.reduce((sum, record) =\u003e sum + record.taxAmount, 0)"
+          },
+          {
+            "lineNumber": 3360,
+            "text": "    const totalColumnCount = 12"
+          },
+          {
+            "lineNumber": 3361,
+            "text": "    const seqById = statementRecordDeliveryMonthSeqById(records)"
+          },
+          {
+            "lineNumber": 3362
+          },
+          {
+            "lineNumber": 3363,
+            "text": "    const sheetData: (string | number)[][] = ["
+          },
+          {
+            "lineNumber": 3364,
+            "text": "      ['[거래명세서]', ...Array.from({ length: totalColumnCount - 1 }, () =\u003e '')],"
+          },
+          {
+            "lineNumber": 3365,
+            "text": "      ['출력일', formatDateLabel(today), '저장 건수', records.length, '', '', '', '', '', '', '', ''],"
+          },
+          {
+            "lineNumber": 3366,
+            "text": "      ['번호', '납품일', '횟수', '거래처명', '품목', '규격/단위', '수량', '단가', '과세구분', '공급가액', '세액', '계'],"
+          },
+          {
+            "lineNumber": 3367,
+            "text": "      ...statementPreviewRecords.map((record) =\u003e ["
+          },
+          {
+            "lineNumber": 3368,
+            "text": "        seqById.get(record.id) ?? '',"
+          },
+          {
+            "lineNumber": 3369,
+            "text": "        record.deliveryDate.slice(5).replace('-', '/'),"
+          },
+          {
+            "lineNumber": 3370,
+            "text": "        record.deliveryCount,"
+          },
+          {
+            "lineNumber": 3371,
+            "text": "        record.clientName,"
+          },
+          {
+            "lineNumber": 3372,
+            "text": "        record.itemName,"
+          },
+          {
+            "lineNumber": 3373,
+            "text": "        record.specUnit,"
+          },
+          {
+            "lineNumber": 3374,
+            "text": "        record.quantity,"
+          },
+          {
+            "lineNumber": 3375,
+            "text": "        record.unitPrice,"
+          },
+          {
+            "lineNumber": 3376,
+            "text": "        record.note,"
+          },
+          {
+            "lineNumber": 3377,
+            "text": "        record.supplyAmount,"
+          },
+          {
+            "lineNumber": 3378,
+            "text": "        record.taxAmount,"
+          },
+          {
+            "lineNumber": 3379,
+            "text": "        record.totalAmount,"
+          },
+          {
+            "lineNumber": 3380,
+            "text": "      ]),"
+          },
+          {
+            "lineNumber": 3381,
+            "text": "      ['', '', '', '', '', '', '', '', '합계', totalSupplyAmount, totalTaxAmount, grandTotal],"
+          },
+          {
+            "lineNumber": 3382,
+            "text": "    ]"
+          },
+          {
+            "lineNumber": 3383
+          },
+          {
+            "lineNumber": 3384,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 3385,
+            "text": "      const outBuffer = await buildStyledStatementInputListBuffer("
+          },
+          {
+            "lineNumber": 3386,
+            "text": "        sheetData,"
+          },
+          {
+            "lineNumber": 3387,
+            "text": "        statementInputListDefaultColumnWidths(),"
+          },
+          {
+            "lineNumber": 3388,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3389,
+            "text": "      await saveExcelToPreferredFolder(outBuffer, &#96;거래명세서_입력목록_${today}.xlsx&#96;)"
+          },
+          {
+            "lineNumber": 3390,
+            "text": "    } catch (error) {"
+          },
+          {
+            "lineNumber": 3391,
+            "text": "      console.error(error)"
+          },
+          {
+            "lineNumber": 3392,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3393,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3394
+          },
+          {
+            "lineNumber": 3395,
+            "text": "  const exportSummaryToExcel = async () =\u003e"
+          },
+          {
+            "lineNumber": 3462
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2899289131164551
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 246,
+            "text": "type StatementRecord = {"
+          },
+          {
+            "lineNumber": 247,
+            "text": "  id: string"
+          },
+          {
+            "lineNumber": 248,
+            "text": "  deliveryDate: string"
+          },
+          {
+            "lineNumber": 249,
+            "text": "  issueDate: string"
+          },
+          {
+            "lineNumber": 250,
+            "text": "  paymentDate: string"
+          },
+          {
+            "lineNumber": 251,
+            "text": "  deliveryCount: string"
+          },
+          {
+            "lineNumber": 252,
+            "text": "  clientName: string"
+          },
+          {
+            "lineNumber": 253,
+            "text": "  itemName: string"
+          },
+          {
+            "lineNumber": 254,
+            "text": "  specUnit: string"
+          },
+          {
+            "lineNumber": 255,
+            "text": "  quantity: number"
+          },
+          {
+            "lineNumber": 256,
+            "text": "  unitPrice: number"
+          },
+          {
+            "lineNumber": 257,
+            "text": "  note: string"
+          },
+          {
+            "lineNumber": 258,
+            "text": "  supplyAmount: number"
+          },
+          {
+            "lineNumber": 259,
+            "text": "  taxAmount: number"
+          },
+          {
+            "lineNumber": 260,
+            "text": "  totalAmount: number"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 261,
+            "text": "}"
+          },
+          {
+            "lineNumber": 262
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 263,
+            "text": "type FormState = {"
+          },
+          {
+            "lineNumber": 264,
+            "text": "  deliveryDate: string"
+          },
+          {
+            "lineNumber": 265,
+            "text": "  deliveryCount: string"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 271
+          },
+          "startPosition": {
+            "column": 94,
+            "line": 243
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.27446556091308594
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 2125,
+            "text": "const clientMonthSnapshot = "
+          },
+          {
+            "lineNumber": 2149,
+            "text": " [form.clientName, records])"
+          },
+          {
+            "lineNumber": 2150
+          },
+          {
+            "lineNumber": 2151,
+            "text": "  const duplicateCandidate = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2152,
+            "text": "    const clientKey = normalizeName(form.clientName)"
+          },
+          {
+            "lineNumber": 2153,
+            "text": "    const itemKey = normalizeName(form.itemName)"
+          },
+          {
+            "lineNumber": 2154,
+            "text": "    if (!clientKey || !itemKey || !form.deliveryDate) {"
+          },
+          {
+            "lineNumber": 2155,
+            "text": "      return null"
+          },
+          {
+            "lineNumber": 2156,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2157,
+            "text": "    const match = records.find("
+          },
+          {
+            "lineNumber": 2158,
+            "text": "      (record) =\u003e"
+          },
+          {
+            "lineNumber": 2159,
+            "text": "        record.id !== editingRecordId \u0026\u0026"
+          },
+          {
+            "lineNumber": 2160,
+            "text": "        record.deliveryDate === form.deliveryDate \u0026\u0026"
+          },
+          {
+            "lineNumber": 2161,
+            "text": "        normalizeName(record.clientName) === clientKey \u0026\u0026"
+          },
+          {
+            "lineNumber": 2162,
+            "text": "        normalizeName(record.itemName) === itemKey,"
+          },
+          {
+            "lineNumber": 2163,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 2164,
+            "text": "    return match ?? null"
+          },
+          {
+            "lineNumber": 2165,
+            "text": "  }, [form.clientName, form.deliveryDate, form.itemName, records, editingRecordId])"
+          },
+          {
+            "lineNumber": 2166
+          },
+          {
+            "lineNumber": 2167,
+            "text": "  const clientCardStats = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2168,
+            "text": "    const grouped = new Map\u003c"
+          },
+          {
+            "lineNumber": 2169,
+            "text": "      string,"
+          },
+          {
+            "lineNumber": 2170,
+            "text": "      {"
+          },
+          {
+            "lineNumber": 2171,
+            "text": "        clientName: string"
+          },
+          {
+            "lineNumber": 2172,
+            "text": "        totalAmount: number"
+          },
+          {
+            "lineNumber": 2173,
+            "text": "        count: number"
+          },
+          {
+            "lineNumber": 2174,
+            "text": "        lastDeliveryDate: string"
+          },
+          {
+            "lineNumber": 2175,
+            "text": "        monthAmount: number"
+          },
+          {
+            "lineNumber": 2176,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2177,
+            "text": "    \u003e()"
+          },
+          {
+            "lineNumber": 2178,
+            "text": "    const currentMonth = new Date().toISOString().slice(0, 7)"
+          },
+          {
+            "lineNumber": 2179,
+            "text": "    statementPreviewRecords.forEach((record) =\u003e {"
+          },
+          {
+            "lineNumber": 2180,
+            "text": "      const key = normalizeName(record.clientName)"
+          },
+          {
+            "lineNumber": 2181,
+            "text": "      if (!key) return"
+          },
+          {
+            "lineNumber": 2182,
+            "text": "      const existing = grouped.get(key) ?? {"
+          },
+          {
+            "lineNumber": 2183,
+            "text": "        clientName: record.clientName,"
+          },
+          {
+            "lineNumber": 2184,
+            "text": "        totalAmount: 0,"
+          },
+          {
+            "lineNumber": 2185,
+            "text": "        count: 0,"
+          },
+          {
+            "lineNumber": 2186,
+            "text": "        lastDeliveryDate: '',"
+          },
+          {
+            "lineNumber": 2187,
+            "text": "        monthAmount: 0,"
+          },
+          {
+            "lineNumber": 2188,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2189,
+            "text": "      existing.totalAmount += record.totalAmount"
+          },
+          {
+            "lineNumber": 2190,
+            "text": "      existing.count += 1"
+          },
+          {
+            "lineNumber": 2191,
+            "text": "      if (!existing.lastDeliveryDate || record.deliveryDate \u003e existing.lastDeliveryDate) {"
+          },
+          {
+            "lineNumber": 2192,
+            "text": "        existing.lastDeliveryDate = record.deliveryDate"
+          },
+          {
+            "lineNumber": 2193,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2194,
+            "text": "      if (record.deliveryDate.startsWith(currentMonth)) {"
+          },
+          {
+            "lineNumber": 2195,
+            "text": "        existing.monthAmount += record.totalAmount"
+          },
+          {
+            "lineNumber": 2196,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2197,
+            "text": "      grouped.set(key, existing)"
+          },
+          {
+            "lineNumber": 2198,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2199,
+            "text": "    return Array.from(grouped.values()).sort((a, b) =\u003e b.totalAmount - a.totalAmount)"
+          },
+          {
+            "lineNumber": 2200,
+            "text": "  }, [statementPreviewRecords])"
+          },
+          {
+            "lineNumber": 2201
+          },
+          {
+            "lineNumber": 2202,
+            "text": "  const calendarEntries = useMemo"
+          },
+          {
+            "lineNumber": 2219
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.27245861291885376
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 2101
+          },
+          {
+            "lineNumber": 2102
+          },
+          {
+            "lineNumber": 2103,
+            "text": "  const visibleTotals = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2104,
+            "text": "    return visibleRecords.reduce("
+          },
+          {
+            "lineNumber": 2105,
+            "text": "      (acc, record) =\u003e {"
+          },
+          {
+            "lineNumber": 2106,
+            "text": "        acc.supply += record.supplyAmount"
+          },
+          {
+            "lineNumber": 2107,
+            "text": "        acc.tax += record.taxAmount"
+          },
+          {
+            "lineNumber": 2108,
+            "text": "        acc.total += record.totalAmount"
+          },
+          {
+            "lineNumber": 2109,
+            "text": "        return acc"
+          },
+          {
+            "lineNumber": 2110,
+            "text": "      },"
+          },
+          {
+            "lineNumber": 2111,
+            "text": "      { supply: 0, tax: 0, total: 0 },"
+          },
+          {
+            "lineNumber": 2112,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 2113,
+            "text": "  }, [visibleRecords])"
+          },
+          {
+            "lineNumber": 2114
+          },
+          {
+            "lineNumber": 2115,
+            "text": "  const recentRecordsForClient = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2116,
+            "text": "    const clientKey = normalizeName(form.clientName)"
+          },
+          {
+            "lineNumber": 2117,
+            "text": "    if (!clientKey) {"
+          },
+          {
+            "lineNumber": 2118,
+            "text": "      return []"
+          },
+          {
+            "lineNumber": 2119,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2120,
+            "text": "    return statementPreviewRecords"
+          },
+          {
+            "lineNumber": 2121,
+            "text": "      .filter((record) =\u003e normalizeName(record.clientName) === clientKey)"
+          },
+          {
+            "lineNumber": 2122,
+            "text": "      .slice(0, 5)"
+          },
+          {
+            "lineNumber": 2123,
+            "text": "  }, [form.clientName, statementPreviewRecords])"
+          },
+          {
+            "lineNumber": 2124
+          },
+          {
+            "lineNumber": 2125,
+            "text": "  const clientMonthSnapshot = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2126,
+            "text": "    const clientKey = normalizeName(form.clientName)"
+          },
+          {
+            "lineNumber": 2127,
+            "text": "    if (!clientKey) {"
+          },
+          {
+            "lineNumber": 2128,
+            "text": "      return null"
+          },
+          {
+            "lineNumber": 2129,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2130,
+            "text": "    const currentMonth = new Date().toISOString().slice(0, 7)"
+          },
+          {
+            "lineNumber": 2131,
+            "text": "    let count = 0"
+          },
+          {
+            "lineNumber": 2132,
+            "text": "    let totalAmount = 0"
+          },
+          {
+            "lineNumber": 2133,
+            "text": "    let quantity = 0"
+          },
+          {
+            "lineNumber": 2134,
+            "text": "    let lastDeliveryDate = ''"
+          },
+          {
+            "lineNumber": 2135,
+            "text": "    records.forEach((record) =\u003e {"
+          },
+          {
+            "lineNumber": 2136,
+            "text": "      if (normalizeName(record.clientName) !== clientKey) {"
+          },
+          {
+            "lineNumber": 2137,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 2138,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2139,
+            "text": "      if (!lastDeliveryDate || record.deliveryDate \u003e lastDeliveryDate) {"
+          },
+          {
+            "lineNumber": 2140,
+            "text": "        lastDeliveryDate = record.deliveryDate"
+          },
+          {
+            "lineNumber": 2141,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2142,
+            "text": "      if (record.deliveryDate.startsWith(currentMonth)) {"
+          },
+          {
+            "lineNumber": 2143,
+            "text": "        count += 1"
+          },
+          {
+            "lineNumber": 2144,
+            "text": "        totalAmount += record.totalAmount"
+          },
+          {
+            "lineNumber": 2145,
+            "text": "        quantity += record.quantity"
+          },
+          {
+            "lineNumber": 2146,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2147,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2148,
+            "text": "    return { count, totalAmount, quantity, lastDeliveryDate, currentMonth }"
+          },
+          {
+            "lineNumber": 2149,
+            "text": "  }, [form.clientName, records])"
+          },
+          {
+            "lineNumber": 2150
+          },
+          {
+            "lineNumber": 2151,
+            "text": "  const duplicateCandidate = useMemo"
+          },
+          {
+            "lineNumber": 2165
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2710407078266144
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3027,
+            "text": "const handleRemoveMasterItem = "
+          },
+          {
+            "lineNumber": 3039,
+            "text": "」 품목을 삭제했습니다.&#96;)"
+          },
+          {
+            "lineNumber": 3040,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3041
+          },
+          {
+            "lineNumber": 3042,
+            "text": "  const resetStatementFormAfterSave = () =\u003e {"
+          },
+          {
+            "lineNumber": 3043,
+            "text": "    setForm((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 3044,
+            "text": "      ...defaultFormState(),"
+          },
+          {
+            "lineNumber": 3045,
+            "text": "      clientName: current.clientName,"
+          },
+          {
+            "lineNumber": 3046,
+            "text": "      deliveryDate: current.deliveryDate,"
+          },
+          {
+            "lineNumber": 3047,
+            "text": "    }))"
+          },
+          {
+            "lineNumber": 3048,
+            "text": "    setIsCustomClient(false)"
+          },
+          {
+            "lineNumber": 3049,
+            "text": "    setIsCustomItem(false)"
+          },
+          {
+            "lineNumber": 3050,
+            "text": "    setIsCustomSpec(false)"
+          },
+          {
+            "lineNumber": 3051,
+            "text": "    setEditingRecordId(null)"
+          },
+          {
+            "lineNumber": 3052,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3053
+          },
+          {
+            "lineNumber": 3054,
+            "text": "  const handleSubmit = (event: React.FormEvent\u003cHTMLFormElement\u003e) =\u003e {"
+          },
+          {
+            "lineNumber": 3055,
+            "text": "    event.preventDefault()"
+          },
+          {
+            "lineNumber": 3056
+          },
+          {
+            "lineNumber": 3057,
+            "text": "    if (!form.deliveryDate || !form.clientName.trim() || !form.itemName.trim()) {"
+          },
+          {
+            "lineNumber": 3058,
+            "text": "      window.alert('납품일, 거래처명, 품목은 꼭 입력해주세요.')"
+          },
+          {
+            "lineNumber": 3059,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3060,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3061
+          },
+          {
+            "lineNumber": 3062,
+            "text": "    if (calculatedAmounts.quantity \u003c= 0 || calculatedAmounts.unitPrice \u003c= 0) {"
+          },
+          {
+            "lineNumber": 3063,
+            "text": "      window.alert('수량과 단가는 0보다 커야 합니다.')"
+          },
+          {
+            "lineNumber": 3064,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3065,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3066
+          },
+          {
+            "lineNumber": 3067,
+            "text": "    if (duplicateCandidate \u0026\u0026 !editingRecordId) {"
+          },
+          {
+            "lineNumber": 3068,
+            "text": "      const confirmDup = window.confirm("
+          },
+          {
+            "lineNumber": 3069,
+            "text": "        &#96;이미 같은 날(${formatDateLabel(duplicateCandidate.deliveryDate)}) ${duplicateCandidate.clientName}에 「${duplicateCandidate.itemName}」 ${duplicateCandidate.quantity}개 건이 있습니다.\\n그래도 새로 저장할까요?&#96;,"
+          },
+          {
+            "lineNumber": 3070,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3071,
+            "text": "      if (!confirmDup) {"
+          },
+          {
+            "lineNumber": 3072,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 3073,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3074,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3075
+          },
+          {
+            "lineNumber": 3076,
+            "text": "    const nextRecord: StatementRecord = {"
+          },
+          {
+            "lineNumber": 3077,
+            "text": "      id: editingRecordId ?? crypto.randomUUID(),"
+          },
+          {
+            "lineNumber": 3078,
+            "text": "      deliveryDate: form.deliveryDate,"
+          },
+          {
+            "lineNumber": 3079,
+            "text": "      issueDate: form.deliveryDate,"
+          },
+          {
+            "lineNumber": 3080,
+            "text": "      paymentDate: '',"
+          },
+          {
+            "lineNumber": 3081,
+            "text": "      deliveryCount: form.deliveryCount,"
+          },
+          {
+            "lineNumber": 3082,
+            "text": "      clientName: form.clientName.trim(),"
+          },
+          {
+            "lineNumber": 3083,
+            "text": "      itemName: form.itemName.trim(),"
+          },
+          {
+            "lineNumber": 3084,
+            "text": "      specUnit: form.specUnit.trim(),"
+          },
+          {
+            "lineNumber": 3085,
+            "text": "      quantity: calculatedAmounts.quantity,"
+          },
+          {
+            "lineNumber": 3086,
+            "text": "      unitPrice: calculatedAmounts.unitPrice,"
+          },
+          {
+            "lineNumber": 3087,
+            "text": "      note: form.note,"
+          },
+          {
+            "lineNumber": 3088,
+            "text": "      supplyAmount: calculatedAmounts.supplyAmount,"
+          },
+          {
+            "lineNumber": 3089,
+            "text": "      taxAmount: calculatedAmounts.taxAmount,"
+          },
+          {
+            "lineNumber": 3090,
+            "text": "      totalAmount: calculatedAmounts.totalAmount,"
+          },
+          {
+            "lineNumber": 3091,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3092
+          },
+          {
+            "lineNumber": 3093,
+            "text": "    if (editingRecordId) {"
+          },
+          {
+            "lineNumber": 3094,
+            "text": "      setRecords"
+          },
+          {
+            "lineNumber": 3098
+          },
+          {
+            "lineNumber": 3115
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2639375925064087
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4197
+          },
+          {
+            "lineNumber": 4198,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4199,
+            "text": "          ) : ("
+          },
+          {
+            "lineNumber": 4200,
+            "text": "            \u003cdiv className=\"table-wrapper statements-main-table-hscroll\" ref={statementMainTableScrollRef}\u003e"
+          },
+          {
+            "lineNumber": 4201,
+            "text": "              \u003ctable className=\"summary-table\"\u003e"
+          },
+          {
+            "lineNumber": 4202,
+            "text": "                \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 4203,
+            "text": "                  \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4204,
+            "text": "                    \u003cth rowSpan={2}\u003eNO\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4205,
+            "text": "                    \u003cth rowSpan={2}\u003e거래처명\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4206,
+            "text": "                    \u003cth rowSpan={2}\u003e합계(부가세포함)\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4207,
+            "text": "                    \u003cth rowSpan={2}\u003e점유율\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4208,
+            "text": "                    {MONTH_LABELS.map((label) =\u003e ("
+          },
+          {
+            "lineNumber": 4209,
+            "text": "                      \u003cth key={label} colSpan={3}\u003e"
+          },
+          {
+            "lineNumber": 4210,
+            "text": "                        {label}"
+          },
+          {
+            "lineNumber": 4211,
+            "text": "                      \u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4212,
+            "text": "                    ))}"
+          },
+          {
+            "lineNumber": 4213,
+            "text": "                  \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4214,
+            "text": "                  \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4215,
+            "text": "                    {MONTH_LABELS.flatMap((label) =\u003e ["
+          },
+          {
+            "lineNumber": 4216,
+            "text": "                      \u003cth key={&#96;${label}-amount&#96;}\u003e금액\u003c/th\u003e,"
+          },
+          {
+            "lineNumber": 4217,
+            "text": "                      \u003cth key={&#96;${label}-issue&#96;}\u003e발행일자\u003c/th\u003e,"
+          },
+          {
+            "lineNumber": 4218,
+            "text": "                      \u003cth key={&#96;${label}-payment&#96;}\u003e입금일자\u003c/th\u003e,"
+          },
+          {
+            "lineNumber": 4219,
+            "text": "                    ])}"
+          },
+          {
+            "lineNumber": 4220,
+            "text": "                  \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4221,
+            "text": "                \u003c/thead\u003e"
+          },
+          {
+            "lineNumber": 4222,
+            "text": "                \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 4223,
+            "text": "                  {"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.26150819659233093
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4941,
+            "text": " null}"
+          },
+          {
+            "lineNumber": 4942
+          },
+          {
+            "lineNumber": 4943,
+            "text": "          \u003cform id=\"statement-entry-form\" className=\"statement-form\" onSubmit={handleSubmit}\u003e"
+          },
+          {
+            "lineNumber": 4944,
+            "text": "            {editingRecordId ? ("
+          },
+          {
+            "lineNumber": 4945,
+            "text": "              \u003cp className=\"statement-edit-hint\"\u003e"
+          },
+          {
+            "lineNumber": 4946,
+            "text": "                입력 목록에서 선택한 건을 수정 중입니다. 반영하려면 위의 「저장」, 취소하려면 「수정 취소」를"
+          },
+          {
+            "lineNumber": 4947,
+            "text": "                눌러주세요."
+          },
+          {
+            "lineNumber": 4948,
+            "text": "              \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 4949,
+            "text": "            ) : null}"
+          },
+          {
+            "lineNumber": 4950
+          },
+          {
+            "lineNumber": 4951,
+            "text": "            {clientMonthSnapshot \u0026\u0026 clientMonthSnapshot.count \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4952,
+            "text": "              \u003cdiv className=\"statement-client-snapshot\" role=\"status\"\u003e"
+          },
+          {
+            "lineNumber": 4953,
+            "text": "                \u003cspan className=\"statement-client-snapshot-title\"\u003e"
+          },
+          {
+            "lineNumber": 4954,
+            "text": "                  {form.clientName} · {clientMonthSnapshot.currentMonth.replace('-', '.')} 월 요약"
+          },
+          {
+            "lineNumber": 4955,
+            "text": "                \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 4956,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e{clientMonthSnapshot.count}건\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 4957,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e"
+          },
+          {
+            "lineNumber": 4958,
+            "text": "                  {formatCurrency(clientMonthSnapshot.totalAmount)}원"
+          },
+          {
+            "lineNumber": 4959,
+            "text": "                \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 4960,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e누적 {clientMonthSnapshot.quantity}개\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 4961,
+            "text": "                {clientMonthSnapshot.lastDeliveryDate ? ("
+          },
+          {
+            "lineNumber": 4962,
+            "text": "                  \u003cspan className=\"statement-client-snapshot-pill\"\u003e"
+          },
+          {
+            "lineNumber": 4963,
+            "text": "                    마지막 납품 {formatDateLabel(clientMonthSnapshot.lastDeliveryDate)}"
+          },
+          {
+            "lineNumber": 4964,
+            "text": "                  \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 4965,
+            "text": "                ) : null}"
+          },
+          {
+            "lineNumber": 4966,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4967,
+            "text": "            ) : null}"
+          },
+          {
+            "lineNumber": 4968
+          },
+          {
+            "lineNumber": 4969,
+            "text": "            {recentRecordsForClient.length \u003e 0 \u0026\u0026 !editingRecordId ?"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.26072293519973755
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 2052
+          },
+          {
+            "lineNumber": 2053
+          },
+          {
+            "lineNumber": 2054,
+            "text": "  const activeQuickSpecOptions = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2055,
+            "text": "    if (isDutchItemName(form.itemName)) {"
+          },
+          {
+            "lineNumber": 2056,
+            "text": "      return QUICK_SPEC_OPTIONS_DUTCH"
+          },
+          {
+            "lineNumber": 2057,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2058,
+            "text": "    return QUICK_SPEC_OPTIONS_BEAN"
+          },
+          {
+            "lineNumber": 2059,
+            "text": "  }, [form.itemName])"
+          },
+          {
+            "lineNumber": 2060
+          },
+          {
+            "lineNumber": 2061,
+            "text": "  const filteredRecords = useMemo("
+          },
+          {
+            "lineNumber": 2062,
+            "text": "    () =\u003e records.filter((record) =\u003e record.deliveryDate.startsWith(selectedYear)),"
+          },
+          {
+            "lineNumber": 2063,
+            "text": "    [records, selectedYear],"
+          },
+          {
+            "lineNumber": 2064,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2065
+          },
+          {
+            "lineNumber": 2066,
+            "text": "  const statementPreviewRecords = useMemo("
+          },
+          {
+            "lineNumber": 2067,
+            "text": "    () =\u003e [...records].sort(compareStatementRecordsNewestFirst),"
+          },
+          {
+            "lineNumber": 2068,
+            "text": "    [records],"
+          },
+          {
+            "lineNumber": 2069,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2070
+          },
+          {
+            "lineNumber": 2071,
+            "text": "  const visibleRecords = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2072,
+            "text": "    const todayIso = new Date().toISOString().slice(0, 10)"
+          },
+          {
+            "lineNumber": 2073,
+            "text": "    const today = new Date(todayIso)"
+          },
+          {
+            "lineNumber": 2074,
+            "text": "    const startOfWeek = new Date(today)"
+          },
+          {
+            "lineNumber": 2075,
+            "text": "    startOfWeek.setDate(today.getDate() - 6)"
+          },
+          {
+            "lineNumber": 2076,
+            "text": "    const startOfWeekIso = startOfWeek.toISOString().slice(0, 10)"
+          },
+          {
+            "lineNumber": 2077,
+            "text": "    const currentMonth = todayIso.slice(0, 7)"
+          },
+          {
+            "lineNumber": 2078,
+            "text": "    const query = recordsSearchQuery.trim().toLowerCase()"
+          },
+          {
+            "lineNumber": 2079
+          },
+          {
+            "lineNumber": 2080,
+            "text": "    return statementPreviewRecords.filter((record) =\u003e {"
+          },
+          {
+            "lineNumber": 2081,
+            "text": "      if (recordsRangeFilter === 'year' \u0026\u0026 !record.deliveryDate.startsWith(selectedYear)) {"
+          },
+          {
+            "lineNumber": 2082,
+            "text": "        return false"
+          },
+          {
+            "lineNumber": 2083,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2084,
+            "text": "      if (recordsRangeFilter === 'month' \u0026\u0026 !record.deliveryDate.startsWith(currentMonth)) {"
+          },
+          {
+            "lineNumber": 2085,
+            "text": "        return false"
+          },
+          {
+            "lineNumber": 2086,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2087,
+            "text": "      if (recordsRangeFilter === 'week' \u0026\u0026 record.deliveryDate \u003c startOfWeekIso) {"
+          },
+          {
+            "lineNumber": 2088,
+            "text": "        return false"
+          },
+          {
+            "lineNumber": 2089,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2090,
+            "text": "      if (recordsNoteFilter !== 'all' \u0026\u0026 record.note !== recordsNoteFilter) {"
+          },
+          {
+            "lineNumber": 2091,
+            "text": "        return false"
+          },
+          {
+            "lineNumber": 2092,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2093,
+            "text": "      if (query) {"
+          },
+          {
+            "lineNumber": 2094,
+            "text": "        const haystack = &#96;${record.clientName} ${record.itemName} ${record.specUnit} ${record.note}&#96;.toLowerCase()"
+          },
+          {
+            "lineNumber": 2095,
+            "text": "        if (!haystack.includes(query)) {"
+          },
+          {
+            "lineNumber": 2096,
+            "text": "          return false"
+          },
+          {
+            "lineNumber": 2097,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 2098,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2099,
+            "text": "      return true"
+          },
+          {
+            "lineNumber": 2100,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2101,
+            "text": "  }, [statementPreviewRecords, recordsRangeFilter, recordsNoteFilter, recordsSearchQuery, selectedYear])"
+          },
+          {
+            "lineNumber": 2102
+          },
+          {
+            "lineNumber": 2103,
+            "text": "  const visibleTotals = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2104,
+            "text": "    return"
+          },
+          {
+            "lineNumber": 2113,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2527255117893219
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3183
+          },
+          {
+            "lineNumber": 3184
+          },
+          {
+            "lineNumber": 3185,
+            "text": "  const handleSaveInlineEdit = () =\u003e {"
+          },
+          {
+            "lineNumber": 3186,
+            "text": "    if (!inlineEditRecordId) {"
+          },
+          {
+            "lineNumber": 3187,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3188,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3189,
+            "text": "    const quantity = parseNumber(inlineEditDraft.quantity)"
+          },
+          {
+            "lineNumber": 3190,
+            "text": "    const unitPrice = parseNumber(inlineEditDraft.unitPrice)"
+          },
+          {
+            "lineNumber": 3191,
+            "text": "    if (!inlineEditDraft.deliveryDate || !inlineEditDraft.clientName.trim() || !inlineEditDraft.itemName.trim()) {"
+          },
+          {
+            "lineNumber": 3192,
+            "text": "      window.alert('납품일, 거래처명, 품목은 비워둘 수 없습니다.')"
+          },
+          {
+            "lineNumber": 3193,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3194,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3195,
+            "text": "    if (quantity \u003c= 0 || unitPrice \u003c= 0) {"
+          },
+          {
+            "lineNumber": 3196,
+            "text": "      window.alert('수량과 단가는 0보다 커야 합니다.')"
+          },
+          {
+            "lineNumber": 3197,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3198,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3199,
+            "text": "    const supplyAmount = quantity * unitPrice"
+          },
+          {
+            "lineNumber": 3200,
+            "text": "    const taxAmount = calculateTaxAmount(supplyAmount, inlineEditDraft.note)"
+          },
+          {
+            "lineNumber": 3201,
+            "text": "    const totalAmount = supplyAmount + taxAmount"
+          },
+          {
+            "lineNumber": 3202,
+            "text": "    setRecords((current) =\u003e"
+          },
+          {
+            "lineNumber": 3203,
+            "text": "      current"
+          },
+          {
+            "lineNumber": 3204,
+            "text": "        .map((record) =\u003e"
+          },
+          {
+            "lineNumber": 3205,
+            "text": "          record.id === inlineEditRecordId"
+          },
+          {
+            "lineNumber": 3206,
+            "text": "            ? {"
+          },
+          {
+            "lineNumber": 3207,
+            "text": "                ...record,"
+          },
+          {
+            "lineNumber": 3208,
+            "text": "                deliveryDate: inlineEditDraft.deliveryDate,"
+          },
+          {
+            "lineNumber": 3209,
+            "text": "                issueDate: record.issueDate || inlineEditDraft.deliveryDate,"
+          },
+          {
+            "lineNumber": 3210,
+            "text": "                deliveryCount: inlineEditDraft.deliveryCount || '1',"
+          },
+          {
+            "lineNumber": 3211,
+            "text": "                clientName: inlineEditDraft.clientName.trim(),"
+          },
+          {
+            "lineNumber": 3212,
+            "text": "                itemName: inlineEditDraft.itemName.trim(),"
+          },
+          {
+            "lineNumber": 3213,
+            "text": "                specUnit: inlineEditDraft.specUnit.trim(),"
+          },
+          {
+            "lineNumber": 3214,
+            "text": "                quantity,"
+          },
+          {
+            "lineNumber": 3215,
+            "text": "                unitPrice,"
+          },
+          {
+            "lineNumber": 3216,
+            "text": "                note: inlineEditDraft.note,"
+          },
+          {
+            "lineNumber": 3217,
+            "text": "                supplyAmount,"
+          },
+          {
+            "lineNumber": 3218,
+            "text": "                taxAmount,"
+          },
+          {
+            "lineNumber": 3219,
+            "text": "                totalAmount,"
+          },
+          {
+            "lineNumber": 3220,
+            "text": "              }"
+          },
+          {
+            "lineNumber": 3221,
+            "text": "            : record,"
+          },
+          {
+            "lineNumber": 3222,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 3223,
+            "text": "        .sort(compareStatementRecordsNewestFirst),"
+          },
+          {
+            "lineNumber": 3224,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 3225,
+            "text": "    setInlineEditRecordId(null)"
+          },
+          {
+            "lineNumber": 3226,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3227
+          },
+          {
+            "lineNumber": 3228,
+            "text": "  const handleCalendarShiftMonth = (delta: number) =\u003e {"
+          },
+          {
+            "lineNumber": 3229,
+            "text": "    setCalendarMonth((current) =\u003e {"
+          },
+          {
+            "lineNumber": 3230,
+            "text": "      const [year, month] = current.split('-').map(Number)"
+          },
+          {
+            "lineNumber": 3231,
+            "text": "      const date = new Date(year, (month || 1) - 1 + delta, 1)"
+          },
+          {
+            "lineNumber": 3232,
+            "text": "      const nextYear = date.getFullYear()"
+          },
+          {
+            "lineNumber": 3233,
+            "text": "      const nextMonth = String(date.getMonth() + 1).padStart(2, '0')"
+          },
+          {
+            "lineNumber": 3234,
+            "text": "      return &#96;${nextYear}-${nextMonth}&#96;"
+          },
+          {
+            "lineNumber": 3235,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 3236,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3237
+          },
+          {
+            "lineNumber": 3238,
+            "text": "  const handleStatementTemplateUpload = async (event: React.ChangeEvent\u003cHTMLInputElement\u003e)"
+          },
+          {
+            "lineNumber": 3266
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.24529890716075897
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1280,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 2236,
+            "text": "const monthlyTotals = "
+          },
+          {
+            "lineNumber": 2237,
+            "text": "() =\u003e"
+          },
+          {
+            "lineNumber": 2242
+          },
+          {
+            "lineNumber": 2243,
+            "text": "      ),"
+          },
+          {
+            "lineNumber": 2244,
+            "text": "    [filteredRecords],"
+          },
+          {
+            "lineNumber": 2245,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2246
+          },
+          {
+            "lineNumber": 2247,
+            "text": "  const statementSheetGroups = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2248,
+            "text": "    const grouped = new Map\u003cstring, StatementSheetGroup\u003e()"
+          },
+          {
+            "lineNumber": 2249
+          },
+          {
+            "lineNumber": 2250,
+            "text": "    statementPreviewRecords.forEach((record) =\u003e {"
+          },
+          {
+            "lineNumber": 2251,
+            "text": "      const key = &#96;${record.deliveryDate}__${record.clientName}__${record.deliveryCount}&#96;"
+          },
+          {
+            "lineNumber": 2252,
+            "text": "      const existing ="
+          },
+          {
+            "lineNumber": 2253,
+            "text": "        grouped.get(key) ??"
+          },
+          {
+            "lineNumber": 2254,
+            "text": "        ({"
+          },
+          {
+            "lineNumber": 2255,
+            "text": "          key,"
+          },
+          {
+            "lineNumber": 2256,
+            "text": "          deliveryDate: record.deliveryDate,"
+          },
+          {
+            "lineNumber": 2257,
+            "text": "          issueDate: record.issueDate,"
+          },
+          {
+            "lineNumber": 2258,
+            "text": "          clientName: record.clientName,"
+          },
+          {
+            "lineNumber": 2259,
+            "text": "          deliveryCount: record.deliveryCount,"
+          },
+          {
+            "lineNumber": 2260,
+            "text": "          records: [],"
+          },
+          {
+            "lineNumber": 2261,
+            "text": "          supplyAmount: 0,"
+          },
+          {
+            "lineNumber": 2262,
+            "text": "          taxAmount: 0,"
+          },
+          {
+            "lineNumber": 2263,
+            "text": "          totalAmount: 0,"
+          },
+          {
+            "lineNumber": 2264,
+            "text": "        } satisfies StatementSheetGroup)"
+          },
+          {
+            "lineNumber": 2265
+          },
+          {
+            "lineNumber": 2266,
+            "text": "      existing.records.push(record)"
+          },
+          {
+            "lineNumber": 2267,
+            "text": "      existing.supplyAmount += record.supplyAmount"
+          },
+          {
+            "lineNumber": 2268,
+            "text": "      existing.taxAmount += record.taxAmount"
+          },
+          {
+            "lineNumber": 2269,
+            "text": "      existing.totalAmount += record.totalAmount"
+          },
+          {
+            "lineNumber": 2270
+          },
+          {
+            "lineNumber": 2271,
+            "text": "      grouped.set(key, existing)"
+          },
+          {
+            "lineNumber": 2272,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2273
+          },
+          {
+            "lineNumber": 2274,
+            "text": "    return Array.from(grouped.values())"
+          },
+          {
+            "lineNumber": 2275,
+            "text": "  }, [statementPreviewRecords])"
+          },
+          {
+            "lineNumber": 2276
+          },
+          {
+            "lineNumber": 2277,
+            "text": "  const selectedSheet = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2278,
+            "text": "    if (statementSheetGroups.length === 0) {"
+          },
+          {
+            "lineNumber": 2279,
+            "text": "      return null"
+          },
+          {
+            "lineNumber": 2280,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2281
+          },
+          {
+            "lineNumber": 2282,
+            "text": "    return ("
+          },
+          {
+            "lineNumber": 2283,
+            "text": "      statementSheetGroups.find((group) =\u003e group.key === selectedSheetKey) ?? statementSheetGroups[0]"
+          },
+          {
+            "lineNumber": 2284,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 2285,
+            "text": "  }, [selectedSheetKey, statementSheetGroups])"
+          },
+          {
+            "lineNumber": 2286
+          },
+          {
+            "lineNumber": 2287,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2288,
+            "text": "    if (statementSheetGroups.length === 0) {"
+          },
+          {
+            "lineNumber": 2289,
+            "text": "      if (selectedSheetKey) {"
+          },
+          {
+            "lineNumber": 2290,
+            "text": "        setSelectedSheetKey('')"
+          },
+          {
+            "lineNumber": 2291,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2292,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2293,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2294
+          },
+          {
+            "lineNumber": 2295,
+            "text": "    const hasSelected = statementSheetGroups.some((group) =\u003e group.key === selectedSheetKey)"
+          },
+          {
+            "lineNumber": 2296
+          },
+          {
+            "lineNumber": 2297,
+            "text": "    if (!hasSelected) {"
+          },
+          {
+            "lineNumber": 2298,
+            "text": "      setSelectedSheetKey(statementSheetGroups[0].key)"
+          },
+          {
+            "lineNumber": 2299,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2300,
+            "text": "  }, [selectedSheetKey, statementSheetGroups])"
+          },
+          {
+            "lineNumber": 2301
+          },
+          {
+            "lineNumber": 2302,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2303,
+            "text": "    if (matchingPricingRule)"
+          },
+          {
+            "lineNumber": 2336,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5407,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5406
+          },
+          "startPosition": {
+            "line": 1279
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1281
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1280
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.24487626552581787
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants the most recently entered record to receive the "last" number.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "randomUUID|StatementRecord"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "randomUUID|StatementRecord",
+  "topFiles": [
+    {
+      "matchCount": 34,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 34
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+There is no `createdAt` field in StatementRecord. The `records` array is sorted newest-first for display, making the first row the most recently added record. The seq function sorts by deliveryDate, client, and id, with the last item in that sort receiving the highest sequence number. The user wants the most recently entered record to receive the highest sequence number within its month. So within a month, records should be numbered chronologically by entry order, with the latest entry receiving the highest sequence number.
+
+Ways to implement:
+- Add `savedAt: string` (ISO) to StatementRecord on each save, then sort by `savedAt` for sequence assignment; use id or deliveryDate as tiebreaker for old records during migration
+- Use id as UUID v7 (though crypto.randomUUID() generates v4, not time-ordered)
+- Use array order in `records`, which is already sorted newest-first for display So the chronological order of entry (oldest first) is reverse of the array. For each month, we could:
+- Filter records in that month
+- Sort by index in the global records array
+- But the array is sorted by date, not entry order
+- New records are prepended, so the oldest entry might be at the end after sorting
+- The insertion order within a month should be used for sequence assignment
+
+The key insight is that the array is sorted newest-first, so the oldest entry will have the highest index in the array. To get chronological entry order within a month, we need to sort by the position in the records array, where the oldest entry</details></think>
