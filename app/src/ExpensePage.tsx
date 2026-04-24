@@ -783,12 +783,26 @@ function ExpensePage() {
   const quickDateDigitsRef = useRef<Record<string, string>>({})
   const [dateDrafts, setDateDrafts] = useState<Record<string, string>>({})
   const [externalSyncTick, setExternalSyncTick] = useState(0)
+  const saveStateRef = useRef(saveState)
+  saveStateRef.current = saveState
 
   useEffect(() => {
-    const onExternalSync = () => setExternalSyncTick((n) => n + 1)
+    const onExternalSync = () => {
+      if (saveStateRef.current === 'dirty' || saveStateRef.current === 'saving') {
+        return
+      }
+      setExternalSyncTick((n) => n + 1)
+    }
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === EXPENSE_PAGE_STORAGE_KEY) {
+        onExternalSync()
+      }
+    }
     window.addEventListener(EXPENSE_PAGE_SAVED_EVENT, onExternalSync)
+    window.addEventListener('storage', onStorage)
     return () => {
       window.removeEventListener(EXPENSE_PAGE_SAVED_EVENT, onExternalSync)
+      window.removeEventListener('storage', onStorage)
     }
   }, [])
 

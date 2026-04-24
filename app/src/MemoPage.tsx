@@ -355,12 +355,26 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
   /** 입출고 히스토리 기준일 YYYY-MM-DD */
   const [editLinkDate, setEditLinkDate] = useState('')
   const [externalSyncTick, setExternalSyncTick] = useState(0)
+  const saveStateRef = useRef(saveState)
+  saveStateRef.current = saveState
 
   useEffect(() => {
-    const onExternalSync = () => setExternalSyncTick((n) => n + 1)
+    const onExternalSync = () => {
+      if (saveStateRef.current === 'dirty' || saveStateRef.current === 'saving') {
+        return
+      }
+      setExternalSyncTick((n) => n + 1)
+    }
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === MEMO_PAGE_STORAGE_KEY) {
+        onExternalSync()
+      }
+    }
     window.addEventListener(MEMO_PAGE_SAVED_EVENT, onExternalSync)
+    window.addEventListener('storage', onStorage)
     return () => {
       window.removeEventListener(MEMO_PAGE_SAVED_EVENT, onExternalSync)
+      window.removeEventListener('storage', onStorage)
     }
   }, [])
 

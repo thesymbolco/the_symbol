@@ -1508,12 +1508,26 @@ function MonthlyMeetingPage() {
   const outboundPieFilterId = `meetingOutboundPieDepth-${outboundPieGfxId}`
   const outboundPieGradId = (index: number) => `meetingOutboundPieGrad-${outboundPieGfxId}-${index}`
   const [externalSyncTick, setExternalSyncTick] = useState(0)
+  const saveStateRef = useRef(saveState)
+  saveStateRef.current = saveState
 
   useEffect(() => {
-    const onExternalSync = () => setExternalSyncTick((n) => n + 1)
+    const onExternalSync = () => {
+      if (saveStateRef.current === 'dirty' || saveStateRef.current === 'saving') {
+        return
+      }
+      setExternalSyncTick((n) => n + 1)
+    }
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === MONTHLY_MEETING_DATA_KEY) {
+        onExternalSync()
+      }
+    }
     window.addEventListener(MONTHLY_MEETING_SAVED_EVENT, onExternalSync)
+    window.addEventListener('storage', onStorage)
     return () => {
       window.removeEventListener(MONTHLY_MEETING_SAVED_EVENT, onExternalSync)
+      window.removeEventListener('storage', onStorage)
     }
   }, [])
 

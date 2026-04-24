@@ -1721,12 +1721,26 @@ function InventoryStatusPage() {
   const [nameEditUnlockPin, setNameEditUnlockPin] = useState('')
   const [nameEditUnlockError, setNameEditUnlockError] = useState('')
   const nameEditUnlockPinInputRef = useRef<HTMLInputElement>(null)
+  const saveStateRef = useRef(saveState)
+  saveStateRef.current = saveState
 
   useEffect(() => {
-    const onExternalSync = () => setExternalSyncTick((n) => n + 1)
+    const onExternalSync = () => {
+      if (saveStateRef.current === 'dirty' || saveStateRef.current === 'saving') {
+        return
+      }
+      setExternalSyncTick((n) => n + 1)
+    }
+    const onStorage = (e: StorageEvent) => {
+      if (e.key?.startsWith(INVENTORY_STATUS_STORAGE_KEY)) {
+        onExternalSync()
+      }
+    }
     window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, onExternalSync)
+    window.addEventListener('storage', onStorage)
     return () => {
       window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, onExternalSync)
+      window.removeEventListener('storage', onStorage)
     }
   }, [])
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import PageSaveStatus from './components/PageSaveStatus'
 import { exportStyledStaffPayrollExcel } from './staffPayrollExcelStyledExport'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
@@ -245,12 +245,26 @@ function StaffPayrollPage() {
   const [unlockPin, setUnlockPin] = useState('')
   const [unlockError, setUnlockError] = useState('')
   const [externalSyncTick, setExternalSyncTick] = useState(0)
+  const saveStateRef = useRef(saveState)
+  saveStateRef.current = saveState
 
   useEffect(() => {
-    const onExternalSync = () => setExternalSyncTick((n) => n + 1)
+    const onExternalSync = () => {
+      if (saveStateRef.current === 'dirty' || saveStateRef.current === 'saving') {
+        return
+      }
+      setExternalSyncTick((n) => n + 1)
+    }
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STAFF_PAYROLL_STORAGE_KEY) {
+        onExternalSync()
+      }
+    }
     window.addEventListener(STAFF_PAYROLL_SAVED_EVENT, onExternalSync)
+    window.addEventListener('storage', onStorage)
     return () => {
       window.removeEventListener(STAFF_PAYROLL_SAVED_EVENT, onExternalSync)
+      window.removeEventListener('storage', onStorage)
     }
   }, [])
 
