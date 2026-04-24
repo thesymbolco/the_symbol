@@ -70676,4 +70676,4406 @@ Status: **completed**
 _**Agent (default)**_
 
 <think><details><summary>Thought Process</summary>
-- BeanSalesAnalysisPage lacks PageSaveStatus, confirming the user's observation about the missing "" span in the header.</details></think>
+- BeanSalesAnalysisPage lacks PageSaveStatus, confirming the user's observation about the missing "" span in the header. - **App** has `PageSaveStatus` for the statement.
+- The missing " " span on BeanSalesAnalysisPage is just a local "did we push to cloud" indicator, not related to receiving updates from other sources.
+- Absence of the span on Bean sales doesn't indicate better syncing; different mechanisms are at play.
+- Bean sales may feel more up-to-date because:
+  - It uses different data synchronization methods
+  - Statement/records data is handled differently than other parts of the app
+  - The UI might update more frequently for analysis-related data</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+This is the smoking gun! The code comment at 1630-1633 states that cloud mode writes `records` to `statement-records` localStorage and dispatches `STATEMENT_RECORDS_SAVED_EVENT` so other screens (, ) can read immediately. However, the main statement page itself never listens to pull `records` back from local storage when another source updates.
+
+- Cloud mode writes `records` to `statement-records` localStorage
+- Dispatches `STATEMENT_RECORDS_SAVED_EVENT` for other screens to read
+- Main statement page does not listen to pull `records` back from local storage when updated by another source - ** ** listens and updates accordingly
+- **** tab updates only from its own `records` state, cloud initialization, and cloud pull (when not dirty)
+
+When user A edits in statement and `records` change, the effect at 1635-1647 writes to local storage and dispatches an event  causing other pages to update.
+
+When the same statement page is active, it remains in sync since its the source of truth.
+
+If another tab has stale state but local storage was updated by tab A, the **Bean sales** in tab B receives the event and updates accordingly. **Statement tab B** doesnt listen for updates and stays stale unless its not dirty and receives a cloud tick pull.
+
+On another PC, tabs write to cloud and sync, but events dont fire cross-PC, so both need `cloudDocRefreshTick` or polling.
+
+For the user's confusion:
+- Local save status is for the statement page only, not synced everywhere.
+- Statement uses pull and is blocked on dirty state, while Bean does not. statement   ,                .
+
+: App useEffect  STATEMENT_RECORDS_SAVED_EVENT storage , STORAGE_KEY records  .     dirty    ,    storage    . For **STATEMENT_RECORDS_SAVED_EVENT**, dispatching from the same document within the same window may trigger the event for own edits, potentially causing a double-set. When `records` changes, writing to localStorage and dispatching the event could lead to a re-render loop if the listener sets `records` again from localStorage. This risk increases because parsing localStorage yields a new array reference each time, which could trigger infinite loops if not handled carefully. Maybe only update if the parsed serialized data differs from the current records, or if the event originates from storage (another tab).
+
+Safer approach:
+- Listen to the **`storage` event** only for `STATEMENT_RECORDS_STORAGE_KEY`  update records from localStorage if `statementSaveState` is 'saved' (not editing).
+- For `STATEMENT_RECORDS_SAVED_EVENT` within the same document, re-reading is redundant since the dispatch happens after records change. Other same-window pages may dispatch this event  does MonthlyMeeting do so? The event is intended for same-document updates from App. If we add a listener, when App's records change  write to local storage  dispatch event  listener reads local storage  setRecords: same as current if synced. If nothing else, it's idempotent. But **could** `setRecords` with deep equal data cause double render? Acceptable.
+
+The real problem is: Tab B (statement) has stale state. Tab A updates localStorage. The `storage` event fires in B and should reload data. We need a **storage** listener, not the custom event (custom event does NOT fire in other tabs  per HTML5 spec, only `storage` fires in *other* windows).
+
+**STATEMENT_RECORDS_SAVED_EVENT** is `window.` dispatchEvent only works within the same page context; other tabs receive the `storage` event, not the custom event. For two statement tabs in the same browser:
+
+- Tab A saves records to localStorage
+- Tab B receives the `storage` event
+- Tab B must listen to the `storage` event
+
+If Bean sales and statement are different pages in App (activePage), a custom event could fire when statement updates. However, if they're different tabs in the browser, the `storage` event is necessary.
+
+**Implementation**: Add a `storage` event listener in App. - Add a `storage` event listener to update records from localStorage
+- Only trigger update if storage key matches `STATEMENT_RECORDS_STORAGE_KEY`
+- Skip update if in cloud mode and statement is dirty or saving
+- Parse and validate new value before setting records
+- Remove listener on unmount to prevent memory leaks If user B is dirty on statement, we skip updates to avoid conflictsintentional behavior. If B is not dirty, we merge changes. 
+
+For same-page components like **Bean sales** in the SPA, when A updates records on the statements page, the effect at line 1635 runs and updates `records` in App. 
+
+Custom event listeners for other components within the same app are unclear and may not be necessary unless they directly update the statement key from the same app.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "readStatementPageLocalState|STORAGE_KEY"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "readStatementPageLocalState|STORAGE_KEY",
+  "topFiles": [
+    {
+      "matchCount": 81,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 81
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll implement a `storage` listener in App that:
+- Listens for storage events
+- Handles storage changes
+- Updates state accordingly When `event.key === STATEMENT_RECORDS_STORAGE_KEY` and `e.storageArea === localStorage` and newValue is set, parse with `normalizeLoadedRecords` and `setRecords`. If mode is cloud and (statementSaveState dirty or saving), skip updates to avoid overwriting user edits. Note that the `storage` event does not fire in the same tab that made the change, only in other documents, preventing loops within the same tab. We should also listen to other keys like pricing and master to handle cases where only statement-records is updated. When tab A only updates STORAGE_KEY, tab B's storage event fires for that key, which is good behavior.
+
+If other tabs update multiple keys via writeStatementPageLocalState, we could either listen to one or all core keys. The simplest approach is to re-read full readStatementPageLocalState and apply changes when any core key changes, though this is heavier but ensures correctness.
+
+The storage event only fires in other documents, not the same tab that made the change, preventing loops within the same tab. If tab A performs a full `writeStatementPageLocalState` after save, it triggers multiple storage events for various keys. We should debounce or apply changes once by reading the full local state and applying updates. Initially, we can listen only for **STORAGE_KEY** for **records**, but this may leave pricing/master keys stale. However, the cloud path saves the entire document, calling `writeStatementPageLocalState` with all keys, resulting in multiple `setItems`. The **records** effect (line 1630) only sets **STORAGE_KEY**, so cross-tab updates are typically either records-only in local or full saves from cloud setting all keys. **Simplest fix**: On `storage` events for STORAGE_KEY, PRICING_RULES, MASTER_ITEMS, or TEMPLATE keys, if not dirty, call `applyFromLocal`  which reads full `readStatementPageLocalState()` and updates records, pricing rules, etc., similar to `applyState` on load.
+
+- Create a function or inline effect:
+  ```javascript
+  useEffect(() => {
+    if (!isRecordsStorageReady) return
+    const applyFromLocalStorage = () => {
+      if (mode === 'cloud' && activeCompanyId && (statementSaveState === 'dirty' || statementSaveState === 'saving')) {
+        return
+      }
+      const next = readStatementPageLocalState()
+  ```</details></think>
+
+_**Agent (default)**_
+
+원인: 코드에 명시되어 있습니다 — `STATEMENT_RECORDS`는 ‘다른 화면(원두 분석·월마감)’이 읽게만 하고, 거래명세 본인 화면은 그 이벤트/다른 탭 `storage`로 갱신하지 않습니다.  
+헤더의 저장 상태 `span`은 ‘이 PC에서 클라우드에 저장됨’만 보여주며, ‘다른 환경이 받았는지’와 무관합니다.  
+다른 탭에서 `localStorage`가 바뀌면 거래명세 탭이 `setRecords`를 하도록 `storage` 리스너를 추가합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to add a useEffect after the cloud pull effect (after 1569) that:
+
+- Runs after the cloud pull effect
+- Executes specific logic related to the cloud pull functionality
+- Maintains proper dependency management for React's useEffect hook After the cloud pull effect, add a useEffect that:
+- Listens to the `storage` event
+- Checks if the changed key matches statement page keys
+- If not currently saving to cloud, applies `readStatementPageLocalState` to all relevant setters
+- Skips execution if document isn't fully hydrated (waiting for `isStatementCloudReady`, `isRecordsStorageReady`, `isPricingStorageReady`, and `isMasterItemsStorageReady`)
+
+Constants used:
+- STORAGE_KEY
+- PRICING_RULES_STORAGE_KEY = 'pricing-rules-v1'
+- etc. The code defines a set of storage keys for statement-related data and a function to apply local state if allowed. The function checks if the current mode is 'cloud' and if the statement is dirty or saving, then skips execution. Otherwise, it reads the local state and updates records accordingly.</details></think>
+
+_**Agent (default)**_
+
+`storage` 이벤트(다른 탭·다른 창이 같은 `localStorage` 키를 바꿀 때)에 거래명세 화면도 `readStatementPageLocalState`로 state를 맞춥니다. 원두 분석은 이미 `STATEMENT_RECORDS_SAVED_EVENT`로 반응하지만, **거래명세 탭은 그 이벤트를 듣지 않고**, 같은 창이면 `storage`도 안 쏘므로(브라우저 규칙) 지금 구조에 구멍이 있었습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Run the build. For same-app same tab switching from bean to statement, the records state remains the same as the app state, so no issue arises.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-Cx2NrBY9.css    150.72 kB │ gzip:  25.08 kB
+dist/assets/index-DdjHnGsC.js   2,630.37 kB │ gzip: 747.97 kB
+
+✓ built in 599ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 왜 “원두는 바로, 거래명세는 아닌 것 같지?”가 **맞는 느낌**이었는지
+
+1. **헤더 `span` (저장됨/저장 필요)**  
+   그건 **지금 이 브라우저**에서 거래명세 **클라우드에 올리는 진행**만 보여 줍니다. **다른 PC·다른 직원 화면이 “받아서 반영됐다”**는 뜻이 **아닙니다**.  
+   원두별 매출 화면에는 **그 문서용 `PageSaveStatus`가 아예 없고**, “저장” UI와 “남이 고친 걸 **보이게 할지**”는 **다른 축**입니다.
+
+2. **같은 데이터인데, 화면마다 “갱신 루트”가 달랐음 (코멘트 그대로)**  
+   `App` 안에 이런 말이 있습니다: 클라우드에서 `records`를 바꾸면 `statement-records` + `STATEMENT_RECORDS_SAVED_EVENT`로 **“다른 화면(월마감·원두분석)이** 바로 읽을 수 있게” — **“거래명세 본인 탭”은 이 이벤트로 `setRecords`를 다시 돌리지 않았다**는 뜻이에요.  
+   그래서 **원두 분석**은 이벤트/재조회 쪽이 잘 맞고, **거래명세 탭**은 예전엔 “내가 쓰는 `records` state”가 그대로일 수 있었습니다.
+
+3. **다른 탭(또는 창)에서 `localStorage`가 바뀌는 경우**  
+   브라우저 규칙상, **같은 탭**에서 `setItem`해도 `storage` 이벤트는 **다른 탭/창에만** 갑니다.  
+   → 거래명세 탭이 **`storage`를 듣지 않으면** “옆 탭/다른 창에선 이미 `statement-records`가 갱신됐는데, 이 탭의 화면만 옛 state”가 될 수 있었고, **원두 화면만** 최신에 가깝게 느껴질 수 있었어요.  
+   그걸 **맞추려고** `storage`로 `readStatementPageLocalState()` → `setRecords` … 일괄 반영을 **방금 추가**해 두었습니다(단, **저장 필요/저장 중**이면 덮어쓰지 않음 — 편집 중 충돌 방지).
+
+4. **“다른 PC(완전 다른 기기)”**  
+   `localStorage`는 PC마다 **다릅니다**. 그때는 `storage`로도 소용없고, **클라우드에 올라간 뒤** `cloudDocRefreshTick` 등으로 **다시 `load`하는 쪽**이 맞고, **이 탭이 “저장 중/저장 필요”면 서버 끌어오기를 잠시 막는** 로직이 있어서, 그때는 여전히 “곧바로”가 안 맞을 수 있어요.
+
+---
+
+**정리:** “원두는 없이도 잘 돼서 이상하다”가 아니라, **원두는 `statement` 데이터를 ‘다시 읽는’ 연결이 먼저** 붙어 있고, **거래명세 탭은 (지금까지) 다른 탭 `localStorage` 갱신을 화면 state에 잘 이어지지 않았다** 쪽이 맞습니다. **헤더 `span` 유무와는 무관**하고, 그걸 `storage`로 보완해 두었습니다.
+
+---
+
+_**User**_
+
+그리고 번호 별로 정렬이 안되네 마지막 번호가 제일 위에 올라가게 해줘 그외에는 납품일 거래처명 품목을 눌렀을때 가나다 정렬이던가 최신순 정렬이던가 만들어주고 기본은 번호가 제일 느린순으로 번호정렬이야
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user requests sorting functionality for a table related to transaction records or similar data.</details></think>
+
+_**Agent (default)**_
+
+거래명세 테이블의 정렬(기본: 번호 내림차순, 열 클릭 시 정렬)을 구현합니다. 관련 UI를 찾는 중입니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+
+Parameters:
+
+```json
+{
+  "explanation": "",
+  "includePattern": "/Users/parkcg/The Symbol_Edit/app/src",
+  "query": "Where is the statement table with columns for delivery date client name item name  납품일 거래처?",
+  "topK": 10
+}
+```
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 246,
+            "text": "type StatementRecord = {"
+          },
+          {
+            "lineNumber": 247,
+            "text": "  id: string"
+          },
+          {
+            "lineNumber": 248,
+            "text": "  deliveryDate: string"
+          },
+          {
+            "lineNumber": 249,
+            "text": "  issueDate: string"
+          },
+          {
+            "lineNumber": 250,
+            "text": "  paymentDate: string"
+          },
+          {
+            "lineNumber": 251,
+            "text": "  deliveryCount: string"
+          },
+          {
+            "lineNumber": 252,
+            "text": "  clientName: string"
+          },
+          {
+            "lineNumber": 253,
+            "text": "  itemName: string"
+          },
+          {
+            "lineNumber": 254,
+            "text": "  specUnit: string"
+          },
+          {
+            "lineNumber": 255,
+            "text": "  quantity: number"
+          },
+          {
+            "lineNumber": 256,
+            "text": "  unitPrice: number"
+          },
+          {
+            "lineNumber": 257,
+            "text": "  note: string"
+          },
+          {
+            "lineNumber": 258,
+            "text": "  supplyAmount: number"
+          },
+          {
+            "lineNumber": 259,
+            "text": "  taxAmount: number"
+          },
+          {
+            "lineNumber": 260,
+            "text": "  totalAmount: number"
+          },
+          {
+            "lineNumber": 261,
+            "text": "  /** 이분 기준 월·번 순: 마지막으로 저장한 건이 해당 월에서 가장 큰 번호 */"
+          },
+          {
+            "lineNumber": 262,
+            "text": "  savedAt?: string"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 263,
+            "text": "}"
+          },
+          {
+            "lineNumber": 264
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 265,
+            "text": "type FormState = {"
+          },
+          {
+            "lineNumber": 266,
+            "text": "  deliveryDate: string"
+          },
+          {
+            "lineNumber": 267,
+            "text": "  deliveryCount: string"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 273
+          },
+          "startPosition": {
+            "column": 94,
+            "line": 243
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.47583308815956116
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1284,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 5054,
+            "text": "\u003c/p\u003e"
+          },
+          {
+            "lineNumber": 5055,
+            "text": "            ) : null}"
+          },
+          {
+            "lineNumber": 5056
+          },
+          {
+            "lineNumber": 5057,
+            "text": "            {clientMonthSnapshot \u0026\u0026 clientMonthSnapshot.count \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 5058,
+            "text": "              \u003cdiv className=\"statement-client-snapshot\" role=\"status\"\u003e"
+          },
+          {
+            "lineNumber": 5059,
+            "text": "                \u003cspan className=\"statement-client-snapshot-title\"\u003e"
+          },
+          {
+            "lineNumber": 5060,
+            "text": "                  {form.clientName} · {clientMonthSnapshot.currentMonth.replace('-', '.')} 월 요약"
+          },
+          {
+            "lineNumber": 5061,
+            "text": "                \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5062,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e{clientMonthSnapshot.count}건\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5063,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e"
+          },
+          {
+            "lineNumber": 5064,
+            "text": "                  {formatCurrency(clientMonthSnapshot.totalAmount)}원"
+          },
+          {
+            "lineNumber": 5065,
+            "text": "                \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5066,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e누적 {clientMonthSnapshot.quantity}개\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5067,
+            "text": "                {clientMonthSnapshot.lastDeliveryDate ? ("
+          },
+          {
+            "lineNumber": 5068,
+            "text": "                  \u003cspan className=\"statement-client-snapshot-pill\"\u003e"
+          },
+          {
+            "lineNumber": 5069,
+            "text": "                    마지막 납품 {formatDateLabel(clientMonthSnapshot.lastDeliveryDate)}"
+          },
+          {
+            "lineNumber": 5070,
+            "text": "                  \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5071,
+            "text": "                ) : null}"
+          },
+          {
+            "lineNumber": 5072,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5073,
+            "text": "            ) : null}"
+          },
+          {
+            "lineNumber": 5074
+          },
+          {
+            "lineNumber": 5075,
+            "text": "            {recentRecordsForClient.length \u003e 0 \u0026\u0026 !editingRecordId ? ("
+          },
+          {
+            "lineNumber": 5076,
+            "text": "              \u003cdiv className=\"statement-recent-panel\"\u003e"
+          },
+          {
+            "lineNumber": 5077,
+            "text": "                \u003cdiv className=\"statement-recent-panel-head\"\u003e"
+          },
+          {
+            "lineNumber": 5078,
+            "text": "                  \u003cstrong\u003e최근 납품\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 5079,
+            "text": "                  \u003cspan\u003e{form.clientName} · 클릭하면 오늘 날짜로 자동 입력\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5080,
+            "text": "                \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5081,
+            "text": "                \u003cdiv className=\"statement-recent-panel-list\"\u003e"
+          },
+          {
+            "lineNumber": 5082,
+            "text": "                  {recentRecordsForClient.map((record) =\u003e ("
+          },
+          {
+            "lineNumber": 5083,
+            "text": "                    \u003cbutton"
+          },
+          {
+            "lineNumber": 5084,
+            "text": "                      key={record.id}"
+          },
+          {
+            "lineNumber": 5085,
+            "text": "                      type=\"button\""
+          },
+          {
+            "lineNumber": 5086,
+            "text": "                      className=\"statement-recent-panel-item\""
+          },
+          {
+            "lineNumber": 5087,
+            "text": "                      onClick={() =\u003e handleCopyFromRecentRecord(record)}"
+          },
+          {
+            "lineNumber": 5088,
+            "text": "                      title=\"이 납품을 오늘 날짜로 복제합니다\""
+          },
+          {
+            "lineNumber": 5089,
+            "text": "                    \u003e"
+          },
+          {
+            "lineNumber": 5090,
+            "text": "                      \u003cspan className=\"statement-recent-panel-item-date\"\u003e"
+          },
+          {
+            "lineNumber": 5091,
+            "text": "                        {formatDateLabel(record.deliveryDate)}"
+          },
+          {
+            "lineNumber": 5092,
+            "text": "                      \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5093,
+            "text": "                      \u003cspan className=\"statement-recent-panel-item-name\"\u003e{record.itemName}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5094,
+            "text": "                      \u003cspan className=\"statement-recent-panel-item-meta\"\u003e"
+          },
+          {
+            "lineNumber": 5095,
+            "text": "                        {record.specUnit || '-'} · {record.quantity}개 · {formatCurrency(record.unitPrice)}원"
+          },
+          {
+            "lineNumber": 5096,
+            "text": "                      \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5097,
+            "text": "                    \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 5098,
+            "text": "                  ))}"
+          },
+          {
+            "lineNumber": 5099,
+            "text": "                \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5100,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5513,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5512
+          },
+          "startPosition": {
+            "line": 1283
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1285
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1284
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.46568289399147034
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1284,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4507
+          },
+          {
+            "lineNumber": 4508,
+            "text": "                  \u003clabel\u003e"
+          },
+          {
+            "lineNumber": 4509,
+            "text": "                    성명"
+          },
+          {
+            "lineNumber": 4510,
+            "text": "                    \u003cinput"
+          },
+          {
+            "lineNumber": 4511,
+            "text": "                      type=\"text\""
+          },
+          {
+            "lineNumber": 4512,
+            "text": "                      value={statementTemplateSettings.ownerName}"
+          },
+          {
+            "lineNumber": 4513,
+            "text": "                      onChange={(event) =\u003e updateStatementTemplateSetting('ownerName', event.target.value)}"
+          },
+          {
+            "lineNumber": 4514,
+            "text": "                    /\u003e"
+          },
+          {
+            "lineNumber": 4515,
+            "text": "                  \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 4516,
+            "text": "                  \u003clabel\u003e"
+          },
+          {
+            "lineNumber": 4517,
+            "text": "                    전화번호"
+          },
+          {
+            "lineNumber": 4518,
+            "text": "                    \u003cinput"
+          },
+          {
+            "lineNumber": 4519,
+            "text": "                      type=\"text\""
+          },
+          {
+            "lineNumber": 4520,
+            "text": "                      value={statementTemplateSettings.phone}"
+          },
+          {
+            "lineNumber": 4521,
+            "text": "                      onChange={(event) =\u003e updateStatementTemplateSetting('phone', event.target.value)}"
+          },
+          {
+            "lineNumber": 4522,
+            "text": "                    /\u003e"
+          },
+          {
+            "lineNumber": 4523,
+            "text": "                  \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 4524,
+            "text": "                  \u003clabel className=\"span-2\"\u003e"
+          },
+          {
+            "lineNumber": 4525,
+            "text": "                    주소"
+          },
+          {
+            "lineNumber": 4526,
+            "text": "                    \u003cinput"
+          },
+          {
+            "lineNumber": 4527,
+            "text": "                      type=\"text\""
+          },
+          {
+            "lineNumber": 4528,
+            "text": "                      value={statementTemplateSettings.address}"
+          },
+          {
+            "lineNumber": 4529,
+            "text": "                      onChange={(event) =\u003e updateStatementTemplateSetting('address', event.target.value)}"
+          },
+          {
+            "lineNumber": 4530,
+            "text": "                    /\u003e"
+          },
+          {
+            "lineNumber": 4531,
+            "text": "                  \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 4532,
+            "text": "                  \u003clabel\u003e"
+          },
+          {
+            "lineNumber": 4533,
+            "text": "                    업태"
+          },
+          {
+            "lineNumber": 4534,
+            "text": "                    \u003cinput"
+          },
+          {
+            "lineNumber": 4535,
+            "text": "                      type=\"text\""
+          },
+          {
+            "lineNumber": 4536,
+            "text": "                      value="
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5513,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5512
+          },
+          "startPosition": {
+            "line": 1283
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1285
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1284
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4602164626121521
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1284,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3983,
+            "text": "(record) =\u003e {"
+          },
+          {
+            "lineNumber": 4066
+          },
+          {
+            "lineNumber": 4067,
+            "text": "                                onChange={(event) =\u003e"
+          },
+          {
+            "lineNumber": 4068,
+            "text": "                                  setInlineEditDraft((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 4069,
+            "text": "                                    ...current,"
+          },
+          {
+            "lineNumber": 4070,
+            "text": "                                    unitPrice: event.target.value,"
+          },
+          {
+            "lineNumber": 4071,
+            "text": "                                  }))"
+          },
+          {
+            "lineNumber": 4072,
+            "text": "                                }"
+          },
+          {
+            "lineNumber": 4073,
+            "text": "                              /\u003e"
+          },
+          {
+            "lineNumber": 4074,
+            "text": "                            \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4075,
+            "text": "                            \u003ctd\u003e"
+          },
+          {
+            "lineNumber": 4076,
+            "text": "                              \u003cselect"
+          },
+          {
+            "lineNumber": 4077,
+            "text": "                                value={inlineEditDraft.note}"
+          },
+          {
+            "lineNumber": 4078,
+            "text": "                                onChange={(event) =\u003e"
+          },
+          {
+            "lineNumber": 4079,
+            "text": "                                  setInlineEditDraft((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 4080,
+            "text": "                                    ...current,"
+          },
+          {
+            "lineNumber": 4081,
+            "text": "                                    note: event.target.value,"
+          },
+          {
+            "lineNumber": 4082,
+            "text": "                                  }))"
+          },
+          {
+            "lineNumber": 4083,
+            "text": "                                }"
+          },
+          {
+            "lineNumber": 4084,
+            "text": "                              \u003e"
+          },
+          {
+            "lineNumber": 4085,
+            "text": "                                {NOTE_OPTIONS.map((option) =\u003e ("
+          },
+          {
+            "lineNumber": 4086,
+            "text": "                                  \u003coption key={option} value={option}\u003e"
+          },
+          {
+            "lineNumber": 4087,
+            "text": "                                    {option}"
+          },
+          {
+            "lineNumber": 4089,
+            "text": "                                )"
+          },
+          {
+            "lineNumber": 4166,
+            "text": "                    }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5513,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5512
+          },
+          "startPosition": {
+            "line": 1283
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1285
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1284
+              }
+            },
+            {
+              "endPosition": {
+                "column": 21,
+                "line": 3930
+              },
+              "startPosition": {
+                "column": 21,
+                "line": 3930
+              }
+            },
+            {
+              "endPosition": {
+                "column": 23,
+                "line": 3931
+              },
+              "startPosition": {
+                "column": 40,
+                "line": 3930
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4555234909057617
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1284,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3892
+          },
+          {
+            "lineNumber": 3893,
+            "text": "                    className=\"statements-records-search-clear\""
+          },
+          {
+            "lineNumber": 3894,
+            "text": "                    onClick={() =\u003e setRecordsSearchQuery('')}"
+          },
+          {
+            "lineNumber": 3895,
+            "text": "                    aria-label=\"검색 초기화\""
+          },
+          {
+            "lineNumber": 3896,
+            "text": "                  \u003e"
+          },
+          {
+            "lineNumber": 3897,
+            "text": "                    ×"
+          },
+          {
+            "lineNumber": 3898,
+            "text": "                  \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 3899,
+            "text": "                ) : null}"
+          },
+          {
+            "lineNumber": 3900,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3901,
+            "text": "              \u003cdiv className=\"statements-records-chips\"\u003e"
+          },
+          {
+            "lineNumber": 3902,
+            "text": "                {["
+          },
+          {
+            "lineNumber": 3903,
+            "text": "                  { id: 'week', label: '최근 7일' },"
+          },
+          {
+            "lineNumber": 3904,
+            "text": "                  { id: 'month', label: '이번달' },"
+          },
+          {
+            "lineNumber": 3905,
+            "text": "                  { id: 'year', label: &#96;${selectedYear}년&#96; },"
+          },
+          {
+            "lineNumber": 3906,
+            "text": "                  { id: 'all', label: '전체' },"
+          },
+          {
+            "lineNumber": 3907,
+            "text": "                ].map((option) =\u003e ("
+          },
+          {
+            "lineNumber": 3908,
+            "text": "                  \u003cbutton"
+          },
+          {
+            "lineNumber": 3909,
+            "text": "                    key={option.id}"
+          },
+          {
+            "lineNumber": 3910,
+            "text": "                    type=\"button\""
+          },
+          {
+            "lineNumber": 3911,
+            "text": "                    className={&#96;filter-chip${recordsRangeFilter === option.id ? ' active' : ''}&#96;}"
+          },
+          {
+            "lineNumber": 3912,
+            "text": "                    onClick={() =\u003e"
+          },
+          {
+            "lineNumber": 3913,
+            "text": "                      setRecordsRangeFilter(option.id as typeof recordsRangeFilter)"
+          },
+          {
+            "lineNumber": 3914,
+            "text": "                    }"
+          },
+          {
+            "lineNumber": 3915,
+            "text": "                  \u003e"
+          },
+          {
+            "lineNumber": 3916,
+            "text": "                    {option.label}"
+          },
+          {
+            "lineNumber": 3917,
+            "text": "                  \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 3918,
+            "text": "                ))}"
+          },
+          {
+            "lineNumber": 3919,
+            "text": "                \u003cspan className=\"statements-records-chips-divider\" aria-hidden=\"true\" /\u003e"
+          },
+          {
+            "lineNumber": 3920,
+            "text": "                {["
+          },
+          {
+            "lineNumber": 3921,
+            "text": "                  { id: 'all', label: '전체 과세' },"
+          },
+          {
+            "lineNumber": 3935
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5513,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5512
+          },
+          "startPosition": {
+            "line": 1283
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1285
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1284
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4433279037475586
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1284,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4237,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 4252,
+            "text": "((dow) =\u003e ("
+          },
+          {
+            "lineNumber": 4253,
+            "text": "                      \u003cdiv key={dow} className=\"statements-calendar-dow\"\u003e"
+          },
+          {
+            "lineNumber": 4254,
+            "text": "                        {dow}"
+          },
+          {
+            "lineNumber": 4255,
+            "text": "                      \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4256,
+            "text": "                    ))}"
+          },
+          {
+            "lineNumber": 4257,
+            "text": "                    {cells.map((cell) =\u003e {"
+          },
+          {
+            "lineNumber": 4258,
+            "text": "                      if (!cell.date) {"
+          },
+          {
+            "lineNumber": 4259,
+            "text": "                        return \u003cdiv key={cell.key} className=\"statements-calendar-cell is-blank\" /\u003e"
+          },
+          {
+            "lineNumber": 4260,
+            "text": "                      }"
+          },
+          {
+            "lineNumber": 4261,
+            "text": "                      const entry = calendarEntries.get(cell.date)"
+          },
+          {
+            "lineNumber": 4262,
+            "text": "                      return ("
+          },
+          {
+            "lineNumber": 4263,
+            "text": "                        \u003cdiv"
+          },
+          {
+            "lineNumber": 4264,
+            "text": "                          key={cell.key}"
+          },
+          {
+            "lineNumber": 4265,
+            "text": "                          className={&#96;statements-calendar-cell${entry ? ' has-records' : ''}&#96;}"
+          },
+          {
+            "lineNumber": 4266,
+            "text": "                        \u003e"
+          },
+          {
+            "lineNumber": 4267,
+            "text": "                          \u003cdiv className=\"statements-calendar-cell-head\"\u003e"
+          },
+          {
+            "lineNumber": 4268,
+            "text": "                            \u003cspan\u003e{cell.day}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 4269,
+            "text": "                            {entry ? \u003cem\u003e{entry.count}건\u003c/em\u003e : null}"
+          },
+          {
+            "lineNumber": 4270,
+            "text": "                          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4271,
+            "text": "                          {entry ? ("
+          },
+          {
+            "lineNumber": 4272,
+            "text": "                            \u003cdiv className=\"statements-calendar-cell-body\"\u003e"
+          },
+          {
+            "lineNumber": 4273,
+            "text": "                              \u003cstrong\u003e{formatCurrency(entry.totalAmount)}원\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 4274,
+            "text": "                              \u003cul\u003e"
+          },
+          {
+            "lineNumber": 4275,
+            "text": "                                {entry.records.slice(0, 3).map((record) =\u003e ("
+          },
+          {
+            "lineNumber": 4276,
+            "text": "                                  \u003cli"
+          },
+          {
+            "lineNumber": 4282,
+            "text": "                                )"
+          },
+          {
+            "lineNumber": 4300,
+            "text": "                    }"
+          },
+          {
+            "lineNumber": 4303,
+            "text": "              }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5513,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5512
+          },
+          "startPosition": {
+            "line": 1283
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1285
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1284
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4139327108860016
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 303,
+            "text": "type StatementSheetGroup = {"
+          },
+          {
+            "lineNumber": 304,
+            "text": "  key: string"
+          },
+          {
+            "lineNumber": 305,
+            "text": "  deliveryDate: string"
+          },
+          {
+            "lineNumber": 306,
+            "text": "  issueDate: string"
+          },
+          {
+            "lineNumber": 307,
+            "text": "  clientName: string"
+          },
+          {
+            "lineNumber": 308,
+            "text": "  deliveryCount: string"
+          },
+          {
+            "lineNumber": 309,
+            "text": "  records: StatementRecord[]"
+          },
+          {
+            "lineNumber": 310,
+            "text": "  supplyAmount: number"
+          },
+          {
+            "lineNumber": 311,
+            "text": "  taxAmount: number"
+          },
+          {
+            "lineNumber": 312,
+            "text": "  totalAmount: number"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 313,
+            "text": "}"
+          },
+          {
+            "lineNumber": 314
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 315,
+            "text": "type AppBackupPayload = {"
+          },
+          {
+            "lineNumber": 316,
+            "text": "  version: 2"
+          },
+          {
+            "lineNumber": 317,
+            "text": "  savedAt: string"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 334
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 300
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.38039740920066833
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1284,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3919
+          },
+          {
+            "lineNumber": 3920,
+            "text": "                {["
+          },
+          {
+            "lineNumber": 3921,
+            "text": "                  { id: 'all', label: '전체 과세' },"
+          },
+          {
+            "lineNumber": 3922,
+            "text": "                  { id: '부가세 별도', label: '별도' },"
+          },
+          {
+            "lineNumber": 3923,
+            "text": "                  { id: '부가세 없음', label: '없음' },"
+          },
+          {
+            "lineNumber": 3924,
+            "text": "                ].map((option) =\u003e ("
+          },
+          {
+            "lineNumber": 3925,
+            "text": "                  \u003cbutton"
+          },
+          {
+            "lineNumber": 3926,
+            "text": "                    key={option.id}"
+          },
+          {
+            "lineNumber": 3927,
+            "text": "                    type=\"button\""
+          },
+          {
+            "lineNumber": 3928,
+            "text": "                    className={&#96;filter-chip${recordsNoteFilter === option.id ? ' active' : ''}&#96;}"
+          },
+          {
+            "lineNumber": 3929,
+            "text": "                    onClick={() =\u003e"
+          },
+          {
+            "lineNumber": 3930,
+            "text": "                      setRecordsNoteFilter(option.id as typeof recordsNoteFilter)"
+          },
+          {
+            "lineNumber": 3931,
+            "text": "                    }"
+          },
+          {
+            "lineNumber": 3932,
+            "text": "                  \u003e"
+          },
+          {
+            "lineNumber": 3933,
+            "text": "                    {option.label}"
+          },
+          {
+            "lineNumber": 3934,
+            "text": "                  \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 3935,
+            "text": "                ))}"
+          },
+          {
+            "lineNumber": 3936,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3937,
+            "text": "              \u003cdiv className=\"statements-records-filter-summary\"\u003e"
+          },
+          {
+            "lineNumber": 3938,
+            "text": "                \u003cstrong\u003e{visibleRecords.length.toLocaleString('ko-KR')}건\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3939,
+            "text": "                \u003cspan\u003e·\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3940,
+            "text": "                \u003cstrong\u003e{formatCurrency(visibleTotals.total)}원\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3941,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3942,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3943,
+            "text": "          ) : null}"
+          },
+          {
+            "lineNumber": 3944
+          },
+          {
+            "lineNumber": 3945,
+            "text": "          {statementTemplateMessage ? \u003cp className=\"admin-status\"\u003e{statementTemplateMessage}\u003c/p\u003e : null}"
+          },
+          {
+            "lineNumber": 3946,
+            "text": "          {statementTemplateFileName ? ("
+          },
+          {
+            "lineNumber": 3947,
+            "text": "            \u003cp className=\"local-save-status\"\u003e"
+          },
+          {
+            "lineNumber": 3948,
+            "text": "              일반 저장은 &#96;입력목록 엑셀 저장&#96;, 양식 반영 저장은 아래 거래명세표의 &#96;선택 문서 양식 저장&#96;을 사용하세요."
+          },
+          {
+            "lineNumber": 3949,
+            "text": "            \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 3950,
+            "text": "          ) : null}"
+          },
+          {
+            "lineNumber": 3951
+          },
+          {
+            "lineNumber": 3952,
+            "text": "          \u003cdiv className=\"statements-table-viewport\"\u003e"
+          },
+          {
+            "lineNumber": 3953,
+            "text": "          {activeView === 'records' ? ("
+          },
+          {
+            "lineNumber": 3954,
+            "text": "            \u003cdiv className=\"table-wrapper statements-main-table-hscroll\" ref={statementMainTableScrollRef}\u003e"
+          },
+          {
+            "lineNumber": 3955,
+            "text": "              \u003ctable\u003e"
+          },
+          {
+            "lineNumber": 3956,
+            "text": "                \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 3957,
+            "text": "                  \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 3958,
+            "text": "                    \u003cth title=\"같은 납품월에서 입력·저장한 순서(가장 나중에 저장한 건이 가장 큰 번호). 예전 데이터는 납품일·거래처 기준\"\u003e번호\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3959,
+            "text": "                    \u003cth\u003e납품일\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3960,
+            "text": "                    \u003cth\u003e횟수\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3961,
+            "text": "                    \u003cth\u003e거래처명\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3962,
+            "text": "                    \u003cth\u003e품목\u003c/th\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5513,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5512
+          },
+          "startPosition": {
+            "line": 1283
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1285
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1284
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3755759596824646
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1284,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4590
+          },
+          {
+            "lineNumber": 4591,
+            "text": "                        \u003cth className=\"provider-mark\" rowSpan={4}\u003e"
+          },
+          {
+            "lineNumber": 4592,
+            "text": "                          공"
+          },
+          {
+            "lineNumber": 4593,
+            "text": "                          \u003cbr /\u003e"
+          },
+          {
+            "lineNumber": 4594,
+            "text": "                          급"
+          },
+          {
+            "lineNumber": 4595,
+            "text": "                        \u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4596,
+            "text": "                        \u003cth\u003e사업자번호\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4597,
+            "text": "                        \u003ctd colSpan={3}\u003e{statementTemplateSettings.businessNumber}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4598,
+            "text": "                      \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4599,
+            "text": "                      \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4600,
+            "text": "                        \u003cth className=\"sheet-left-label\" rowSpan={3}\u003e"
+          },
+          {
+            "lineNumber": 4601,
+            "text": "                          공급받는자"
+          },
+          {
+            "lineNumber": 4602,
+            "text": "                        \u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4603,
+            "text": "                        \u003ctd className=\"sheet-left-value\" rowSpan={3}\u003e"
+          },
+          {
+            "lineNumber": 4604,
+            "text": "                          {selectedSheet.clientName}"
+          },
+          {
+            "lineNumber": 4605,
+            "text": "                        \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4606,
+            "text": "                        \u003cth\u003e상호명\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4607,
+            "text": "                        \u003ctd\u003e{statementTemplateSettings.companyName}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4608,
+            "text": "                        \u003cth\u003e성명\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4609,
+            "text": "                        \u003ctd\u003e{statementTemplateSettings.ownerName}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4610,
+            "text": "                      \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4611,
+            "text": "                      \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4612,
+            "text": "                        \u003cth\u003e주소\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4613,
+            "text": "                        \u003ctd colSpan={3}\u003e{statementTemplateSettings.address}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4614,
+            "text": "                      \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4615,
+            "text": "                      \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4616,
+            "text": "                        \u003cth\u003e업태\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4617,
+            "text": "                        \u003ctd\u003e{statementTemplateSettings.businessType}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4618,
+            "text": "                        \u003cth\u003e종목\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4619,
+            "text": "                        \u003ctd\u003e{statementTemplateSettings.businessItem}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4620,
+            "text": "                      \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4621,
+            "text": "                    \u003c/tbody\u003e"
+          },
+          {
+            "lineNumber": 4622,
+            "text": "                  \u003c/table\u003e"
+          },
+          {
+            "lineNumber": 4623
+          },
+          {
+            "lineNumber": 4624,
+            "text": "                  \u003ctable className=\"statement-amount-table\"\u003e"
+          },
+          {
+            "lineNumber": 4625,
+            "text": "                    \u003ccolgroup\u003e"
+          },
+          {
+            "lineNumber": 4626,
+            "text": "                      \u003ccol style={{ width: '12%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4627,
+            "text": "                      \u003ccol style={{ width: '18%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4628,
+            "text": "                      \u003ccol style={{ width: '4%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4629,
+            "text": "                      \u003ccol style={{ width: '14%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4630,
+            "text": "                      \u003ccol style={{ width: '17.33%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4631,
+            "text": "                      \u003ccol style={{ width: '17.33%' }} /\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5513,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5512
+          },
+          "startPosition": {
+            "line": 1283
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1285
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1284
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.37530314922332764
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1284,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4531
+          },
+          {
+            "lineNumber": 4532,
+            "text": "                  \u003clabel\u003e"
+          },
+          {
+            "lineNumber": 4533,
+            "text": "                    업태"
+          },
+          {
+            "lineNumber": 4534,
+            "text": "                    \u003cinput"
+          },
+          {
+            "lineNumber": 4535,
+            "text": "                      type=\"text\""
+          },
+          {
+            "lineNumber": 4536,
+            "text": "                      value={statementTemplateSettings.businessType}"
+          },
+          {
+            "lineNumber": 4537,
+            "text": "                      onChange={(event) =\u003e"
+          },
+          {
+            "lineNumber": 4538,
+            "text": "                        updateStatementTemplateSetting('businessType', event.target.value)"
+          },
+          {
+            "lineNumber": 4539,
+            "text": "                      }"
+          },
+          {
+            "lineNumber": 4540,
+            "text": "                    /\u003e"
+          },
+          {
+            "lineNumber": 4541,
+            "text": "                  \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 4542,
+            "text": "                  \u003clabel\u003e"
+          },
+          {
+            "lineNumber": 4543,
+            "text": "                    종목"
+          },
+          {
+            "lineNumber": 4544,
+            "text": "                    \u003cinput"
+          },
+          {
+            "lineNumber": 4545,
+            "text": "                      type=\"text\""
+          },
+          {
+            "lineNumber": 4546,
+            "text": "                      value={statementTemplateSettings.businessItem}"
+          },
+          {
+            "lineNumber": 4547,
+            "text": "                      onChange={(event) =\u003e"
+          },
+          {
+            "lineNumber": 4548,
+            "text": "                        updateStatementTemplateSetting('businessItem', event.target.value)"
+          },
+          {
+            "lineNumber": 4549,
+            "text": "                      }"
+          },
+          {
+            "lineNumber": 4550,
+            "text": "                    /\u003e"
+          },
+          {
+            "lineNumber": 4551,
+            "text": "                  \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 4552,
+            "text": "                  \u003clabel className=\"span-2\"\u003e"
+          },
+          {
+            "lineNumber": 4553,
+            "text": "                    입금계좌"
+          },
+          {
+            "lineNumber": 4554,
+            "text": "                    \u003cinput"
+          },
+          {
+            "lineNumber": 4555,
+            "text": "                      type=\"text\""
+          },
+          {
+            "lineNumber": 4556,
+            "text": "                      value={statementTemplateSettings.account}"
+          },
+          {
+            "lineNumber": 4557,
+            "text": "                      onChange={(event) =\u003e updateStatementTemplateSetting('account', event.target.value)}"
+          },
+          {
+            "lineNumber": 4558,
+            "text": "                    /\u003e"
+          },
+          {
+            "lineNumber": 4559,
+            "text": "                  \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 4560,
+            "text": "                \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4561,
+            "text": "                \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4562,
+            "text": "              ) : null}"
+          },
+          {
+            "lineNumber": 4563
+          },
+          {
+            "lineNumber": 4564,
+            "text": "              {selectedSheet ? ("
+          },
+          {
+            "lineNumber": 4565,
+            "text": "                \u003cdiv className=\"statement-sheet-pair statement-sheet-pair--single\"\u003e"
+          },
+          {
+            "lineNumber": 4566,
+            "text": "                  \u003cdiv className=\"statement-sheet\"\u003e"
+          },
+          {
+            "lineNumber": 4567,
+            "text": "                  \u003cdiv className=\"statement-copy-label\"\u003e{STATEMENT_PREVIEW_LABEL}\u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4568
+          },
+          {
+            "lineNumber": 4569,
+            "text": "                  \u003cdiv className=\"statement-sheet-header\"\u003e"
+          },
+          {
+            "lineNumber": 4570,
+            "text": "                    \u003cdiv className=\"statement-doc-date-line\"\u003e"
+          },
+          {
+            "lineNumber": 4571,
+            "text": "                      납품일 {formatDateLabel(selectedSheet.deliveryDate)}"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5513,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5512
+          },
+          "startPosition": {
+            "line": 1283
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1285
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1284
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3723398447036743
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1284,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3374,
+            "text": "const exportSelectedStatementSheetToTemplate = async "
+          },
+          {
+            "lineNumber": 3408,
+            "text": "for (let pageIndex = 1; pageIndex \u003c pageCount; pageIndex += 1) {"
+          },
+          {
+            "lineNumber": 3409
+          },
+          {
+            "lineNumber": 3410,
+            "text": "        fillStatementTemplateWorksheet("
+          },
+          {
+            "lineNumber": 3411,
+            "text": "          copiedSheet,"
+          },
+          {
+            "lineNumber": 3412,
+            "text": "          selectedSheet,"
+          },
+          {
+            "lineNumber": 3413,
+            "text": "          statementTemplateSettings,"
+          },
+          {
+            "lineNumber": 3414,
+            "text": "          pageIndex * pageSize,"
+          },
+          {
+            "lineNumber": 3415,
+            "text": "          pageSize,"
+          },
+          {
+            "lineNumber": 3416,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 3417,
+            "text": "        applyWorksheetLayout(copiedSheet, layoutSnapshot)"
+          },
+          {
+            "lineNumber": 3418,
+            "text": "        sheetsToExport.push(copiedSheet)"
+          },
+          {
+            "lineNumber": 3419,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3420
+          },
+          {
+            "lineNumber": 3421,
+            "text": "      const keepIds = new Set(sheetsToExport.map((s) =\u003e s.id))"
+          },
+          {
+            "lineNumber": 3422,
+            "text": "      const removeIds: number[] = []"
+          },
+          {
+            "lineNumber": 3423,
+            "text": "      workbook.eachSheet((sheet) =\u003e {"
+          },
+          {
+            "lineNumber": 3424,
+            "text": "        if (!keepIds.has(sheet.id)) {"
+          },
+          {
+            "lineNumber": 3425,
+            "text": "          removeIds.push(sheet.id)"
+          },
+          {
+            "lineNumber": 3426,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 3427,
+            "text": "      })"
+          },
+          {
+            "lineNumber": 3428,
+            "text": "      removeIds.forEach((id) =\u003e workbook.removeWorksheet(id))"
+          },
+          {
+            "lineNumber": 3429
+          },
+          {
+            "lineNumber": 3430,
+            "text": "      const exportFileName = &#96;거래명세서_${safeClientName}_${selectedSheet.deliveryDate}.xlsx&#96;"
+          },
+          {
+            "lineNumber": 3431,
+            "text": "      const buffer = await workbook.xlsx.writeBuffer()"
+          },
+          {
+            "lineNumber": 3432,
+            "text": "      const saved = await saveExcelToPreferredFolder(buffer as ArrayBuffer, exportFileName)"
+          },
+          {
+            "lineNumber": 3433,
+            "text": "      if (saved) {"
+          },
+          {
+            "lineNumber": 3434,
+            "text": "        setStatementTemplateMessage("
+          },
+          {
+            "lineNumber": 3435,
+            "text": "          pageCount \u003e 1"
+          },
+          {
+            "lineNumber": 3436,
+            "text": "            ? &#96;양식에 거래명세표를 ${pageCount}장으로 나눠 저장했습니다.&#96;"
+          },
+          {
+            "lineNumber": 3437,
+            "text": "            : '양식에 거래명세표를 채워 저장했습니다.',"
+          },
+          {
+            "lineNumber": 3438,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 3439,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3440,
+            "text": "    } catch (error) {"
+          },
+          {
+            "lineNumber": 3441,
+            "text": "      setStatementTemplateMessage("
+          },
+          {
+            "lineNumber": 3442,
+            "text": "        error instanceof Error ? error.message : '거래명세서 양식 저장 중 오류가 발생했습니다.',"
+          },
+          {
+            "lineNumber": 3443,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3444,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3445,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3446
+          },
+          {
+            "lineNumber": 3447,
+            "text": "  const updateStatementTemplateSetting = ("
+          },
+          {
+            "lineNumber": 3448,
+            "text": "    field: keyof StatementTemplateSettings,"
+          },
+          {
+            "lineNumber": 3449,
+            "text": "    value: string,"
+          },
+          {
+            "lineNumber": 3450,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3455
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5513,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5512
+          },
+          "startPosition": {
+            "line": 1283
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1285
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1284
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36791178584098816
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1284,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4948,
+            "text": "(item) =\u003e {"
+          },
+          {
+            "lineNumber": 5020,
+            "text": " ("
+          },
+          {
+            "lineNumber": 5021,
+            "text": "                                \u003c\u003e"
+          },
+          {
+            "lineNumber": 5022,
+            "text": "                                  \u003cbutton"
+          },
+          {
+            "lineNumber": 5023,
+            "text": "                                    type=\"button\""
+          },
+          {
+            "lineNumber": 5024,
+            "text": "                                    className=\"ghost-button small\""
+          },
+          {
+            "lineNumber": 5025,
+            "text": "                                    onClick={() =\u003e handleStartEditMasterItem(item)}"
+          },
+          {
+            "lineNumber": 5026,
+            "text": "                                  \u003e"
+          },
+          {
+            "lineNumber": 5027,
+            "text": "                                    수정"
+          },
+          {
+            "lineNumber": 5028,
+            "text": "                                  \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 5029,
+            "text": "                                  \u003cbutton"
+          },
+          {
+            "lineNumber": 5030,
+            "text": "                                    type=\"button\""
+          },
+          {
+            "lineNumber": 5031,
+            "text": "                                    className=\"ghost-button small danger\""
+          },
+          {
+            "lineNumber": 5032,
+            "text": "                                    onClick={() =\u003e handleRemoveMasterItem(item.id)}"
+          },
+          {
+            "lineNumber": 5033,
+            "text": "                                  \u003e"
+          },
+          {
+            "lineNumber": 5034,
+            "text": "                                    삭제"
+          },
+          {
+            "lineNumber": 5035,
+            "text": "                                  \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 5036,
+            "text": "                                \u003c/\u003e"
+          },
+          {
+            "lineNumber": 5037,
+            "text": "                              )}"
+          },
+          {
+            "lineNumber": 5038,
+            "text": "                            \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 5039,
+            "text": "                          \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 5040,
+            "text": "                        )"
+          },
+          {
+            "lineNumber": 5041,
+            "text": "                      })"
+          },
+          {
+            "lineNumber": 5042,
+            "text": "                    )}"
+          },
+          {
+            "lineNumber": 5043,
+            "text": "                  \u003c/tbody\u003e"
+          },
+          {
+            "lineNumber": 5044,
+            "text": "                \u003c/table\u003e"
+          },
+          {
+            "lineNumber": 5045,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5046,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5047,
+            "text": "          ) : null}"
+          },
+          {
+            "lineNumber": 5048
+          },
+          {
+            "lineNumber": 5049,
+            "text": "          \u003cform id=\"statement-entry-form\" className=\"statement-form\" onSubmit={handleSubmit}\u003e"
+          },
+          {
+            "lineNumber": 5050,
+            "text": "            {editingRecordId ? ("
+          },
+          {
+            "lineNumber": 5051,
+            "text": "              \u003cp className=\"statement-edit-hint\"\u003e"
+          },
+          {
+            "lineNumber": 5052,
+            "text": "                입력 목록에서 선택한 건을 수정 중입니다. 반영하려면 위의 「저장」, 취소하려면 「수정 취소」를"
+          },
+          {
+            "lineNumber": 5053,
+            "text": "                눌러주세요."
+          },
+          {
+            "lineNumber": 5054,
+            "text": "              \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 5055,
+            "text": "            ) : null}"
+          },
+          {
+            "lineNumber": 5056
+          },
+          {
+            "lineNumber": 5057,
+            "text": "            {"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5513,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5512
+          },
+          "startPosition": {
+            "line": 1283
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1285
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1284
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3550136089324951
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 802,
+            "text": "const fillStatementTemplateWorksheet = ("
+          },
+          {
+            "lineNumber": 803,
+            "text": "  worksheet: ExcelJS.Worksheet,"
+          },
+          {
+            "lineNumber": 804,
+            "text": "  statementSheet: StatementSheetGroup,"
+          },
+          {
+            "lineNumber": 805,
+            "text": "  settings: StatementTemplateSettings,"
+          },
+          {
+            "lineNumber": 806,
+            "text": "  recordOffset: number,"
+          },
+          {
+            "lineNumber": 807,
+            "text": "  pageSize: number,"
+          },
+          {
+            "lineNumber": 808,
+            "text": ") =\u003e {"
+          },
+          {
+            "lineNumber": 809,
+            "text": "  const applyFontSize = (address: string, size: number) =\u003e {"
+          },
+          {
+            "lineNumber": 810,
+            "text": "    const cell = worksheet.getCell(address)"
+          },
+          {
+            "lineNumber": 811,
+            "text": "    cell.font = {"
+          },
+          {
+            "lineNumber": 812,
+            "text": "      ...(cell.font ?? {}),"
+          },
+          {
+            "lineNumber": 813,
+            "text": "      size,"
+          },
+          {
+            "lineNumber": 814,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 815,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 816
+          },
+          {
+            "lineNumber": 817,
+            "text": "  setStatementDeliveryBadgeCells(worksheet, 'A1', 'C1', statementSheet.deliveryDate)"
+          },
+          {
+            "lineNumber": 818,
+            "text": "  worksheet.getCell('D2').value = parseIsoDateToDate(statementSheet.issueDate || today)"
+          },
+          {
+            "lineNumber": 819,
+            "text": "  setStatementTemplateCellText(worksheet, 'D3', statementSheet.clientName)"
+          },
+          {
+            "lineNumber": 820,
+            "text": "  setStatementTemplateCellText(worksheet, 'L3', settings.companyName)"
+          },
+          {
+            "lineNumber": 821,
+            "text": "  setStatementTemplateCellText(worksheet, 'N2', settings.businessNumber)"
+          },
+          {
+            "lineNumber": 822,
+            "text": "  setStatementTemplateCellText(worksheet, 'Q3', settings.ownerName)"
+          },
+          {
+            "lineNumber": 823,
+            "text": "  setStatementTemplateCellText(worksheet, 'L4', settings.address)"
+          },
+          {
+            "lineNumber": 824,
+            "text": "  setStatementTemplateCellText(worksheet, 'L5', settings.businessType)"
+          },
+          {
+            "lineNumber": 825,
+            "text": "  setStatementTemplateCellText(worksheet, 'P5', settings.businessItem)"
+          },
+          {
+            "lineNumber": 826,
+            "text": "  setStatementTemplateCellText(worksheet, 'M6', settings.phone)"
+          },
+          {
+            "lineNumber": 827,
+            "text": "  setStatementTemplateCellText(worksheet, 'C26', settings.account)"
+          },
+          {
+            "lineNumber": 828,
+            "text": "  setStatementDeliveryBadgeCells(worksheet, 'T1', 'V1', statementSheet.deliveryDate)"
+          },
+          {
+            "lineNumber": 829,
+            "text": "  worksheet.getCell('W2').value = parseIsoDateToDate(statementSheet.issueDate || today)"
+          },
+          {
+            "lineNumber": 830,
+            "text": "  setStatementTemplateCellText(worksheet, 'W3', statementSheet.clientName)"
+          },
+          {
+            "lineNumber": 831,
+            "text": "  setStatementTemplateCellText(worksheet, 'AE3', settings.companyName)"
+          },
+          {
+            "lineNumber": 832,
+            "text": "  setStatementTemplateCellText(worksheet, 'AG2', settings.businessNumber)"
+          },
+          {
+            "lineNumber": 833,
+            "text": "  setStatementTemplateCellText(worksheet, 'AJ3', settings.ownerName)"
+          },
+          {
+            "lineNumber": 834,
+            "text": "  setStatementTemplateCellText(worksheet, 'AE4', settings.address)"
+          },
+          {
+            "lineNumber": 835,
+            "text": "  setStatementTemplateCellText(worksheet, 'AE5', settings.businessType)"
+          },
+          {
+            "lineNumber": 836,
+            "text": "  setStatementTemplateCellText(worksheet, 'AI5', settings.businessItem)"
+          },
+          {
+            "lineNumber": 837,
+            "text": "  setStatementTemplateCellText(worksheet, 'AF6', settings.phone)"
+          },
+          {
+            "lineNumber": 838,
+            "text": "  setStatementTemplateCellText(worksheet, 'V26', settings.account)"
+          },
+          {
+            "lineNumber": 839
+          },
+          {
+            "lineNumber": 840,
+            "text": "  applyFontSize('L3', 9)"
+          },
+          {
+            "lineNumber": 841,
+            "text": "  applyFontSize('L4', 9)"
+          },
+          {
+            "lineNumber": 842,
+            "text": "  applyFontSize('AE3', 9)"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 864
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 799
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.350661039352417
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 515,
+            "text": "type StatementRecordStored = {"
+          },
+          {
+            "lineNumber": 516,
+            "text": "  clientName?: unknown"
+          },
+          {
+            "lineNumber": 517,
+            "text": "  deliveryDate?: unknown"
+          },
+          {
+            "lineNumber": 518,
+            "text": "  totalAmount?: unknown"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 519,
+            "text": "}"
+          },
+          {
+            "lineNumber": 520
+          },
+          {
+            "lineNumber": 521,
+            "text": "const normalizeClientLabel = (value: string) =\u003e value.trim().replace(/\\s+/g, ' ')"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 81,
+            "line": 520
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 512
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.3489646017551422
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1271,
+            "text": "/** 목록·저장 배열: 납품일 최신순. 같은 날짜는 거래처·id 역순(월 내 번호가 큰 쪽이 위). */"
+          },
+          {
+            "lineNumber": 1272,
+            "text": "const compareStatementRecordsNewestFirst = (a: StatementRecord, b: StatementRecord) =\u003e {"
+          },
+          {
+            "lineNumber": 1273,
+            "text": "  const dateCompare = b.deliveryDate.localeCompare(a.deliveryDate)"
+          },
+          {
+            "lineNumber": 1274,
+            "text": "  if (dateCompare !== 0) {"
+          },
+          {
+            "lineNumber": 1275,
+            "text": "    return dateCompare"
+          },
+          {
+            "lineNumber": 1276,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1277,
+            "text": "  const clientCompare = b.clientName.localeCompare(a.clientName, 'ko')"
+          },
+          {
+            "lineNumber": 1278,
+            "text": "  if (clientCompare !== 0) {"
+          },
+          {
+            "lineNumber": 1279,
+            "text": "    return clientCompare"
+          },
+          {
+            "lineNumber": 1280,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1281,
+            "text": "  return b.id.localeCompare(a.id)"
+          },
+          {
+            "lineNumber": 1282,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1283
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1284,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 1285,
+            "text": "  const { mode, activeCompany, activeCompanyId, user, signOut, cloudDocRefreshTick } = useAppRuntime"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5513,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5512
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 1268
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.3424452543258667
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "App.tsx",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "StatementRecord|납품|거래처|품목"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "StatementRecord|납품|거래처|품목",
+  "topFiles": [
+    {
+      "matchCount": 40,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 100
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I found the key: `compareStatementRecordsNewestFirst` at line 1271-1272.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "orderedRecords|compareStatement|statement-table|th class"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "orderedRecords|compareStatement|statement-table|th class",
+  "topFiles": [
+    {
+      "matchCount": 11,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 11
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "visibleRecords|statement-record|record\\.deliveryDate|월 내"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "visibleRecords|statement-record|record\\.deliveryDate|월 내",
+  "topFiles": [
+    {
+      "matchCount": 37,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 37
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to locate `statementDeliveryMonthSeqById` as it's required for displaying . The issue is that `visibleRecords` is filtered from `statementPreviewRecords`, which sorts by delivery date (newest first), causing a mismatch between row order and the monthly sequence number (""). The user wants the default sort to be by the monthly sequence number in descending order, with the highest number (last saved in that month) displayed at the top. Since "" is per delivery month, sorting should prioritize the monthly sequence rather than global numbering. For a global list, the default sort should prioritize the monthly sequence number in descending order. Within the same month, records should be ordered by their sequence number within that month, with the highest sequence number appearing first. This ensures that the most recently saved record for each month is displayed at the top of its respective month group. Two records from different months both have the same sequence number "5", causing confusion in ordering. The user's complaint about numbers appearing random stems from `compareStatementRecordsNewestFirst` sorting by date instead of number. The intended default sort should prioritize the highest sequence number within each month, showing the largest number first. The correct sorting logic is:
+
+- Primary: Delivery month (YYYY-MM) in descending order (newest first)
+- Secondary: Monthly sequence number within each month, also descending (highest number first) The user wants the default sort to prioritize the monthly sequence number in descending order, with the highest number displayed first within each month. The sort should be based on delivery month (newest first), followed by the monthly sequence number (highest first), then delivery date, and finally ID.
+
+- Default sort key: `[deliveryMonth desc, -seq in month, deliveryDate desc, id]`
+- Option A: Sort by `deliveryDate` desc then by sequence within the same day (but sequence is by month).
+- Option B: Sort by delivery month desc, then by monthly sequence desc.
+- Option C: Global sort using `deliveryDate.slice(0,7) + (1000-seq)` for consistent ordering. The sequence number (`seq`) is derived from `statementRecordDeliveryMonthSeqById`, which requires full records grouped by month for accurate calculation. To compare records:
+
+- First, compare by delivery month (descending, newest first)
+- If same month, compare by sequence number (descending, highest first)
+- The sequence map uses full records to ensure correctness
+
+The default sort function compares records by delivery month descending, then by monthly sequence descending.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statementDeliveryMonthSeqById|statementRecordDeliveryMonthSeqById"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statementDeliveryMonthSeqById|statementRecordDeliveryMonthSeqById",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+`statementRecordDeliveryMonthSeqById` utilizes all `records` effectively. I need to:
+- Add state `recordListSort` with default `{ key: 'number', direction: 'desc' }`
+- Modify `visibleRecords` useMemo to use `statementPreviewRecords` or raw `records` based on sorting logic
+- Apply user sort instead of `compareStatementRecordsNewestFirst` for visible list
+- Flow: start from same filter base but apply user sort for visible list
+
+The visible list should begin with filtered records (using `statementPreviewRecords`) but then apply user-defined sorting rather than the default sorting function.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statementPreviewRecords"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statementPreviewRecords",
+  "topFiles": [
+    {
+      "matchCount": 15,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 15
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+`statementPreviewRecords` are used for various purposes including calculating totals and displaying data in calendar formats. The order of records in the array only matters for visibleRecords and recentRecordsForClient, where the latter requires the 5 most recent items sorted by time or date, not by number order.
+
+- Keep `statementPreviewRecords` as `compareStatementRecordsNewestFirst` for analytics and exports that need stable newest-first ordering.
+- For the visible table only, compute a filtered list with custom sorting:
+  - Use `useMemo` to calculate `visibleRecords` from `statementPreviewRecords`
+  - Apply custom sorting logic to ensure proper chronological order
+  - Maintain the original array unchanged for other uses</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "exportStatementsToExcel|visibleRecords|statementPreview"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "exportStatementsToExcel|visibleRecords|statementPreview",
+  "topFiles": [
+    {
+      "matchCount": 23,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 23
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Excel export uses the complete `statementPreviewRecords` dataset for the entire year.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Excel uses `statementPreviewRecords` - I'll add a `getSortedStatementRowsForDisplay` or use the same sort function for export.
+
+- Add `getSortedStatementRowsForDisplay` function
+- Use existing sort function for export functionality create `statementPreviewRecordsSortedForList` by sorting `statementPreviewRecords` with the user's sort, where `visibleRecords` is filtered while export uses all preview records.
+
+Export should use sorted `statementPreviewRecords` with same `recordListSort` as main list.
+
+Add:
+- `statementPreviewRecordsSortedForList` function
+- Use existing sort function for export functionality - Use `statementPreviewRecords` as-is (newest first) for `recentRecordsForClient` and other useMemo that don't require specific sorting.
+- For display purposes, sort `statementPreviewRecords` with `userSort` when needed.
+- Create `recordsSortedForMainList` using `useMemo` to avoid unnecessary re-renders.
+- Keep `statementPreviewRecords` unsorted for other operations that don't depend on order. The `compareStatementListSort` function compares statement records based on the users sort preference and delivery month sequence. It ensures consistent sorting across the UI and export features.
+
+- Use `recordsSortedForMainList` for Excel export to match the table's default sort.
+- Sort `statementPreviewRecords` using `recordListSort` and `map` in `compareStatementListSort`.
+- Apply `compareStatementListSort` to sort `statementPreviewRecords` for display and export.
+- Maintain `statementPreviewRecords` unsorted for other operations that do not require specific ordering. The `compareStatementListSort` function sorts statement records based on user-defined keys and directions, handling special cases like delivery month sequences. It supports sorting by number, delivery date, client name, or item name in ascending or descending order. For 'number' sorting, it compares months first, then falls back to record IDs for ties. The function uses a multiplier to handle both ascending and descending orders efficiently. This sorting logic applies to both display and export features, ensuring consistency across the application. The sort direction is determined by the user's preference, with 'desc' reversing the natural order of comparison results.
+
+- Handles sorting by multiple keys: number, delivery date, client name, and item name
+- Supports both ascending and descending order through direction parameter
+- Uses month-based sorting for 'number' key when dates differ
+- Falls back to ID comparison for tie-breaking in 'number' sorting
+- Applies multiplier technique for efficient direction handling
+- Ensures consistent sorting behavior across UI and export When sorting by number, more recent months appear first for cross-month comparisons. For descending order, the sort reverses the natural comparison result. The function uses a multiplier to handle ascending/descending directions efficiently. When sequence numbers differ, it sorts accordingly; otherwise, it falls back to newest-first comparison.
+
+For delivery date sorting, it compares dates directly and applies the sort direction using a multiplier.
+
+- Sort by number: recent months first, with fallback to ID comparison
+- Sort by delivery date: direct date comparison with direction handling
+- Use multiplier technique for efficient ascending/descending logic When sorting by client name or item name, the function uses locale comparison with base sensitivity and falls back to ID comparison for ties. For number sorting, it prioritizes lower numbers first within the same month and older months first overall. The sort direction is applied using a multiplier for efficiency.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.css",
+  "path": "/Users/parkcg/The Symbol_Edit/app",
+  "pattern": "statements-main-table|statement-row"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app",
+  "pattern": "statements-main-table|statement-row",
+  "topFiles": [
+    {
+      "matchCount": 9,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 9
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add a class `.statement-records-th-sort` for the sortable headers with a small chevron.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "recordsRangeFilter|recordsSearchQuery|useState"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "recordsRangeFilter|recordsSearchQuery|useState",
+  "topFiles": [
+    {
+      "matchCount": 50,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 63
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add an empty line after `recordsNoteFilter`:
+
+- Add `recordsNoteFilter` to the code
+- Ensure proper formatting with an empty line following it Add `recordsNoteFilter` to the code and ensure proper formatting with an empty line following it.
+
+- Add `recordsNoteFilter` to the code
+- Ensure proper formatting with an empty line following it Insert `recordsSortedForMainList` between `statementPreviewRecords` and `visibleRecords`.
+
+- Insert `recordsSortedForMainList` between `statementPreviewRecords` and `visibleRecords`
+- Maintain proper code structure and formatting Update `visibleRecords` to use `recordsSortedForMainList` instead of `statementPreviewRecords` in the filter.
+
+- Add `useCallback` for header click or include it directly in JSX
+- Update the export to use `recordsSortedForMainList` in the map function
+
+```javascript
+...recordsSortedForMainList.map((record) => [
+```</details></think>
+
+_**Agent (default)**_
+
+기본 정렬을 ‘납품월’ 기준·같은 달 안에서는 **번호(저장 순) 큰 것이 위(내림차순)**로 맞추고, 번호·납품일·거래처명·품목 헤더를 클릭해 정렬을 바꿉니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Now add the click handler and update thead.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add useCallback after visibleRecords useMemo - find the closing of visibleRecords and add handleRecordListSortClick.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The function `recordsSortedForMainList` is defined as a constant within the same scope where `exportStatementsToExcel` uses it, so it should be accessible. However, if `recordsSortedForMainList` is declared inside a block or conditional statement, it might not be available outside of that block, potentially causing a reference error. It's important to ensure that the declaration occurs before the usage or in an outer scope to maintain proper scoping rules.
+
+- `recordsSortedForMainList` is defined as a constant
+- Function `exportStatementsToExcel` uses `recordsSortedForMainList`
+- Scope must be checked to confirm accessibility
+- Declaration location affects whether it's in scope when used</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Run build to verify that exportStatementsToExcel references recordsSortedForMainList before it's in scope, remembering that all const variables in the React function body are in temporal dead zone until initialized.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "recordsSortedForMainList|exportStatementsToExcel"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "recordsSortedForMainList|exportStatementsToExcel",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-BU4VKu2n.css    151.20 kB │ gzip:  25.15 kB
+dist/assets/index-BSLjd718.js   2,632.70 kB │ gzip: 748.45 kB
+
+✓ built in 456ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 반영 내용
+
+### 기본 정렬 (번호·큰 숫자가 위)
+- 예전에는 목록이 **납품일 최신순**(`compareStatementRecordsNewestFirst`)이라, **번호(월별 저장 순)** 와 행 순서가 어긋나 보였습니다.
+- 이제 기본은 **`recordListSort = { key: 'number', dir: 'desc' }`** 입니다.  
+  - **납품월(YYYY-MM)** 이 최근인 달이 위에 오고, 같은 달 안에서는 **번호가 큰 행(나중에 저장한 건)** 이 위에 옵니다.
+
+### 열 헤더 클릭 (같은 열 다시 클릭 시 방향 전환)
+| 열 | 첫 클릭 | 다시 클릭 |
+|----|---------|-----------|
+| **번호** | 번호 내림차순(기본과 동일) | 오름차순 |
+| **납품일** | 최신순(↓) | 과거순(↑) |
+| **거래처명** | 가나다 오름차순(↑) | 가나다 내림차순(↓) |
+| **품목** | 가나다 오름차순(↑) | 가나다 내림차순(↓) |
+
+활성 열에는 **↑ / ↓** 가 붙습니다.  
+`입력목록 엑셀 저장` 도 **화면과 같은 순서**(`recordsSortedForMainList`)로 나갑니다.
+
+### 스타일
+- 점선 밑줄이 있는 버튼형 헤더(`.statement-th-sort`)로, 기존 표 스타일과 맞춰 두었습니다.
+
+`느린`이 **높은(큰 번호)** 뜻이 맞다고 가정했습니다. 오름/내림이 반대로 필요하면 말해 주세요.
+
+---
+
+_**User**_
+
+아니 거래명세서 입력 하는거 여전히 이상해 원두별 매출 분석이 어떻게 저장되고 관리되는지부터 확인해봐 아님 저장되는 로직자체가 크게 어기서 잡혀있는건 아닌지 확인해보던가 왜자꾸 똑같은 질문을 여러번 하게 만드는지 모르겠네 시발
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user is frustrated with ongoing issues in statement entry ( ) and wants a detailed trace of how Bean Sales Analysis handles data saving and management compared to the statement entry process, looking for potential fundamental disconnects in where save logic is implemented.</details></think>
+
+_**Agent (default)**_
+
+원두별 매출 분석과 거래명세(App)의 저장·로드 경로를 코드에서 끝까지 추적합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "App.tsx",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "setRecords|saveCompanyDocument|writeStatement|STATEMENT"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "setRecords|saveCompanyDocument|writeStatement|STATEMENT",
+  "topFiles": [
+    {
+      "matchCount": 60,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 90
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I've gathered the key architecture. Let me also read the cloud save debounce effect and confirm Bean's `preferRemote` quirk (tick=0 uses local first which can be stale on first paint).
+
+**Architecture summary for the user:**
+
+- Does not save statement data itself; read-only analysis.
+- Loads `statement` via:
+  - `loadStatementRecords`: `localStorage` key `statement-records-v1` (same as App's `STORAGE_KEY`)
+  - If cloud: `loadCompanyDocument(statementPage)` - merges based on `cloudDocRefreshTick` and `local.length`
+- Listens: `STATEMENT_RECORDS_SAVED_EVENT`  `statementRecordsTick`  re-runs load effect - Statement editing uses React `records` state as the source of truth.
+- Local changes are saved immediately via `writeStatementPageLocalState` after storage is ready, writing to multiple keys.
+- Cloud saves use debounced `saveCompanyDocument` for the full document, while also updating `STORAGE_KEY` (records JSON) locally on each `records` change and dispatching `STATEMENT_RECORDS_SAVED_EVENT`.
+- Cloud pulls happen only when `cloudDocRefreshTick` occurs and `statementSaveState` is not currently dirty or saving. The main statement entry UI and list use `records`, and if the user has unsaved changes (dirty), cloud pull is skipped, causing a "weird" feeling in multi-user scenarios. Bean re-fetches with different rulespreferring remote when tick > 0 and always applying remote updates when conditions allow, since it lacks dirty state.
+
+The logic split involves one pipeline where the `company_documents` doc key `statement-page` stores the full export of records, pricing, master, and template.</details></think>
+
+_**Agent (default)**_
+
+욕설은 그대로 두지 않고, **코드 기준으로만** 정리합니다. 질문을 반복해서 답답하셨을 거라는 점은 이해합니다. “저장이 어디에 걸려 있는지”는 아래가 전부입니다.
+
+---
+
+## 1. 원두별 매출 분석 — **거래명세를 “저장”하지 않는다**
+
+`BeanSalesAnalysisPage.tsx`에는 **`saveCompanyDocument` / `setRecords` 같은 쓰기가 없다.**  
+하는 일은 **읽기**뿐이다.
+
+- `statement-records-v1` (`STATEMENT_RECORDS_KEY`)에서 **로컬 배열**을 읽고  
+- 클라우드면 `company_documents`의 `doc_key === 'statement-page'`인 **`loadCompanyDocument`로 `remote.records`를 읽는다.**
+- `STATEMENT_RECORDS_SAVED_EVENT`가 나면 `statementRecordsTick`을 올려서 **다시 `loadStatementRecords`를 돌린다.**
+- `INVENTORY_…`, `GREEN_BEAN_…`, 수동매핑 이벤트 등 **입출고·생두·명세↔입고** 쪽은 **별도 키/문서**이고, 여기서도 **저장은 없이** `loadCompanyDocument` + 로컬만 맞춘다.
+
+```156:197:app/src/BeanSalesAnalysisPage.tsx
+    const loadStatementRecords = async () => {
+      const local = readLocalRecords()
+      const preferRemote = cloudDocRefreshTick > 0
+      if (local.length > 0 && !preferRemote) {
+        setStatementRecordsRaw(local)
+      }
+      if (mode === 'cloud' && activeCompanyId) {
+        // … loadCompanyDocument(statementPage) → setStatementRecordsRaw(remote.records 또는 local)
+      }
+    }
+```
+
+즉, “원두 쪽이 잘 관리되는 것처럼 보인다” = **읽기·집계 화면만** 잘 붙어 있고, **정본 저장 로직이 원두 쪽에 따로 있는 것이 아니다.**
+
+---
+
+## 2. 거래명세(앱) — **쓰기의 유일한 본체는 `App.tsx`의 `records` + 클라우드 upsert**
+
+**진짜 “저장” (팀·다른 PC와 공유되는 정본)** 은:
+
+- `saveCompanyDocument(activeCompanyId, 'statement-page', { records, pricingRules, masterItems, … })`  
+  → `lib/companyDocuments.ts` → Supabase `company_documents`.
+
+그 **주변**에서:
+
+- 로컬 전체: `writeStatementPageLocalState` (기록·단가·마스터·양식 키 여러 개 + 이벤트 1번).
+- 클라우드인데 “저장 debounce 전에도” **다른 화면만** 빨리 쓰라고, **`records`만** `statement-records-v1`에 넣고 `STATEMENT_RECORDS_SAVED_EVENT`를 쏜다 (주석 그대로).
+
+```1730:1748:app/src/App.tsx
+  /**
+   * 클라우드 모드: 전체 문서 저장(디바운스) 전이라도, 같은 탭·다른 화면(월마감·원두분석)이
+   * `statement-records`와 STATEMENT_RECORDS_SAVED_EVENT로 즉시 읽을 수 있게 `records`만 로컬에 반영.
+   * (팀 정본은 여전히 saveCompanyDocument 성공 시 전체 `writeStatementPageLocalState`로 맞춤)
+   */
+  useEffect(() => {
+    // …
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+    } catch {
+      // ignore
+    }
+    window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
+  }, [activeCompanyId, isRecordsStorageReady, mode, records])
+```
+
+정리하면:
+
+| 구분 | 뭐가 정본이냐 |
+|------|----------------|
+| **서버(협업)** | `company_documents`의 **`statement-page` 한 덩어리** |
+| **로컬 “명세 한 줄”만 복제** | `statement-records-v1` = `records` JSON (원두·월마감이 빨리 읽기 위한 **미러**) |
+
+**“저장 로직이 엉뚫한 곳에 따로 잡혀 있어서”**가 아니라, **쓰기는 `App` 한곳**이고, 원두는 **그걸 읽는 클라이언트**다.
+
+---
+
+## 3. 왜 “같은 데이터인데 체감이 다르냐” (구조적 이유)
+
+- **원두:**  
+  - `STATEMENT_RECORDS_SAVED_EVENT` + `cloudDocRefreshTick`으로 **읽기 effect를 다시 돌리고**,  
+  - **`statementSaveState`(저장 대기/저장 중) 같은 “편집 락”이 없다.**  
+- **거래명세 본인:**  
+  - 화면은 **`records` state**이고,  
+  - **클라우드 “다시 읽기”**는 `cloudDocRefreshTick`일 때인데, **`dirty` / `saving`이면 아예 pull을 안 함** (덮어써서 편집 망가뜨리지 않기 위함).  
+
+그래서 “입력/목록이 이상하다”는 느낌이 **다른 화면만** 부드럽고 **명세 쪽만** 꼬이는 **현상**은, 데이터가 둘로 갈라진 게 아니라 **읽기 조건+편집 상태**가 다르다는 쪽이 맞다.
+
+---
+
+## 4. 짧은 답: **시발/왜자꾸**에 대한 실무 쪽 답
+
+- “원두는 어떻게 저장·관리되나?” → **원두는 저장을 안 하고, `App`이 올리는 `statement-page` + 로컬 `statement-records`를 읽는다.**  
+- “저장이 한곳이 아닌가?” → **쓰기(upsert)는 `App` + `saveCompanyDocument` 한 줄기**이고, `statement-records`는 **그 `records`를 흉내 낸 캐시**다.
+
+이후에 **입력 모달/목록이 구체로 어떻게 “이상한지”** (예: 저장 안 됨 / 숫자 뒤집힘 / 다른 탭이랑 안 맞음)를 **한 번만** 짧게 써 주시면, 그 경로(모달 `setRecords`, debounce, `dirty` 시점)만 짚어서 **코드로 고칠지** 이어갈 수 있다.
+
+---
+
+_**User**_
+
+그니깐 실무에서 쓰기에는 원두별 매출 분석처럼 저장되고 읽는 로직이 편한거잖아 아까 내가 그렇게 수정하랬지 근데 왜 자꾸 이상하게 수정하고 저장됨 저장필요 저장중 계속 반복해서 뜨게 만드냐고 저 로직 자체가 이상한건 아니냐고 내가 몇번을 말해야 알아들을거야
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user is frustrated with the repetitive save state UI (,  ,  ) that shouldnt cycle unnecessarily. They want the save/read flow to be seamless like in Bean Sales Analysis. The issue may lie in the `useDocumentSaveUi` logic or the dirty/saving cycle, which could be causing poor user experience.</details></think>
+
+_**Agent (default)**_
+
+거래명세의 `markStatementDirty` → debounce → 저장 → `saved` 루프를 추적해 원인을 찹니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/lib/documentSaveUi.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The issue is straightforward: the cloud save `useEffect` from lines 1781 to 1847 executes whenever any of the following changes: `records`, `pricingRules`, `masterItems`, or template fields.
+- It runs on every change to these variables
+- This causes unnecessary re-execution of the effect The effect always calls `markStatementDirty()` at the start, then debounces 600ms to save. The cycle is:
+
+- Effect runs  markStatementDirty immediately (user sees " ")
+- 600ms later  markStatementSaving, save, markStatementSaved
+
+However, if anything causes the effect to re-run before or right after saving, it can create issues. When `cloudDocRefreshTick` pulls updates `setRecords` from the server, `writeStatementPageLocalState` triggers a change, a parent re-renders with new object references, or the storage listener updates `records`, the effect re-runs, causing `markStatementDirty` to fire again and creating a loop of dirty/saving/saved states.
+
+Every time the effect re-runs, the cleanup cancels the previous timeout, but `markStatementDirty` has already been called on each run. Thus, if `records` reference changes 10 times within 600ms, there will be 10 instances of "dirty" flashing. Only mark dirty if the payload actually changed by comparing serialized JSON to `lastSavedPayload`, similar to how the Memo page does it.
+
+- Add a `useRef` for `lastStatementCloudPayloadRef` in App
+- Don't call `markStatementDirty` at the start of the effect on every run
+- Only schedule a save when the serialized payload differs from the last saved one When `markStatementSaved` executes after a successful save, it updates the stringified statement payload. In the `useEffect`, the serialized payload is compared against the reference; if they match, the effect returns early without calling `markStatementDirty`. 
+
+- On initial load, `resetStatementSaveUi` sets the UI to saved state
+- The `skipInitialStatementSave` flag prevents the first run from triggering a save
+- The reference (`lastStatementCloudPayloadRef`) must be initialized after the first successful save or cloud hydration
+- This ensures the comparison works correctly on subsequent edits - `skipInitialStatementSave` prevents marking dirty on the first effect run.
+- On the second run, if `records` haven't changed since the initial commit, it should not mark dirty.
+- The main issue arises when `isRecordsStorageReady` becomes true and `records` are set from initial state  this triggers a dirty mark and save.
+- After `markStatementSaved`, `writeStatementPageLocalState` does not alter the `records` state. - The `cloudDocRefreshTick` effect triggers a full save when `setRecords` is called after a successful pull, causing `markStatementDirty` to fire immediately after background sync.
+- If `pullRemote` and local data are identical but `records` has a new array reference, React may still re-run the effect due to reference changes, even if serialized payloads are the same.
+- A `statementCloudSavePayloadRef` is used to track the last saved payload.
+- After a successful `saveCompanyDocument`, the ref is updated with the serialized payload to prevent unnecessary re-saves when the payload hasn't changed. Current payload serialization uses `JSON.stringify` with stable key order, ensuring consistent output even if records array order changes. To avoid unnecessary saves, the effect now compares the new serialized payload (`nextSig`) against the last saved payload reference (`ref.current`). If they match and the save state isn't 'error', it skips marking dirty and scheduling a save.
+
+- Build `nextPayload` and `nextSig = JSON.stringify(nextPayload)` at start of effect
+- Compare `nextSig` with `ref.current`; if equal and no error, return early
+- Update `ref.current` after successful save to prevent redundant saves
+- Set `ref.current` initially after first successful save or cloud hydration to enable proper comparisons - On `markStatementSaved` after a successful write, update the payload reference similarly to how it's handled in the `.then` block.
+- On initial load from the cloud via `writeStatementPageLocalState`, the payload reference should be set to the current payload to prevent spurious saves; however, the `skipInitialStatementSave` flag already prevents the first effect run from triggering a save.
+- When users pull data from the cloud and `records` are replaced with logically identical data but with different serialized strings (e.g., due to minification), the system still avoids unnecessary saves by comparing payloads rather than relying on reference equality.
+- Subsequent identical effect runs will now compare the new payload against the stored reference; if they match and no error occurred, the effect returns early without re-triggering save logic. **Edge:** On first save after load, if the reference is empty (`''`) and records exist, trigger dirty and save. After saving, update the reference to the payload. On the next effect run, if the payload matches the reference, skip saving. Good.
+
+7. **User edits:** If the current payload differs from the reference, mark dirty and save. Good.
+
+8. **Error state:** If a save fails, allow retries on subsequent runs. If the payload remains unchanged, still mark dirty to attempt a retry. If the reference hasnt updated due to an error, ensure dirty is marked to re-attempt the save.</details></think>
+
+_**Agent (default)**_
+
+원인: 클라우드 저장 `useEffect`가 `records` 등이 바뀔 때마다 무조건 `markStatementDirty()`를 호출합니다. `cloudDocRefresh`로 원격이 당겨지거나, 내용이 같아도 effect가 돌면 ‘저장 필요 → 저장 중 → 저장됨’이 반복됩니다.  
+페이로드가 마지막으로 성공한 저장과 같으면 dirty/스케줄을 생략하도록 고칩니다. 로드·풀 이후 ref를 동기화합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Added `statementCloudSaveSigRef = useRef<string>('')` after the scroll refs Added a stable helper function at module level or inside component to generate a signature for statement page payload, which includes records, pricing rules, master items, and statement template details. - In the save effect, build the payload object and generate a signature using `statementPagePayloadSig`.
+- If in cloud mode, compare the new signature with the stored one in `statementCloudSaveSigRef`; if they match, skip saving.
+- Otherwise, proceed with marking dirty, scheduling, and updating the saved signature.
+- On reset, clear `statementCloudSaveSigRef` to ensure fresh state. - After `applyState(toApply)` in the load effect, set `statementCloudSaveSigRef.current = statementPagePayloadSig(toApply)` to match the new state.
+- This ref update should happen inside `loadStatementState` after `applyState`, and also in `pullRemote` after `toApply`. For local mode, the ref is not used for displaythe save effect only runs in cloud mode.  
+- **skipInitialStatementSave**: After load, if the save effect runs with records and the signature matches the ref, it returns early without marking dirty.  
+- **Order issue**: The load effect sets the ref from `toApply` at the end of `loadStatementState`. Since `applyState` is synchronous and state updates are batched, the save effect runs after commit, ensuring the signature in the useEffect closure matches `toApply`. We set the ref from `toApply` in the same tick as `applyState`good.
+
+- In `pullRemote`, after `setState` calls, we set `statementCloudSaveSigRef.current = statementPagePayloadSig(toApply)`.
+- In `applyFromOtherTabLocal`, after reading `next` from local storage, we set `statementCloudSaveSigRef.current = statementPagePayloadSig(next)` to prevent immediate dirty save for identical data.
+- For initial empty state: if the ref is `''` and the user has no remote data, the condition `sig === ref` becomes `=== ''`, since an empty payload may appear as `'{"records":[]...}'` rather than an empty string. So initially, the ref is `''` and the signature is a long stringunequal, so saving proceeds. After the first save, the ref is updated.
+
+- **Resetting ref on company switch:** In the load effect, `resetStatementSaveUi` resets `statementCloudSaveSigRef.current = ''` at the start. When loading completes, the ref is set from `toApply`. If loading fails, `applyState(localState)` is still called, and the ref is set from `localState`.
+
+- **Edge case: pullRemote** does not reset save UI; it updates state. The ref is set in `pullRemote`. The save effect may run afterwardif the signature matches the ref, saving is skipped. Users see saved status without loops.
+
+**Implementation details:** - Added `statementCloudSaveSigRef = useRef<string>('')` after line 1521.
+- Set `statementCloudSaveSigRef.current = ''` at the start of the first load useEffect, after `resetStatementSaveUi`.
+- The save effect will return early if `isStatementCloudReady` is false, preventing premature execution during async load.
+- The ref is updated to `toApply` after `applyState` completes, ensuring proper signature matching. Add a helper function `statementPageDocumentPayloadSig` after `normalizeStatementPageDocument` or near the types in App.tsx, before the App function, to generate a signature for statement page payloads. In loads `loadStatementState`, after `applyState(toApply)` and optional write, set `statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(toApply)`.
+
+In the catch block for `localState`, set `statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(localState)` after `applyState(localState)`.
+
+In `pullRemote`, after all operations, set `statementCloudSaveSigRef.current = statementPagePayloadSig({ ...toApply fields })`, where `toApply` is of type `StatementPageDocument`. In `applyFromOtherTabLocal`, after setting state, the ref should be updated to match the loaded data: `statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(next)`.
+
+**Save effect change:**
+- If mode is not cloud or active company ID is missing, return early.
+- If `skipInitialStatementSave()` returns true, return early.
+- Build the statement payload object including records and other relevant fields. If the signature of the statement page document matches the stored cloud save signature, the save operation is skipped. Otherwise, the document is marked as dirty and saved. The signature is generated from the document's fields and compared against the reference value to avoid unnecessary saves. - The `statementCloudSaveSigRef` is updated with a signature generated from `statementPayload` after saving.
+- If the signature matches the stored one, the save is skipped, and `markStatementDirty` is not called, keeping the save state as 'saved'.
+- A potential race condition exists where an effect might run before the `.then` block updates the ref, though unlikely within 600ms. If saveState is 'error', retries are neededwhen sig  ref, we proceed; when sig = ref (old ref), we mark dirty. If saveState is 'error' and user doesn't edit, the effect doesnt re-run since it only triggers on record changesuser must make a change to trigger retry.
+
+For `skipInitialStatementSave`, the skip only applies to the first effect run. On subsequent runs, even if sig = ref (from load), we do not return early from skipInitial. The second run checks if `hasHydratedRef` is true and `skipInitial` returns false, then compares the signature with the ref; if they match, it skips marking dirtythis works correctly.
+
+For the initial mount, the first run skips if `skipInitial` is true, returning early without marking dirty. During the second run (e.g., after a parent re-render with unchanged data), if records remain the same, the signature should match the ref. However, the ref is set after the load completes, which is asynchronous. The order of events is:
+
+- Mount occurs, load effect runs, reset happens, async load begins
+- Save effect runs while `isStatementCloudReady` is false, so it returns early
+- Load completes, `applyState` executes, and the ref is updated in `loadStatementState`
+- `isStatementCloudReady` becomes true, allowing the save effect to proceed normally
+
+This ensures that the ref is properly updated before any - The save effect skips on first run if `skipInitial` is true and `hasHydratedRef` is false.
+- On third run, if `hasHydratedRef` is true and `skipInitial` returns false, and signature matches ref, it skips saving.
+- The save effect checks `isStatementCloudReady` in its conditional, not in dependencies, so it reacts to changes in that readiness flag. The save effect does not include `isStatementCloudReady` in its dependencies, which could cause it to not re-run when the cloud becomes ready. This might lead to missed saves if the effect relies on `isStatementCloudReady` being true but doesn't react to changes in that flag.
+
+To ensure proper behavior, `statementCloudSaveSigRef` should be updated in the load effects `loadStatementState` function after `toApply` is processed. This ensures the reference is set correctly and avoids potential issues with timing or race conditions during async loading and saving operations. **For pull's pullRemote**, the ref is set at the end of the success path.
+
+**Reset on mode/company**  the load effect begins with `resetStatementSaveUi()`, and `statementCloudSaveSigRef.current = ''` is set at the start of the load useEffect, before async operations, to prevent using an old company signature during loading. Once loading completes, the correct ref is set.
+
+**Storage handler**  after `applyFromOtherTabLocal`, the ref is updated immediately from `next` read.
+
+**applyFromOtherTabLocal** is synchronous for reading  it sets state, and the ref can be updated to `statementPageDocumentPayloadSig(next)` right after.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "type StatementPageDocument"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "type StatementPageDocument",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add the sig function after StatementPageDocument type and normalizeStatementPageDocument if any.
+
+- Add sig function after StatementPageDocument type
+- NormalizeStatementPageDocument if applicable Load effect requires accessing the ref. Add `statementCloudSaveSigRef.current = ''` at reset start, then in loadStatementState after `toApply` or `localState`:
+
+- Set `statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(toApply)` after applying state
+- Set `statementCloudSaveSigRef.current = ''` in catch block after applying local state Current = statementPageDocumentPayloadSig(localState)
+
+For the branch `if (mode !== 'cloud' || !activeCompanyId) { applyState(localState); return }` - add sig after applyState: `statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(localState)`
+
+- After if remoteState write in pullRemote, add: `statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(toApply)`
+- In applyFromOtherTabLocal, add: `statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(next)` at end
+- Save effect needs access to `statementSaveState` for the dirty-clear</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add the `statementPageDocumentPayloadSig` right after the StatementPageDocument type, which is located after line 356. I'll add the `statementPageDocumentPayloadSig` function right after the StatementPageDocument type definition, then add the `statementCloudSaveSigRef` reference after line 1520.
+
+- Add `const statementPageDocumentPayloadSig = (doc: StatementPageDocument): string =>` function after line 356
+- Add `const statementCloudSaveSigRef = useRef<string>('')` after line 1520</details></think>
+
+_**Agent (default)**_
+
+클라우드 저장 effect가 `records`가 바뀔 때마다 무조건 `markStatementDirty()`를 호출해, 원격/다른 탭에서 같은 내용이 반영돼도 ‘저장 필요 → 저장 중 → 저장됨’ 루프가 납니다. **메모 페이지처럼** 직전에 성공한 페이로드와 `JSON` 시그니처가 같으면 dirty/저장을 건너뜁니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to fix pullRemote by ensuring statementCloudSaveSigRef is set in all code paths, not just the successful try block where state is set.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Read the full save effect to verify the closing of the effect and its types. Also check for duplicate dependencies, as `statementSaveState` might have been added incorrectlyverify if the block replacement had proper closing.
+
+Run build.
+
+- **Edge case on initial load:** `statementCloudSaveSigRef` is set during load. `skipInitialStatementSave` causes the first save effect run to skip. On second run, if `nextSig === ref`, it returns early; typically, no dirty state is marked.
+- **On user edit:** If `nextSig !== ref`, mark as dirty, save, then update reference in `.then`.
+- **On pull updates:** Reference is updated in pull to `toApply` signature. Save effect runs with same state, so `nextSig === ref`, returns early, preventing dirty loop.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The redundant `JSON.stringify` should be removed.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-BU4VKu2n.css    151.20 kB │ gzip:  25.15 kB
+dist/assets/index-DnUHgv4t.js   2,633.20 kB │ gzip: 748.56 kB
+
+✓ built in 457ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+## 원인
+
+클라우드 자동저장 `useEffect`가 **`records` / 단가 / 마스터 / 양식이 바뀔 때마다 무조건 `markStatementDirty()`** 를 호출하고 있었어요.  
+그래서 **내용은 실제로 안 바뀐 경우에도** (예: 탭 복귀 후 `cloudDocRefreshTick`으로 **같은 걸** 다시 읽음, 다른 탭 `storage`로 **같은 페이로드** 반영) 매번 **저장 필요 → 저장 중 → 저장됨** 이 반복됐습니다.  
+원두 분석은 **저장 UI가 없고** 읽기만 해서 이 루프가 없었던 거고, **`useDocumentSaveUi` 자체가 이상하다기보다 “같은 데이터인데도 매번 dirty”로 찍히게 만든 사용 방식**이 문제였습니다.
+
+## 수정
+
+- **`statementPageDocumentPayloadSig`** 로 거래명세 전체 페이로드(JSON 문자열) 서명을 둠.
+- **직전에 클라우드에 성공 반영한 서명(`statementCloudSaveSigRef`)과 같으면**  
+  `markStatementDirty` / 저장 타이머를 **아예 돌리지 않음**.  
+  그런데 화면만 `dirty`로 남아 있으면 **`markStatementSaved()` 로 정리** (불필요한 “저장 필요” 제거).
+- **로드 / 주기 pull / 다른 탭 storage** 로 state를 맞출 때마다 **같은 서명으로 ref 갱신**해, 직후 자동저장 effect가 “변경 없음”으로 인식하게 함.
+- **저장 성공 시** ref = 이번에 보낸 페이로드 서명(`nextSig`).
+
+이제 **실제로 편집해서 내용이 달라질 때만** 저장 루프가 돌고, **원격·탭 동기화로 내용이 그대로면** 라벨이 괜히 왔다 갔다 하지 않아야 합니다.  
+`npm run build` 통과했습니다.
+
+---
+
+_**User**_
+
+그럼 새로고침을 안해도 바로 반영이되는거지? 확실한거지?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Changes will reflect immediately without a refresh, and this is certain.</details></think>
+
+_**Agent (default)**_
+
+**“새로고침을 누르지 않아도 된다”**는 쪽에 가깝고, **“0초·항상 동시”** 는 아닙니다.
+
+- **이 브라우저, 이 창**  
+  저장한 쪽의 화면은 **곧바로** 반영됩니다(React `state`가 정본). 새로고침은 **필수가 아닙니다**.
+
+- **같은 PC, 다른 탭/창**  
+  `localStorage` + 우리가 넣은 `storage` / 이벤트로 **F5 없이** 맞출 수 있게 돼 있어요. (탭이 그 이벤트를 받는 타이밍이면 바로)
+
+- **다른 PC / 다른 팀원**  
+  한쪽이 **Supabase에 저장이 끝난 뒤**, 상대 쪽이 **다시 읽는 순간**에 보입니다.  
+  **탭을 잠깐 달았다가 켜기(visibility)**, **백엔드가 돌리는 90초 틱**, 또는 **해당 화면의 자동/수동 갱신**이 그걸 갈아줍니다.  
+  **WebSocket(Realtime)으로 밀어주는 구조는 아니라서**, “저장 누르자마자 0.1초에 상대 화면만**은 보장하진 않습니다. 다만 **새로고침만이 유일한 수단**은 아닙니다.
+
+정리하면, **“F5는 안 해도 된다(앱이 알아서 다시 읽는다)”** 쪽이 맞고, **“절대 기다릴 것 없이 항상 즉시”** 까지는 **코드/네트워크 상 확실하다고 말하긴 어렵다**는 게 정확한 말이에요.
+
+---
+
+_**User**_
+
+아니 원두별 매출 분석은 90초 그딴거 없이 바로 반영이된다고 내가 무슨 말을 하는지 모르겠는거야? 
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user insists that Bean Sales Analysis updates immediately, not on a 90-second interval. They're frustrated that I keep mentioning 90s when their experience with Bean Sales is instant.
+
+I need to explain what actually causes "instant" in Bean Sales vs the 90s tick:
+
+- **STATEMENT_RECORDS_SAVED_EVENT** - fires in the same window when App updates `records` and writes to localStorage - Bean Sales listens and re-runs load. **Instant** when you're in the same browser session and the event fires.
+
+- Same tab / navigation - switching to Bean Sales page, the `statementRecordsTick` or the useEffect deps will have run - also `local` is read first. When a user edits in the same browser but different tab, the `storage` event fires in other tabs upon `localStorage` changes. However, Bean Sales does not listen to the `storage` event for statement records. Instead, it listens to `STATEMENT_RECORDS_SAVED_EVENT`, which is a `CustomEvent` and does not propagate across tabs. Therefore, for other tabs, Bean Sales would need to listen to the `storage` event instead. Let me verify this again. Bean Sales Analysis updates instantly within the same browser tab but not across multiple tabs. When one tab modifies localStorage, it triggers a `STATEMENT_RECORDS_SAVED_EVENT` only in the same tab, not others. Other tabs only update via:
+
+- Cloud document refresh tick (visibility or 90s)
+- Switching to the tab (visibility  tick bumps)
+- Local read on mount
+
+However, when Tab A updates localStorage, Tab B </details></think>

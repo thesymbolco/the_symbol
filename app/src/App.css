@@ -6562,6 +6562,37 @@ thead th {
   font-weight: 700;
 }
 
+button.statement-th-sort {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+button.statement-th-sort:hover {
+  color: #1d4ed8;
+}
+
+button.statement-th-sort .statement-th-sort-mark {
+  text-decoration: none;
+  font-weight: 800;
+  color: #1d4ed8;
+}
+
 tbody tr:nth-child(even) td {
   background: rgba(248, 250, 252, 0.55);
 }

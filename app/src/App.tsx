@@ -355,6 +355,18 @@ type StatementPageDocument = {
   statementTemplateSettings: StatementTemplateSettings
 }
 
+/** 클라우드 자동저장: 내용이 직전 성공 본과 같으면 dirty/저장 스케줄을 생략(원격·탭 복제 시 루프 방지) */
+const statementPageDocumentPayloadSig = (doc: StatementPageDocument): string =>
+  JSON.stringify({
+    records: doc.records,
+    pricingRules: doc.pricingRules,
+    masterItems: doc.masterItems,
+    statementTemplateBase64: doc.statementTemplateBase64,
+    statementTemplateFileName: doc.statementTemplateFileName,
+    statementTemplateUpdatedAt: doc.statementTemplateUpdatedAt,
+    statementTemplateSettings: doc.statementTemplateSettings,
+  })
+
 const DEFAULT_STATEMENT_TEMPLATE_SETTINGS: StatementTemplateSettings = {
   businessNumber: '560.17.02264',
   companyName: '이오도',
@@ -1281,6 +1293,49 @@ const compareStatementRecordsNewestFirst = (a: StatementRecord, b: StatementReco
   return b.id.localeCompare(a.id)
 }
 
+type StatementListSortKey = 'number' | 'deliveryDate' | 'clientName' | 'itemName'
+
+/** 입력목록 탭: 번호(월별)·납품일·거래처·품목 열 정렬. */
+const compareStatementRecordsForListSort = (
+  a: StatementRecord,
+  b: StatementRecord,
+  sort: { key: StatementListSortKey; dir: 'asc' | 'desc' },
+  seqById: Map<string, number>,
+): number => {
+  if (sort.key === 'number') {
+    const ymA = a.deliveryDate.length >= 7 ? a.deliveryDate.slice(0, 7) : ''
+    const ymB = b.deliveryDate.length >= 7 ? b.deliveryDate.slice(0, 7) : ''
+    if (ymA !== ymB) {
+      return sort.dir === 'desc' ? ymB.localeCompare(ymA) : ymA.localeCompare(ymB)
+    }
+    const sA = seqById.get(a.id) ?? 0
+    const sB = seqById.get(b.id) ?? 0
+    if (sA !== sB) {
+      return sort.dir === 'desc' ? sB - sA : sA - sB
+    }
+    return b.id.localeCompare(a.id)
+  }
+  if (sort.key === 'deliveryDate') {
+    const c = a.deliveryDate.localeCompare(b.deliveryDate)
+    if (c !== 0) {
+      return sort.dir === 'desc' ? -c : c
+    }
+    return a.id.localeCompare(b.id)
+  }
+  if (sort.key === 'clientName') {
+    const c = a.clientName.localeCompare(b.clientName, 'ko', { sensitivity: 'base' })
+    if (c !== 0) {
+      return sort.dir === 'desc' ? -c : c
+    }
+    return a.id.localeCompare(b.id)
+  }
+  const c = a.itemName.localeCompare(b.itemName, 'ko', { sensitivity: 'base' })
+  if (c !== 0) {
+    return sort.dir === 'desc' ? -c : c
+  }
+  return a.id.localeCompare(b.id)
+}
+
 function App() {
   const { mode, activeCompany, activeCompanyId, user, signOut, cloudDocRefreshTick } = useAppRuntime()
   const [form, setForm] = useState<FormState>(() => defaultFormState())
@@ -1376,6 +1431,10 @@ function App() {
   const [recordsNoteFilter, setRecordsNoteFilter] = useState<'all' | '부가세 별도' | '부가세 없음'>(
     'all',
   )
+  const [recordListSort, setRecordListSort] = useState<{
+    key: StatementListSortKey
+    dir: 'asc' | 'desc'
+  }>({ key: 'number', dir: 'desc' })
   const [inlineEditRecordId, setInlineEditRecordId] = useState<string | null>(null)
   const [inlineEditDraft, setInlineEditDraft] = useState<{
     deliveryDate: string
@@ -1472,6 +1531,7 @@ function App() {
   const statementStickyHScrollInnerRef = useRef<HTMLDivElement | null>(null)
   const statementHScrollSyncingRef = useRef(false)
   const [statementStickyHScrollVisible, setStatementStickyHScrollVisible] = useState(false)
+  const statementCloudSaveSigRef = useRef<string>('')
 
   useEffect(() => {
     let cancelled = false
@@ -1481,6 +1541,7 @@ function App() {
     setIsMasterItemsStorageReady(false)
     setIsStatementCloudReady(mode === 'local')
     resetStatementSaveUi()
+    statementCloudSaveSigRef.current = ''
 
     const applyState = (next: StatementPageDocument) => {
       if (cancelled) {
@@ -1503,6 +1564,7 @@ function App() {
       const localState = readStatementPageLocalState()
       if (mode !== 'cloud' || !activeCompanyId) {
         applyState(localState)
+        statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(localState)
         return
       }
 
@@ -1516,9 +1578,11 @@ function App() {
         if (remoteState) {
           writeStatementPageLocalState(toApply)
         }
+        statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(toApply)
       } catch (error) {
         console.error('거래명세 클라우드 문서를 읽지 못했습니다.', error)
         applyState(localState)
+        statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(localState)
       }
     }
 
@@ -1558,6 +1622,7 @@ function App() {
         if (remoteState) {
           writeStatementPageLocalState(toApply)
         }
+        statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(toApply)
       } catch (error) {
         console.error('거래명세: 다른 기기/탭 동기화용 클라우드 다시 읽기에 실패했습니다.', error)
       }
@@ -1599,6 +1664,7 @@ function App() {
       setStatementTemplateFileName(next.statementTemplateFileName)
       setStatementTemplateUpdatedAt(next.statementTemplateUpdatedAt)
       setStatementTemplateSettings(next.statementTemplateSettings)
+      statementCloudSaveSigRef.current = statementPageDocumentPayloadSig(next)
     }
     const onStorage = (event: StorageEvent) => {
       if (event.storageArea !== window.localStorage) {
@@ -1747,19 +1813,27 @@ function App() {
       return
     }
 
+    const statementPayload: StatementPageDocument = {
+      records,
+      pricingRules,
+      masterItems,
+      statementTemplateBase64,
+      statementTemplateFileName,
+      statementTemplateUpdatedAt,
+      statementTemplateSettings,
+    }
+    const nextSig = statementPageDocumentPayloadSig(statementPayload)
+    if (nextSig === statementCloudSaveSigRef.current) {
+      if (statementSaveState === 'dirty') {
+        markStatementSaved()
+      }
+      return
+    }
+
     markStatementDirty()
 
     const timeoutId = window.setTimeout(() => {
       markStatementSaving()
-      const statementPayload = {
-        records,
-        pricingRules,
-        masterItems,
-        statementTemplateBase64,
-        statementTemplateFileName,
-        statementTemplateUpdatedAt,
-        statementTemplateSettings,
-      }
       void saveCompanyDocument(
         activeCompanyId,
         COMPANY_DOCUMENT_KEYS.statementPage,
@@ -1768,6 +1842,7 @@ function App() {
       )
         .then(() => {
           writeStatementPageLocalState(statementPayload)
+          statementCloudSaveSigRef.current = nextSig
           markStatementSaved()
         })
         .catch((error) => {
@@ -1797,6 +1872,7 @@ function App() {
     markStatementSaved,
     markStatementSaving,
     skipInitialStatementSave,
+    statementSaveState,
   ])
 
   useEffect(() => {
@@ -2165,6 +2241,13 @@ function App() {
     [records],
   )
 
+  const recordsSortedForMainList = useMemo(() => {
+    const seqById = statementRecordDeliveryMonthSeqById(records)
+    return [...statementPreviewRecords].sort((a, b) =>
+      compareStatementRecordsForListSort(a, b, recordListSort, seqById),
+    )
+  }, [recordListSort, records, statementPreviewRecords])
+
   const visibleRecords = useMemo(() => {
     const todayIso = new Date().toISOString().slice(0, 10)
     const today = new Date(todayIso)
@@ -2174,7 +2257,7 @@ function App() {
     const currentMonth = todayIso.slice(0, 7)
     const query = recordsSearchQuery.trim().toLowerCase()
 
-    return statementPreviewRecords.filter((record) => {
+    return recordsSortedForMainList.filter((record) => {
       if (recordsRangeFilter === 'year' && !record.deliveryDate.startsWith(selectedYear)) {
         return false
       }
@@ -2195,7 +2278,25 @@ function App() {
       }
       return true
     })
-  }, [statementPreviewRecords, recordsRangeFilter, recordsNoteFilter, recordsSearchQuery, selectedYear])
+  }, [recordsRangeFilter, recordsNoteFilter, recordsSearchQuery, recordsSortedForMainList, selectedYear])
+
+  const handleRecordListSortClick = useCallback((key: StatementListSortKey) => {
+    setRecordListSort((prev) => {
+      if (prev.key === key) {
+        return { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' }
+      }
+      if (key === 'number') {
+        return { key: 'number', dir: 'desc' }
+      }
+      if (key === 'deliveryDate') {
+        return { key: 'deliveryDate', dir: 'desc' }
+      }
+      if (key === 'clientName') {
+        return { key: 'clientName', dir: 'asc' }
+      }
+      return { key: 'itemName', dir: 'asc' }
+    })
+  }, [])
 
   const visibleTotals = useMemo(() => {
     return visibleRecords.reduce(
@@ -3470,7 +3571,7 @@ function App() {
       ['[거래명세서]', ...Array.from({ length: totalColumnCount - 1 }, () => '')],
       ['출력일', formatDateLabel(today), '저장 건수', records.length, '', '', '', '', '', '', '', ''],
       ['번호', '납품일', '횟수', '거래처명', '품목', '규격/단위', '수량', '단가', '과세구분', '공급가액', '세액', '계'],
-      ...statementPreviewRecords.map((record) => [
+      ...recordsSortedForMainList.map((record) => [
         seqById.get(record.id) ?? '',
         record.deliveryDate.slice(5).replace('-', '/'),
         record.deliveryCount,
@@ -3955,11 +4056,67 @@ function App() {
               <table>
                 <thead>
                   <tr>
-                    <th title="같은 납품월에서 입력·저장한 순서(가장 나중에 저장한 건이 가장 큰 번호). 예전 데이터는 납품일·거래처 기준">번호</th>
-                    <th>납품일</th>
+                    <th>
+                      <button
+                        type="button"
+                        className="statement-th-sort"
+                        title="같은 납품월에서 입력·저장한 순서(가장 나중에 저장한 건이 가장 큰 번호). 클릭: 번호순 · 다시 클릭: 순서 반대"
+                        onClick={() => handleRecordListSortClick('number')}
+                      >
+                        번호
+                        {recordListSort.key === 'number' ? (
+                          <span className="statement-th-sort-mark" aria-hidden="true">
+                            {recordListSort.dir === 'desc' ? ' ↓' : ' ↑'}
+                          </span>
+                        ) : null}
+                      </button>
+                    </th>
+                    <th>
+                      <button
+                        type="button"
+                        className="statement-th-sort"
+                        title="납품일 기준 · 최신순/과거순 전환"
+                        onClick={() => handleRecordListSortClick('deliveryDate')}
+                      >
+                        납품일
+                        {recordListSort.key === 'deliveryDate' ? (
+                          <span className="statement-th-sort-mark" aria-hidden="true">
+                            {recordListSort.dir === 'desc' ? ' ↓' : ' ↑'}
+                          </span>
+                        ) : null}
+                      </button>
+                    </th>
                     <th>횟수</th>
-                    <th>거래처명</th>
-                    <th>품목</th>
+                    <th>
+                      <button
+                        type="button"
+                        className="statement-th-sort"
+                        title="거래처명 가나다순 · 클릭으로 오름·내림 전환"
+                        onClick={() => handleRecordListSortClick('clientName')}
+                      >
+                        거래처명
+                        {recordListSort.key === 'clientName' ? (
+                          <span className="statement-th-sort-mark" aria-hidden="true">
+                            {recordListSort.dir === 'asc' ? ' ↑' : ' ↓'}
+                          </span>
+                        ) : null}
+                      </button>
+                    </th>
+                    <th>
+                      <button
+                        type="button"
+                        className="statement-th-sort"
+                        title="품목명 가나다순 · 클릭으로 오름·내림 전환"
+                        onClick={() => handleRecordListSortClick('itemName')}
+                      >
+                        품목
+                        {recordListSort.key === 'itemName' ? (
+                          <span className="statement-th-sort-mark" aria-hidden="true">
+                            {recordListSort.dir === 'asc' ? ' ↑' : ' ↓'}
+                          </span>
+                        ) : null}
+                      </button>
+                    </th>
                     <th>규격/단위</th>
                     <th>수량</th>
                     <th>단가</th>
