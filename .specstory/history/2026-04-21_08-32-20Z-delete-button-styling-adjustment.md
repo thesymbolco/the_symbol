@@ -75078,4 +75078,212 @@ I need to explain what actually causes "instant" in Bean Sales vs the 90s tick:
 - Switching to the tab (visibility  tick bumps)
 - Local read on mount
 
-However, when Tab A updates localStorage, Tab B </details></think>
+However, when Tab A updates localStorage, Tab B receives a `storage` event and should update accordingly. Bean Sales does not listen to the `storage` event for statement records, only to `STATEMENT_RECORDS_SAVED_EVENT`. This means:
+
+- **Same tab**: Navigation within the app triggers immediate updates because effects re-run and read from localStorage  **instant**.
+- **Multiple windows**: Changes in one window dont trigger updates in others unless the `storage` event is listened to  in which case, a tick (like visibility or 90s) may be needed unless the page is remounted on each visit. When navigating within the same SPA to Bean Sales Analysis, the component's useEffect runs with `statementRecordsTick`. This tick only fires from events in the same windowspecifically, `STATEMENT_RECORDS_SAVED_EVENT` triggered by `records` updates. Since Bean Sales is a sibling component, it would receive this CustomEvent **only if it's in the same window/tab**. Cross-tab communication requires listening to `storage` events, which Bean Sales currently doesn't do for statement records. dispatchEvent fires only within the same window object, meaning it reaches all listeners in that specific tab. Each browser tab has its own window object, so events dont cross between tabs. Within one tab, if a user navigates from Statements to Bean Sales in an SPA, both components are in the same document and window. If the user saves data in Statements, the `STATEMENT_RECORDS_SAVED_EVENT` fires and reaches Bean Sales if it's already mounted (even if hidden), since React keeps it mounted during navigation.</details></think>
+
+_**Agent (default)**_
+
+제가 전에 90초를 **원두 화면의 주된 경로**처럼 말한 건 잘못 짚었습니다. 말씀하시는 체감이 맞는 쪽에 가깝습니다.
+
+## 원두별 매출이 “90초 없이 바로” 보이는 이유
+
+**같은 브라우저·같은 앱(같은 탭/같은 창)** 에서 거래명세를 바꾸면, `App`이 곧바로 `statement-records` 로컬에 `records`를 쓰고 `STATEMENT_RECORDS_SAVED_EVENT`를 쏩니다.  
+원두 화면은 그 **이벤트**로 다시 읽거나, 그냥 **들어올 때 `localStorage`를 읽는** 쪽이라 **그런 상황에서는 90초를 기다리는 구조가 아닙니다.**
+
+그래서 **“새로고침 안 해도 바로 맞는다”**는 건, 그때는 **원두 = 90초 폴링이 본질이 아니라** 말씀하신 것처럼 **로컬 반영 + 이벤트/진입 시 재로드**에 가깝습니다.
+
+## 90초가 쓰이는 쪽
+
+`cloudDocRefreshTick`의 **주기(90초)** 는 **탭이 켜져 있을 때**, “서버(`company_documents`)를 다시 당겨올 타이밍”을 **추가로** 주는 용도에 가깝고,  
+**막 저장한 직후·같은 PC에서 원두 화면만 본다** 같은 흐름의 “바로 반영”을 **90초로 설명할 수는 없습니다.**  
+제가 그걸 섞어 말한 게 혼란을 드렸습니다.
+
+## 정리
+
+- **같은 기기·같은 브라우저에서 쓰는 경우** → 원두 쪽은 **대부분 바로**에 가깝고, **90초를 이유로 들 필요는 없음** (제가 잘못 말함).
+- **다른 PC** → 서버에 올라간 뒤 상대가 **다시 읽는 시점**이 필요하고, 그때는 **탭 전환·갱신 틱·수동 이동** 등이 말씀하신 “바로”와는 다를 수 있음.
+
+즉, **“원두는 90초 때문에 바로다”가 아니라, “같은 환경에선 로컬/이벤트로 바로에 가깝다”**가 사용자 말에 맞는 설명입니다.
+
+---
+
+_**User**_
+
+원두별 매출 분석은 데이터가 바뀌면 바로바로 적용이 된다고요 지금 거래명서 관리 페이지는 내가 어떤걸 삭제하고 새로고침하면 다시 또 뜨고 이런다고 
+원두별 매출 분석에서 데이터를 변경하면 그냥 그 변경한게 다른 컴퓨터 환경에서도 바로 반영된다고 새로고침 이런거 없이 바로 변경이 된다고 
+근데 거래명세 관리는 지금 데이터가 저장되고 동기화되고 이런게 이상하다고 병신아
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user reports serious bugs. The user reports that deleted items reappear after refreshing the statement management page, indicating a persistence or synchronization issue. They also note that changes in bean sales analysis reflect immediately across devices without refresh, which they desire for other areas too. Additionally, the statement page's save/sync functionality seems broken.
+
+Key issues to investigate:
+- Delete functionality updates React state but fails to persist correctly to cloud/local storage
+- Synchronization behavior differs between pages (immediate vs. delayed updates)
+- General sync/persistence problems in statement management features - Deletes may persist locally but are overwritten on refresh due to cloud loading stale data
+- Alternatively, initial loads prefer remote data that hasn't been updated yet
+- Conflicting data sources: localStorage and Supabase may be causing synchronization issues
+
+The delete flow in App.tsx needs tracing for records and save behavior after deletion.
+
+For Bean Sales: It likely reads statement data rather than editing it. The user may be referring to updates from external changes or another location, not direct edits.</details></think>
+
+_**Agent (default)**_
+
+삭제 후 새로고침하면 항목이 돌아오는 원인을 추적합니다. 삭제·저장·초기 로드 순서를 확인합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "App.tsx",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "delete|remove|filter.*id|setRecords"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "delete|remove|filter.*id|setRecords",
+  "topFiles": [
+    {
+      "matchCount": 44,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 44
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The issue occurs during full page refresh (F5):
+
+- Full page refresh triggers the problem
+- Specific conditions lead to the issue
+- Requires investigation into refresh behavior During full page refresh, issues arise when `loadStatementState` runs in useEffect and fetches remote data from `loadCompanyDocument`, causing deleted rows to reappear if cloud saves haven't completed. This happens because:
+
+- Deleted records reappear when remote data still contains old list state
+- Debounced saves (600ms) may not complete before refresh, leaving server with full data
+- Refresh at 200ms means remote still has full data instead of updated state
+
+The problem occurs specifically in cloud mode where remote state differs from local state due to timing of deletions and saves. On refresh, the application reads local state first but overwrites it with remote state if it exists, causing cloud data to always take precedence during initial loadeven when local deletions haven't been saved yet.
+
+The fix should implement a merge strategy that prefers local state when it's newer than remote, though defining "newer" is complex. - **Optimistic approach:** Compare local and remote states by record count or `lastModified` timestamps, but local keys lack timestamps.
+- **Better approach:** On full page load in cloud mode, compare local vs remote data; if local changes are more recent, prefer local state.
+- **Real fix:** Implement immediate cloud save on delete instead of waiting 600ms, or add a `beforeunload` warning to prevent unsaved changes. Or call `saveCompanyDocument` synchronously in a fire-and-forget manner without debounce for deletes.
+
+Initial load should not blindly prefer remote over local in all cases. A common pattern involves:
+
+- Storing `statementLastSavedAt` in localStorage or using the document's `updated_at` from Supabase
+- On load, if local records have a "pending" flag...
+
+A simpler approach for the user:
+- **flushImmediateSave** on delete: after `setRecords`, immediately call `saveCompanyDocument` without waiting for debounce  or clear the debounce and save right away. On initial load in cloud mode, if local state differs from remote, we can merge by comparing timestamps, though per-record timestamps aren't available locally. A simpler UX fix is to immediately save deleted records to the cloud after `handleDelete`, ensuring no delay in sync.
+
+3. **Load race:** During hard refresh, `loadStatementState` prioritizes remote data over local, potentially causing conflicts. If deletes trigger an immediate cloud save, remote data should update before a full page refresh in most cases. If network speed is slow, failure is still possible.
+
+An alternative load strategy involves showing local data first, then fetching remote data in the background and merging the twothough this adds complexity.
+
+Implementation plan:
+- Add `flushStatementCloudSave` or trigger save inline within `handleDelete` after state update
+- Since `setRecords` is asynchronous, the save must occur using the updated records
+- The save should happen after filtering and before any further state changes During full page refresh, deleted records can reappear because `loadStatementState` in `useEffect` fetches remote data before debounced saves complete. The 600ms debounce delay means that if a delete occurs, the save may not finish before refresh, causing the server to retain the old state.
+
+The solution involves immediate cloud saving after deletion instead of waiting for debounce. This can be done by:
+
+- Using `setRecords` with a callback to ensure state is updated before saving
+- Triggering `saveCompanyDocument` immediately in `useEffect` when records change
+- Avoiding debounce for delete operations by flushing save immediately after `handleDelete`
+- Ensuring the save uses the updated records rather than stale state
+
+This prevents remote data from overwriting local deletions during refresh.</details></think>
+
+_**Agent (default)**_
+
+원인: 클라우드에서 새로고침 시 `loadStatementState`가 **항상 서버 문서로 덮어쓰는데**, 삭제는 600ms 디바운스 저장이라 **저장되기 전에 F5** 하면 서버엔 옛 `records`가 남아 삭제가 ‘되살아남’. 삭제 시에는 **즉시** `saveCompanyDocument`로 서버·로컬 정본을 맞춤.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>

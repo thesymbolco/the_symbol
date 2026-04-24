@@ -3339,12 +3339,57 @@ function App() {
     window.requestAnimationFrame(() => formPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
   }
 
-  const handleDelete = (id: string) => {
-    if (editingRecordId === id) {
-      resetStatementFormAfterSave()
-    }
-    setRecords((current) => current.filter((record) => record.id !== id))
-  }
+  const handleDelete = useCallback(
+    (id: string) => {
+      if (editingRecordId === id) {
+        resetStatementFormAfterSave()
+      }
+      const nextRecords = records.filter((record) => record.id !== id)
+      setRecords(nextRecords)
+      if (mode !== 'cloud' || !activeCompanyId) {
+        return
+      }
+      // 삭제만 적용한 뒤 곧바로 F5 하면 `load`가 서버(옛 data)에 이김. 디바운스 600ms 기다리지 않고 즉시 upsert.
+      const payload: StatementPageDocument = {
+        records: nextRecords,
+        pricingRules,
+        masterItems,
+        statementTemplateBase64,
+        statementTemplateFileName,
+        statementTemplateUpdatedAt,
+        statementTemplateSettings,
+      }
+      const nextSig = statementPageDocumentPayloadSig(payload)
+      statementCloudSaveSigRef.current = nextSig
+      markStatementSaving()
+      void saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.statementPage, payload, user?.id)
+        .then(() => {
+          writeStatementPageLocalState(payload)
+          markStatementSaved()
+        })
+        .catch((error) => {
+          console.error('거래명세 삭제를 클라우드에 반영하지 못했습니다.', error)
+          statementCloudSaveSigRef.current = ''
+          markStatementError()
+        })
+    },
+    [
+      activeCompanyId,
+      editingRecordId,
+      markStatementError,
+      markStatementSaved,
+      markStatementSaving,
+      masterItems,
+      mode,
+      pricingRules,
+      records,
+      statementTemplateBase64,
+      statementTemplateFileName,
+      statementTemplateSettings,
+      statementTemplateUpdatedAt,
+      user?.id,
+    ],
+  )
 
   const handleCopyFromRecentRecord = (record: StatementRecord) => {
     setEditingRecordId(null)
