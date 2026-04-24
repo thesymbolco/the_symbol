@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import PageSaveStatus from './components/PageSaveStatus'
 import { exportStyledStaffPayrollExcel } from './staffPayrollExcelStyledExport'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
+import { useCloudDocumentRefreshPull } from './lib/cloudDocumentRefresh'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
@@ -222,7 +223,7 @@ const newEmptyRow = (): StaffPayrollRecord => ({
 })
 
 function StaffPayrollPage() {
-  const { mode, activeCompanyId, user } = useAppRuntime()
+  const { mode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()
   const [pageState, setPageState] = useState<StaffPayrollPageState>(defaultState)
   const [statusMessage, setStatusMessage] = useState('이 브라우저에만 자동 저장됩니다.')
   const [isStorageReady, setIsStorageReady] = useState(false)
@@ -297,6 +298,39 @@ function StaffPayrollPage() {
       cancelled = true
     }
   }, [activeCompanyId, mode, resetDocumentSaveUi])
+
+  useCloudDocumentRefreshPull({
+    mode,
+    activeCompanyId,
+    cloudDocRefreshTick,
+    saveState,
+    onPull: async (isCancelled) => {
+      if (mode !== 'cloud' || !activeCompanyId) {
+        return
+      }
+      try {
+        const remoteState = await loadCompanyDocument<StaffPayrollPageState>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.staffPayrollPage,
+        )
+        if (isCancelled()) {
+          return
+        }
+        if (remoteState) {
+          const next = normalizePageState(remoteState)
+          setPageState(next)
+          writeStaffPayrollPageStateToStorage(next)
+          setStatusMessage('클라우드에서 직원·급여 목록을 다시 불러왔습니다.')
+        } else {
+          const localState = readStaffPayrollPageStateFromStorage()
+          setPageState(localState)
+          setStatusMessage('클라우드에 문서가 없어 이 브라우저 사본을 표시합니다.')
+        }
+      } catch (error) {
+        console.error('직원·급여: 협업용 클라우드 다시 읽기에 실패했습니다.', error)
+      }
+    },
+  })
 
   useEffect(() => {
     if (!isStorageReady) {

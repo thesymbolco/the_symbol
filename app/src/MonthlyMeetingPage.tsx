@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   CartesianGrid,
   Cell,
@@ -38,6 +38,7 @@ import {
   type MeetingValueRow,
   type MonthlyMeetingData,
 } from './monthlyMeetingData'
+import { useCloudDocumentRefreshPull } from './lib/cloudDocumentRefresh'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
@@ -1458,7 +1459,7 @@ const migrateProductionHeaderToOutbound = (state: MonthlyMeetingPageState): Mont
 }
 
 function MonthlyMeetingPage() {
-  const { mode, activeCompanyId, user } = useAppRuntime()
+  const { mode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()
   /** 입출고 페이지와 동일한 localStorage 키 + 캐시 갱신 시 4번 출고·재고 표를 다시 읽음 */
   const [inventoryLinkTick, setInventoryLinkTick] = useState(0)
   const [pageState, setPageState] = useState<MonthlyMeetingPageState>(createDefaultState)
@@ -1477,6 +1478,7 @@ function MonthlyMeetingPage() {
     saveState,
     skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
+  const pullMeetingFromCloudRef = useRef<((isCancelled: () => boolean) => Promise<void>) | null>(null)
   const [copyTargetMonth, setCopyTargetMonth] = useState('')
   const [collapsedSections, setCollapsedSections] = useState<Record<MeetingSectionKey, boolean>>(
     readStoredCollapsedSections,
@@ -1740,11 +1742,46 @@ function MonthlyMeetingPage() {
       }
     }
 
+    pullMeetingFromCloudRef.current = async (isCancelled) => {
+      if (mode !== 'cloud' || !activeCompanyId) {
+        return
+      }
+      try {
+        const remoteState = await loadCompanyDocument<MonthlyMeetingPageState>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
+        )
+        if (isCancelled()) {
+          return
+        }
+        if (remoteState) {
+          const next = normalizeMonthlyMeetingPageState(remoteState)
+          applyState(next)
+          if (activeCompanyId) {
+            writeMonthlyMeetingPageStateToStorage(next)
+          }
+        }
+      } catch (error) {
+        console.error('월 마감회의: 협업용 클라우드 다시 읽기에 실패했습니다.', error)
+      }
+    }
+
     void loadState()
     return () => {
       cancelled = true
+      pullMeetingFromCloudRef.current = null
     }
   }, [activeCompanyId, mode, resetDocumentSaveUi])
+
+  useCloudDocumentRefreshPull({
+    mode,
+    activeCompanyId,
+    cloudDocRefreshTick,
+    saveState,
+    onPull: async (isCancelled) => {
+      await (pullMeetingFromCloudRef.current?.(isCancelled) ?? Promise.resolve())
+    },
+  })
 
   useEffect(() => {
     setCopyTargetMonth((current) => {

@@ -25,6 +25,7 @@ import {
   type BeanNameAliasEntry,
 } from './beanNameAliasStore'
 import { GREEN_BEAN_ORDER_INVENTORY_ALIASES } from './greenBeanOrderInventoryAliases'
+import { useCloudDocumentRefreshPull } from './lib/cloudDocumentRefresh'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
@@ -1335,7 +1336,7 @@ function buildGreenBeanOrderExportMatrix(state: GreenBeanOrderPersisted): {
 }
 
 export default function GreenBeanOrderPage() {
-  const { mode, activeCompanyId, user } = useAppRuntime()
+  const { mode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()
   const [persisted, setPersisted] = useState<GreenBeanOrderPersisted>(() => readGreenBeanOrderPersistedFromStorage())
   const [statusMessage, setStatusMessage] = useState('편집 내용은 이 브라우저에 자동 저장됩니다.')
   const [isCloudReady, setIsCloudReady] = useState(mode === 'local')
@@ -1349,6 +1350,7 @@ export default function GreenBeanOrderPage() {
     saveState,
     skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
+  const pullGreenBeanFromCloudRef = useRef<((isCancelled: () => boolean) => Promise<void>) | null>(null)
   const [compareMode, setCompareMode] = useState(true)
   const [recordDate, setRecordDate] = useState(() => new Date().toISOString().slice(0, 10))
   /** 선택한 주문 일자로 저장할 때 붙이는 메모(로컬 입력) */
@@ -1423,11 +1425,55 @@ export default function GreenBeanOrderPage() {
       }
     }
 
+    pullGreenBeanFromCloudRef.current = async (isCancelled) => {
+      if (mode !== 'cloud' || !activeCompanyId) {
+        return
+      }
+      try {
+        const remotePersisted = await loadCompanyDocument<GreenBeanOrderPersisted>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
+        )
+        if (isCancelled()) {
+          return
+        }
+        if (remotePersisted) {
+          applyPersisted(normalizePersisted(remotePersisted), 'cloud', true)
+        }
+        const remoteAliases = await loadCompanyDocument<BeanNameAliasEntry[]>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.beanNameAliases,
+        )
+        if (isCancelled()) {
+          return
+        }
+        if (Array.isArray(remoteAliases)) {
+          writeCustomBeanNameAliases(remoteAliases)
+          setAliasDraftRows(readCustomBeanNameAliases())
+          setAliasRevision((n) => n + 1)
+          setInventoryHintsTick((n) => n + 1)
+        }
+      } catch (error) {
+        console.error('생두 주문: 협업용 클라우드 다시 읽기에 실패했습니다.', error)
+      }
+    }
+
     void loadPersisted()
     return () => {
       cancelled = true
+      pullGreenBeanFromCloudRef.current = null
     }
   }, [activeCompanyId, mode, resetDocumentSaveUi])
+
+  useCloudDocumentRefreshPull({
+    mode,
+    activeCompanyId,
+    cloudDocRefreshTick,
+    saveState,
+    onPull: async (isCancelled) => {
+      await (pullGreenBeanFromCloudRef.current?.(isCancelled) ?? Promise.resolve())
+    },
+  })
 
   useEffect(() => {
     let cancelled = false

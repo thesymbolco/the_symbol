@@ -40,6 +40,7 @@ import {
 
 type BlendTarget = 'dark' | 'light' | 'decaf'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
+import { useCloudDocumentRefreshPull } from './lib/cloudDocumentRefresh'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
@@ -1670,7 +1671,7 @@ function DailyRoastingJournal({
 }
 
 function InventoryStatusPage() {
-  const { mode, activeCompanyId, user } = useAppRuntime()
+  const { mode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()
   const [inventoryState, setInventoryState] = useState<InventoryStatusState>(() =>
     createDefaultInventoryStatusState(),
   )
@@ -1706,6 +1707,7 @@ function InventoryStatusPage() {
     saveState,
     skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
+  const pullInventoryFromCloudRef = useRef<((isCancelled: () => boolean) => Promise<void>) | null>(null)
   const initialRoastingSyncDoneRef = useRef(false)
   const [fullResetDialogOpen, setFullResetDialogOpen] = useState(false)
   const [fullResetPin, setFullResetPin] = useState('')
@@ -1818,11 +1820,42 @@ function InventoryStatusPage() {
       }
     }
 
+    pullInventoryFromCloudRef.current = async (isCancelled) => {
+      if (mode !== 'cloud' || !activeCompanyId) {
+        return
+      }
+      try {
+        const remoteDocument = await loadCompanyDocument<InventoryPageDocument>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.inventoryPage,
+        )
+        if (isCancelled()) {
+          return
+        }
+        if (remoteDocument) {
+          applyDocument(normalizeInventoryPageDocument(remoteDocument), 'cloud', true)
+        }
+      } catch (error) {
+        console.error('입출고: 협업용 클라우드 다시 읽기에 실패했습니다.', error)
+      }
+    }
+
     void loadDocument()
     return () => {
       cancelled = true
+      pullInventoryFromCloudRef.current = null
     }
   }, [activeCompanyId, mode, resetDocumentSaveUi])
+
+  useCloudDocumentRefreshPull({
+    mode,
+    activeCompanyId,
+    cloudDocRefreshTick,
+    saveState,
+    onPull: async (isCancelled) => {
+      await (pullInventoryFromCloudRef.current?.(isCancelled) ?? Promise.resolve())
+    },
+  })
 
   useEffect(() => {
     if (!isStorageReady) {

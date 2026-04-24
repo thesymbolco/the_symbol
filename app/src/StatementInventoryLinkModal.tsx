@@ -100,7 +100,7 @@ function StatementInventoryLinkModal({
   activeCompanyId,
   preferredToLabel = null,
 }: Props) {
-  const { user } = useAppRuntime()
+  const { user, cloudDocRefreshTick } = useAppRuntime()
   const [rows, setRows] = useState<StatementInventoryManualEntry[]>([])
   const [stmtPickTick, setStmtPickTick] = useState(0)
   const [showMatchedItems, setShowMatchedItems] = useState(false)
@@ -334,7 +334,7 @@ function StatementInventoryLinkModal({
         setDraftTo('')
       }
     }
-  }, [open, load, preferredToLabel, labelOptions])
+  }, [open, load, preferredToLabel, labelOptions, mode, activeCompanyId, cloudDocRefreshTick])
 
   useEffect(() => {
     if (draftFrom && !pickableItemNames.includes(draftFrom)) {

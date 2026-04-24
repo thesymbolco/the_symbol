@@ -10,6 +10,7 @@ import {
 import PageSaveStatus from './components/PageSaveStatus'
 import * as XLSX from 'xlsx'
 import { exportStyledExpenseWorkbook } from './expenseExcelStyledExport'
+import { useCloudDocumentRefreshPull } from './lib/cloudDocumentRefresh'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
@@ -760,7 +761,7 @@ const parseExpenseWorkbook = (
 }
 
 function ExpensePage() {
-  const { mode, activeCompanyId, user } = useAppRuntime()
+  const { mode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()
   const [pageState, setPageState] = useState<ExpensePageState>(createDefaultState)
   const [categoryFilter, setCategoryFilter] = useState('전체')
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('전체')
@@ -841,6 +842,43 @@ function ExpensePage() {
       cancelled = true
     }
   }, [activeCompanyId, mode, resetDocumentSaveUi])
+
+  useCloudDocumentRefreshPull({
+    mode,
+    activeCompanyId,
+    cloudDocRefreshTick,
+    saveState,
+    onPull: async (isCancelled) => {
+      if (mode !== 'cloud' || !activeCompanyId) {
+        return
+      }
+      try {
+        const remoteState = await loadCompanyDocument<ExpensePageState>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.expensePage,
+        )
+        if (isCancelled()) {
+          return
+        }
+        if (remoteState) {
+          const next = normalizePageState(remoteState)
+          setPageState(next)
+          writeExpensePageStateToStorage(next)
+          setStatusMessage('클라우드에서 지출표를 다시 불러왔습니다.')
+        } else {
+          const localState = readExpensePageStateFromStorage()
+          setPageState(localState)
+          setStatusMessage(
+            localState.records.length > 0
+              ? '클라우드에 지출표가 없어 이 브라우저 사본을 표시합니다.'
+              : '클라우드 지출표가 없어 새 문서처럼 표시합니다.',
+          )
+        }
+      } catch (error) {
+        console.error('지출표: 협업용 클라우드 다시 읽기에 실패했습니다.', error)
+      }
+    },
+  })
 
   useEffect(() => {
     if (!isStorageReady) {

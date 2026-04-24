@@ -7,7 +7,9 @@ import {
   updateLinkedMemo,
 } from './memoLinkedSources'
 import PageSaveStatus from './components/PageSaveStatus'
+import { useCloudDocumentRefreshPull } from './lib/cloudDocumentRefresh'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
+import type { DocumentSaveState } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
 export const MEMO_PAGE_STORAGE_KEY = 'memo-page-data-v1'
@@ -301,7 +303,7 @@ function sameUpToMinute(a: string, b: string): boolean {
 type MergedRow = { kind: 'local'; data: ConvenienceMemo } | { kind: 'linked'; data: LinkedMemoRow }
 
 export default function MemoPage({ mode = 'all' }: MemoPageProps) {
-  const { mode: runtimeMode, activeCompanyId, user } = useAppRuntime()
+  const { mode: runtimeMode, activeCompanyId, user, cloudDocRefreshTick } = useAppRuntime()
   const forceComfortOnly = mode === 'comfortOnly'
   const forceDailyOnly = mode === 'dailyOnly'
   const showModeTabs = mode === 'all'
@@ -333,6 +335,7 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
   const [lastSavedAt, setLastSavedAt] = useState('')
   const saveTimerRef = useRef<number | null>(null)
   const lastSyncedPayloadRef = useRef('')
+  const pullMemoFromCloudRef = useRef<((isCancelled: () => boolean) => Promise<void>) | null>(null)
 
   const [filterScope, setFilterScope] = useState<MemoScope | 'all'>('all')
   const [search, setSearch] = useState('')
@@ -416,11 +419,42 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
       }
     }
 
+    pullMemoFromCloudRef.current = async (isCancelled) => {
+      if (runtimeMode !== 'cloud' || !activeCompanyId) {
+        return
+      }
+      try {
+        const remotePersisted = await loadCompanyDocument<MemoPagePersisted>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.memoPage,
+        )
+        if (isCancelled()) {
+          return
+        }
+        if (remotePersisted) {
+          applyPersisted(normalizePersisted(remotePersisted), 'cloud', true)
+        }
+      } catch (error) {
+        console.error('메모: 협업용 클라우드 다시 읽기에 실패했습니다.', error)
+      }
+    }
+
     void loadPersisted()
     return () => {
       cancelled = true
+      pullMemoFromCloudRef.current = null
     }
   }, [activeCompanyId, runtimeMode])
+
+  useCloudDocumentRefreshPull({
+    mode: runtimeMode,
+    activeCompanyId,
+    cloudDocRefreshTick,
+    saveState: saveState as DocumentSaveState,
+    onPull: async (isCancelled) => {
+      await (pullMemoFromCloudRef.current?.(isCancelled) ?? Promise.resolve())
+    },
+  })
 
   useEffect(() => {
     if (!isStorageReady) {

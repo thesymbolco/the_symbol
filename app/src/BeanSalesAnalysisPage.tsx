@@ -136,7 +136,7 @@ function BeanSalesAnalysisPage() {
 
   useEffect(() => {
     void syncStatementInventoryManualsFromCloud(mode, activeCompanyId)
-  }, [mode, activeCompanyId, manualMappingTick])
+  }, [mode, activeCompanyId, manualMappingTick, cloudDocRefreshTick])
 
   useEffect(() => {
     let cancelled = false
