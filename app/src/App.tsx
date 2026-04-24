@@ -2108,6 +2108,11 @@ function App() {
     [records],
   )
 
+  const statementDeliveryMonthSeqById = useMemo(
+    () => statementRecordDeliveryMonthSeqById(records),
+    [records],
+  )
+
   const visibleRecords = useMemo(() => {
     const todayIso = new Date().toISOString().slice(0, 10)
     const today = new Date(todayIso)
@@ -2273,11 +2278,6 @@ function App() {
     })
     return map
   }, [statementPreviewRecords, calendarMonth])
-
-  const statementDeliveryMonthSeqById = useMemo(
-    () => statementRecordDeliveryMonthSeqById(records),
-    [records],
-  )
 
   const totalSupplyAmount = useMemo(
     () => statementPreviewRecords.reduce((sum, record) => sum + record.supplyAmount, 0),

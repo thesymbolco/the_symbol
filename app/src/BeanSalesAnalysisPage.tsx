@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import {
   INVENTORY_STATUS_CACHE_EVENT,
   INVENTORY_STATUS_STORAGE_KEY,
@@ -97,6 +97,51 @@ const shortenBeanName = (name: string, max = 14): string => {
   return `${name.slice(0, max)}…`
 }
 
+const BEAN_SALES_PLOT_H = 300
+
+/**
+ * Recharts 3 `ResponsiveContainer`는 부모 가로/세로가 0이면 children을 그리지 않습니다.
+ * 배포 환경(그리드·지연 레이아웃)에서 첫 측정이 0이면 파이가 영구히 비어 보일 수 있어,
+ * 최소 가로(fallback)로 고정 `PieChart`/`BarChart`에 넘깁니다.
+ */
+function useBeanSalesPlotWidth(fallbackW = 360) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [width, setWidth] = useState(fallbackW)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) {
+      return
+    }
+    const read = () => {
+      const w = Math.floor(el.getBoundingClientRect().width)
+      setWidth((prev) => (w > 0 ? w : Math.max(fallbackW, prev)))
+    }
+    read()
+    const onVis = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        read()
+      }
+    }
+    document.addEventListener('visibilitychange', onVis)
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', read)
+      return () => {
+        window.removeEventListener('resize', read)
+        document.removeEventListener('visibilitychange', onVis)
+      }
+    }
+    const ro = new ResizeObserver(() => read())
+    ro.observe(el)
+    return () => {
+      ro.disconnect()
+      document.removeEventListener('visibilitychange', onVis)
+    }
+  }, [fallbackW])
+
+  return { ref, width, plotHeight: BEAN_SALES_PLOT_H } as const
+}
+
 function BeanSalesAnalysisPage() {
   const { mode, activeCompanyId } = useAppRuntime()
   const [inventoryReadTick, setInventoryReadTick] = useState(0)
@@ -115,6 +160,11 @@ function BeanSalesAnalysisPage() {
   const [greenOrderCloudSyncTick, setGreenOrderCloudSyncTick] = useState(0)
   const [statementRecordsRaw, setStatementRecordsRaw] = useState<StatementRecord[]>([])
   const [inventoryStateRaw, setInventoryStateRaw] = useState<unknown>(null)
+
+  const revenuePiePlot = useBeanSalesPlotWidth(360)
+  const revenueBarPlot = useBeanSalesPlotWidth(360)
+  const profitPiePlot = useBeanSalesPlotWidth(360)
+  const profitBarPlot = useBeanSalesPlotWidth(360)
 
   useEffect(() => {
     const onInv = () => setInventoryReadTick((n) => n + 1)
@@ -157,8 +207,13 @@ function BeanSalesAnalysisPage() {
     let lastInventoryDoc = ''
     let lastGreenOrderDoc = ''
 
+    const CLOUD_SYNC_INTERVAL_MS = 10_000
+
     const poll = async () => {
       if (cancelled || inFlight) {
+        return
+      }
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
         return
       }
       inFlight = true
@@ -229,9 +284,9 @@ function BeanSalesAnalysisPage() {
       }
     }
 
-    // 초기 1회 즉시 + 이후 폴링
+    // 초기 1회 즉시 + 이후 폴링(배포 환경 부하·네트워트 완화: 간격 늘림, 탭 비활성 시 생략)
     void poll()
-    const id = window.setInterval(() => void poll(), 2500)
+    const id = window.setInterval(() => void poll(), CLOUD_SYNC_INTERVAL_MS)
 
     return () => {
       cancelled = true
@@ -707,8 +762,8 @@ function BeanSalesAnalysisPage() {
           <div className="chart-grid">
             <div className="chart-container">
               <h3>원두별 매출 비율</h3>
-              <ResponsiveContainer key={`rev-pie-${revenueChartData.length}`} width="100%" height={300}>
-                <PieChart>
+              <div ref={revenuePiePlot.ref} className="bean-sales-chart-plot">
+                <PieChart width={revenuePiePlot.width} height={revenuePiePlot.plotHeight}>
                   <Pie
                     data={revenueChartData}
                     dataKey="totalRevenue"
@@ -731,7 +786,7 @@ function BeanSalesAnalysisPage() {
                     contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
                   />
                 </PieChart>
-              </ResponsiveContainer>
+              </div>
               <div className="bean-sales-pie-legend" aria-label="원두별 매출 비율 범례">
                 {revenueChartData.map((data) => (
                   <div key={data.beanName} className="bean-sales-pie-legend__item" title={data.beanName}>
@@ -747,8 +802,14 @@ function BeanSalesAnalysisPage() {
 
             <div className="chart-container">
               <h3>원두별 매출 금액</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={revenueChartData} layout="vertical" margin={{ top: 4, right: 8, bottom: 4, left: 8 }}>
+              <div ref={revenueBarPlot.ref} className="bean-sales-chart-plot">
+                <BarChart
+                  data={revenueChartData}
+                  width={revenueBarPlot.width}
+                  height={revenueBarPlot.plotHeight}
+                  layout="vertical"
+                  margin={{ top: 4, right: 8, bottom: 4, left: 8 }}
+                >
                   <CartesianGrid strokeDasharray="2 4" horizontal={false} />
                   <XAxis type="number" tickFormatter={(value) => `${Math.round(value / 10000)}만`} tick={{ fontSize: 12 }} />
                   <YAxis
@@ -763,9 +824,9 @@ function BeanSalesAnalysisPage() {
                     labelFormatter={(label) => String(label)}
                     contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
                   />
-                  <Bar dataKey="totalRevenue" fill="#8884d8" />
+                  <Bar dataKey="totalRevenue" fill="#8884d8" isAnimationActive={false} />
                 </BarChart>
-              </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
@@ -778,8 +839,8 @@ function BeanSalesAnalysisPage() {
                 <p className="bean-sales-chart-empty">흑자(추정) 품목이 없습니다.</p>
               ) : (
                 <>
-                  <ResponsiveContainer key={`profit-pie-${profitPieChartData.length}`} width="100%" height={300}>
-                    <PieChart>
+                  <div ref={profitPiePlot.ref} className="bean-sales-chart-plot">
+                    <PieChart width={profitPiePlot.width} height={profitPiePlot.plotHeight}>
                       <Pie
                         data={profitPieChartData}
                         dataKey="estimatedProfitAmount"
@@ -802,7 +863,7 @@ function BeanSalesAnalysisPage() {
                         contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
                       />
                     </PieChart>
-                  </ResponsiveContainer>
+                  </div>
                   <div className="bean-sales-pie-legend" aria-label="원두별 이익(추정) 비율 범례">
                     {profitPieChartData.map((data) => (
                       <div key={data.beanName} className="bean-sales-pie-legend__item" title={data.beanName}>
@@ -826,9 +887,11 @@ function BeanSalesAnalysisPage() {
               {rowsWithKnownProfit.length === 0 ? (
                 <p className="bean-sales-chart-empty">생두 주문이 있으면 품목별 이익(추정)을 계산합니다.</p>
               ) : (
-                <ResponsiveContainer width="100%" height={300}>
+                <div ref={profitBarPlot.ref} className="bean-sales-chart-plot">
                   <BarChart
                     data={profitBarChartData}
+                    width={profitBarPlot.width}
+                    height={profitBarPlot.plotHeight}
                     layout="vertical"
                     margin={{ top: 4, right: 8, bottom: 4, left: 8 }}
                   >
@@ -853,13 +916,13 @@ function BeanSalesAnalysisPage() {
                       labelFormatter={(label) => String(label)}
                       contentStyle={{ borderRadius: 10, borderColor: '#e5e7eb', fontSize: 12 }}
                     />
-                    <Bar dataKey="estimatedProfitAmount" radius={[0, 2, 2, 0]}>
+                    <Bar dataKey="estimatedProfitAmount" radius={[0, 2, 2, 0]} isAnimationActive={false}>
                       {profitBarChartData.map((entry, index) => (
                         <Cell key={`profit-bar-${index}`} fill={entry.fill} />
                       ))}
                     </Bar>
                   </BarChart>
-                </ResponsiveContainer>
+                </div>
               )}
             </div>
           </div>
@@ -1208,6 +1271,13 @@ function BeanSalesAnalysisPage() {
           border-radius: 8px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
           min-width: 0;
+        }
+
+        .bean-sales-chart-plot {
+          width: 100%;
+          min-height: 300px;
+          min-width: 240px;
+          overflow-x: auto;
         }
 
         .chart-container h3 {
