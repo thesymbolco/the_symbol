@@ -229,6 +229,7 @@ const CUSTOM_ITEM_OPTION = '__custom__'
 const DEFAULT_ITEM_OPTIONS = [] as const
 const DEFAULT_SPEC_OPTIONS = ['1/KG', '200/G', '1/L', '500/ML', '250/ML'] as const
 const NOTE_OPTIONS = ['부가세 별도', '부가세 없음'] as const
+const CASH_CLIENT_LABEL = '현금'
 const STATEMENT_PREVIEW_LABEL = '공급받는자용'
 const QUICK_SPEC_OPTIONS_BEAN = [
   { label: '1kg', value: '1/KG' },
@@ -259,6 +260,7 @@ type StatementRecord = {
   taxAmount: number
   totalAmount: number
   createdAt?: string
+  isCashHandled?: boolean
 }
 
 type StatementSortColumn = 'no' | 'deliveryDate' | 'clientName'
@@ -267,6 +269,7 @@ type StatementSortConfig = { column: StatementSortColumn; direction: StatementSo
 
 type FormState = {
   deliveryDate: string
+  issueDate: string
   deliveryCount: string
   clientName: string
   itemName: string
@@ -274,6 +277,7 @@ type FormState = {
   quantity: string
   unitPrice: string
   note: string
+  isCashHandled: boolean
 }
 
 type MonthlySummaryRow = {
@@ -373,6 +377,7 @@ const today = new Date().toISOString().slice(0, 10)
 
 const defaultFormState = (): FormState => ({
   deliveryDate: today,
+  issueDate: '',
   deliveryCount: '1',
   clientName: '',
   itemName: '',
@@ -380,6 +385,7 @@ const defaultFormState = (): FormState => ({
   quantity: '',
   unitPrice: '',
   note: '부가세 별도',
+  isCashHandled: false,
 })
 
 const parseNumber = (value: string) => {
@@ -913,6 +919,7 @@ const buildEditFormStateFromRecord = (
   return {
     form: {
       deliveryDate: record.deliveryDate,
+      issueDate: record.issueDate ?? '',
       deliveryCount: record.deliveryCount,
       clientName: trimmedClient,
       itemName: trimmedItem,
@@ -920,6 +927,7 @@ const buildEditFormStateFromRecord = (
       quantity: String(record.quantity),
       unitPrice: String(record.unitPrice),
       note: record.note,
+      isCashHandled: Boolean(record.isCashHandled),
     },
     isCustomClient,
     isCustomItem,
@@ -976,10 +984,11 @@ const resolveStatementPricingForClientItem = (
   return null
 }
 
-const normalizeLoadedRecords = (records: Array<StatementRecord & { note?: string }>) =>
+const normalizeLoadedRecords = (records: Array<StatementRecord & { note?: string; isCashHandled?: boolean }>) =>
   records.map((record) => ({
     ...record,
     note: record.note ?? (record.taxAmount === 0 ? '부가세 없음' : '부가세 별도'),
+    isCashHandled: Boolean(record.isCashHandled),
   }))
 
 const FILE_HANDLE_DB_NAME = 'statement-file-handle-db'
@@ -1360,6 +1369,7 @@ function App() {
   const [inlineEditRecordId, setInlineEditRecordId] = useState<string | null>(null)
   const [inlineEditDraft, setInlineEditDraft] = useState<{
     deliveryDate: string
+    issueDate: string
     deliveryCount: string
     clientName: string
     itemName: string
@@ -1367,8 +1377,10 @@ function App() {
     quantity: string
     unitPrice: string
     note: string
+    isCashHandled: boolean
   }>({
     deliveryDate: '',
+    issueDate: '',
     deliveryCount: '',
     clientName: '',
     itemName: '',
@@ -1376,6 +1388,7 @@ function App() {
     quantity: '',
     unitPrice: '',
     note: '부가세 별도',
+    isCashHandled: false,
   })
   const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7))
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
@@ -2137,7 +2150,8 @@ function App() {
         return false
       }
       if (query) {
-        const haystack = `${record.clientName} ${record.itemName} ${record.specUnit} ${record.note}`.toLowerCase()
+        const cashToken = record.isCashHandled ? ` ${record.clientName}-${CASH_CLIENT_LABEL} ${CASH_CLIENT_LABEL}` : ''
+        const haystack = `${record.clientName} ${record.itemName} ${record.specUnit} ${record.note}${cashToken}`.toLowerCase()
         if (!haystack.includes(query)) {
           return false
         }
@@ -2230,6 +2244,7 @@ function App() {
       string,
       {
         clientName: string
+        isCashHandled: boolean
         totalAmount: number
         count: number
         lastDeliveryDate: string
@@ -2238,10 +2253,15 @@ function App() {
     >()
     const currentMonth = new Date().toISOString().slice(0, 7)
     statementPreviewRecords.forEach((record) => {
-      const key = normalizeName(record.clientName)
+      const baseClientName = record.clientName.trim()
+      const cardClientName = record.isCashHandled
+        ? `${baseClientName || '미지정'}-${CASH_CLIENT_LABEL}`
+        : baseClientName
+      const key = normalizeName(cardClientName)
       if (!key) return
       const existing = grouped.get(key) ?? {
-        clientName: record.clientName,
+        clientName: cardClientName,
+        isCashHandled: Boolean(record.isCashHandled),
         totalAmount: 0,
         count: 0,
         lastDeliveryDate: '',
@@ -2259,6 +2279,16 @@ function App() {
     })
     return Array.from(grouped.values()).sort((a, b) => b.totalAmount - a.totalAmount)
   }, [statementPreviewRecords])
+
+  const regularClientCards = useMemo(
+    () => clientCardStats.filter((card) => !card.isCashHandled),
+    [clientCardStats],
+  )
+
+  const cashClientCards = useMemo(
+    () => clientCardStats.filter((card) => card.isCashHandled),
+    [clientCardStats],
+  )
 
   const calendarEntries = useMemo(() => {
     const map = new Map<string, { count: number; totalAmount: number; records: StatementRecord[] }>()
@@ -2498,6 +2528,10 @@ function App() {
     setForm((current) => ({ ...current, [field]: value }))
   }
 
+  const handleToggleCashHandled = (checked: boolean) => {
+    setForm((current) => ({ ...current, isCashHandled: checked }))
+  }
+
   const applyPricingRuleToForm = (clientName: string, itemName: string) => {
     const rule = pricingRules.find(
       (entry) =>
@@ -2718,7 +2752,7 @@ function App() {
       newRecords.push({
         id: crypto.randomUUID(),
         deliveryDate: form.deliveryDate,
-        issueDate: form.deliveryDate,
+        issueDate: form.issueDate.trim(),
         paymentDate: '',
         deliveryCount: form.deliveryCount,
         clientName: clientTrim,
@@ -2727,6 +2761,7 @@ function App() {
         quantity,
         unitPrice: resolved.unitPrice,
         note: form.note,
+        isCashHandled: form.isCashHandled,
         supplyAmount,
         taxAmount,
         totalAmount: supplyAmount + taxAmount,
@@ -3134,7 +3169,7 @@ function App() {
     const nextRecord: StatementRecord = {
       id: editingRecordId ?? crypto.randomUUID(),
       deliveryDate: form.deliveryDate,
-      issueDate: form.deliveryDate,
+      issueDate: form.issueDate.trim(),
       paymentDate: '',
       deliveryCount: form.deliveryCount,
       clientName: form.clientName.trim(),
@@ -3143,6 +3178,7 @@ function App() {
       quantity: calculatedAmounts.quantity,
       unitPrice: calculatedAmounts.unitPrice,
       note: form.note,
+      isCashHandled: form.isCashHandled,
       supplyAmount: calculatedAmounts.supplyAmount,
       taxAmount: calculatedAmounts.taxAmount,
       totalAmount: calculatedAmounts.totalAmount,
@@ -3196,6 +3232,7 @@ function App() {
     setIsCustomSpec(!QUICK_SPEC_VALUES.has(record.specUnit.trim()) && record.specUnit.trim() !== '')
     setForm({
       deliveryDate: new Date().toISOString().slice(0, 10),
+      issueDate: '',
       deliveryCount: record.deliveryCount,
       clientName: record.clientName,
       itemName: record.itemName,
@@ -3203,6 +3240,7 @@ function App() {
       quantity: String(record.quantity),
       unitPrice: String(record.unitPrice),
       note: record.note,
+      isCashHandled: Boolean(record.isCashHandled),
     })
     setStatementEntryModalOpen(true)
     const formPanel = document.querySelector('.statements-form-compact')
@@ -3210,7 +3248,7 @@ function App() {
   }
 
   const handleFilterByClient = (clientName: string) => {
-    setRecordsSearchQuery(clientName)
+    setRecordsSearchQuery(clientName === CASH_CLIENT_LABEL ? CASH_CLIENT_LABEL : clientName)
     setActiveView('records')
   }
 
@@ -3218,6 +3256,7 @@ function App() {
     setInlineEditRecordId(record.id)
     setInlineEditDraft({
       deliveryDate: record.deliveryDate,
+      issueDate: record.issueDate ?? '',
       deliveryCount: record.deliveryCount,
       clientName: record.clientName,
       itemName: record.itemName,
@@ -3225,6 +3264,7 @@ function App() {
       quantity: String(record.quantity),
       unitPrice: String(record.unitPrice),
       note: record.note,
+      isCashHandled: Boolean(record.isCashHandled),
     })
   }
 
@@ -3256,7 +3296,7 @@ function App() {
             ? {
                 ...record,
                 deliveryDate: inlineEditDraft.deliveryDate,
-                issueDate: record.issueDate || inlineEditDraft.deliveryDate,
+                issueDate: inlineEditDraft.issueDate.trim(),
                 deliveryCount: inlineEditDraft.deliveryCount || '1',
                 clientName: inlineEditDraft.clientName.trim(),
                 itemName: inlineEditDraft.itemName.trim(),
@@ -3264,6 +3304,7 @@ function App() {
                 quantity,
                 unitPrice,
                 note: inlineEditDraft.note,
+                isCashHandled: inlineEditDraft.isCashHandled,
                 supplyAmount,
                 taxAmount,
                 totalAmount,
@@ -3920,6 +3961,7 @@ function App() {
                     >
                       납품일{statementSort?.column === 'deliveryDate' ? SORT_ARROW[statementSort.direction] : ''}
                     </th>
+                    <th>발행일자</th>
                     <th>횟수</th>
                     <th
                       className="sortable-th"
@@ -3941,7 +3983,7 @@ function App() {
                 <tbody>
                   {visibleRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={13} className="empty-state">
+                      <td colSpan={14} className="empty-state">
                         {records.length === 0
                           ? '아직 저장된 거래명세서가 없습니다.'
                           : '현재 조건에 맞는 건이 없습니다. 필터나 검색어를 변경해 보세요.'}
@@ -3962,6 +4004,18 @@ function App() {
                                   setInlineEditDraft((current) => ({
                                     ...current,
                                     deliveryDate: event.target.value,
+                                  }))
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="date"
+                                value={inlineEditDraft.issueDate}
+                                onChange={(event) =>
+                                  setInlineEditDraft((current) => ({
+                                    ...current,
+                                    issueDate: event.target.value,
                                   }))
                                 }
                               />
@@ -4056,6 +4110,19 @@ function App() {
                                   </option>
                                 ))}
                               </select>
+                              <label className="statement-cash-inline-toggle">
+                                <input
+                                  type="checkbox"
+                                  checked={inlineEditDraft.isCashHandled}
+                                  onChange={(event) =>
+                                    setInlineEditDraft((current) => ({
+                                      ...current,
+                                      isCashHandled: event.target.checked,
+                                    }))
+                                  }
+                                />
+                                현금
+                              </label>
                             </td>
                             <td colSpan={3} className="statement-inline-preview">
                               {(() => {
@@ -4088,19 +4155,20 @@ function App() {
                       return (
                         <tr
                           key={record.id}
-                          className={`statement-row${editingRecordId === record.id ? ' statement-row-editing' : ''}`}
+                          className={`statement-row${editingRecordId === record.id ? ' statement-row-editing' : ''}${record.isCashHandled ? ' statement-row-cash' : ''}`}
                           onDoubleClick={() => handleStartInlineEdit(record)}
                           title="더블클릭하면 바로 수정합니다"
                         >
                           <td>{statementDeliveryMonthSeqById.get(record.id) ?? '—'}</td>
                           <td>{formatDateLabel(record.deliveryDate)}</td>
+                          <td>{record.issueDate ? formatDateLabel(record.issueDate) : ''}</td>
                           <td>{record.deliveryCount}</td>
                           <td>{record.clientName}</td>
                           <td>{record.itemName}</td>
                           <td>{record.specUnit || '-'}</td>
                           <td>{record.quantity}</td>
                           <td>{formatCurrency(record.unitPrice)}</td>
-                          <td>{record.note}</td>
+                          <td>{record.note}{record.isCashHandled ? ` · ${CASH_CLIENT_LABEL}` : ''}</td>
                           <td>{formatCurrency(record.supplyAmount)}</td>
                           <td>{formatCurrency(record.taxAmount)}</td>
                           <td>{formatCurrency(record.totalAmount)}</td>
@@ -4141,37 +4209,80 @@ function App() {
               {clientCardStats.length === 0 ? (
                 <p className="empty-state">아직 저장된 거래처가 없습니다.</p>
               ) : (
-                <div className="statements-cards-grid">
-                  {clientCardStats.map((card) => (
-                    <button
-                      key={card.clientName}
-                      type="button"
-                      className="statements-client-card"
-                      onClick={() => handleFilterByClient(card.clientName)}
-                      title="입력 목록에서 이 거래처만 필터링"
-                    >
-                      <div className="statements-client-card-head">
-                        <strong>{card.clientName}</strong>
-                        <span>{card.count}건</span>
+                <>
+                  {regularClientCards.length > 0 ? (
+                    <section className="statements-cards-section">
+                      <h4 className="statements-cards-section-title">거래처 카드</h4>
+                      <div className="statements-cards-grid">
+                        {regularClientCards.map((card) => (
+                          <button
+                            key={card.clientName}
+                            type="button"
+                            className="statements-client-card"
+                            onClick={() => handleFilterByClient(card.clientName)}
+                            title="입력 목록에서 이 거래처만 필터링"
+                          >
+                            <div className="statements-client-card-head">
+                              <strong>{card.clientName}</strong>
+                              <span>{card.count}건</span>
+                            </div>
+                            <div className="statements-client-card-amount">
+                              {formatCurrency(card.totalAmount)}원
+                            </div>
+                            <dl className="statements-client-card-meta">
+                              <div>
+                                <dt>이번달</dt>
+                                <dd>{formatCurrency(card.monthAmount)}원</dd>
+                              </div>
+                              <div>
+                                <dt>마지막 납품</dt>
+                                <dd>
+                                  {card.lastDeliveryDate ? formatDateLabel(card.lastDeliveryDate) : '—'}
+                                </dd>
+                              </div>
+                            </dl>
+                          </button>
+                        ))}
                       </div>
-                      <div className="statements-client-card-amount">
-                        {formatCurrency(card.totalAmount)}원
+                    </section>
+                  ) : null}
+                  {cashClientCards.length > 0 ? (
+                    <section className="statements-cards-section statements-cards-section-cash">
+                      <h4 className="statements-cards-section-title">현금 카드</h4>
+                      <div className="statements-cards-grid">
+                        {cashClientCards.map((card) => (
+                          <button
+                            key={card.clientName}
+                            type="button"
+                            className="statements-client-card statements-client-card-cash"
+                            onClick={() => handleFilterByClient(card.clientName)}
+                            title="입력 목록에서 이 현금 거래처만 필터링"
+                          >
+                            <div className="statements-client-card-head">
+                              <strong>{card.clientName}</strong>
+                              <span>{card.count}건</span>
+                            </div>
+                            <div className="statements-client-card-amount">
+                              {formatCurrency(card.totalAmount)}원
+                            </div>
+                            <dl className="statements-client-card-meta">
+                              <div>
+                                <dt>이번달</dt>
+                                <dd>{formatCurrency(card.monthAmount)}원</dd>
+                              </div>
+                              <div>
+                                <dt>마지막 납품</dt>
+                                <dd>
+                                  {card.lastDeliveryDate ? formatDateLabel(card.lastDeliveryDate) : '—'}
+                                </dd>
+                              </div>
+                            </dl>
+                          </button>
+                        ))}
                       </div>
-                      <dl className="statements-client-card-meta">
-                        <div>
-                          <dt>이번달</dt>
-                          <dd>{formatCurrency(card.monthAmount)}원</dd>
-                        </div>
-                        <div>
-                          <dt>마지막 납품</dt>
-                          <dd>
-                            {card.lastDeliveryDate ? formatDateLabel(card.lastDeliveryDate) : '—'}
-                          </dd>
-                        </div>
-                      </dl>
-                    </button>
-                  ))}
-                </div>
+                    </section>
+                  ) : null}
+                </>
               )}
             </div>
           ) : activeView === 'calendar' ? (
@@ -5083,6 +5194,14 @@ function App() {
                   onChange={(event) => handleFieldChange('deliveryDate', event.target.value)}
                 />
               </label>
+              <label className="statement-form-field statement-form-field--date">
+                발행일자
+                <input
+                  type="date"
+                  value={form.issueDate}
+                  onChange={(event) => handleFieldChange('issueDate', event.target.value)}
+                />
+              </label>
               <label className="statement-form-field statement-form-field--count">
                 횟수
                 <input
@@ -5223,6 +5342,14 @@ function App() {
                     </option>
                   ))}
                 </select>
+                <label className="statement-cash-toggle">
+                  <input
+                    type="checkbox"
+                    checked={form.isCashHandled}
+                    onChange={(event) => handleToggleCashHandled(event.target.checked)}
+                  />
+                  현금 처리
+                </label>
               </label>
             </div>
 

@@ -1526,6 +1526,14 @@
   background: #f1f5f9;
 }
 
+.statement-row-cash td {
+  background: #eefcf3;
+}
+
+.statement-row-cash:hover td {
+  background: #dcfce7;
+}
+
 .statement-row-editing td input,
 .statement-row-editing td select {
   width: 100%;
@@ -1542,6 +1550,20 @@
   outline-offset: 1px;
 }
 
+.statement-cash-toggle,
+.statement-cash-inline-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #166534;
+}
+
+.statement-cash-inline-toggle {
+  margin-left: 6px;
+}
+
 .statement-inline-preview {
   color: #1d4ed8;
   font-weight: 600;
@@ -1556,6 +1578,21 @@
 
 .statements-cards-viewport {
   padding: 8px 4px;
+}
+
+.statements-cards-section + .statements-cards-section {
+  margin-top: 16px;
+}
+
+.statements-cards-section-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.statements-cards-section-cash .statements-cards-section-title {
+  color: #166534;
 }
 
 .statements-cards-grid {
@@ -1585,6 +1622,16 @@
 
 .statements-client-card:active {
   transform: translateY(1px);
+}
+
+.statements-client-card-cash {
+  border-color: #86efac;
+  background: linear-gradient(160deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.statements-client-card-cash:hover {
+  border-color: #16a34a;
+  box-shadow: 0 8px 20px rgba(22, 163, 74, 0.15);
 }
 
 .statements-client-card-head {
@@ -6588,6 +6635,15 @@ tbody tr:nth-child(even) td {
 
 tbody tr:hover td {
   background: #eff6ff;
+}
+
+/* 거래명세: 현금 처리 행은 기본 상태에서도 항상 강조 유지 */
+tbody tr.statement-row-cash td {
+  background: #eefcf3;
+}
+
+tbody tr.statement-row-cash:hover td {
+  background: #dcfce7;
 }
 
 tbody td:nth-child(3),
