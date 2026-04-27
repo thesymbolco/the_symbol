@@ -216,7 +216,7 @@ const newEmptyRow = (): StaffPayrollRecord => ({
 function StaffPayrollPage() {
   const { mode, activeCompanyId, user } = useAppRuntime()
   const [pageState, setPageState] = useState<StaffPayrollPageState>(defaultState)
-  const [statusMessage, setStatusMessage] = useState('이 브라우저에만 자동 저장됩니다.')
+  const [statusMessage, setStatusMessage] = useState('이 브라우저에 자동 저장됩니다. 클라우드는 ☁ 버튼으로 저장하세요.')
   const [isStorageReady, setIsStorageReady] = useState(false)
   const [isCloudReady, setIsCloudReady] = useState(mode === 'local')
   const {
@@ -234,6 +234,15 @@ function StaffPayrollPage() {
   const [unlockPin, setUnlockPin] = useState('')
   const [unlockError, setUnlockError] = useState('')
   const lastCloudPollJsonRef = useRef('')
+  const lastCloudSyncedJsonRef = useRef('')
+  const pageStateRef = useRef(pageState)
+  pageStateRef.current = pageState
+
+  const syncLastCloudRefFromState = (nextState: StaffPayrollPageState) => {
+    const j = JSON.stringify(nextState)
+    lastCloudSyncedJsonRef.current = j
+    lastCloudPollJsonRef.current = j
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -247,6 +256,13 @@ function StaffPayrollPage() {
         return
       }
       setPageState(nextState)
+      if (source === 'cloud') {
+        syncLastCloudRefFromState(nextState)
+      } else if (!hasRemote) {
+        lastCloudSyncedJsonRef.current = ''
+      } else {
+        lastCloudSyncedJsonRef.current = JSON.stringify(nextState)
+      }
       setStatusMessage(
         source === 'cloud'
           ? '클라우드에서 직원·급여 목록을 불러왔습니다.'
@@ -300,44 +316,40 @@ function StaffPayrollPage() {
     if (skipInitialDocumentSave()) {
       return
     }
-    const currentJson = JSON.stringify(pageState)
-    if (currentJson === lastCloudPollJsonRef.current) {
-      return
+    if (JSON.stringify(pageState) !== lastCloudSyncedJsonRef.current) {
+      markDocumentDirty()
     }
-
-    markDocumentDirty()
-
-    const timeoutId = window.setTimeout(() => {
-      markDocumentSaving()
-      void saveCompanyDocument(
-        activeCompanyId,
-        COMPANY_DOCUMENT_KEYS.staffPayrollPage,
-        pageState,
-        user?.id,
-      )
-        .then(() => {
-          markDocumentSaved()
-        })
-        .catch((error) => {
-          console.error('직원·급여 클라우드 저장에 실패했습니다.', error)
-          markDocumentError()
-        })
-    }, 600)
-
-    return () => window.clearTimeout(timeoutId)
   }, [
     activeCompanyId,
     isCloudReady,
     isStorageReady,
     mode,
     pageState,
-    user?.id,
     markDocumentDirty,
-    markDocumentError,
-    markDocumentSaved,
-    markDocumentSaving,
     skipInitialDocumentSave,
   ])
+
+  const handleSaveToCloud = async () => {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+    markDocumentSaving()
+    try {
+      await saveCompanyDocument(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.staffPayrollPage,
+        pageStateRef.current,
+        user?.id,
+      )
+      syncLastCloudRefFromState(pageStateRef.current)
+      markDocumentSaved()
+      setStatusMessage('직원·급여 목록을 클라우드에 저장했습니다.')
+    } catch (error) {
+      console.error('직원·급여 클라우드 저장에 실패했습니다.', error)
+      markDocumentError()
+      setStatusMessage('클라우드 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+    }
+  }
 
   useEffect(() => {
     if (mode !== 'cloud' || !activeCompanyId) {
@@ -362,9 +374,12 @@ function StaffPayrollPage() {
         }
         const normalized = normalizePageState(remote)
         const nextJson = JSON.stringify(normalized)
+        if (JSON.stringify(pageStateRef.current) !== lastCloudSyncedJsonRef.current) {
+          return
+        }
         if (nextJson !== lastJson) {
           lastJson = nextJson
-          lastCloudPollJsonRef.current = nextJson
+          syncLastCloudRefFromState(normalized)
           setPageState(normalized)
         }
       } catch {
@@ -375,7 +390,7 @@ function StaffPayrollPage() {
     }
 
     void poll()
-    const id = window.setInterval(() => void poll(), 2500)
+    const id = window.setInterval(() => void poll(), 8000)
     return () => {
       cancelled = true
       window.clearInterval(id)
@@ -418,8 +433,32 @@ function StaffPayrollPage() {
       setStatusMessage('삭제하려면 잠금을 먼저 해제하세요.')
       return
     }
-    setPageState((prev) => ({ ...prev, records: prev.records.filter((r) => r.id !== id) }))
+    const nextState: StaffPayrollPageState = {
+      ...pageStateRef.current,
+      records: pageStateRef.current.records.filter((r) => r.id !== id),
+    }
+    setPageState(nextState)
     setStatusMessage('행을 삭제했습니다.')
+    if (mode === 'cloud' && activeCompanyId) {
+      void (async () => {
+        try {
+          markDocumentSaving()
+          await saveCompanyDocument(
+            activeCompanyId,
+            COMPANY_DOCUMENT_KEYS.staffPayrollPage,
+            nextState,
+            user?.id,
+          )
+          syncLastCloudRefFromState(nextState)
+          markDocumentSaved()
+          setStatusMessage('행을 삭제하고 클라우드에 반영했습니다.')
+        } catch (error) {
+          console.error('직원·급여 삭제 후 클라우드 저장에 실패했습니다.', error)
+          markDocumentError()
+          setStatusMessage('행은 삭제되었지만 클라우드 반영에 실패했습니다. ☁ 버튼으로 다시 저장해 주세요.')
+        }
+      })()
+    }
   }
 
   const openUnlockDialog = () => {
@@ -540,6 +579,30 @@ function StaffPayrollPage() {
           <button type="button" className="ghost-button expense-toolbar-btn" onClick={addRow}>
             행 추가
           </button>
+          {mode === 'cloud' && activeCompanyId ? (
+            <button
+              type="button"
+              className={
+                saveState === 'saving'
+                  ? 'ghost-button expense-toolbar-btn expense-cloud-save-mini expense-cloud-save-mini--synced'
+                  : saveState === 'saved'
+                    ? 'ghost-button expense-toolbar-btn expense-cloud-save-mini expense-cloud-save-mini--synced'
+                    : 'ghost-button expense-toolbar-btn expense-cloud-save-mini expense-cloud-save-mini--pending'
+              }
+              onClick={() => void handleSaveToCloud()}
+              disabled={saveState === 'saving'}
+              title={
+                saveState === 'saving'
+                  ? '클라우드 저장 중'
+                  : saveState === 'saved'
+                    ? '클라우드에 반영됨 (수정 시 다시 누르세요)'
+                    : '클라우드에 저장'
+              }
+              aria-label="클라우드에 저장"
+            >
+              {saveState === 'saving' ? '…' : '☁'}
+            </button>
+          ) : null}
           <button
             type="button"
             className="ghost-button expense-toolbar-btn"
