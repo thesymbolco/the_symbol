@@ -14,7 +14,6 @@ import {
   BLENDING_DARK_BEAN_NAME,
   BLENDING_DECAFFEINE_BEAN_NAME,
   BLENDING_LIGHT_BEAN_NAME,
-  canonicalBlendDisplayName,
   isBlendingDarkBeanRow,
   isBlendingDecaffeineBeanRow,
   isBlendingLightBeanRow,
@@ -2235,26 +2234,92 @@ function InventoryStatusPage() {
   }, [computedRoastingTotals, roastingDailyRows])
 
   const roastingSummaryRows = useMemo(() => {
-    const maxTotal = Math.max(...computedRoastingTotals, 0)
+    const isBlendColumnName = (name: string) =>
+      roastingColumnMatchesBeanRow(name, BLENDING_DARK_BEAN_NAME) ||
+      roastingColumnMatchesBeanRow(name, BLENDING_LIGHT_BEAN_NAME) ||
+      roastingColumnMatchesBeanRow(name, BLENDING_DECAFFEINE_BEAN_NAME)
+    const blendUsageByColumnIndex = new Map<number, number>()
+    const addBlendUsage = (
+      blendName: string,
+      recipe: InventoryStatusState['blendingDarkRecipe'],
+      cycles: readonly number[],
+    ) => {
+      if (!recipe) {
+        return
+      }
+      const totalRawPerCycle = recipe.components.reduce((sum, component) => sum + component.rawPerCycle, 0)
+      const monthlyCycleCountRaw = cycles.reduce((sum, count) => sum + Math.max(0, Number(count) || 0), 0)
+      let monthlyCycleCount = monthlyCycleCountRaw
+      if (monthlyCycleCount <= 0 && totalRawPerCycle > 0) {
+        // 사이클 기록이 0이어도 블렌딩 생산(사용) 합이 있다면 생산량으로 역산해 사용량을 보여준다.
+        const blendColIndex = inventoryState.roastingColumns.findIndex((column) =>
+          roastingColumnMatchesBeanRow(column, blendName),
+        )
+        if (blendColIndex >= 0) {
+          const blendRoastedTotal = computedRoastingTotals[blendColIndex] ?? 0
+          if (blendRoastedTotal > 0) {
+            monthlyCycleCount = blendRoastedTotal / totalRawPerCycle
+          }
+        }
+      }
+      if (monthlyCycleCount <= 0) {
+        return
+      }
+      recipe.components.forEach((component) => {
+        const colIndex = inventoryState.roastingColumns.findIndex((column) =>
+          roastingColumnMatchesBeanRow(column, component.beanName),
+        )
+        if (colIndex < 0) {
+          return
+        }
+        const usage = component.rawPerCycle * monthlyCycleCount
+        blendUsageByColumnIndex.set(colIndex, (blendUsageByColumnIndex.get(colIndex) ?? 0) + usage)
+      })
+    }
+    addBlendUsage(
+      BLENDING_DARK_BEAN_NAME,
+      inventoryState.blendingDarkRecipe,
+      inventoryState.blendingDarkCycles ?? [],
+    )
+    addBlendUsage(
+      BLENDING_LIGHT_BEAN_NAME,
+      inventoryState.blendingLightRecipe,
+      inventoryState.blendingLightCycles ?? [],
+    )
+    addBlendUsage(
+      BLENDING_DECAFFEINE_BEAN_NAME,
+      inventoryState.blendingDecaffeineRecipe,
+      inventoryState.blendingDecaffeineCycles ?? [],
+    )
+
     const totalForShare = inventoryState.roastingColumns.reduce((sum, column, index) => {
-      const roastedTotal = computedRoastingTotals[index] ?? 0
-      const c = canonicalBlendDisplayName(column.trim())
-      const skipBlendColumn = c === BLENDING_DARK_BEAN_NAME || c === BLENDING_DECAFFEINE_BEAN_NAME
-      return skipBlendColumn ? sum : sum + roastedTotal
+      const rawRoastedTotal = computedRoastingTotals[index] ?? 0
+      const blendUsageTotal = blendUsageByColumnIndex.get(index) ?? 0
+      const roastedTotal = isBlendColumnName(column) ? rawRoastedTotal : Math.max(0, rawRoastedTotal - blendUsageTotal)
+      return isBlendColumnName(column) ? sum : sum + roastedTotal
     }, 0)
+    const maxTotal = inventoryState.roastingColumns.reduce((maxValue, column, index) => {
+      const rawRoastedTotal = computedRoastingTotals[index] ?? 0
+      const blendUsageTotal = blendUsageByColumnIndex.get(index) ?? 0
+      const roastedTotal = isBlendColumnName(column) ? rawRoastedTotal : Math.max(0, rawRoastedTotal - blendUsageTotal)
+      return Math.max(maxValue, roastedTotal)
+    }, 0)
+
     const rows = inventoryState.roastingColumns.map((column, index) => {
-      const roastedTotal = computedRoastingTotals[index] ?? 0
-      const c = canonicalBlendDisplayName(column.trim())
-      const isBlendingDark = c === BLENDING_DARK_BEAN_NAME
-      const isBlendingDecaf = c === BLENDING_DECAFFEINE_BEAN_NAME
+      const rawRoastedTotal = computedRoastingTotals[index] ?? 0
+      const isBlendColumn = isBlendColumnName(column)
+      const blendUsageTotal = blendUsageByColumnIndex.get(index) ?? 0
+      const roastedTotal = isBlendColumn ? rawRoastedTotal : Math.max(0, rawRoastedTotal - blendUsageTotal)
       const displayNo = roastingColumnIndexToDisplayNo.get(index) ?? null
       return {
         name: column,
         columnIndex: index,
         displayNo,
         roastedTotal,
-        share: isBlendingDark || isBlendingDecaf ? null : totalForShare > 0 ? roastedTotal / totalForShare : null,
+        blendUsageTotal,
+        share: isBlendColumn ? null : totalForShare > 0 ? roastedTotal / totalForShare : null,
         heatLevel: getHeatLevel(roastedTotal, maxTotal),
+        isBlendColumn,
       }
     })
 
@@ -2266,7 +2331,17 @@ function InventoryStatusPage() {
       }
       return normalizeNameKey(left.name).localeCompare(normalizeNameKey(right.name), 'ko')
     })
-  }, [computedRoastingTotals, inventoryState.roastingColumns, roastingColumnIndexToDisplayNo])
+  }, [
+    computedRoastingTotals,
+    inventoryState.blendingDarkCycles,
+    inventoryState.blendingDarkRecipe,
+    inventoryState.blendingDecaffeineCycles,
+    inventoryState.blendingDecaffeineRecipe,
+    inventoryState.blendingLightCycles,
+    inventoryState.blendingLightRecipe,
+    inventoryState.roastingColumns,
+    roastingColumnIndexToDisplayNo,
+  ])
 
   const visibleRoastingColumnIndices = useMemo(() => {
     const indices = roastingColumnOrder
@@ -2278,6 +2353,17 @@ function InventoryStatusPage() {
   const visibleRoastingSummaryRows = useMemo(
     () => roastingSummaryRows.filter((row) => !hideZeroRoastingItems || row.roastedTotal > 0),
     [hideZeroRoastingItems, roastingSummaryRows],
+  )
+  const visibleBlendingUsageRows = useMemo(
+    () =>
+      roastingSummaryRows.filter(
+        (row) => !row.isBlendColumn && (!hideZeroRoastingItems || row.blendUsageTotal > 0),
+      ),
+    [hideZeroRoastingItems, roastingSummaryRows],
+  )
+  const totalBlendingUsage = useMemo(
+    () => visibleBlendingUsageRows.reduce((sum, row) => sum + row.blendUsageTotal, 0),
+    [visibleBlendingUsageRows],
   )
 
   const topRoastingItem = useMemo(() => {
@@ -3894,31 +3980,63 @@ function InventoryStatusPage() {
                 </strong>
               </div>
             </div>
-            <div className="table-wrapper">
-              <table className="meeting-table inventory-table">
-                <thead>
-                  <tr>
-                    <th>NO · 품목</th>
-                    <th>생산(사용) 합</th>
-                    <th>비중</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleRoastingSummaryRows.map((row) => (
-                    <tr key={`roasting-summary-${row.columnIndex}`}>
-                      <td className={`inventory-text-left inventory-heat-cell ${row.heatLevel}`}>
-                        {row.displayNo != null ? (
-                          <span className="inventory-bean-summary-no-prefix">{row.displayNo}.</span>
-                        ) : null}
-                        {row.displayNo != null ? ' ' : null}
-                        {row.name}
-                      </td>
-                      <td>{formatTwoDecimals(row.roastedTotal)}kg</td>
-                      <td>{row.share === null ? '-' : row.share > 0 ? `${(row.share * 100).toFixed(1)}%` : '-'}</td>
+            <div className="inventory-roasting-summary-tables">
+              <div className="table-wrapper">
+                <table className="meeting-table inventory-table">
+                  <thead>
+                    <tr>
+                      <th>NO · 품목</th>
+                      <th>생산(사용) 합</th>
+                      <th>비중</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {visibleRoastingSummaryRows.map((row) => (
+                      <tr key={`roasting-summary-${row.columnIndex}`}>
+                        <td className={`inventory-text-left inventory-heat-cell ${row.heatLevel}`}>
+                          {row.displayNo != null ? (
+                            <span className="inventory-bean-summary-no-prefix">{row.displayNo}.</span>
+                          ) : null}
+                          {row.displayNo != null ? ' ' : null}
+                          {row.name}
+                        </td>
+                        <td>{formatTwoDecimals(row.roastedTotal)}kg</td>
+                        <td>{row.share === null ? '-' : row.share > 0 ? `${(row.share * 100).toFixed(1)}%` : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="table-wrapper">
+                <table className="meeting-table inventory-table">
+                  <thead>
+                    <tr>
+                      <th>블렌딩용 원두</th>
+                      <th>사용량</th>
+                      <th>비중</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleBlendingUsageRows.map((row) => (
+                      <tr key={`roasting-summary-blend-usage-${row.columnIndex}`}>
+                        <td className={`inventory-text-left inventory-heat-cell ${row.heatLevel}`}>
+                          {row.displayNo != null ? (
+                            <span className="inventory-bean-summary-no-prefix">{row.displayNo}.</span>
+                          ) : null}
+                          {row.displayNo != null ? ' ' : null}
+                          {row.name}
+                        </td>
+                        <td>{formatTwoDecimals(row.blendUsageTotal)}kg</td>
+                        <td>
+                          {row.blendUsageTotal > 0 && totalBlendingUsage > 0
+                            ? `${((row.blendUsageTotal / totalBlendingUsage) * 100).toFixed(1)}%`
+                            : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 

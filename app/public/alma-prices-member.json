@@ -1,8 +1,8 @@
 {
   "source": "almacielo-member",
   "sourceUrl": "https://www.almacielo.com/content/content.php?cont=my_price",
-  "fetchedAt": "2026-04-23T02:23:53.166Z",
-  "itemCount": 96,
+  "fetchedAt": "2026-04-27T06:51:14.844Z",
+  "itemCount": 98,
   "items": [
     {
       "itemName": "[20UP] 인도 카피로얄 로부스타 AB *20kg이상주문부터",
@@ -209,10 +209,22 @@
       "supplyNote": "NEW / 계절한정"
     },
     {
+      "itemName": "브라질 파라이소 테라노바 내추럴",
+      "price": 20600,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=806BEAFE154032A5B818E97B4420AD98&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "마이크로랏"
+    },
+    {
       "itemName": "브라질 파인컵 벌크로스터",
       "price": 13000,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=C3E0C62EE91DB8DC7382BDE7419BB573&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "★지속판매"
+    },
+    {
+      "itemName": "브라질 파젠다 로보 내추럴",
+      "price": 21100,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=4462BF0DDBE0D0DA40E1E828EBEBEB11&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "마이크로랏"
     },
     {
       "itemName": "브라질 헤나투 옐로우 버번 내추럴 NY2 16UP FC",
@@ -284,7 +296,7 @@
       "itemName": "에티오피아 코케 허니 예가체프 G1",
       "price": 22400,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=E0EC453E28E061CC58AC43F91DC2F3F0&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
-      "supplyNote": "★지속판매"
+      "supplyNote": "결품임박"
     },
     {
       "itemName": "엘 살바도르 SHG EP ※4월말 재입고 예정",
@@ -548,7 +560,7 @@
       "itemName": "탄자니아 맘바 PB TOP 킬리만자로",
       "price": 20700,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=8F19793B2671094E63A15AB883D50137&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
-      "supplyNote": "NEW / 마이크로랏"
+      "supplyNote": "종료임박"
     },
     {
       "itemName": "탄자니아 모시 AA 노스",

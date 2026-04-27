@@ -334,54 +334,28 @@ type ExpenseCategorySummaryRow = {
   category: string
   totalAmount: number
   count: number
-  unpaidAmount: number
-  budgetAmount: number
-  overBudgetRate: number
 }
 
 type ExpensePaymentSummaryRow = { paymentMethod: string; totalAmount: number }
-type ExpenseDailyFlowRow = { expenseDate: string; totalAmount: number }
-
-const CATEGORY_MONTHLY_BUDGETS: Record<string, number> = {
-  원재료비: 3000000,
-  소모품비: 500000,
-  인건비: 10000000,
-  임차료: 2500000,
-  '전기/수도/가스': 700000,
-  '배달/물류/택배': 1200000,
-  '광고/마케팅': 1000000,
-  수수료: 900000,
-  '장비/수리비': 600000,
-  기타운영비: 800000,
-}
 
 const summarizeExpenseByCategory = (
   records: ExpenseRecord[],
-  categoryBudgets: Record<string, number>,
   allCategories: string[],
 ): ExpenseCategorySummaryRow[] => {
-  const grouped = new Map<string, { totalAmount: number; count: number; unpaidAmount: number }>()
+  const grouped = new Map<string, { totalAmount: number; count: number }>()
   records.forEach((record) => {
-    const current = grouped.get(record.category) ?? { totalAmount: 0, count: 0, unpaidAmount: 0 }
+    const current = grouped.get(record.category) ?? { totalAmount: 0, count: 0 }
     current.totalAmount += record.totalAmount
     current.count += 1
-    if (record.paymentStatus === '미지급') {
-      current.unpaidAmount += record.totalAmount
-    }
     grouped.set(record.category, current)
   })
   for (const category of allCategories) {
     if (!grouped.has(category)) {
-      grouped.set(category, { totalAmount: 0, count: 0, unpaidAmount: 0 })
+      grouped.set(category, { totalAmount: 0, count: 0 })
     }
   }
   return Array.from(grouped.entries())
-    .map(([category, value]) => {
-      const budgetAmount = categoryBudgets[category] ?? CATEGORY_MONTHLY_BUDGETS[category] ?? 0
-      const overBudgetRate =
-        budgetAmount > 0 ? Math.max(0, ((value.totalAmount - budgetAmount) / budgetAmount) * 100) : 0
-      return { category, ...value, budgetAmount, overBudgetRate }
-    })
+    .map(([category, value]) => ({ category, ...value }))
     .sort((left, right) => right.totalAmount - left.totalAmount)
 }
 
@@ -396,16 +370,6 @@ const summarizeExpenseByPaymentMethod = (records: ExpenseRecord[]): ExpensePayme
   return Array.from(grouped.entries())
     .map(([paymentMethod, totalAmount]) => ({ paymentMethod, totalAmount }))
     .sort((left, right) => right.totalAmount - left.totalAmount)
-}
-
-const summarizeExpenseDailyFlow = (records: ExpenseRecord[]): ExpenseDailyFlowRow[] => {
-  const grouped = new Map<string, number>()
-  records.forEach((record) => {
-    grouped.set(record.expenseDate, (grouped.get(record.expenseDate) ?? 0) + record.totalAmount)
-  })
-  return Array.from(grouped.entries())
-    .map(([expenseDate, totalAmount]) => ({ expenseDate, totalAmount }))
-    .sort((left, right) => left.expenseDate.localeCompare(right.expenseDate))
 }
 
 const parseQuickMmDd = (digits: string, year: number) => {
@@ -1101,21 +1065,15 @@ function ExpensePage() {
     () => recordsForAggregates.filter((record) => record.paymentStatus === '미지급').length,
     [recordsForAggregates],
   )
-  const activeMonthCategoryBudgets = useMemo(
-    () => pageState.categoryBudgetsByMonth?.[pageState.activeMonth] ?? {},
-    [pageState.activeMonth, pageState.categoryBudgetsByMonth],
-  )
   const categorySummaryRows = useMemo(
-    () => summarizeExpenseByCategory(recordsForAggregates, activeMonthCategoryBudgets, availableCategoryOptions),
-    [activeMonthCategoryBudgets, availableCategoryOptions, recordsForAggregates],
+    () => summarizeExpenseByCategory(recordsForAggregates, availableCategoryOptions),
+    [availableCategoryOptions, recordsForAggregates],
   )
 
   const paymentMethodSummaryRows = useMemo(
     () => summarizeExpenseByPaymentMethod(recordsForAggregates),
     [recordsForAggregates],
   )
-
-  const dailyFlowRows = useMemo(() => summarizeExpenseDailyFlow(recordsForAggregates), [recordsForAggregates])
 
   const summaryTablesEmptyMessage = useMemo(() => {
     if (monthRecords.length === 0) {
@@ -1178,24 +1136,6 @@ function ExpensePage() {
     setStatusMessage(
       source === 'shortcut' ? '새 지출 행을 추가했습니다. (Ctrl+Enter)' : '선택 월에 새 지출 행을 추가했습니다.',
     )
-  }
-
-  const updateCategoryBudgetForActiveMonth = (category: string, nextRaw: string) => {
-    const nextValue = Math.max(0, parseNumber(nextRaw))
-    setPageState((current) => {
-      const prevByMonth = current.categoryBudgetsByMonth ?? {}
-      const prevMonthBudget = prevByMonth[current.activeMonth] ?? {}
-      return {
-        ...current,
-        categoryBudgetsByMonth: {
-          ...prevByMonth,
-          [current.activeMonth]: {
-            ...prevMonthBudget,
-            [category]: nextValue,
-          },
-        },
-      }
-    })
   }
 
   const handleDeleteExpenseRow = (recordId: string) => {
@@ -1398,16 +1338,12 @@ function ExpensePage() {
         ...monthRecords.map((record) => buildExpenseExportRow(record, exportColumns)),
       ]
 
-      const categoryExportRows = summarizeExpenseByCategory(
-        monthRecords,
-        activeMonthCategoryBudgets,
-        availableCategoryOptions,
-      )
+      const categoryExportRows = summarizeExpenseByCategory(monthRecords, availableCategoryOptions)
       const paymentExportRows = summarizeExpenseByPaymentMethod(monthRecords)
 
       const categoryRows: Array<Array<string | number>> = [
-        ['카테고리', '건수', '총액', '미지급'],
-        ...categoryExportRows.map((row) => [row.category, row.count, row.totalAmount, row.unpaidAmount]),
+        ['카테고리', '건수', '총액'],
+        ...categoryExportRows.map((row) => [row.category, row.count, row.totalAmount]),
       ]
 
       const paymentRows: Array<Array<string | number>> = [
@@ -1890,10 +1826,7 @@ function ExpensePage() {
                   <tr>
                     <th>카테고리</th>
                     <th>건수</th>
-                    <th>예산</th>
                     <th>총액</th>
-                    <th>미지급</th>
-                    <th>초과율</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1901,33 +1834,12 @@ function ExpensePage() {
                     <tr key={row.category}>
                       <td>{row.category}</td>
                       <td>{row.count}건</td>
-                      <td>
-                        <input
-                          className="expense-input expense-budget-input"
-                          inputMode="numeric"
-                          value={row.budgetAmount === 0 ? '' : String(row.budgetAmount)}
-                          onChange={(event) => updateCategoryBudgetForActiveMonth(row.category, event.target.value)}
-                          placeholder="예산"
-                        />
-                      </td>
                       <td>{formatMoney(row.totalAmount)}</td>
-                      <td>{formatMoney(row.unpaidAmount)}</td>
-                      <td
-                        className={
-                          row.overBudgetRate >= 25
-                            ? 'expense-over-budget expense-over-budget--high'
-                            : row.overBudgetRate > 0
-                              ? 'expense-over-budget expense-over-budget--warn'
-                              : 'expense-over-budget'
-                        }
-                      >
-                        {row.budgetAmount > 0 ? `${row.overBudgetRate.toFixed(1)}%` : '-'}
-                      </td>
                     </tr>
                   ))}
                   {categorySummaryRows.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="inventory-empty-cell">
+                      <td colSpan={3} className="inventory-empty-cell">
                         {summaryTablesEmptyMessage}
                       </td>
                     </tr>
@@ -1955,32 +1867,6 @@ function ExpensePage() {
                     </tr>
                   ))}
                   {paymentMethodSummaryRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={2} className="inventory-empty-cell">
-                        {summaryTablesEmptyMessage}
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
-            <h3>날짜별 지출 흐름</h3>
-            <div className="table-wrapper">
-              <table className="meeting-table meeting-table-compact">
-                <thead>
-                  <tr>
-                    <th>날짜</th>
-                    <th>지출 합계</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dailyFlowRows.map((row) => (
-                    <tr key={row.expenseDate}>
-                      <td>{formatDateLabel(row.expenseDate)}</td>
-                      <td>{formatMoney(row.totalAmount)}</td>
-                    </tr>
-                  ))}
-                  {dailyFlowRows.length === 0 ? (
                     <tr>
                       <td colSpan={2} className="inventory-empty-cell">
                         {summaryTablesEmptyMessage}

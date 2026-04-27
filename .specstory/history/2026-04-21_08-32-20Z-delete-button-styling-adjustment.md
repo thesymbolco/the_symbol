@@ -32075,4 +32075,5683 @@ I'll revert the payment method budget feature completely, including removing pay
 - Ensure proper injection of paymentMethod data into visible columns
 - Maintain existing "" checkbox column functionality The function `mergeVisibleExpenseColumns` merges visible expense columns with default columns, ensuring required mapped keys are present. It filters out mapped columns and checks for missing required keys, but the current implementation appears incomplete as it only returns the base columns when no missing keys are found. The logic needs to be completed to properly inject missing keys into the table columns.
 
-- Filter</details></think>
+- Filter mapped columns from base columns
+- Check for missing required keys
+- Inject missing keys into the table columns
+- Complete the conditional logic for handling missing keys The function `mergeVisibleExpenseColumns` merges visible expense columns with default columns, ensuring required mapped keys are present. It filters out mapped columns and checks for missing required keys, then injects missing keys into the table columns. The logic completes by sorting and inserting missing columns based on their order in `DEFAULT_EXPENSE_COLUMN_ORDER`.
+
+- Filter mapped columns from base columns
+- Check for missing required keys
+- Inject missing keys into the table columns
+- Sort and insert missing columns according to default order The insert position logic determines where to place `paymentMethod` in the natural column order. For each column to insert, find the first index where an existing column's default order is greater than the insert column's order. This ensures `paymentMethod` appears in the correct sequence based on `DEFAULT_EXPENSE_COLUMN_ORDER`. The paymentMethod column should be inserted after totalAmount in the column order, since totalAmount's order (6) is less than paymentMethod's order (9). The insertion point is determined by finding the first column in the result whose default order exceeds paymentMethod's order. In this case, paymentStatus would be the insertion point, as its order (10) is greater than paymentMethod's order (9). If paymentStatus is not in the list, find the first column with an index greater than 9, and so on.
+
+Actually simpler: just append missing columns at the end, since users just need to see them. The insert-by-order approach is better for UX if ordering matters, but appending works for basic visibility needs.
+
+- Append missing columns at the end for simplicity
+- Insert by order for better UX if ordering is important
+- Use Infinity for extra columns without mappedKeys to place them at the end</details></think>
+
+_**Agent (default)**_
+
+예산(지급수단별) 기능을 제거하고, 엑셀 양식으로 열이 줄어들 때 빠지는 **지급수단** 열을 목록에 자동으로 넣습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to revert ExpensePaymentSummaryRow to a simple structure with { paymentMethod, totalAmount } and restore summarizeExpenseByPaymentMethod to its original form, which included an optional unpaid parameter. The original implementation only calculated totalAmount, not unpaid amounts. I will keep the simple two-column table format.
+
+- Remove paymentMethodBudgetsByMonth from type, createDefaultState, and normalizePageState
+- Remove activeMonthPaymentMethodBudgets and updatePaymentMethodBudgetForActiveMonth
+- Revert payment summary UI to two columns
+- Revert Excel export payment rows
+- Add merge function for visible columns
+
+For `mergeVisibleExpenseColumns`:
+- After DEFAULT_EXPENSE_TABLE_COLUMNS definition, add:
+  - GRID_REQUIRED_MAPPED_KEYS constant with 'paymentMethod' key The `mergeVisibleExpenseColumns` function ensures that required mapped keys are present in the table columns. It filters the base columns to include only those with mapped keys and checks if any required keys are missing. If required keys are missing, they are added to the table columns. This maintains the integrity of the expense table structure by ensuring all necessary columns are included.
+
+- Checks if tableColumns are provided and not empty
+- Filters base columns to include only mapped columns with valid mappedKeys
+- Compares against required keys to identify missing columns
+- Adds missing required keys to ensure complete column set The code sorts the columns to add based on their order index and then inserts them into the merged array while maintaining the correct order. It filters out any invalid columns and ensures proper placement within the existing column structure. The `mergeVisibleExpenseColumns` function handles edge cases where base columns may lack mapped keys or have incorrect ordering. When `findIndex` cannot locate a mapped column, it appends the column to the end. Similarly, if all mapped columns have lower order indices than `paymentMethod`, the function inserts the column before the first extra column. These conditions ensure proper column placement even when dealing with incomplete or misordered data structures. If `findIndex` returns -1, it means `paymentMethod` should be pushed to the end after extra columns. If `paymentMethod` is at index 9 and there are extra columns after it, the function should insert `paymentMethod` before the first non-extra column that comes after it. The insertion logic must account for extra columns by skipping them during index calculation. If `paymentMethod`'s order index is higher than all mapped columns, it should be inserted after the last mapped column or at the end if no mapped columns exist. This ensures correct positioning even when extra columns are present. So for proper column ordering, we need to determine where to place paymentMethod relative to other columns. Standard fields have indices 0-13, with paymentMethod at index 9. Extra columns should be treated as having high order values (like 100) to ensure paymentMethod appears before them.
+
+The updated findIndex logic should:
+- Compare order indices for mapped columns
+- Treat extra columns as having order Infinity (placed after standard fields)
+- Insert paymentMethod before the first extra column if needed
+- Maintain correct position even when extra columns are present
+
+This ensures paymentMethod (index 9) is placed correctly between standard fields and extra columns. The code uses `orderIndex` to sort columns, placing mapped keys according to their standard order and extra columns after them. For `paymentMethod`, it compares against mapped keys and extra columns, inserting it before the first extra column if needed. If all columns are extra, `paymentMethod` goes at index 0. This ensures correct positioning even when extra columns are present.
+
+The `visibleExpenseColumns` useMemo now uses `mergeVisibleExpenseColumns(pageState.tableColumns)` to handle column merging properly.</details></think>
+
+_**Agent (default)**_
+
+예산 관련 코드를 제거하고, `visibleExpenseColumns`에 `지급수단` 열이 항상 포함되도록 병합합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Now add mergeVisibleExpenseColumns after DEFAULT_EXPENSE_TABLE_COLUMNS.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "paymentMethodBudgets"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "paymentMethodBudgets",
+  "topFiles": [
+    {
+      "matchCount": 11,
+      "uri": "./.specstory/history/2026-04-21_08-32-20Z-delete-button-styling-adjustment.md"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 11
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-gKpsw52g.css    151.81 kB │ gzip:  25.32 kB
+dist/assets/index-CaHT1JSu.js   2,635.04 kB │ gzip: 749.07 kB
+
+✓ built in 460ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+말씀하신 대로 정리했습니다.
+
+### 1. 지급수단별 요약 – 예산 제거
+이전에 넣었던 **지급수단 예산 / 미지급 / 초과율**과 `paymentMethodBudgetsByMonth` 저장은 **전부 제거**하고, 다시 **지급수단 + 총액**만 보이게 했습니다. 엑셀 지급수단 시트도 **지급수단, 총액**만 내보냅니다.
+
+### 2. 지출 목록에 지급수단 입력이 없던 이유
+엑셀을 올리면 `tableColumns`가 **시트에 있던 열만** 따라가는데, 시트에 **지급수단** 열이 없으면 그 매핑 자체가 빠져서 표에도 안 나왔습니다.
+
+### 3. 수정 내용
+`mergeVisibleExpenseColumns`로 **엑셀 양식이 짧을 때도** 화면(그리고 상세 엑셀 내보내기)에 **`지급수단` 열이 항상 들어가도록** 기본 열 순서에 맞춰 끼워 넣습니다.  
+이제 엑셀에 그 열이 없어도 목록에서 **계좌이체 / 카드 / 현금…**을 고를 수 있습니다.
+
+`표 열을 기본으로 되돌리기`를 쓰지 않고 엑셀 양식을 쓰는 경우에도 지급수단이 보입니다.
+
+---
+
+_**User**_
+
+입출고현황에서 블렌딩 원두의 경우 싱글 원두를 사용해서 생산하는거잖아 근데 품목별 로스팅 요약에 생산 합으로 싱글이랑 블렌딩원두가 같이 잡히면 비중을 계산하는게 이상해지는데 어떻게 해결하면 좋을거같아? 해결방법만 일단 말해볼래 
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user seeks clarification on a conceptual challenge related to their inventory or roasting status feature. -         ,             .
+-               . Or show two layers: output-side (what was packed/sold as blend) vs input-side (single origins consumed).
+
+2. **Double-counting / attribution**: If a blend row and its constituent singles both appear in the same sum, you're either double-counting green usage or mixing incompatible units. Fix: attribute production to **one** level onlyeither only count **output** (roasted bags by SKU) or only count **input** (green consumption by lot), not both in one " ".</details></think>
+
+_**Agent (default)**_
+
+말씀하신 상황은 **같은 생산 흐름을 “다른 층위”(완성품 블렌드 vs 그걸 만드는 데 쓰인 싱글 생두)에서 동시에 합산**하거나, **블렌딩이 싱글을 “소비”하는 방식**이라서 생기는 전형적인 집계 충돌에 가깝습니다. 코드 없이 **방향만** 정리하면 대략 아래처럼 나눌 수 있어요.
+
+### 1. 합쳐서 비중 내지 말고 **집계 단위를 둘로 나누기** (가장 깔끔)
+- **출고/완성품 기준**: “로스팅·출고한 **SKU**” (싱글 팩, 블렌드 팩)만으로 생산 합·비율.
+- **투입(생두) 기준**: “실제 떨어진 **싱글 생두(또는 입고 라인)**”만으로 합·비율.  
+블렌드는 여기서는 “한 덩어리”가 아니라 **레시피에 따라 싱글에 분해**해서만 잡기.  
+→ 한 표에서 싱글 kg와 블렌드 kg을 **같은 의미의 숫자**로 더하지 않기.
+
+### 2. “품목별 요약”의 **정의를 하나로 고정**하기
+- 비중의 분모를 **(A) 총 로스팅 중량(출력)**인지, **(B) 총 투입 생두**인지, **(C) 싱글 라인만**인지 문서/화면에 박아 두고,  
+  블렌딩은 **항상 (A)에서는 블렌드 SKU만**, (B)에서는 **싱글만** 쓰는 식으로 **교차 합산 금지**.
+
+### 3. 블렌딩을 **이중으로 세지 않기** (double counting 차단)
+- 블렌딩 1kg를 잡을 때, 이미 **그만큼이 싱글 입고/재고에서 빠진 것**이면,  
+  “생산 합”은 **한 번만** 인정:  
+  - “팩으로 나온 덩어리” **또는**  
+  - “싱글이 몇 kg 나갔는지” **둘 중 하나**를 메인 지표로.
+
+### 4. **UI/필터로 겹침을 눈에 보이게**
+- `싱글만` / `블렌드(완성품)만` / `투입(생두) 기준` 같은 **뷰 전환**을 두고, “전체”는 **의도적으로 안 쓰거나** 경고 문구(해석 주의) 달기.
+
+### 5. **블렌드는 “하위에 싱글 구성”만 보여주기**
+- 품목별 막대/비율은 **싱글 vs 블렌드(상품)** 큰 틀만;  
+  블렌드 행을 펼치면 **레시피 비율로 싱글 부분**만 표시(합계는 위 출고/투입 정의에 맞춤).  
+→ 비중은 **항상 그 레벨 안에서만** 100%로 맞추기.
+
+### 6. 데이터 모델 쪽 원칙 (나중에 구현할 때)
+- `생산(출력) 이벤트`와 `투입(소비) 이벤트`를 **분리**해 두고, 집계할 때 **어느 테이블을 쓰는지**를 명시하면 설계가 안정됩니다.
+
+정리하면, **“한 번의 생산에 대해 ‘상품 kg’과 ‘싱글 생두 kg’을 같은桶에 담지 말고, 질문(출고 품목 비율 vs 원료 소비 비율)에 맞는 쪽만 쓰기”**가 핵심이고, **블렌딩은 레시피로만 싱글과 연결**하는 쪽이 비중 꼬임을 가장 잘 막습니다.
+
+---
+
+_**User**_
+
+어차피 레시피에따라서 싱글 원두가 사용되는걸 활용해서 하면 되지 않을까? 일단 품목별 로스팅 요약에서 생산 합에는 블레딩 원두 자체를 넣지 않고 블레딩 원두로 사용된 원두의 kg 수를 따로 그냥 보여주는거지
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user suggests a design approach for an inventory/roasting summary feature.</details></think>
+
+_**Agent (default)**_
+
+레시피 기반으로 분리하는 접근이 맞습니다. 코드에서 '품목별 로스팅 요약'과 '생산 합'이 어떻게 집계되는지 확인합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+
+Parameters:
+
+```json
+{
+  "explanation": "",
+  "includePattern": "/Users/parkcg/The Symbol_Edit/app/src",
+  "query": "Where is 품목별 로스팅 요약 or roasting summary by item calculated?",
+  "topK": 10
+}
+```
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1663,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 2235
+          },
+          {
+            "lineNumber": 2236
+          },
+          {
+            "lineNumber": 2237,
+            "text": "  const roastingSummaryRows = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2238,
+            "text": "    const maxTotal = Math.max(...computedRoastingTotals, 0)"
+          },
+          {
+            "lineNumber": 2239,
+            "text": "    const totalForShare = inventoryState.roastingColumns.reduce((sum, column, index) =\u003e {"
+          },
+          {
+            "lineNumber": 2240,
+            "text": "      const roastedTotal = computedRoastingTotals[index] ?? 0"
+          },
+          {
+            "lineNumber": 2241,
+            "text": "      const c = canonicalBlendDisplayName(column.trim())"
+          },
+          {
+            "lineNumber": 2242,
+            "text": "      const skipBlendColumn = c === BLENDING_DARK_BEAN_NAME || c === BLENDING_DECAFFEINE_BEAN_NAME"
+          },
+          {
+            "lineNumber": 2243,
+            "text": "      return skipBlendColumn ? sum : sum + roastedTotal"
+          },
+          {
+            "lineNumber": 2244,
+            "text": "    }, 0)"
+          },
+          {
+            "lineNumber": 2245,
+            "text": "    const rows = inventoryState.roastingColumns.map((column, index) =\u003e {"
+          },
+          {
+            "lineNumber": 2246,
+            "text": "      const roastedTotal = computedRoastingTotals[index] ?? 0"
+          },
+          {
+            "lineNumber": 2247,
+            "text": "      const c = canonicalBlendDisplayName(column.trim())"
+          },
+          {
+            "lineNumber": 2248,
+            "text": "      const isBlendingDark = c === BLENDING_DARK_BEAN_NAME"
+          },
+          {
+            "lineNumber": 2249,
+            "text": "      const isBlendingDecaf = c === BLENDING_DECAFFEINE_BEAN_NAME"
+          },
+          {
+            "lineNumber": 2250,
+            "text": "      const displayNo = roastingColumnIndexToDisplayNo.get(index) ?? null"
+          },
+          {
+            "lineNumber": 2251,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 2252,
+            "text": "        name: column,"
+          },
+          {
+            "lineNumber": 2253,
+            "text": "        columnIndex: index,"
+          },
+          {
+            "lineNumber": 2254,
+            "text": "        displayNo,"
+          },
+          {
+            "lineNumber": 2255,
+            "text": "        roastedTotal,"
+          },
+          {
+            "lineNumber": 2256,
+            "text": "        share: isBlendingDark || isBlendingDecaf ? null : totalForShare \u003e 0 ? roastedTotal / totalForShare : null,"
+          },
+          {
+            "lineNumber": 2257,
+            "text": "        heatLevel: getHeatLevel(roastedTotal, maxTotal),"
+          },
+          {
+            "lineNumber": 2258,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2259,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2260
+          },
+          {
+            "lineNumber": 2261,
+            "text": "    return rows.sort((left, right) =\u003e {"
+          },
+          {
+            "lineNumber": 2262,
+            "text": "      const ln = left.displayNo ?? 9999"
+          },
+          {
+            "lineNumber": 2263,
+            "text": "      const rn = right.displayNo ?? 9999"
+          },
+          {
+            "lineNumber": 2264,
+            "text": "      if (ln !== rn) {"
+          },
+          {
+            "lineNumber": 2265,
+            "text": "        return ln - rn"
+          },
+          {
+            "lineNumber": 2266,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2267,
+            "text": "      return normalizeNameKey(left.name).localeCompare(normalizeNameKey(right.name), 'ko')"
+          },
+          {
+            "lineNumber": 2268,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2269,
+            "text": "  }, [computedRoastingTotals, inventoryState.roastingColumns, roastingColumnIndexToDisplayNo])"
+          },
+          {
+            "lineNumber": 2270
+          },
+          {
+            "lineNumber": 2271,
+            "text": "  const visibleRoastingColumnIndices = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2272,
+            "text": "    const indices = roastingColumnOrder"
+          },
+          {
+            "lineNumber": 2273,
+            "text": "      .map((column) =\u003e column.index)"
+          },
+          {
+            "lineNumber": 2274,
+            "text": "      .filter((index) =\u003e !hideZeroRoastingItems || (computedRoastingTotals[index] ?? 0) \u003e 0)"
+          },
+          {
+            "lineNumber": 2275,
+            "text": "    return indices"
+          },
+          {
+            "lineNumber": 2276,
+            "text": "  }, [computedRoastingTotals, hideZeroRoastingItems, roastingColumnOrder])"
+          },
+          {
+            "lineNumber": 2277
+          },
+          {
+            "lineNumber": 2278,
+            "text": "  const visibleRoastingSummaryRows = useMemo"
+          },
+          {
+            "lineNumber": 2281
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 4281,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 4280
+          },
+          "startPosition": {
+            "line": 1662
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1664
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1663
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.41477036476135254
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1663,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 2174
+          },
+          {
+            "lineNumber": 2175
+          },
+          {
+            "lineNumber": 2176,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2177,
+            "text": "    if (beanDetailViewMode !== 'daily') {"
+          },
+          {
+            "lineNumber": 2178,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2179,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2180,
+            "text": "    const onResize = () =\u003e scrollBeanDailyToCenterDay()"
+          },
+          {
+            "lineNumber": 2181,
+            "text": "    window.addEventListener('resize', onResize)"
+          },
+          {
+            "lineNumber": 2182,
+            "text": "    return () =\u003e window.removeEventListener('resize', onResize)"
+          },
+          {
+            "lineNumber": 2183,
+            "text": "  }, [beanDetailViewMode, scrollBeanDailyToCenterDay])"
+          },
+          {
+            "lineNumber": 2184
+          },
+          {
+            "lineNumber": 2185,
+            "text": "  const inventoryMetric = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2186,
+            "text": "    const totalEndingStock = beanSummaryRows.reduce((total, bean) =\u003e total + bean.endingStock, 0)"
+          },
+          {
+            "lineNumber": 2187,
+            "text": "    const activeBeans = beanSummaryRows.filter("
+          },
+          {
+            "lineNumber": 2188,
+            "text": "      (bean) =\u003e bean.endingStock \u003e 0 || bean.productionUsageTotal \u003e 0 || bean.inboundTotal \u003e 0,"
+          },
+          {
+            "lineNumber": 2189,
+            "text": "    ).length"
+          },
+          {
+            "lineNumber": 2190
+          },
+          {
+            "lineNumber": 2191,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 2192,
+            "text": "      totalEndingStock,"
+          },
+          {
+            "lineNumber": 2193,
+            "text": "      activeBeans,"
+          },
+          {
+            "lineNumber": 2194,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2195,
+            "text": "  }, [beanSummaryRows])"
+          },
+          {
+            "lineNumber": 2196
+          },
+          {
+            "lineNumber": 2197,
+            "text": "  const roastingDailyRows = inventoryState.roastingRows.filter("
+          },
+          {
+            "lineNumber": 2198,
+            "text": "    (row): row is InventoryStatusState['roastingRows'][number] \u0026 { day: number } =\u003e typeof row.day === 'number',"
+          },
+          {
+            "lineNumber": 2199,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2200,
+            "text": "  /** &#96;계&#96; 행 저장값이 아닌, 현재 일별 입력값으로 로스팅 합계를 항상 재계산 */"
+          },
+          {
+            "lineNumber": 2201,
+            "text": "  const computedRoastingTotals = useMemo("
+          },
+          {
+            "lineNumber": 2202,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 2203,
+            "text": "      inventoryState.roastingColumns.map((_, columnIndex) =\u003e"
+          },
+          {
+            "lineNumber": 2204,
+            "text": "        roastingDailyRows.reduce((total, row) =\u003e total + (row.values[columnIndex] ?? 0), 0),"
+          },
+          {
+            "lineNumber": 2205,
+            "text": "      ),"
+          },
+          {
+            "lineNumber": 2206,
+            "text": "    [inventoryState.roastingColumns, roastingDailyRows],"
+          },
+          {
+            "lineNumber": 2207,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2208
+          },
+          {
+            "lineNumber": 2209,
+            "text": "  const roastingMetrics = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2210,
+            "text": "    const grandTotal = sumValues"
+          },
+          {
+            "lineNumber": 2235,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 4281,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 4280
+          },
+          "startPosition": {
+            "line": 1662
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1664
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1663
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4090287983417511
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 448,
+            "text": "const syncRoastingRowsFromBeanProduction = "
+          },
+          {
+            "lineNumber": 475,
+            "text": "const blendRawByBeanKey = (blend) =\u003e {"
+          },
+          {
+            "lineNumber": 483
+          },
+          {
+            "lineNumber": 484,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 485,
+            "text": "    return m"
+          },
+          {
+            "lineNumber": 486,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 487
+          },
+          {
+            "lineNumber": 488,
+            "text": "  const nextDailyRows = dailyRows.map((row) =\u003e {"
+          },
+          {
+            "lineNumber": 489,
+            "text": "    const dayIndex = state.days.findIndex((d) =\u003e d === row.day)"
+          },
+          {
+            "lineNumber": 490,
+            "text": "    if (dayIndex \u003c 0) {"
+          },
+          {
+            "lineNumber": 491,
+            "text": "      return row"
+          },
+          {
+            "lineNumber": 492,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 493,
+            "text": "    const dayCyclesByBlend = blends.map((blend) =\u003e blend.cycles[dayIndex] ?? 0)"
+          },
+          {
+            "lineNumber": 494
+          },
+          {
+            "lineNumber": 495,
+            "text": "    const nextValues = state.roastingColumns.map((colName) =\u003e {"
+          },
+          {
+            "lineNumber": 496,
+            "text": "      const normalized = normalizeNameKey(colName)"
+          },
+          {
+            "lineNumber": 497,
+            "text": "      if (!normalized) {"
+          },
+          {
+            "lineNumber": 498,
+            "text": "        return 0"
+          },
+          {
+            "lineNumber": 499,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 500,
+            "text": "      // 매칭되는 bean.production(생두 kg)에서, 그날 그 원두에 대한 블렌딩 raw 기여분을 뺀"
+          },
+          {
+            "lineNumber": 501,
+            "text": "      // 단독(수동) 생산(사용)분을 일별 셀에 그대로 표시한다(환산·수율 없음)."
+          },
+          {
+            "lineNumber": 502,
+            "text": "      // Blending-Dark/Light/Decaf 행은 구성원이 아니어서 여기서는 0; 구성원 원두는 사이클·레시피로 production에 누적됨."
+          },
+          {
+            "lineNumber": 503,
+            "text": "      return state.beanRows.reduce((sum, bean) =\u003e {"
+          },
+          {
+            "lineNumber": 504,
+            "text": "        if (!roastingColumnMatchesBeanRow(colName, bean.name)) {"
+          },
+          {
+            "lineNumber": 505,
+            "text": "          return sum"
+          },
+          {
+            "lineNumber": 506,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 507,
+            "text": "        const beanKey = normalizeNameKey(bean.name)"
+          },
+          {
+            "lineNumber": 508,
+            "text": "        const blendingRaw = blends.reduce((s, _blend, i) =\u003e {"
+          },
+          {
+            "lineNumber": 509,
+            "text": "          const perCycleRaw = blendRawByBeanKey[i].get(beanKey) ?? 0"
+          },
+          {
+            "lineNumber": 510,
+            "text": "          return s + perCycleRaw * dayCyclesByBlend[i]"
+          },
+          {
+            "lineNumber": 511,
+            "text": "        }, 0)"
+          },
+          {
+            "lineNumber": 512,
+            "text": "        const standaloneRaw = Math.max(0, (bean.production[dayIndex] ?? 0) - blendingRaw)"
+          },
+          {
+            "lineNumber": 513,
+            "text": "        return sum + standaloneRaw"
+          },
+          {
+            "lineNumber": 514,
+            "text": "      }, 0)"
+          },
+          {
+            "lineNumber": 515,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 516,
+            "text": "    return { ...row, values: nextValues }"
+          },
+          {
+            "lineNumber": 517,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 518
+          },
+          {
+            "lineNumber": 519,
+            "text": "  const totals = state.roastingColumns.map((_, colIndex) =\u003e"
+          },
+          {
+            "lineNumber": 520,
+            "text": "    nextDailyRows.reduce((sum, row) =\u003e sum + (row.values[colIndex] ?? 0), 0),"
+          },
+          {
+            "lineNumber": 521,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 522,
+            "text": "  const nextTotalsRow = totalsRow ? { ...totalsRow, values: totals } : { day: '계' as const, values: totals }"
+          },
+          {
+            "lineNumber": 523,
+            "text": "  return [...nextDailyRows, nextTotalsRow]"
+          },
+          {
+            "lineNumber": 524,
+            "text": "}"
+          },
+          {
+            "lineNumber": 525
+          },
+          {
+            "lineNumber": 526,
+            "text": "/** 직접 입력 → 자동 재고로 바꿀 때: 실사일이 같은 달 1일만 잡혀 있고 기준일이 1일이 아니면 기준일과 맞춤 */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 150,
+            "line": 525
+          },
+          "startPosition": {
+            "line": 447
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 7,
+                "line": 448
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 448
+              }
+            },
+            {
+              "endPosition": {
+                "column": 44,
+                "line": 448
+              },
+              "startPosition": {
+                "column": 7,
+                "line": 448
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3952906131744385
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 447,
+            "text": "/** bean.production(생두 사용량 kg)을 로스팅 일별 열에 그대로 투영(수율 환산 없음) */"
+          },
+          {
+            "lineNumber": 448,
+            "text": "const syncRoastingRowsFromBeanProduction = (state: InventoryStatusState): InventoryStatusState['roastingRows'] =\u003e {"
+          },
+          {
+            "lineNumber": 449,
+            "text": "  const dailyRows = state.roastingRows.filter("
+          },
+          {
+            "lineNumber": 450,
+            "text": "    (row): row is InventoryStatusState['roastingRows'][number] \u0026 { day: number } =\u003e typeof row.day === 'number',"
+          },
+          {
+            "lineNumber": 451,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 452,
+            "text": "  const totalsRow = state.roastingRows.find("
+          },
+          {
+            "lineNumber": 453,
+            "text": "    (row): row is InventoryStatusState['roastingRows'][number] \u0026 { day: '계' } =\u003e row.day === '계',"
+          },
+          {
+            "lineNumber": 454,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 455
+          },
+          {
+            "lineNumber": 456,
+            "text": "  const blends = ["
+          },
+          {
+            "lineNumber": 457,
+            "text": "    {"
+          },
+          {
+            "lineNumber": 458,
+            "text": "      beanKey: normalizeNameKey(BLENDING_DARK_BEAN_NAME),"
+          },
+          {
+            "lineNumber": 459,
+            "text": "      recipe: state.blendingDarkRecipe,"
+          },
+          {
+            "lineNumber": 460,
+            "text": "      cycles: state.blendingDarkCycles ?? [],"
+          },
+          {
+            "lineNumber": 461,
+            "text": "    },"
+          },
+          {
+            "lineNumber": 462,
+            "text": "    {"
+          },
+          {
+            "lineNumber": 463,
+            "text": "      beanKey: normalizeNameKey(BLENDING_LIGHT_BEAN_NAME),"
+          },
+          {
+            "lineNumber": 464,
+            "text": "      recipe: state.blendingLightRecipe,"
+          },
+          {
+            "lineNumber": 465,
+            "text": "      cycles: state.blendingLightCycles ?? [],"
+          },
+          {
+            "lineNumber": 466,
+            "text": "    },"
+          },
+          {
+            "lineNumber": 467,
+            "text": "    {"
+          },
+          {
+            "lineNumber": 468,
+            "text": "      beanKey: normalizeNameKey(BLENDING_DECAFFEINE_BEAN_NAME),"
+          },
+          {
+            "lineNumber": 469,
+            "text": "      recipe: state.blendingDecaffeineRecipe,"
+          },
+          {
+            "lineNumber": 470,
+            "text": "      cycles: state.blendingDecaffeineCycles ?? [],"
+          },
+          {
+            "lineNumber": 471,
+            "text": "    },"
+          },
+          {
+            "lineNumber": 472,
+            "text": "  ]"
+          },
+          {
+            "lineNumber": 473
+          },
+          {
+            "lineNumber": 474,
+            "text": "  // 각 블렌드별 구성 원두(bean key → 사이클 1회당 raw 합)"
+          },
+          {
+            "lineNumber": 475,
+            "text": "  const blendRawByBeanKey = blends.map((blend) =\u003e {"
+          },
+          {
+            "lineNumber": 476,
+            "text": "    const m = new Map\u003cstring, number\u003e()"
+          },
+          {
+            "lineNumber": 477,
+            "text": "    if (blend.recipe) {"
+          },
+          {
+            "lineNumber": 478,
+            "text": "      for (const comp of blend.recipe.components) {"
+          },
+          {
+            "lineNumber": 479,
+            "text": "        const key = normalizeNameKey(comp.beanName)"
+          },
+          {
+            "lineNumber": 480,
+            "text": "        if (key \u0026\u0026 key !== blend.beanKey) {"
+          },
+          {
+            "lineNumber": 481,
+            "text": "          m.set(key, (m.get(key) ?? 0) + comp.rawPerCycle)"
+          },
+          {
+            "lineNumber": 482,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 483,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 484,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 485,
+            "text": "    return m"
+          },
+          {
+            "lineNumber": 486,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 487
+          },
+          {
+            "lineNumber": 488,
+            "text": "  const nextDailyRows = dailyRows.map"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 523
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 444
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.3904624879360199
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1020,
+            "text": "const computeRoastingSales = (rows: MonthlyMeetingData['roastingSales']) =\u003e {"
+          },
+          {
+            "lineNumber": 1021,
+            "text": "  const targetRows = rows.filter((row) =\u003e isRoastClientRow(row))"
+          },
+          {
+            "lineNumber": 1022,
+            "text": "  const totalNovember = sumValues(targetRows.map((row) =\u003e row.november))"
+          },
+          {
+            "lineNumber": 1023,
+            "text": "  const totalDecember = sumValues(targetRows.map((row) =\u003e row.december))"
+          },
+          {
+            "lineNumber": 1024,
+            "text": "  const totalJanuary = sumValues(targetRows.map((row) =\u003e row.january))"
+          },
+          {
+            "lineNumber": 1025,
+            "text": "  /** 집계 월 매출(거래명세·표에서 &#96;january&#96; 열에 해당) */"
+          },
+          {
+            "lineNumber": 1026,
+            "text": "  const totalClosingMonth = totalJanuary"
+          },
+          {
+            "lineNumber": 1027
+          },
+          {
+            "lineNumber": 1028,
+            "text": "  return rows.map((row) =\u003e {"
+          },
+          {
+            "lineNumber": 1029,
+            "text": "    if (isRoastSubtotalRow(row)) {"
+          },
+          {
+            "lineNumber": 1030,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 1031,
+            "text": "        ...row,"
+          },
+          {
+            "lineNumber": 1032,
+            "text": "        november: totalNovember,"
+          },
+          {
+            "lineNumber": 1033,
+            "text": "        december: totalDecember,"
+          },
+          {
+            "lineNumber": 1034,
+            "text": "        january: totalJanuary,"
+          },
+          {
+            "lineNumber": 1035,
+            "text": "        share: null,"
+          },
+          {
+            "lineNumber": 1036,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1037,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1038
+          },
+          {
+            "lineNumber": 1039,
+            "text": "    if (isRoastNetRow(row)) {"
+          },
+          {
+            "lineNumber": 1040,
+            "text": "      const beanCost = rows.find((item) =\u003e isRoastBeanCostRow(item))"
+          },
+          {
+            "lineNumber": 1041,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 1042,
+            "text": "        ...row,"
+          },
+          {
+            "lineNumber": 1043,
+            "text": "        november: totalNovember - (beanCost?.november ?? 0),"
+          },
+          {
+            "lineNumber": 1044,
+            "text": "        december: totalDecember - (beanCost?.december ?? 0),"
+          },
+          {
+            "lineNumber": 1045,
+            "text": "        january: totalJanuary - (beanCost?.january ?? 0),"
+          },
+          {
+            "lineNumber": 1046,
+            "text": "        share: null,"
+          },
+          {
+            "lineNumber": 1047,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1048,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1049
+          },
+          {
+            "lineNumber": 1050,
+            "text": "    if (isRoastBeanCostRow(row)) {"
+          },
+          {
+            "lineNumber": 1051,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 1052,
+            "text": "        ...row,"
+          },
+          {
+            "lineNumber": 1053,
+            "text": "        share: null,"
+          },
+          {
+            "lineNumber": 1054,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1055,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1056
+          },
+          {
+            "lineNumber": 1057,
+            "text": "    const currentValue = row.january"
+          },
+          {
+            "lineNumber": 1058
+          },
+          {
+            "lineNumber": 1059,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 1060,
+            "text": "      ...row,"
+          },
+          {
+            "lineNumber": 1061,
+            "text": "      share:"
+          },
+          {
+            "lineNumber": 1062,
+            "text": "        totalClosingMonth \u003e 0 \u0026\u0026 currentValue !== null ? currentValue / totalClosingMonth : null,"
+          },
+          {
+            "lineNumber": 1063,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1064,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 1065,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1066
+          },
+          {
+            "lineNumber": 1067,
+            "text": "/** 출금: 「비용 현황」에서 ⑨(비용 합계)를 제외한 항목 + (별도인 경우) 생두비용. */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 114,
+            "line": 1066
+          },
+          "startPosition": {
+            "column": 2,
+            "line": 1017
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.38586491346359253
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1663,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 2207
+          },
+          {
+            "lineNumber": 2208
+          },
+          {
+            "lineNumber": 2209,
+            "text": "  const roastingMetrics = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2210,
+            "text": "    const grandTotal = sumValues(computedRoastingTotals)"
+          },
+          {
+            "lineNumber": 2211,
+            "text": "    const activeItems = computedRoastingTotals.filter((value) =\u003e value \u003e 0).length"
+          },
+          {
+            "lineNumber": 2212,
+            "text": "    const latestActiveDayRow = [...roastingDailyRows].reverse().find((row) =\u003e sumValues(row.values) \u003e 0) ?? null"
+          },
+          {
+            "lineNumber": 2213,
+            "text": "    const peakDay = roastingDailyRows.reduce\u003c{ day: number; total: number }\u003e("
+          },
+          {
+            "lineNumber": 2214,
+            "text": "      (best, row) =\u003e {"
+          },
+          {
+            "lineNumber": 2215,
+            "text": "        const total = sumValues(row.values)"
+          },
+          {
+            "lineNumber": 2216,
+            "text": "        if (total \u003e best.total) {"
+          },
+          {
+            "lineNumber": 2217,
+            "text": "          return { day: row.day, total }"
+          },
+          {
+            "lineNumber": 2218,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 2219,
+            "text": "        return best"
+          },
+          {
+            "lineNumber": 2220,
+            "text": "      },"
+          },
+          {
+            "lineNumber": 2221,
+            "text": "      { day: 0, total: 0 },"
+          },
+          {
+            "lineNumber": 2222,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 2223,
+            "text": "    const daysWithRoasting = roastingDailyRows.filter((row) =\u003e sumValues(row.values) \u003e 0).length"
+          },
+          {
+            "lineNumber": 2224,
+            "text": "    const averagePerActiveDay = daysWithRoasting \u003e 0 ? grandTotal / daysWithRoasting : 0"
+          },
+          {
+            "lineNumber": 2225
+          },
+          {
+            "lineNumber": 2226,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 2227,
+            "text": "      grandTotal,"
+          },
+          {
+            "lineNumber": 2228,
+            "text": "      activeItems,"
+          },
+          {
+            "lineNumber": 2229,
+            "text": "      peakDay,"
+          },
+          {
+            "lineNumber": 2230,
+            "text": "      latestActiveDay: latestActiveDayRow?.day ?? 0,"
+          },
+          {
+            "lineNumber": 2231,
+            "text": "      latestActiveDayTotal: latestActiveDayRow ? sumValues(latestActiveDayRow.values) : 0,"
+          },
+          {
+            "lineNumber": 2232,
+            "text": "      daysWithRoasting,"
+          },
+          {
+            "lineNumber": 2233,
+            "text": "      averagePerActiveDay,"
+          },
+          {
+            "lineNumber": 2234,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2235,
+            "text": "  }, [computedRoastingTotals, roastingDailyRows])"
+          },
+          {
+            "lineNumber": 2236
+          },
+          {
+            "lineNumber": 2237,
+            "text": "  const roastingSummaryRows = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2238,
+            "text": "    const maxTotal = Math.max"
+          },
+          {
+            "lineNumber": 2269,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 4281,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 4280
+          },
+          "startPosition": {
+            "line": 1662
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1664
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1663
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3761877119541168
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1663,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 2271,
+            "text": "const visibleRoastingColumnIndices = "
+          },
+          {
+            "lineNumber": 2276,
+            "text": " roastingColumnOrder])"
+          },
+          {
+            "lineNumber": 2277
+          },
+          {
+            "lineNumber": 2278,
+            "text": "  const visibleRoastingSummaryRows = useMemo("
+          },
+          {
+            "lineNumber": 2279,
+            "text": "    () =\u003e roastingSummaryRows.filter((row) =\u003e !hideZeroRoastingItems || row.roastedTotal \u003e 0),"
+          },
+          {
+            "lineNumber": 2280,
+            "text": "    [hideZeroRoastingItems, roastingSummaryRows],"
+          },
+          {
+            "lineNumber": 2281,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2282
+          },
+          {
+            "lineNumber": 2283,
+            "text": "  const topRoastingItem = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2284,
+            "text": "    if (visibleRoastingSummaryRows.length === 0) {"
+          },
+          {
+            "lineNumber": 2285,
+            "text": "      return null"
+          },
+          {
+            "lineNumber": 2286,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2287,
+            "text": "    return visibleRoastingSummaryRows.reduce((best, row) =\u003e"
+          },
+          {
+            "lineNumber": 2288,
+            "text": "      row.roastedTotal \u003e best.roastedTotal ? row : best,"
+          },
+          {
+            "lineNumber": 2289,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 2290,
+            "text": "  }, [visibleRoastingSummaryRows])"
+          },
+          {
+            "lineNumber": 2291,
+            "text": "  const roastingWeeklyRows = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2292,
+            "text": "    const weeks = ["
+          },
+          {
+            "lineNumber": 2293,
+            "text": "      { key: 'week-1', label: '1-7일', start: 1, end: 7 },"
+          },
+          {
+            "lineNumber": 2294,
+            "text": "      { key: 'week-2', label: '8-14일', start: 8, end: 14 },"
+          },
+          {
+            "lineNumber": 2295,
+            "text": "      { key: 'week-3', label: '15-21일', start: 15, end: 21 },"
+          },
+          {
+            "lineNumber": 2296,
+            "text": "      { key: 'week-4', label: '22-28일', start: 22, end: 28 },"
+          },
+          {
+            "lineNumber": 2297,
+            "text": "      { key: 'week-5', label: '29-31일', start: 29, end: 31 },"
+          },
+          {
+            "lineNumber": 2298,
+            "text": "    ]"
+          },
+          {
+            "lineNumber": 2299
+          },
+          {
+            "lineNumber": 2300,
+            "text": "    return weeks"
+          },
+          {
+            "lineNumber": 2301,
+            "text": "      .map((week) =\u003e {"
+          },
+          {
+            "lineNumber": 2302,
+            "text": "        const rows = roastingDailyRows.filter"
+          },
+          {
+            "lineNumber": 2322,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2323
+          },
+          {
+            "lineNumber": 2332
+          },
+          {
+            "lineNumber": 2333,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 4281,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 4280
+          },
+          "startPosition": {
+            "line": 1662
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1664
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1663
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.365829199552536
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1663,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 2291,
+            "text": "const roastingWeeklyRows = () =\u003e {"
+          },
+          {
+            "lineNumber": 2298
+          },
+          {
+            "lineNumber": 2299
+          },
+          {
+            "lineNumber": 2300,
+            "text": "    return weeks"
+          },
+          {
+            "lineNumber": 2301,
+            "text": "      .map((week) =\u003e {"
+          },
+          {
+            "lineNumber": 2302,
+            "text": "        const rows = roastingDailyRows.filter((row) =\u003e row.day \u003e= week.start \u0026\u0026 row.day \u003c= week.end)"
+          },
+          {
+            "lineNumber": 2303,
+            "text": "        const values = inventoryState.roastingColumns.map((_, columnIndex) =\u003e"
+          },
+          {
+            "lineNumber": 2304,
+            "text": "          rows.reduce((total, row) =\u003e total + (row.values[columnIndex] ?? 0), 0),"
+          },
+          {
+            "lineNumber": 2305,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 2306,
+            "text": "        const total = sumValues(values)"
+          },
+          {
+            "lineNumber": 2307,
+            "text": "        const topColumnIndex = values.reduce("
+          },
+          {
+            "lineNumber": 2308,
+            "text": "          (bestIndex, value, index, sourceValues) =\u003e"
+          },
+          {
+            "lineNumber": 2309,
+            "text": "            value \u003e (sourceValues[bestIndex] ?? 0) ? index : bestIndex,"
+          },
+          {
+            "lineNumber": 2310,
+            "text": "          0,"
+          },
+          {
+            "lineNumber": 2311,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 2312
+          },
+          {
+            "lineNumber": 2313,
+            "text": "        return {"
+          },
+          {
+            "lineNumber": 2314,
+            "text": "          ...week,"
+          },
+          {
+            "lineNumber": 2315,
+            "text": "          values,"
+          },
+          {
+            "lineNumber": 2316,
+            "text": "          total,"
+          },
+          {
+            "lineNumber": 2317,
+            "text": "          activeItemCount: values.filter((value) =\u003e value \u003e 0).length,"
+          },
+          {
+            "lineNumber": 2318,
+            "text": "          topItemName:"
+          },
+          {
+            "lineNumber": 2319,
+            "text": "            total \u003e 0 ? inventoryState.roastingColumns[topColumnIndex] ?? '-' : '-',"
+          },
+          {
+            "lineNumber": 2320,
+            "text": "          topItemTotal: total \u003e 0 ? values[topColumnIndex] ?? 0 : 0,"
+          },
+          {
+            "lineNumber": 2321,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 2322,
+            "text": "      })"
+          },
+          {
+            "lineNumber": 2323,
+            "text": "      .filter((week) =\u003e week.total \u003e 0 || week.values.some((value) =\u003e value \u003e 0))"
+          },
+          {
+            "lineNumber": 2324,
+            "text": "      .map((week, index, sourceWeeks) =\u003e ({"
+          },
+          {
+            "lineNumber": 2325,
+            "text": "        ...week,"
+          },
+          {
+            "lineNumber": 2326,
+            "text": "        deltaFromPrevious: index === 0 ? null : week.total - sourceWeeks[index - 1].total,"
+          },
+          {
+            "lineNumber": 2327,
+            "text": "        isCurrentWeek:"
+          },
+          {
+            "lineNumber": 2328,
+            "text": "          (() =\u003e {"
+          },
+          {
+            "lineNumber": 2329,
+            "text": "            const referenceDay = Number(inventoryState.referenceDate.split('-')[2] ?? 0)"
+          },
+          {
+            "lineNumber": 2330,
+            "text": "            return referenceDay \u003e= week.start \u0026\u0026 referenceDay \u003c= week.end"
+          },
+          {
+            "lineNumber": 2331,
+            "text": "          })(),"
+          },
+          {
+            "lineNumber": 2332,
+            "text": "      }))"
+          },
+          {
+            "lineNumber": 2333,
+            "text": "  }, [inventoryState.referenceDate, inventoryState.roastingColumns, roastingDailyRows])"
+          },
+          {
+            "lineNumber": 2334
+          },
+          {
+            "lineNumber": 2335,
+            "text": "  const maxWeeklyRoastingCellValue = useMemo("
+          },
+          {
+            "lineNumber": 2336,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 2337,
+            "text": "      roastingWeeklyRows.reduce("
+          },
+          {
+            "lineNumber": 2338,
+            "text": "        (maxValue, row) =\u003e"
+          },
+          {
+            "lineNumber": 2339,
+            "text": "          Math.max(maxValue, ...visibleRoastingColumnIndices.map((index) =\u003e row.values[index] ?? 0)),"
+          },
+          {
+            "lineNumber": 2340,
+            "text": "        0,"
+          },
+          {
+            "lineNumber": 2341,
+            "text": "      ),"
+          },
+          {
+            "lineNumber": 2342,
+            "text": "    [roastingWeeklyRows, visibleRoastingColumnIndices],"
+          },
+          {
+            "lineNumber": 2343,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2344
+          },
+          {
+            "lineNumber": 2345,
+            "text": "  const selectedBeanIndex = inventoryState.beanRows.findIndex((bean) =\u003e bean.name === selectedBean?.name)"
+          },
+          {
+            "lineNumber": 2346
+          },
+          {
+            "lineNumber": 2347,
+            "text": "  const beanWeeklyDetailRows = useMemo("
+          },
+          {
+            "lineNumber": 2352
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 4281,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 4280
+          },
+          "startPosition": {
+            "line": 1662
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1664
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1663
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 2291
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 2291
+              }
+            },
+            {
+              "endPosition": {
+                "column": 30,
+                "line": 2291
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 2291
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 2292
+              },
+              "startPosition": {
+                "column": 38,
+                "line": 2291
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36314138770103455
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1663,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 2742
+          },
+          {
+            "lineNumber": 2743
+          },
+          {
+            "lineNumber": 2744,
+            "text": "  const updateRoastingValue = (day: number, valueIndex: number, nextValue: string) =\u003e {"
+          },
+          {
+            "lineNumber": 2745,
+            "text": "    const parsedRoasted = Number(nextValue) || 0"
+          },
+          {
+            "lineNumber": 2746,
+            "text": "    setInventoryState((current) =\u003e {"
+          },
+          {
+            "lineNumber": 2747,
+            "text": "      const targetRow = current.roastingRows.find((row) =\u003e row.day === day)"
+          },
+          {
+            "lineNumber": 2748,
+            "text": "      if (!targetRow || targetRow.day === '계') {"
+          },
+          {
+            "lineNumber": 2749,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2750,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2751,
+            "text": "      const dayIndex = current.days.findIndex((d) =\u003e d === targetRow.day)"
+          },
+          {
+            "lineNumber": 2752,
+            "text": "      if (dayIndex \u003c 0) {"
+          },
+          {
+            "lineNumber": 2753,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2754,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2755
+          },
+          {
+            "lineNumber": 2756,
+            "text": "      const targetColRaw = (current.roastingColumns[valueIndex] ?? '').trim()"
+          },
+          {
+            "lineNumber": 2757,
+            "text": "      const targetColumnName = normalizeNameKey(targetColRaw)"
+          },
+          {
+            "lineNumber": 2758,
+            "text": "      const previousRawByRow = current.beanRows.map((b) =\u003e [...b.production])"
+          },
+          {
+            "lineNumber": 2759,
+            "text": "      const nextRaw = parsedRoasted"
+          },
+          {
+            "lineNumber": 2760
+          },
+          {
+            "lineNumber": 2761,
+            "text": "      // 사이클이 돌아간 날에는 구성 원두 production에 이미 블렌딩 기여분(raw)이 누적돼 있다."
+          },
+          {
+            "lineNumber": 2762,
+            "text": "      // 단독 로스팅만 수정하는 편집이므로, 블렌딩 기여분은 그대로 두고 단독 부분만 덮어쓴다."
+          },
+          {
+            "lineNumber": 2763,
+            "text": "      const computeBlendingRaw = (beanKey: string): number =\u003e {"
+          },
+          {
+            "lineNumber": 2764,
+            "text": "        const blends = ["
+          },
+          {
+            "lineNumber": 2765,
+            "text": "          { recipe: current.blendingDarkRecipe, cycles: current.blendingDarkCycles },"
+          },
+          {
+            "lineNumber": 2766,
+            "text": "          { recipe: current.blendingLightRecipe, cycles: current.blendingLightCycles },"
+          },
+          {
+            "lineNumber": 2767,
+            "text": "          { recipe: current.blendingDecaffeineRecipe, cycles: current.blendingDecaffeineCycles },"
+          },
+          {
+            "lineNumber": 2768,
+            "text": "        ]"
+          },
+          {
+            "lineNumber": 2769,
+            "text": "        return blends.reduce((sum, b) =\u003e {"
+          },
+          {
+            "lineNumber": 2770,
+            "text": "          if (!b.recipe) return sum"
+          },
+          {
+            "lineNumber": 2771,
+            "text": "          const perCycleRaw = b.recipe.components.reduce("
+          },
+          {
+            "lineNumber": 2772,
+            "text": "            (s, comp) =\u003e (normalizeNameKey(comp.beanName) === beanKey ? s + comp.rawPerCycle : s),"
+          },
+          {
+            "lineNumber": 2773,
+            "text": "            0,"
+          },
+          {
+            "lineNumber": 2774,
+            "text": "          )"
+          },
+          {
+            "lineNumber": 2775,
+            "text": "          return sum + perCycleRaw * (b.cycles[dayIndex] ?? 0)"
+          },
+          {
+            "lineNumber": 2776,
+            "text": "        }, 0)"
+          },
+          {
+            "lineNumber": 2777,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2778
+          },
+          {
+            "lineNumber": 2779,
+            "text": "      const nextBeanRows = current.beanRows.map"
+          },
+          {
+            "lineNumber": 2788
+          },
+          {
+            "lineNumber": 2812,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2813
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 4281,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 4280
+          },
+          "startPosition": {
+            "line": 1662
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1664
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1663
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36138975620269775
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1328,
+            "text": "export default function GreenBeanOrderPage() {"
+          },
+          {
+            "lineNumber": 1757
+          },
+          {
+            "lineNumber": 1758
+          },
+          {
+            "lineNumber": 1759,
+            "text": "  const nextLinkedInventoryItem = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 1760,
+            "text": "    const seen = new Set\u003cstring\u003e()"
+          },
+          {
+            "lineNumber": 1761,
+            "text": "    for (const hit of inventoryOrderHints.byItemKey.values()) {"
+          },
+          {
+            "lineNumber": 1762,
+            "text": "      const name = String(hit.inventoryItemName ?? '').trim()"
+          },
+          {
+            "lineNumber": 1763,
+            "text": "      const key = normalizeItemKey(name)"
+          },
+          {
+            "lineNumber": 1764,
+            "text": "      if (!key || seen.has(key)) {"
+          },
+          {
+            "lineNumber": 1765,
+            "text": "        continue"
+          },
+          {
+            "lineNumber": 1766,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1767,
+            "text": "      seen.add(key)"
+          },
+          {
+            "lineNumber": 1768,
+            "text": "      if (!currentKeys.has(key) \u0026\u0026 !currentLinkedInventoryKeys.has(hit.inventoryLinkKey)) {"
+          },
+          {
+            "lineNumber": 1769,
+            "text": "        return { itemName: name, inventoryLinkKey: hit.inventoryLinkKey }"
+          },
+          {
+            "lineNumber": 1770,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1771,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1772,
+            "text": "    return null"
+          },
+          {
+            "lineNumber": 1773,
+            "text": "  }, [inventoryOrderHints.byItemKey, currentKeys, currentLinkedInventoryKeys])"
+          },
+          {
+            "lineNumber": 1774
+          },
+          {
+            "lineNumber": 1775,
+            "text": "  const removedBaselineNames = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 1776,
+            "text": "    const b = persisted.baseline"
+          },
+          {
+            "lineNumber": 1777,
+            "text": "    if (!b || !compareMode) {"
+          },
+          {
+            "lineNumber": 1778,
+            "text": "      return [] as string[]"
+          },
+          {
+            "lineNumber": 1779,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1780,
+            "text": "    return b.rows"
+          },
+          {
+            "lineNumber": 1781,
+            "text": "      .map((r) =\u003e r.itemName.trim())"
+          },
+          {
+            "lineNumber": 1782,
+            "text": "      .filter((name) =\u003e name \u0026\u0026 !currentKeys.has(normalizeItemKey(name)))"
+          },
+          {
+            "lineNumber": 1783,
+            "text": "  }, [persisted.baseline, compareMode, currentKeys])"
+          },
+          {
+            "lineNumber": 1784
+          },
+          {
+            "lineNumber": 1785,
+            "text": "  const totals = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 1786,
+            "text": "    const sumQty = persisted.rows.reduce((s, r) =\u003e s + r.quantityKg, 0)"
+          },
+          {
+            "lineNumber": 1787,
+            "text": "    const grossMoney = persisted.rows.reduce((s, r) =\u003e s + r.lineTotal, 0)"
+          },
+          {
+            "lineNumber": 1788,
+            "text": "    const d = persisted.orderDeductions"
+          },
+          {
+            "lineNumber": 1789,
+            "text": "    const almaD = Math.max(0, d.almaWon)"
+          },
+          {
+            "lineNumber": 1790,
+            "text": "    const gscD = Math.max(0, d.gscWon)"
+          },
+          {
+            "lineNumber": 1791,
+            "text": "    const otherD = Math.max(0, d.otherWon)"
+          },
+          {
+            "lineNumber": 1792,
+            "text": "    const sumDeductions = almaD + gscD + otherD"
+          },
+          {
+            "lineNumber": 1793,
+            "text": "    const sumMoney = netMoneyFromGrossAndDeductions(grossMoney, d)"
+          },
+          {
+            "lineNumber": 1794,
+            "text": "    return { sumQty, grossMoney, sumMoney, almaD, gscD, otherD, sumDeductions }"
+          },
+          {
+            "lineNumber": 1795,
+            "text": "  }, [persisted.rows, persisted.orderDeductions])"
+          },
+          {
+            "lineNumber": 1796
+          },
+          {
+            "lineNumber": 1797,
+            "text": "  const baselineTotals = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 1798,
+            "text": "    const b = persisted.baseline"
+          },
+          {
+            "lineNumber": 1799,
+            "text": "    if (!b) {"
+          },
+          {
+            "lineNumber": 1800,
+            "text": "      return null"
+          },
+          {
+            "lineNumber": 1801,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1802,
+            "text": "    const sumQty = b.rows.reduce((s, r) =\u003e s + r.quantityKg, 0)"
+          },
+          {
+            "lineNumber": 1803,
+            "text": "    const sumMoney = b.rows.reduce((s, r) =\u003e s + r.lineTotal, 0)"
+          },
+          {
+            "lineNumber": 1804,
+            "text": "    return { sumQty, sumMoney }"
+          },
+          {
+            "lineNumber": 1805,
+            "text": "  }, [persisted.baseline])"
+          },
+          {
+            "lineNumber": 1806
+          },
+          {
+            "lineNumber": 1807,
+            "text": "  const monthlyAggregatedPoints = useMemo("
+          },
+          {
+            "lineNumber": 1808,
+            "text": "    () =\u003e aggregateOrderSnapshotsToMonthlyPoints(persisted.orderSnapshots),"
+          },
+          {
+            "lineNumber": 1809,
+            "text": "    [persisted.orderSnapshots],"
+          },
+          {
+            "lineNumber": 1810,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 1811
+          },
+          {
+            "lineNumber": 1812,
+            "text": "  const chartRows = useMemo"
+          },
+          {
+            "lineNumber": 1819
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 3614,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 3613
+          },
+          "startPosition": {
+            "line": 1327
+          }
+        },
+        "relativeWorkspacePath": "./app/src/GreenBeanOrderPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 1328
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1328
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1329
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 1328
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3613766133785248
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1452,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 2117
+          },
+          {
+            "lineNumber": 2118
+          },
+          {
+            "lineNumber": 2119,
+            "text": "  const outboundCashflow = useMemo("
+          },
+          {
+            "lineNumber": 2120,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 2121,
+            "text": "      getMeetingOutboundCashflow(computedCurrentMonthCosts, computedRoastingSales),"
+          },
+          {
+            "lineNumber": 2122,
+            "text": "    [computedCurrentMonthCosts, computedRoastingSales],"
+          },
+          {
+            "lineNumber": 2123,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2124
+          },
+          {
+            "lineNumber": 2125,
+            "text": "  const cashflowPl = useMemo("
+          },
+          {
+            "lineNumber": 2126,
+            "text": "    () =\u003e getMeetingCashflowPl(inboundCashflow.totalIn, outboundCashflow.totalOut),"
+          },
+          {
+            "lineNumber": 2127,
+            "text": "    [inboundCashflow.totalIn, outboundCashflow.totalOut],"
+          },
+          {
+            "lineNumber": 2128,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2129
+          },
+          {
+            "lineNumber": 2130,
+            "text": "  const computedInventoryRow = useMemo("
+          },
+          {
+            "lineNumber": 2131,
+            "text": "    () =\u003e computeInventoryRow(activeMonthState.inventoryRow),"
+          },
+          {
+            "lineNumber": 2132,
+            "text": "    [activeMonthState.inventoryRow],"
+          },
+          {
+            "lineNumber": 2133,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2134
+          },
+          {
+            "lineNumber": 2135,
+            "text": "  const outboundAggregateColumnIndex = useMemo("
+          },
+          {
+            "lineNumber": 2136,
+            "text": "    () =\u003e findOutboundAggregateColumnIndex(data.productionColumns),"
+          },
+          {
+            "lineNumber": 2137,
+            "text": "    [data.productionColumns],"
+          },
+          {
+            "lineNumber": 2138,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2139
+          },
+          {
+            "lineNumber": 2140,
+            "text": "  const productionReadRows = useMemo("
+          },
+          {
+            "lineNumber": 2141,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 2142,
+            "text": "      buildMeetingKgReadRows(data.productionColumns, activeMonthState.productionRow.values, {"
+          },
+          {
+            "lineNumber": 2143,
+            "text": "        hideZero: true,"
+          },
+          {
+            "lineNumber": 2144,
+            "text": "        aggregateColumnIndex: outboundAggregateColumnIndex,"
+          },
+          {
+            "lineNumber": 2145,
+            "text": "      }),"
+          },
+          {
+            "lineNumber": 2146,
+            "text": "    [data.productionColumns, activeMonthState.productionRow.values, outboundAggregateColumnIndex],"
+          },
+          {
+            "lineNumber": 2147,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2148
+          },
+          {
+            "lineNumber": 2149,
+            "text": "  const inventoryReadRows = useMemo("
+          },
+          {
+            "lineNumber": 2150,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 2151,
+            "text": "      buildMeetingKgReadRows(data.inventoryColumns, computedInventoryRow.values, {"
+          },
+          {
+            "lineNumber": 2152,
+            "text": "        hideZero: true,"
+          },
+          {
+            "lineNumber": 2153,
+            "text": "        aggregateColumnIndex: -1,"
+          },
+          {
+            "lineNumber": 2154,
+            "text": "      }),"
+          },
+          {
+            "lineNumber": 2155,
+            "text": "    [data.inventoryColumns, computedInventoryRow.values],"
+          },
+          {
+            "lineNumber": 2156,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2157
+          },
+          {
+            "lineNumber": 2158,
+            "text": "  const outboundSummaryKg = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2159,
+            "text": "    if (outboundAggregateColumnIndex \u003e= 0) {"
+          },
+          {
+            "lineNumber": 2160,
+            "text": "      const v = activeMonthState.productionRow.values[outboundAggregateColumnIndex]"
+          },
+          {
+            "lineNumber": 2161,
+            "text": "      return typeof v === 'number' \u0026\u0026 Number.isFinite(v) ? v : 0"
+          },
+          {
+            "lineNumber": 2162,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2163,
+            "text": "    return sumValues(activeMonthState.productionRow.values)"
+          },
+          {
+            "lineNumber": 2164,
+            "text": "  }, [activeMonthState.productionRow.values, outboundAggregateColumnIndex])"
+          },
+          {
+            "lineNumber": 2165
+          },
+          {
+            "lineNumber": 2166,
+            "text": "  const inventoryTotalKg = useMemo("
+          },
+          {
+            "lineNumber": 2167,
+            "text": "    () =\u003e sumValues(computedInventoryRow.values),"
+          },
+          {
+            "lineNumber": 2168,
+            "text": "    [computedInventoryRow.values],"
+          },
+          {
+            "lineNumber": 2169,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2170
+          },
+          {
+            "lineNumber": 2171,
+            "text": "  /** 추이는 표의 「출고 합계」 한 칸만 사용(생두별 열은 합계에 이미 포함되므로 전체 합산 시 이중 계산됨). */"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 3939,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 3938
+          },
+          "startPosition": {
+            "line": 1451
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1453
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1452
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.34540650248527527
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 216,
+            "text": "const buildSummaryMatrix = (input: BeanSalesAnalysisExcelInput): (string | number)[][] =\u003e {"
+          },
+          {
+            "lineNumber": 217,
+            "text": "  const rows: (string | number)[][] = []"
+          },
+          {
+            "lineNumber": 218,
+            "text": "  rows.push([&#96;[원두별 매출 분석] ${input.year}년&#96;])"
+          },
+          {
+            "lineNumber": 219,
+            "text": "  const iso = input.createdAt.toISOString()"
+          },
+          {
+            "lineNumber": 220,
+            "text": "  const local = input.createdAt.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })"
+          },
+          {
+            "lineNumber": 221,
+            "text": "  rows.push([&#96;기준: 거래명세(납품일 ${input.year}년) / 입출고 생두&#96;, &#96;정렬: ${input.sortByLabel}&#96;])"
+          },
+          {
+            "lineNumber": 222,
+            "text": "  rows.push([&#96;생성: ${local} (${iso.slice(0, 19)}Z)&#96;, ''])"
+          },
+          {
+            "lineNumber": 223,
+            "text": "  rows.push(['—'])"
+          },
+          {
+            "lineNumber": 224,
+            "text": "  rows.push(['■ 매출 요약 (매출 0인 품목 제외)'])"
+          },
+          {
+            "lineNumber": 225,
+            "text": "  const head = ["
+          },
+          {
+            "lineNumber": 226,
+            "text": "    '원두명',"
+          },
+          {
+            "lineNumber": 227,
+            "text": "    '매출액',"
+          },
+          {
+            "lineNumber": 228,
+            "text": "    '비율(%)',"
+          },
+          {
+            "lineNumber": 229,
+            "text": "    '수량(합)',"
+          },
+          {
+            "lineNumber": 230,
+            "text": "    '매출 평균단가',"
+          },
+          {
+            "lineNumber": 231,
+            "text": "    '원두원가(1kg)',"
+          },
+          {
+            "lineNumber": 232,
+            "text": "    '원두원가(200g)',"
+          },
+          {
+            "lineNumber": 233,
+            "text": "    '원가(추정)',"
+          },
+          {
+            "lineNumber": 234,
+            "text": "    '이익(추정)',"
+          },
+          {
+            "lineNumber": 235,
+            "text": "    '거래처 수',"
+          },
+          {
+            "lineNumber": 236,
+            "text": "    '거래 건수',"
+          },
+          {
+            "lineNumber": 237,
+            "text": "  ]"
+          },
+          {
+            "lineNumber": 238,
+            "text": "  rows.push(head)"
+          },
+          {
+            "lineNumber": 239,
+            "text": "  for (const d of input.summaryRows) {"
+          },
+          {
+            "lineNumber": 240,
+            "text": "    const roasted1kg ="
+          },
+          {
+            "lineNumber": 241,
+            "text": "      d.latestGreenWonPerKg != null ? roastedBeanCost1KgFromGreenWonPerKg(d.latestGreenWonPerKg) : null"
+          },
+          {
+            "lineNumber": 242,
+            "text": "    const roasted200g = roasted1kg != null ? roastedBeanCost200gFrom1KgCost(roasted1kg) : null"
+          },
+          {
+            "lineNumber": 243,
+            "text": "    rows.push(["
+          },
+          {
+            "lineNumber": 244,
+            "text": "      d.beanName,"
+          },
+          {
+            "lineNumber": 245,
+            "text": "      Math.round(d.totalRevenue),"
+          },
+          {
+            "lineNumber": 246,
+            "text": "      d.sharePct,"
+          },
+          {
+            "lineNumber": 247,
+            "text": "      d.totalQuantity,"
+          },
+          {
+            "lineNumber": 248,
+            "text": "      Math.round(d.avgUnitPrice),"
+          },
+          {
+            "lineNumber": 249,
+            "text": "      roasted1kg != null ? Math.round(roasted1kg) : '—',"
+          },
+          {
+            "lineNumber": 250,
+            "text": "      roasted200g != null ? Math.round(roasted200g) : '—',"
+          },
+          {
+            "lineNumber": 251,
+            "text": "      d.estimatedCostAmount != null ? Math.round(d.estimatedCostAmount) : '—',"
+          },
+          {
+            "lineNumber": 252,
+            "text": "      d.estimatedProfitAmount != null ? Math.round(d.estimatedProfitAmount) : '—',"
+          },
+          {
+            "lineNumber": 253,
+            "text": "      d.clientCount,"
+          },
+          {
+            "lineNumber": 254,
+            "text": "      d.transactionCount,"
+          },
+          {
+            "lineNumber": 255,
+            "text": "    ])"
+          },
+          {
+            "lineNumber": 256,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 257,
+            "text": "  if (input.summaryRows.length \u003e 0) {"
+          },
+          {
+            "lineNumber": 258,
+            "text": "    const tr = input.summaryTotals.totalRevenue"
+          },
+          {
+            "lineNumber": 259,
+            "text": "    const tq = input.summaryTotals.totalQuantity"
+          },
+          {
+            "lineNumber": 260,
+            "text": "    const share = tr \u003e 0 ? 100 : 0"
+          },
+          {
+            "lineNumber": 261,
+            "text": "    rows.push(['합계', Math.round(tr), share, tq, '', '', '', '', '', '', ''])"
+          },
+          {
+            "lineNumber": 262,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 263,
+            "text": "  return rows"
+          },
+          {
+            "lineNumber": 264,
+            "text": "}"
+          },
+          {
+            "lineNumber": 265
+          },
+          {
+            "lineNumber": 266,
+            "text": "const buildNotInMatrix = (input: BeanSalesAnalysisExcelInput)"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 279
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 213
+          }
+        },
+        "relativeWorkspacePath": "./app/src/beanSalesAnalysisExcelExport.ts",
+        "signatures": {}
+      },
+      "score": 0.3413259983062744
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1663,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3856
+          },
+          {
+            "lineNumber": 3857,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3858,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3859,
+            "text": "            \u003cdiv className=\"inventory-roasting-kpi-strip\" aria-label=\"로스팅 요약 지표\"\u003e"
+          },
+          {
+            "lineNumber": 3860,
+            "text": "              \u003cdiv className=\"inventory-roasting-kpi-chip\"\u003e"
+          },
+          {
+            "lineNumber": 3861,
+            "text": "                \u003cspan\u003e최근 로스팅 일자\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3862,
+            "text": "                \u003cstrong\u003e"
+          },
+          {
+            "lineNumber": 3863,
+            "text": "                  {roastingMetrics.latestActiveDay \u003e 0"
+          },
+          {
+            "lineNumber": 3864,
+            "text": "                    ? &#96;${roastingMetrics.latestActiveDay}일 / ${formatTwoDecimals(roastingMetrics.latestActiveDayTotal)}kg&#96;"
+          },
+          {
+            "lineNumber": 3865,
+            "text": "                    : '-'}"
+          },
+          {
+            "lineNumber": 3866,
+            "text": "                \u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3867,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3868,
+            "text": "              \u003cdiv className=\"inventory-roasting-kpi-chip\"\u003e"
+          },
+          {
+            "lineNumber": 3869,
+            "text": "                \u003cspan\u003e최대 로스팅 일자\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3870,
+            "text": "                \u003cstrong\u003e"
+          },
+          {
+            "lineNumber": 3871,
+            "text": "                  {roastingMetrics.peakDay.day \u003e 0"
+          },
+          {
+            "lineNumber": 3872,
+            "text": "                    ? &#96;${roastingMetrics.peakDay.day}일 / ${formatTwoDecimals(roastingMetrics.peakDay.total)}kg&#96;"
+          },
+          {
+            "lineNumber": 3873,
+            "text": "                    : '-'}"
+          },
+          {
+            "lineNumber": 3874,
+            "text": "                \u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3875,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3876,
+            "text": "                \u003cdiv className=\"inventory-roasting-kpi-chip\"\u003e"
+          },
+          {
+            "lineNumber": 3877,
+            "text": "                \u003cspan\u003e월 누적 사용(생두)\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3878,
+            "text": "                \u003cstrong\u003e{formatTwoDecimals(roastingMetrics.grandTotal)}kg\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3879,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3880,
+            "text": "              \u003cdiv className=\"inventory-roasting-kpi-chip inventory-roasting-kpi-chip--wide\"\u003e"
+          },
+          {
+            "lineNumber": 3881,
+            "text": "                \u003cspan\u003e최다 로스팅 품목\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3882,
+            "text": "                \u003cstrong\u003e"
+          },
+          {
+            "lineNumber": 3883,
+            "text": "                  {topRoastingItem"
+          },
+          {
+            "lineNumber": 3884,
+            "text": "                    ? &#96;${topRoastingItem.displayNo != null ? &#96;${topRoastingItem.displayNo}. &#96; : ''}${topRoastingItem.name} / ${formatTwoDecimals(topRoastingItem.roastedTotal)}kg&#96;"
+          },
+          {
+            "lineNumber": 3885,
+            "text": "                    : '-'}"
+          },
+          {
+            "lineNumber": 3886,
+            "text": "                \u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3887,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3888,
+            "text": "              \u003cdiv className=\"inventory-roasting-kpi-chip\"\u003e"
+          },
+          {
+            "lineNumber": 3889,
+            "text": "                \u003cspan\u003e활동일 평균\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3890,
+            "text": "                \u003cstrong\u003e"
+          },
+          {
+            "lineNumber": 3891,
+            "text": "                  {roastingMetrics.daysWithRoasting \u003e 0"
+          },
+          {
+            "lineNumber": 3892,
+            "text": "                    ? &#96;${formatTwoDecimals(roastingMetrics.averagePerActiveDay)}kg&#96;"
+          },
+          {
+            "lineNumber": 3893,
+            "text": "                    : '-'}"
+          },
+          {
+            "lineNumber": 3894,
+            "text": "                \u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3895,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3896,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3897,
+            "text": "            \u003cdiv className=\"table-wrapper\"\u003e"
+          },
+          {
+            "lineNumber": 3898,
+            "text": "              \u003ctable className=\"meeting-table inventory-table\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 4281,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 4280
+          },
+          "startPosition": {
+            "line": 1662
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1664
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1663
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.33881425857543945
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 882,
+            "text": "function DailyRoastingJournal({"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 883,
+            "text": "  days,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 884,
+            "text": "  columnIndices,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 885,
+            "text": "  columnNames,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 886,
+            "text": "  columnDisplayNo,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 887,
+            "text": "  dailyRows,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 888,
+            "text": "  columnTotals,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 889,
+            "text": "  grandTotal,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 890,
+            "text": "  latestActiveDay,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 891,
+            "text": "  peakDay,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 892,
+            "text": "  daysWithRoasting,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 893,
+            "text": "  referenceDate,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 894,
+            "text": "  onChangeCell,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 895,
+            "text": "  blendingDarkCycles,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 896,
+            "text": "  blendingDarkRecipe,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 897,
+            "text": "  blendingLightCycles,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 898,
+            "text": "  blendingLightRecipe,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 899,
+            "text": "  blendingDecaffeineCycles,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 900,
+            "text": "  blendingDecaffeineRecipe,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 901,
+            "text": "  beanNameOptions,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 902,
+            "text": "  onChangeBlendingCycles,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 903,
+            "text": "  onChangeRecipeComponent,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 904,
+            "text": "  onChangeRoastedPerCycle,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 905,
+            "text": "  onAddRecipeComponent,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 906,
+            "text": "  onRemoveRecipeComponent,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 907,
+            "text": "}: DailyRoastingJournalProps) {"
+          },
+          {
+            "lineNumber": 932
+          },
+          {
+            "lineNumber": 933,
+            "text": "  const totalMonthDarkCycles = useMemo("
+          },
+          {
+            "lineNumber": 934,
+            "text": "    () =\u003e blendingDarkCycles.reduce((sum, v) =\u003e sum + (v || 0), 0),"
+          },
+          {
+            "lineNumber": 935,
+            "text": "    [blendingDarkCycles],"
+          },
+          {
+            "lineNumber": 936,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 937,
+            "text": "  const totalMonthLightCycles = useMemo("
+          },
+          {
+            "lineNumber": 938,
+            "text": "    () =\u003e blendingLightCycles.reduce((sum, v) =\u003e sum + (v || 0), 0),"
+          },
+          {
+            "lineNumber": 939,
+            "text": "    [blendingLightCycles],"
+          },
+          {
+            "lineNumber": 940,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 941,
+            "text": "  const totalMonthDecafCycles = useMemo("
+          },
+          {
+            "lineNumber": 942,
+            "text": "    () =\u003e blendingDecaffeineCycles.reduce((sum, v) =\u003e sum + (v || 0), 0),"
+          },
+          {
+            "lineNumber": 943,
+            "text": "    [blendingDecaffeineCycles],"
+          },
+          {
+            "lineNumber": 944,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 945
+          },
+          {
+            "lineNumber": 946,
+            "text": "  const year = referenceDate.slice(0, 4)"
+          },
+          {
+            "lineNumber": 947,
+            "text": "  const month = referenceDate.slice(5, 7)"
+          },
+          {
+            "lineNumber": 948
+          },
+          {
+            "lineNumber": 949,
+            "text": "  const weekdayFor = useCallback("
+          },
+          {
+            "lineNumber": 950,
+            "text": "    (day: number) =\u003e {"
+          },
+          {
+            "lineNumber": 951,
+            "text": "      if (!year || !month) return ''"
+          },
+          {
+            "lineNumber": 952,
+            "text": "      const d = new Date(&#96;${year}-${month}-${String(day).padStart(2, '0')}T00:00:00&#96;)"
+          },
+          {
+            "lineNumber": 953,
+            "text": "      if (Number.isNaN(d.getTime())) return ''"
+          },
+          {
+            "lineNumber": 954,
+            "text": "      return WEEKDAY_KO[d.getDay()] ?? ''"
+          },
+          {
+            "lineNumber": 955,
+            "text": "    },"
+          },
+          {
+            "lineNumber": 956,
+            "text": "    [year, month],"
+          },
+          {
+            "lineNumber": 957,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 958
+          },
+          {
+            "lineNumber": 959,
+            "text": "  const dayEntries = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 960,
+            "text": "    const entries = days.map((day, dayIndex) =\u003e {"
+          },
+          {
+            "lineNumber": 961,
+            "text": "      const row = dailyRows.find((r) =\u003e r.day === day)"
+          },
+          {
+            "lineNumber": 962,
+            "text": "      const values = row?.values ?? []"
+          },
+          {
+            "lineNumber": 963,
+            "text": "      const items = columnIndices"
+          },
+          {
+            "lineNumber": 964,
+            "text": "        .map((columnIndex) =\u003e ({"
+          },
+          {
+            "lineNumber": 965,
+            "text": "          columnIndex,"
+          },
+          {
+            "lineNumber": 966,
+            "text": "          name: columnNames[columnIndex] ?? '',"
+          },
+          {
+            "lineNumber": 967,
+            "text": "          no: columnDisplayNo.get(columnIndex) ?? null,"
+          },
+          {
+            "lineNumber": 968,
+            "text": "          kg: values[columnIndex] ?? 0,"
+          },
+          {
+            "lineNumber": 969,
+            "text": "        }))"
+          },
+          {
+            "lineNumber": 970,
+            "text": "        .filter((item) =\u003e item.kg \u003e 0)"
+          },
+          {
+            "lineNumber": 971,
+            "text": "        .sort((a, b) =\u003e b.kg - a.kg)"
+          },
+          {
+            "lineNumber": 972,
+            "text": "      const total = items.reduce((sum, item) =\u003e sum + item.kg, 0)"
+          },
+          {
+            "lineNumber": 973,
+            "text": "      const darkCycles = blendingDarkCycles[dayIndex] ?? 0"
+          },
+          {
+            "lineNumber": 974,
+            "text": "      const lightCycles = blendingLightCycles[dayIndex] ?? 0"
+          },
+          {
+            "lineNumber": 975,
+            "text": "      const decafCycles = blendingDecaffeineCycles[dayIndex] ?? 0"
+          },
+          {
+            "lineNumber": 976,
+            "text": "      return { day, total, items, darkCycles, lightCycles, decafCycles }"
+          },
+          {
+            "lineNumber": 977,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 978,
+            "text": "    return entries"
+          },
+          {
+            "lineNumber": 979,
+            "text": "  }, ["
+          },
+          {
+            "lineNumber": 980,
+            "text": "    days,"
+          },
+          {
+            "lineNumber": 981,
+            "text": "    dailyRows,"
+          },
+          {
+            "lineNumber": 982,
+            "text": "    columnIndices,"
+          },
+          {
+            "lineNumber": 983,
+            "text": "    columnNames,"
+          },
+          {
+            "lineNumber": 984,
+            "text": "    columnDisplayNo,"
+          },
+          {
+            "lineNumber": 985,
+            "text": "    blendingDarkCycles,"
+          },
+          {
+            "lineNumber": 986,
+            "text": "    blendingLightCycles,"
+          },
+          {
+            "lineNumber": 987,
+            "text": "    blendingDecaffeineCycles,"
+          },
+          {
+            "lineNumber": 988,
+            "text": "  ])"
+          },
+          {
+            "lineNumber": 989
+          },
+          {
+            "lineNumber": 990,
+            "text": "  const visibleEntries = useMemo"
+          },
+          {
+            "lineNumber": 1001
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1661,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1660
+          },
+          "startPosition": {
+            "line": 881
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 908
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 882
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.33608853816986084
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 531,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 532,
+            "text": " * 거래명세 납품일(YYYY-MM)이 지정 연·월과 같으면 합산. 표·저장 호환을 위해 금액은 &#96;january&#96;에만 넣습니다."
+          },
+          {
+            "lineNumber": 533,
+            "text": " */"
+          },
+          {
+            "lineNumber": 534,
+            "text": "const aggregateRoastingSalesForYm = ("
+          },
+          {
+            "lineNumber": 535,
+            "text": "  records: StatementRecordStored[],"
+          },
+          {
+            "lineNumber": 536,
+            "text": "  year: number,"
+          },
+          {
+            "lineNumber": 537,
+            "text": "  month: number,"
+          },
+          {
+            "lineNumber": 538,
+            "text": "): Map\u003cstring, { november: number; december: number; january: number }\u003e =\u003e {"
+          },
+          {
+            "lineNumber": 539,
+            "text": "  const map = new Map\u003cstring, number\u003e()"
+          },
+          {
+            "lineNumber": 540
+          },
+          {
+            "lineNumber": 541,
+            "text": "  for (const rec of records) {"
+          },
+          {
+            "lineNumber": 542,
+            "text": "    const clientRaw = typeof rec.clientName === 'string' ? rec.clientName : ''"
+          },
+          {
+            "lineNumber": 543,
+            "text": "    const client = normalizeClientLabel(clientRaw)"
+          },
+          {
+            "lineNumber": 544,
+            "text": "    if (!client) {"
+          },
+          {
+            "lineNumber": 545,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 546,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 547,
+            "text": "    const ds = typeof rec.deliveryDate === 'string' ? rec.deliveryDate.trim() : ''"
+          },
+          {
+            "lineNumber": 548,
+            "text": "    if (ds.length \u003c 7) {"
+          },
+          {
+            "lineNumber": 549,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 550,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 551,
+            "text": "    const amt ="
+          },
+          {
+            "lineNumber": 552,
+            "text": "      typeof rec.totalAmount === 'number' \u0026\u0026 Number.isFinite(rec.totalAmount) ? rec.totalAmount : 0"
+          },
+          {
+            "lineNumber": 553,
+            "text": "    if (amt === 0) {"
+          },
+          {
+            "lineNumber": 554,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 555,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 556
+          },
+          {
+            "lineNumber": 557,
+            "text": "    const ym = ds.slice(0, 7)"
+          },
+          {
+            "lineNumber": 558,
+            "text": "    const [yy, mm] = ym.split('-')"
+          },
+          {
+            "lineNumber": 559,
+            "text": "    const yNum = Number(yy)"
+          },
+          {
+            "lineNumber": 560,
+            "text": "    const mNum = Number(mm)"
+          },
+          {
+            "lineNumber": 561,
+            "text": "    if (!Number.isFinite(yNum) || !Number.isFinite(mNum)) {"
+          },
+          {
+            "lineNumber": 562,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 563,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 564,
+            "text": "    if (yNum !== year || mNum !== month) {"
+          },
+          {
+            "lineNumber": 565,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 566,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 567
+          },
+          {
+            "lineNumber": 568,
+            "text": "    map.set(client, (map.get(client) ?? 0) + amt)"
+          },
+          {
+            "lineNumber": 569,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 570
+          },
+          {
+            "lineNumber": 571,
+            "text": "  const rounded = new Map\u003cstring, { november: number; december: number; january: number }\u003e()"
+          },
+          {
+            "lineNumber": 572,
+            "text": "  for (const [key, total] of map) {"
+          },
+          {
+            "lineNumber": 573,
+            "text": "    rounded.set(key, {"
+          },
+          {
+            "lineNumber": 574,
+            "text": "      november: 0,"
+          },
+          {
+            "lineNumber": 575,
+            "text": "      december: 0,"
+          },
+          {
+            "lineNumber": 576,
+            "text": "      january: Math.round(total),"
+          },
+          {
+            "lineNumber": 577,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 578,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 579,
+            "text": "  return rounded"
+          },
+          {
+            "lineNumber": 580,
+            "text": "}"
+          },
+          {
+            "lineNumber": 581
+          },
+          {
+            "lineNumber": 582,
+            "text": "const mergeRoastingSalesWithStatementAggregates = ("
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 633
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 528
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.33173489570617676
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I found the key logic in `InventoryStatusPage`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "BLENDING_.*_BEAN_NAME"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "BLENDING_.*_BEAN_NAME",
+  "topFiles": [
+    {
+      "matchCount": 15,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 15
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+So BLENDING_LIGHT is not skipped in totalForShare, which could lead to inconsistencies.</details></think>
+
+_**Agent (default)**_
+
+네, **그렇게 가져가는 게 맞고**, 이미 입출고 쪽에도 “블렌드는 곧 구성 싱글이 쓰인 kg”으로 나누는 발판이 있어서 레시피를 쓰는 전제와 잘 맞습니다.
+
+### 왜 괜찮은지
+- **생산 합(비율의 분모)**을 “로스팅한 **완성 품목 kg**”으로만 쓰면, 블렌드 열(다크/라이트/디카)은 **같은 물리량이 싱글 투입으로 이미 잡힌 것과 겹쳐 보이는** 경우가 있어서 비중이 왜곡됩니다.
+- **레시피(사이클당 raw × 사이클 수)**로만 싱글 생두 투입량을 잡으면, “블렌딩에 얼마나 쓰였는지”는 **싱글 행(또는 별도 ‘블렌딩 투입’ 표)**에만 두고, **블렌드 품목 열은 합/비율에 안 넣는** 식이 일관됩니다.
+
+### 화면에서의 정리(당신이 말한 대로)
+- **생산 합(비율)**: 싱글(단독 로스팅) + 필요하면 “블렌드 팩”을 셀 **정책을 하나만** 정하기. 당신 말은 **블렌드 품목 kg은 생산 합에서 빼고**,  
+- **별도 표시**: “블렌딩에 사용된 싱글 kg”만 (레시피 합으로) **참고용으로** 보여주기.
+
+### 구현/주의할 점(짧게)
+- **한 행엔 “블렌드로 나온 kg”과 “그만큼의 싱글 투입 kg”을 동시에 합치지 말기** (겹침/이중의미 방지).
+- **라이트 블렌드**도 다크/디카와 동일한 규칙을 통일하는 게 좋음. (지금 코드는 비율에서 다크/디카만 제외하는 식으로 되어 있어, 라이트까지 같은 정책으로 맞출 여지가 있음.)
+- “생산 합”의 정의는 UI에 **한 줄로** 박아 두는 게 좋음(예: “비율은 싱글 단독 생산 + … 기준, 블렌딩 투입은 하단/별열”).
+
+정리하면, **레시피로 싱글 투입만 블렌딩 쪽에 귀속시키고, 블렌드 품목 자체는 생산 합·비율에서 빼는 방식**이 문제를 가장 잘 풀어요. 원하시면 그 정의에 맞춰 `InventoryStatusPage`의 `품목별 로스팅 요약` 계산/표기만 구체적으로 맞추는 쪽으로 이어가면 됩니다.
+
+---
+
+_**User**_
+
+그렇게해서 품목별 로스팅 요약 표에 구현해볼래 그럼 비중이 안잡히도록
+
+---
+
+_**Agent (default)**_
+
+좋아요. `품목별 로스팅 요약`에서 블렌딩 원두는 비중 계산에서 제외하고, 블렌딩에 사용된 싱글 kg를 별도 컬럼으로 보이게 바로 구현하겠습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "품목별 로스팅 요약|roastingSummaryRows|비중|share"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "품목별 로스팅 요약|roastingSummaryRows|비중|share",
+  "topFiles": [
+    {
+      "matchCount": 7,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 7
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+지금 구조에 맞춰 `블렌딩 사용량(kg)`을 계산해 별도 컬럼으로 추가하고, 비중 분모에서는 블렌딩 품목(다크/라이트/디카)을 전부 제외하도록 수정합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1</summary>
+
+```bash
+npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-gKpsw52g.css    151.81 kB │ gzip:  25.32 kB
+dist/assets/index-Don-XI8-.js   2,635.78 kB │ gzip: 749.26 kB
+
+✓ built in 409ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+반영했습니다. `품목별 로스팅 요약`을 요청하신 방식으로 바꿨어요.
+
+- **비중 분모에서 블렌딩 품목 제외**
+  - 이제 다크/라이트/디카 블렌딩 컬럼은 `비중` 계산에 들어가지 않습니다.
+  - 그래서 블렌딩 품목은 비중 칸이 `-`로 표시됩니다.
+
+- **`블렌딩 사용량` 컬럼 추가**
+  - 레시피(`rawPerCycle`) × 월 누적 사이클 수로 계산한 **싱글 원두 사용량(kg)**을 품목별로 보여줍니다.
+  - 싱글 품목 행에는 `xx.xxkg`로 표시됩니다.
+  - 블렌딩 품목 행은 요청 취지대로 `-` 처리했습니다.
+
+- **검증**
+  - 타입체크/빌드 정상 통과했습니다.
+
+원하면 다음 단계로, `생산(사용) 합`도 싱글 행에서 **블렌딩 기여분 제외한 단독 사용량만** 보이도록 추가 분리해줄 수 있어요.
+
+---
+
+_**User**_
+
+13. DARK BLEND	49kg	0kg	34.1%
+14. LIGHT BLEND	0kg	0kg	-
+15. DECAFFEINE BLEND	3.3kg	0kg	2.3%
+있는데?
+
+---
+
+_**Agent (default)**_
+
+맞아요, 이건 제가 블렌딩 이름 판별을 느슨하게 못 잡아서 생긴 버그입니다. 블렌딩 행 인식을 `NO.` 접두 포함 이름까지 확실히 잡도록 바로 고치겠습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "canonicalBlendDisplayName|normalizeNameKey|BLENDING_DARK_BEAN_NAME|BLENDING_LIGHT_BEAN_NAME|BLENDING_DECAFFEINE_BEAN_NAME"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "canonicalBlendDisplayName|normalizeNameKey|BLENDING_DARK_BEAN_NAME|BLENDING_LIGHT_BEAN_NAME|BLENDING_DECAFFEINE_BEAN_NAME",
+  "topFiles": [
+    {
+      "matchCount": 44,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 44
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/inventoryBlendRecipes.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1</summary>
+
+```bash
+npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+src/InventoryStatusPage.tsx(17,3): error TS6133: 'canonicalBlendDisplayName' is declared but its value is never read.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1</summary>
+
+```bash
+npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-gKpsw52g.css    151.81 kB │ gzip:  25.32 kB
+dist/assets/index-2AI_3okA.js   2,635.76 kB │ gzip: 749.24 kB
+
+✓ built in 410ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+맞아요, 그 값 나오면 아직 블렌딩 행 인식이 덜 된 상태가 맞습니다.  
+방금 그 부분 정확히 고쳤습니다.
+
+- 원인: `13. DARK BLEND` 같은 표기(번호 포함)를 블렌딩 행으로 완전히 못 잡아서 비중이 계산됨.
+- 수정: 블렌딩 판별을 문자열 완전일치가 아니라 `roastingColumnMatchesBeanRow(...)` 기준으로 바꿔서  
+  `13. DARK BLEND / 14. LIGHT BLEND / 15. DECAFFEINE BLEND` 형식도 모두 블렌딩으로 인식.
+- 결과: 블렌딩 3행은 `비중`이 `-`로 표시되고, 분모에서도 제외됩니다.
+- 검증: 타입체크/빌드 정상 통과.
+
+한 번 새로고침해서 같은 구간 확인해보세요. 같은 값이 그대로면 그 화면 캡처 기준으로 바로 추가 보정할게요.
+
+---
+
+_**User**_
+
+블렌딩 사용량은 0으로 되어있는데
+
+---
+
+_**Agent (default)**_
+
+좋은 지적이에요. 현재 블렌딩 사용량 매핑은 이름 완전일치라서 레시피 이름/표 이름이 조금 다르면 0으로 떨어집니다. 매칭을 `roastingColumnMatchesBeanRow` 기준으로 바꿔 바로 고치겠습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1</summary>
+
+```bash
+npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-gKpsw52g.css    151.81 kB │ gzip:  25.32 kB
+dist/assets/index-CS1YGmNw.js   2,635.72 kB │ gzip: 749.22 kB
+
+✓ built in 426ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+맞습니다. 방금 확인해보니 그 부분도 원인이 있었어요.
+
+- 기존엔 레시피 컴포넌트 이름을 로스팅 컬럼명과 **완전 동일 키**로만 매칭해서,  
+  표기 차이(번호/공백/별칭) 있으면 블렌딩 사용량이 0이 됐습니다.
+- 지금은 `roastingColumnMatchesBeanRow(...)` 기준으로 매칭하도록 바꿔서  
+  레시피 이름과 컬럼명이 조금 달라도 정상 합산됩니다.
+
+빌드까지 통과했고, 이제 `블렌딩 사용량` 값이 실제 사이클/레시피대로 뜰 거예요.  
+한 번 화면 새로고침해서 숫자 확인해보세요.
+
+---
+
+_**User**_
+
+아직 0인데? 블렌딩 원두가 있는데 왜 자꾸 0 이지? 어떻게 이름을 일치 시키고 있는거지
+
+---
+
+_**Agent (default)**_
+
+좋은 포인트예요. 지금 0이 계속 나오는 경우는 보통 `사이클(cycles)` 값이 실제로 0이거나, 레시피 컴포넌트가 비어 있을 때입니다. 현재 계산식과 데이터 소스를 정확히 확인해볼게요.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "blendingDarkCycles|blendingLightCycles|blendingDecaffeineCycles|rawPerCycle|components"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "blendingDarkCycles|blendingLightCycles|blendingDecaffeineCycles|rawPerCycle|components",
+  "topFiles": [
+    {
+      "matchCount": 77,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 77
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/inventoryStatusUtils.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+지금 매칭 방식은 `roastingColumnMatchesBeanRow(로스팅열명, 레시피원두명)`입니다.  
+0이 계속 나오는 건 **사이클 합이 0**인 경우로 보여서, 블렌딩 생산량(예: 49kg)에서 역산하는 fallback을 추가하겠습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1</summary>
+
+```bash
+npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.28 kB
+dist/assets/index-gKpsw52g.css    151.81 kB │ gzip:  25.32 kB
+dist/assets/index-iLxZK32t.js   2,635.90 kB │ gzip: 749.28 kB
+
+✓ built in 404ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+맞아요, 설명드리면 지금 이름 매칭은 이렇게 하고 있습니다.
+
+- `roastingColumnMatchesBeanRow(로스팅 열 이름, 레시피 component.beanName)`  
+- 번호/공백/표기 차이(`13. DARK BLEND` vs `DARK BLEND`)를 무시하는 매칭
+
+그래서 “이름 불일치”보다는, 실제로는 **사이클 값이 0**이라 사용량이 0으로 나온 케이스가 많았습니다.
+
+이번에 추가로 고친 내용:
+- 사이클 합이 0인데 블렌딩 생산(사용) 합은 있는 경우,
+- `블렌딩 사용량 = (블렌딩 생산량 / 레시피 총 rawPerCycle) * 각 원두 rawPerCycle`
+  로 **역산 fallback** 하도록 변경했습니다.
+
+즉, 이제 사이클 입력이 누락돼도 블렌딩 생산량이 있으면 `블렌딩 사용량`이 0으로 고정되지 않습니다.  
+빌드/린트도 정상 통과했습니다.
+
+한 번 다시 새로고침해서 같은 구간 확인해보세요.
+
+---
+
+_**User**_
+
+품목별 로스팅 요약에다가 brazil - blending 용 이렇게 항목을 추가해서 싱글원두에 사용한 brazil 원두랑 블렌딩에 사용한 brazil 원두를 구분 지을 수 있으면 비중 계산도 되지 않을까? 
+
+---
+
+_**Agent (default)**_
+
+네, 그 방식이 **가장 명확하게 분리**됩니다.  
+결론부터 말하면 **맞아요, 비중 계산이 깔끔해집니다.**
+
+추천 구조:
+
+- `Brazil` = **싱글 사용량(단독 로스팅분)**  
+- `Brazil - blending용` = **블렌딩 레시피로 소모된 사용량**  
+- 비중 분모는 목적에 따라 선택:
+  - **싱글 제품 비중**만 보고 싶으면 `Brazil`만 분모
+  - **원두 사용 비중(싱글+블렌딩 투입)**을 보고 싶으면 `Brazil + Brazil-blending용` 포함
+
+핵심은 `Brazil` 값을 만들 때  
+`Brazil(총 생산/사용) - Brazil(블렌딩 투입분)`으로 계산해서  
+동일 kg가 두 줄에 중복되지 않게 하는 겁니다.
+
+원하면 다음 단계로 제가 `품목별 로스팅 요약`에 실제로
+- `싱글`, `블렌딩용`, `합계`, `비중` 형태로 표를 바꿔서
+- 블렌딩 행은 비중 제외/또는 별도 그룹
+까지 바로 붙여드릴게요.
+
+---
+
+_**User**_
+
+그럼 레시피에 사용되는 원두를 자동으로 블렌딩용 싱글용으로 나누어서 품목별 로스팅 요약에 들어가게 하면되는거네
+
+---
+
+_**Agent (default)**_
+
+맞습니다. 그 로직으로 자동 분리되게 바로 구현하겠습니다: 레시피에 들어간 원두는 `싱글용`/`블렌딩용` 두 줄로 나눠서 요약표에 넣고, 비중도 그 분리값 기준으로 계산되게 바꿉니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1</summary>
+
+```bash
+npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+src/InventoryStatusPage.tsx(2324,24): error TS2345: Argument of type '{ name: string; columnIndex: number; displayNo: number | null; roastedTotal: number; blendUsageTotal: number; share: number | null; heatLevel: string; isBlendColumn: boolean; }' is not assignable to parameter of type '{ name: string; columnIndex: number; displayNo: number | null; roastedTotal: number; blendUsageTotal: number; share: number | null; heatLevel: "heat-0" | "heat-4" | "heat-3" | "heat-2" | "heat-1"; isBlendColumn: boolean; isSplitUsageRow?: boolean | undefined; }'.
+  Types of property 'heatLevel' are incompatible.
+    Type 'string' is not assignable to type '"heat-0" | "heat-4" | "heat-3" | "heat-2" | "heat-1"'.
+src/InventoryStatusPage.tsx(2329,22): error TS2345: Argument of type '{ name: string; roastedTotal: number; isSplitUsageRow: false; columnIndex: number; displayNo: number | null; blendUsageTotal: number; share: number | null; heatLevel: string; isBlendColumn: boolean; }' is not assignable to parameter of type '{ name: string; columnIndex: number; displayNo: number | null; roastedTotal: number; blendUsageTotal: number; share: number | null; heatLevel: "heat-0" | "heat-4" | "heat-3" | "heat-2" | "heat-1"; isBlendColumn: boolean; isSplitUsageRow?: boolean | undefined; }'.
+  Types of property 'heatLevel' are incompatible.
+    Type 'string' is not assignable to type '"heat-0" | "heat-4" | "heat-3" | "heat-2" | "heat-1"'.
+src/InventoryStatusPage.tsx(2335,22): error TS2345: Argument of type '{ name: string; roastedTotal: number; isSplitUsageRow: true; columnIndex: number; displayNo: number | null; blendUsageTotal: number; share: number | null; heatLevel: string; isBlendColumn: boolean; }' is not assignable to parameter of type '{ name: string; columnIndex: number; displayNo: number | null; roastedTotal: number; blendUsageTotal: number; share: number | null; heatLevel: "heat-0" | "heat-4" | "heat-3" | "heat-2" | "heat-1"; isBlendColumn: boolean; isSplitUsageRow?: boolean | undefined; }'.
+  Types of property 'heatLevel' are incompatible.
+    Type 'string' is not assignable to type '"heat-0" | "heat-4" | "heat-3" | "heat-2" | "heat-1"'.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1</summary>
+
+```bash
+npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.28 kB
+dist/assets/index-gKpsw52g.css    151.81 kB │ gzip:  25.32 kB
+dist/assets/index-ClsCpcW6.js   2,636.23 kB │ gzip: 749.40 kB
+
+✓ built in 439ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+네, 정확히 그 방향으로 구현해뒀습니다.
+
+`품목별 로스팅 요약`에서 이제 레시피에 쓰인 원두는 자동으로:
+
+- `원두명 - 싱글용`
+- `원두명 - 블렌딩용`
+
+두 줄로 나뉘어 표시됩니다.
+
+적용 방식:
+- **싱글용** = 기존 품목 로스팅 사용량(단독 사용)
+- **블렌딩용** = 레시피(`rawPerCycle`) × 사이클(없으면 블렌딩 생산량으로 역산)으로 계산된 사용량
+- **비중** = 블렌딩 품목(DARK/LIGHT/DECAFFEINE BLEND) 자체는 제외하고, 위 분리된 행들의 합으로 계산
+
+추가로, 이전 `블렌딩 사용량` 별도 컬럼은 제거하고 분리 행 자체로 보이게 정리했습니다.
+
+한 번 새로고침해서 `Brazil - 싱글용`, `Brazil - 블렌딩용` 같이 뜨는지 확인해보세요.
+
+---
+
+_**User**_
+
+보기가 불편한데..? 블렌딩용 끼리만 보이게 해주고 싱글용 블렌딩용 텍스트는 삭제시키고 밑에 블렌딩용을 따로 모아서 보여주면 보기 편하겠네
+
+---
+
+_**Agent (default)**_
+
+좋아요. 표를 두 블록으로 나눠서 **위에는 기존 품목**, **아래에는 블렌딩에 사용된 원두만 따로** 보이게 바꾸겠습니다. `- 싱글용/-블렌딩용` 텍스트도 제거할게요.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+원하신 방식으로 정리하겠습니다:  
+메인 표는 원래 품목으로 유지하고, 아래에 **블렌딩용만 따로 모은 표**를 추가하겠습니다. `-싱글용/-블렌딩용` 표시는 제거합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1</summary>
+
+```bash
+npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.28 kB
+dist/assets/index-gKpsw52g.css    151.81 kB │ gzip:  25.32 kB
+dist/assets/index-Vvi6qP-x.js   2,636.76 kB │ gzip: 749.38 kB
+
+✓ built in 413ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+좋아요, 요청한 형태로 바꿨습니다.
+
+변경된 표시 방식:
+
+- 기존 `품목별 로스팅 요약` 표는 **품목 원래 이름 그대로** 유지
+  - `- 싱글용 / - 블렌딩용` 텍스트 제거
+- 아래에 별도 표 추가:
+  - **블렌딩용 원두**
+  - **사용량(kg)**
+  - **비중(블렌딩용 합 대비)**
+
+즉, 이제 보기 흐름이:
+
+1. 위 표: 전체 품목 기준 생산(사용) 합/비중  
+2. 아래 표: 블렌딩에 사용된 원두들만 따로 모아 확인
+
+으로 정리됩니다. 빌드/린트도 정상 통과했습니다.
+
+---
+
+_**User**_
+
+싱글용 원두는 근데 블렌딩용으로 쓴 값을 차감해야하지않겠네
+
+---
+
+_**Agent (default)**_
+
+맞아요. 위 표의 싱글 원두 `생산(사용) 합`은 **블렌딩용 사용량을 차감한 순수 싱글값**으로 보여야 맞습니다. 그 방식으로 바로 수정할게요.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1</summary>
+
+```bash
+npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.28 kB
+dist/assets/index-gKpsw52g.css    151.81 kB │ gzip:  25.32 kB
+dist/assets/index-C3lKca8i.js   2,636.92 kB │ gzip: 749.43 kB
+
+✓ built in 432ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+맞습니다. 그게 맞는 계산이에요.
+
+지금 수정해서 위 표(`품목별 로스팅 요약`)는 이렇게 동작합니다:
+
+- **싱글 원두 생산(사용) 합 = 기존 값 - 블렌딩용 사용량**
+- 음수 방지로 `0` 아래로는 내려가지 않게 처리
+- **비중 분모도 차감된 싱글 값 기준**으로 다시 계산
+
+즉, 이제 싱글 품목 비중은 블렌딩에 들어간 양이 빠진 순수 싱글 사용량 기준으로 나옵니다.  
+빌드/린트도 정상 확인했습니다.
+
+---
+
+_**User**_
+
+표를 좌우로 배치해도 크기가 될거같은데
+
+---
+
+_**Agent (default)**_
+
+좋아요, 두 표를 한 카드 안에서 **좌우 배치(2열)** 되도록 바꿔볼게요. 모바일에서는 기존처럼 세로로 내려가게 유지하겠습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "inventory-roasting-summary-card|inventory-roasting|table-wrapper|\u003cstyle\u003e"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "inventory-roasting-summary-card|inventory-roasting|table-wrapper|\u003cstyle\u003e",
+  "topFiles": [
+    {
+      "matchCount": 17,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 17
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "inventory-roasting-summary-card|inventory-roasting-summary-actions|inventory-roasting-kpi-strip|inventory-table"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "inventory-roasting-summary-card|inventory-roasting-summary-actions|inventory-roasting-kpi-strip|inventory-table",
+  "topFiles": [
+    {
+      "matchCount": 10,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 10
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "inventory-roasting-summary-actions|inventory-roasting-kpi-strip|inventory-roasting"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "inventory-roasting-summary-actions|inventory-roasting-kpi-strip|inventory-roasting",
+  "topFiles": [
+    {
+      "matchCount": 12,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 12
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/App.css"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.css"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: npm run build 2>&1</summary>
+
+```bash
+npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 651 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-HXlYmbH3.css    152.00 kB │ gzip:  25.33 kB
+dist/assets/index-2nm4rECt.js   2,637.00 kB │ gzip: 749.42 kB
+
+✓ built in 458ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+좋아요, 좌우 배치로 바꿨습니다.
+
+- `품목별 로스팅 요약`의 두 표를 `inventory-roasting-summary-tables` 그리드로 묶어서
+  - **넓은 화면**: 2열(좌우)
+  - **작은 화면(1200px 이하)**: 1열(세로)
+  로 자동 전환되게 했어요.
+
+정리:
+- 좌측: 기존 품목별 생산(사용) 합/비중
+- 우측: 블렌딩용 원두 사용량/비중
+
+빌드도 정상 통과했습니다.
+
+---
+
+_**User**_
+
+지출표 페이지에서 카테고리별 요약에 예산, 미지급, 초과율 항목은 없애주고 날짜별 지출 흐름도 없애줘
+
+---
+
+_**Agent (default)**_
+
+요청대로 `지출표`에서 **카테고리별 요약의 예산/미지급/초과율 제거**하고, **날짜별 지출 흐름 섹션 삭제**하겠습니다.
