@@ -18,6 +18,7 @@ import {
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
 import { normalizeInventoryStatusState } from './inventoryStatusUtils'
 import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'
+import { roastedBeanCost1KgFromGreenWonPerKg, roastedBeanCost200gFrom1KgCost } from './beanSalesRoastedCost'
 import { STATEMENT_RECORDS_SAVED_EVENT } from './MonthlyMeetingPage'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument } from './lib/companyDocuments'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
@@ -71,8 +72,6 @@ type BeanSalesData = {
   /** 생두 주문 일자 기록·품목을 입출고 라벨에 맞춰 묶은 뒤, 가장 최근 스냅샷의 원/kg(없으면 null) */
   latestGreenWonPerKg: number | null
   latestGreenOrderDate: string | null
-  /** 거래명세 평균단가(원) − 최근 주문가(원/kg) — 1/KG·비교 가능할 때만 참고 */
-  spreadVsGreenOrder: number | null
   /** 최근 주문 원가(원/kg) × 판매수량 */
   estimatedCostAmount: number | null
   /** 매출액 − 추정 원가액 */
@@ -493,7 +492,6 @@ function BeanSalesAnalysisPage() {
           clients: [],
           latestGreenWonPerKg: null,
           latestGreenOrderDate: null,
-          spreadVsGreenOrder: null,
           estimatedCostAmount: null,
           estimatedProfitAmount: null,
         })
@@ -526,13 +524,11 @@ function BeanSalesAnalysisPage() {
       if (g) {
         data.latestGreenWonPerKg = g.wonPerKg
         data.latestGreenOrderDate = g.orderDate
-        data.spreadVsGreenOrder = data.avgUnitPrice - g.wonPerKg
         data.estimatedCostAmount = g.wonPerKg * data.totalQuantity
         data.estimatedProfitAmount = data.totalRevenue - data.estimatedCostAmount
       } else {
         data.latestGreenWonPerKg = null
         data.latestGreenOrderDate = null
-        data.spreadVsGreenOrder = null
         data.estimatedCostAmount = null
         data.estimatedProfitAmount = null
       }
@@ -637,7 +633,6 @@ function BeanSalesAnalysisPage() {
       latestGreenWonPerKg: d.latestGreenWonPerKg,
       estimatedCostAmount: d.estimatedCostAmount,
       estimatedProfitAmount: d.estimatedProfitAmount,
-      spreadVsGreenOrder: d.spreadVsGreenOrder,
       clientCount: d.clientCount,
       transactionCount: d.transactionCount,
     }))
@@ -931,18 +926,23 @@ function BeanSalesAnalysisPage() {
             <table className="bean-sales-revenue-table">
               <thead>
                 <tr>
-                  <th>원두명</th>
-                  <th>매출액</th>
-                  <th>매출 비율</th>
-                  <th>수량</th>
-                  <th>매출 평균단가</th>
-                  <th>최근 주문</th>
-                  <th>원가액</th>
-                  <th>이익</th>
-                  <th>스프레드</th>
-                  <th>거래처 수</th>
-                  <th>거래 건수</th>
-                  <th>수정</th>
+                  <th rowSpan={2}>원두명</th>
+                  <th rowSpan={2}>매출액</th>
+                  <th rowSpan={2}>매출 비율</th>
+                  <th rowSpan={2}>수량</th>
+                  <th rowSpan={2}>매출 평균단가</th>
+                  <th colSpan={2} className="bean-sales-th-roasted-group">
+                    원두원가
+                  </th>
+                  <th rowSpan={2}>원가액</th>
+                  <th rowSpan={2}>이익</th>
+                  <th rowSpan={2}>거래처 수</th>
+                  <th rowSpan={2}>거래 건수</th>
+                  <th rowSpan={2}>수정</th>
+                </tr>
+                <tr>
+                  <th>1kg</th>
+                  <th>200g</th>
                 </tr>
               </thead>
               <tbody>
@@ -956,7 +956,18 @@ function BeanSalesAnalysisPage() {
                       <td>{formatNumber(data.totalQuantity)}개</td>
                       <td>{formatCurrency(data.avgUnitPrice)}원</td>
                       <td>
-                        {data.latestGreenWonPerKg != null ? `${formatCurrency(data.latestGreenWonPerKg)}원` : '—'}
+                        {data.latestGreenWonPerKg != null
+                          ? `${formatCurrency(roastedBeanCost1KgFromGreenWonPerKg(data.latestGreenWonPerKg))}원`
+                          : '—'}
+                      </td>
+                      <td>
+                        {data.latestGreenWonPerKg != null
+                          ? `${formatCurrency(
+                              roastedBeanCost200gFrom1KgCost(
+                                roastedBeanCost1KgFromGreenWonPerKg(data.latestGreenWonPerKg),
+                              ),
+                            )}원`
+                          : '—'}
                       </td>
                       <td>
                         {data.estimatedCostAmount != null ? `${formatCurrency(data.estimatedCostAmount)}원` : '—'}
@@ -973,17 +984,6 @@ function BeanSalesAnalysisPage() {
                         {data.estimatedProfitAmount != null
                           ? `${data.estimatedProfitAmount >= 0 ? '+' : '−'}${formatCurrency(Math.abs(data.estimatedProfitAmount))}원`
                           : '—'}
-                      </td>
-                      <td
-                        className={
-                          data.spreadVsGreenOrder != null
-                            ? data.spreadVsGreenOrder >= 0
-                              ? 'bean-sales-spread-pos'
-                              : 'bean-sales-spread-neg'
-                            : 'bean-sales-td-muted'
-                        }
-                      >
-                        {data.spreadVsGreenOrder != null ? `${data.spreadVsGreenOrder >= 0 ? '+' : '−'}${formatCurrency(Math.abs(data.spreadVsGreenOrder))}원` : '—'}
                       </td>
                       <td>{data.clientCount}곳</td>
                       <td>{data.transactionCount}건</td>
@@ -1058,22 +1058,18 @@ function BeanSalesAnalysisPage() {
                   </span>
                   {data.latestGreenWonPerKg != null ? (
                     <span className="metric">
-                      최근 생두주문 {formatCurrency(data.latestGreenWonPerKg)}원/kg · {data.latestGreenOrderDate ?? ''}
+                      생두 {formatCurrency(data.latestGreenWonPerKg)}원/kg → 원두원가 1kg{' '}
+                      {formatCurrency(roastedBeanCost1KgFromGreenWonPerKg(data.latestGreenWonPerKg))}원 · 200g{' '}
+                      {formatCurrency(
+                        roastedBeanCost200gFrom1KgCost(
+                          roastedBeanCost1KgFromGreenWonPerKg(data.latestGreenWonPerKg),
+                        ),
+                      )}
+                      원 · {data.latestGreenOrderDate ?? ''}
                     </span>
                   ) : (
                     <span className="metric bean-sales-td-muted">생두 주문 일자 기록 없음</span>
                   )}
-                  {data.spreadVsGreenOrder != null ? (
-                    <span
-                      className={
-                        data.spreadVsGreenOrder >= 0 ? 'metric bean-sales-spread-pos' : 'metric bean-sales-spread-neg'
-                      }
-                    >
-                      스프레드{' '}
-                      {data.spreadVsGreenOrder >= 0 ? '+' : '−'}
-                      {formatCurrency(Math.abs(data.spreadVsGreenOrder))}원
-                    </span>
-                  ) : null}
                 </div>
               </div>
 
@@ -1393,6 +1389,21 @@ function BeanSalesAnalysisPage() {
           font-weight: 600;
           color: #333;
           font-size: 12px;
+        }
+
+        .revenue-summary-table th.bean-sales-th-roasted-group {
+          text-align: center;
+          border-bottom: 1px solid #e9ecef;
+        }
+
+        .revenue-summary-table .bean-sales-revenue-table thead tr:nth-child(2) th {
+          text-align: center;
+          font-weight: 600;
+        }
+
+        .revenue-summary-table .bean-sales-revenue-table tbody td:nth-child(6),
+        .revenue-summary-table .bean-sales-revenue-table tbody td:nth-child(7) {
+          text-align: center;
         }
 
         .revenue-summary-table td {

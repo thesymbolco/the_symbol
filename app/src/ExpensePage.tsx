@@ -141,6 +141,57 @@ const DEFAULT_EXPENSE_TABLE_COLUMNS: ExpenseTableColumn[] = DEFAULT_EXPENSE_COLU
   mappedKey: key,
 }))
 
+/**
+ * 엑셀 업로드로 `tableColumns`가 짧을 때(시트에 지급수단 열이 없을 때) 입력란이 빠지는 것을 막기 위해
+ * 화면·내보내기에 반드시 넣는 매핑 열. 기본 열 순서에 맞춰 끼워 넣음.
+ */
+const GRID_REQUIRED_MAPPED_KEYS: ExpenseColumnKey[] = ['paymentMethod']
+
+const defaultColumnOrder = (key: ExpenseColumnKey) => DEFAULT_EXPENSE_COLUMN_ORDER.indexOf(key)
+
+const columnSortOrder = (c: ExpenseTableColumn) => {
+  if (c.kind === 'mapped' && c.mappedKey) {
+    return defaultColumnOrder(c.mappedKey)
+  }
+  return 1_000
+}
+
+const mergeVisibleExpenseColumns = (tableColumns: ExpenseTableColumn[] | undefined): ExpenseTableColumn[] => {
+  const base =
+    tableColumns && tableColumns.length > 0 ? tableColumns : DEFAULT_EXPENSE_TABLE_COLUMNS
+  if (!tableColumns || tableColumns.length === 0) {
+    return base
+  }
+  const present = new Set(
+    base
+      .filter(
+        (col): col is ExpenseTableColumn & { mappedKey: ExpenseColumnKey } =>
+          col.kind === 'mapped' && Boolean(col.mappedKey),
+      )
+      .map((col) => col.mappedKey),
+  )
+  const missing = GRID_REQUIRED_MAPPED_KEYS.filter((k) => !present.has(k))
+  if (missing.length === 0) {
+    return base
+  }
+  const toAdd = missing
+    .map((k) => DEFAULT_EXPENSE_TABLE_COLUMNS.find((col) => col.kind === 'mapped' && col.mappedKey === k))
+    .filter((col): col is ExpenseTableColumn => Boolean(col))
+    .sort((a, b) => defaultColumnOrder(a.mappedKey!) - defaultColumnOrder(b.mappedKey!))
+
+  const merged: ExpenseTableColumn[] = [...base]
+  for (const col of toAdd) {
+    const o = defaultColumnOrder(col.mappedKey!)
+    const insertAt = merged.findIndex((c) => columnSortOrder(c) > o)
+    if (insertAt === -1) {
+      merged.push(col)
+    } else {
+      merged.splice(insertAt, 0, col)
+    }
+  }
+  return merged
+}
+
 const expenseHeaderAliases = {
   expenseDate: ['날짜', '지출일', '거래일자', '사용일자'],
   dueDate: ['지급예정일', '지급일', '결제예정일', '예정일'],
@@ -972,10 +1023,7 @@ function ExpensePage() {
   }, [pageState.records])
 
   const visibleExpenseColumns = useMemo(
-    () =>
-      pageState.tableColumns && pageState.tableColumns.length > 0
-        ? pageState.tableColumns
-        : DEFAULT_EXPENSE_TABLE_COLUMNS,
+    () => mergeVisibleExpenseColumns(pageState.tableColumns),
     [pageState.tableColumns],
   )
 
@@ -1342,10 +1390,7 @@ function ExpensePage() {
 
   const handleExportWorkbook = async () => {
     try {
-      const exportColumns =
-        pageState.tableColumns && pageState.tableColumns.length > 0
-          ? pageState.tableColumns
-          : DEFAULT_EXPENSE_TABLE_COLUMNS
+      const exportColumns = mergeVisibleExpenseColumns(pageState.tableColumns)
       const headerCells = exportColumns.map((col) => col.label)
 
       const detailRows: Array<Array<string | number>> = [

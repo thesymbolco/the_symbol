@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs'
 import { downloadBufferAsFile } from './monthlyMeetingExcelStyledExport'
+import { roastedBeanCost1KgFromGreenWonPerKg, roastedBeanCost200gFrom1KgCost } from './beanSalesRoastedCost'
 
 const BORDER: Partial<ExcelJS.Borders> = {
   top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
@@ -22,7 +23,6 @@ export type BeanSalesExportSummaryRow = {
   latestGreenWonPerKg: number | null
   estimatedCostAmount: number | null
   estimatedProfitAmount: number | null
-  spreadVsGreenOrder: number | null
   clientCount: number
   transactionCount: number
 }
@@ -228,25 +228,28 @@ const buildSummaryMatrix = (input: BeanSalesAnalysisExcelInput): (string | numbe
     '비율(%)',
     '수량(합)',
     '매출 평균단가',
-    '최근주문(원/kg)',
+    '원두원가(1kg)',
+    '원두원가(200g)',
     '원가(추정)',
     '이익(추정)',
-    '스프레드(원)',
     '거래처 수',
     '거래 건수',
   ]
   rows.push(head)
   for (const d of input.summaryRows) {
+    const roasted1kg =
+      d.latestGreenWonPerKg != null ? roastedBeanCost1KgFromGreenWonPerKg(d.latestGreenWonPerKg) : null
+    const roasted200g = roasted1kg != null ? roastedBeanCost200gFrom1KgCost(roasted1kg) : null
     rows.push([
       d.beanName,
       Math.round(d.totalRevenue),
       d.sharePct,
       d.totalQuantity,
       Math.round(d.avgUnitPrice),
-      d.latestGreenWonPerKg != null ? Math.round(d.latestGreenWonPerKg) : '—',
+      roasted1kg != null ? Math.round(roasted1kg) : '—',
+      roasted200g != null ? Math.round(roasted200g) : '—',
       d.estimatedCostAmount != null ? Math.round(d.estimatedCostAmount) : '—',
       d.estimatedProfitAmount != null ? Math.round(d.estimatedProfitAmount) : '—',
-      d.spreadVsGreenOrder != null ? Math.round(d.spreadVsGreenOrder) : '—',
       d.clientCount,
       d.transactionCount,
     ])
@@ -255,19 +258,7 @@ const buildSummaryMatrix = (input: BeanSalesAnalysisExcelInput): (string | numbe
     const tr = input.summaryTotals.totalRevenue
     const tq = input.summaryTotals.totalQuantity
     const share = tr > 0 ? 100 : 0
-    rows.push([
-      '합계',
-      Math.round(tr),
-      share,
-      tq,
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-    ])
+    rows.push(['합계', Math.round(tr), share, tq, '', '', '', '', '', '', ''])
   }
   return rows
 }
