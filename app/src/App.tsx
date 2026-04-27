@@ -65,35 +65,35 @@ const PAGE_CATEGORY_GROUPS: {
   label: string
   pages: { page: AppActivePage; label: string }[]
 }[] = [
-  { 
-    id: 'trade', 
-    label: '거래·명세', 
+  {
+    id: 'trade',
+    label: '입력·분석',
     pages: [
       { page: 'statements', label: '거래명세 관리' },
-      { page: 'beanSalesAnalysis', label: '원두별 매출 분석' }
-    ] 
-  },
-  {
-    id: 'closing',
-    label: '마감·지출',
-    pages: [
-      { page: 'expense', label: '지출표' },
-      { page: 'meeting', label: '월 마감회의' },
+      { page: 'beanSalesAnalysis', label: '원두별 매출 분석' },
     ],
   },
   {
     id: 'supply',
-    label: '재고·생두',
+    label: '재고·생산',
     pages: [
       { page: 'inventory', label: '입출고 현황' },
       { page: 'greenBeanOrder', label: '생두 주문' },
     ],
   },
   {
-    id: 'org',
-    label: '직원·메모',
+    id: 'closing',
+    label: '회의·마감',
     pages: [
       { page: 'dailyMeeting', label: '일일회의' },
+      { page: 'meeting', label: '월 마감회의' },
+      { page: 'expense', label: '지출표' },
+    ],
+  },
+  {
+    id: 'org',
+    label: '조직·인사',
+    pages: [
       { page: 'staffPayroll', label: '직원·급여' },
       { page: 'team', label: '팀 관리' },
     ],
@@ -1309,6 +1309,7 @@ function App() {
 
     return 'statements'
   })
+  const [isHomeRailOpen, setIsHomeRailOpen] = useState(false)
 
   const activeCategoryId = useMemo(() => categoryIdForPage(activePage), [activePage])
   const activeCategoryLabel = useMemo(
@@ -1520,6 +1521,19 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage)
   }, [activePage])
+
+  useEffect(() => {
+    if (!isHomeRailOpen) {
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsHomeRailOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isHomeRailOpen])
 
   useEffect(() => {
     void refreshLowGreenBeanWarnings()
@@ -3614,7 +3628,24 @@ function App() {
       className={`app-shell${activePage === 'statements' && statementStickyHScrollVisible ? ' app-shell--sticky-hscroll-pad' : ''}`}
     >
       <header className="app-home-shell no-print" aria-label="워크스페이스 홈">
-        <aside className="app-home-rail">
+        <button
+          type="button"
+          className="app-home-rail-toggle"
+          aria-label={isHomeRailOpen ? '메뉴 닫기' : '메뉴 열기'}
+          aria-expanded={isHomeRailOpen}
+          onClick={() => setIsHomeRailOpen((current) => !current)}
+        >
+          <span aria-hidden>☰</span>
+        </button>
+        {isHomeRailOpen ? (
+          <button
+            type="button"
+            className="app-home-rail-backdrop"
+            aria-label="메뉴 닫기"
+            onClick={() => setIsHomeRailOpen(false)}
+          />
+        ) : null}
+        <aside className={`app-home-rail${isHomeRailOpen ? ' open' : ''}`}>
           <div className="app-home-rail-brand">
             <span className="app-home-rail-eyebrow">The Symbol Edit</span>
             <strong>{mode === 'cloud' ? activeCompany?.companyName ?? 'Cloud workspace' : 'Local workspace'}</strong>
@@ -3649,7 +3680,10 @@ function App() {
                 key={p.page}
                 type="button"
                 className={`app-home-rail-subnav-link${activePage === p.page ? ' active' : ''}`}
-                onClick={() => setActivePage(p.page)}
+                onClick={() => {
+                  setActivePage(p.page)
+                  setIsHomeRailOpen(false)
+                }}
               >
                 {p.label}
               </button>
@@ -3690,47 +3724,8 @@ function App() {
           </div>
 
           <div className="app-home-stage-grid">
-            <section className="workspace-overview-card" aria-label="워크스페이스 요약">
-              <div className="workspace-overview-header">
-                <span className="workspace-showcase-eyebrow">Workspace overview</span>
-                <h3>{mode === 'cloud' ? `${activeCompany?.companyName ?? '클라우드'} 워크스페이스` : '로컬 워크스페이스'}</h3>
-              </div>
-              <p className="workspace-overview-copy">
-                현재 <strong>{activePageMeta.title}</strong> 화면을 보고 있습니다. 같은 구역의 화면을 빠르게
-                넘기거나, 다른 업무 구역으로 바로 이동할 수 있습니다.
-              </p>
-              <div className="workspace-overview-pills">
-                <span className="workspace-showcase-pill">{activeCategoryLabel}</span>
-                <span className="workspace-showcase-pill">
-                  {mode === 'cloud' ? activeCompany?.companyName ?? '팀 워크스페이스' : '개인 워크스페이스'}
-                </span>
-                <span className="workspace-showcase-pill">
-                  {mode === 'cloud' ? '팀 공유 모드' : '개인 브라우저 모드'}
-                </span>
-              </div>
-            </section>
-
-            <div className="workspace-showcase-stats">
-              <article className="workspace-stat-card">
-                <span>현재 화면</span>
-                <strong>{activePageMeta.title}</strong>
-              </article>
-              <article className="workspace-stat-card">
-                <span>현재 구역</span>
-                <strong>{activeCategoryLabel}</strong>
-              </article>
-              <article className="workspace-stat-card">
-                <span>명세 데이터</span>
-                <strong>{records.length}건</strong>
-              </article>
-              <article className="workspace-stat-card">
-                <span>하위 메뉴</span>
-                <strong>{activeCategoryGroup.pages.length}개</strong>
-              </article>
-            </div>
-
             <header
-              className="hero-panel statements-hero-compact statements-hero-embedded app-home-workspace-page-hero-span no-print"
+              className="hero-panel statements-hero-compact statements-hero-embedded app-home-workspace-page-hero-span app-home-stage-merged no-print"
               aria-label="현재 화면 안내"
             >
               <div>
@@ -3744,9 +3739,13 @@ function App() {
                     : WORKSPACE_SHELL_PAGE_HERO[activePage].copyLocal}
                 </p>
                 <div className="hero-meta-row no-print">
+                  <span className="page-hero-pill">{activeCategoryLabel}</span>
+                  <span className="page-hero-pill">{activePageMeta.title}</span>
                   <span className="page-hero-pill">
                     {mode === 'cloud' ? '회사 공용 문서' : '개인 브라우저 문서'}
                   </span>
+                  <span className="page-hero-pill">{activeCategoryGroup.pages.length}개 하위 메뉴</span>
+                  <span className="page-hero-pill">명세 {records.length}건</span>
                   {activePage === 'statements' ? (
                     <PageSaveStatus
                       mode={mode}
