@@ -39430,7 +39430,37 @@ Parameters:
   "pattern": "handleSaveToCloud|클라우드에 저장|expense-cloud-save-mini"
 }
 ```
-Status: **loading**
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "handleSaveToCloud|클라우드에 저장|expense-cloud-save-mini",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "matchCount": 8,
+      "uri": "app/src/StaffPayrollPage.tsx"
+    },
+    {
+      "matchCount": 8,
+      "uri": "app/src/ExpensePage.tsx"
+    },
+    {
+      "matchCount": 3,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 4,
+  "totalMatches": 20
+}
+```
+Status: **completed**
 
 
 </details>
@@ -39440,3 +39470,10239 @@ Status: **loading**
 <summary>Tool use: **ripgrep_raw_search**</summary>
 
 </details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/GreenBeanOrderPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/TeamManagementPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MemoPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+살펴봤고, **아직 “입력할 때마다 클라우드 자동 저장” 방식인 페이지**가 몇 군데 더 있습니다.  
+직원·급여/지출표처럼 수동 `☁ 저장`으로 바꾸면 편해질 후보를 우선순위로 정리하면:
+
+### 수동 저장 전환 추천 (불편 체감 큰 순)
+- `거래명세 관리` (`App.tsx`)
+  - 행 단위 텍스트/숫자 입력이 많아서 자동 저장 간섭 가능성이 큼
+- `입출고 현황` (`InventoryStatusPage.tsx`)
+  - 셀 편집, 로스팅/블렌딩 사이클 변경이 잦아 자동 저장 부담 큼
+- `월 마감회의` (`MonthlyMeetingPage.tsx`)
+  - 표 입력량 많고 수치 조정이 연속으로 일어남
+- `생두 주문` (`GreenBeanOrderPage.tsx`)
+  - 주문 행 편집/비교/별칭 조정 중 연속 변경이 많음
+- `메모` (`MemoPage.tsx`)
+  - 현재 600ms 디바운스 자동 저장이라 타이핑 중 저장이 잦음
+
+### 이미 수동 저장(또는 액션 저장) 구조인 곳
+- `지출표`, `직원·급여·근무` → 수동 `☁` 저장 + 삭제 즉시 동기화
+- `팀 관리`는 폼 제출/버튼 액션 기반 저장이라 별도 전환 필요 없음
+
+원하면 다음으로는 **위 5개를 동일 패턴으로 일괄 통일**해줄게요:
+- 로컬은 계속 즉시 저장
+- 클라우드는 `☁` 수동 저장
+- 삭제 같은 파괴 액션은 즉시 클라우드 반영
+- 편집 중엔 원격 폴링이 로컬 입력 덮어쓰지 않게 보호
+
+---
+
+_**User**_
+
+거래명세서 입력에서 품목 여러개 추가하고 선택 항목 입력 목록에 추가 했을때 거래명세서 입력 모달에 보이고 저장을 누르면 저장이 되었으면 좋겠네 그래야 더블 체크가 되니깐
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user intends to modify the transaction statement entry flow within App.tsx.</details></think>
+
+_**Agent (default)**_
+
+구현 중: 여러 품목을 선택해 입력 목록에 추가할 때 확인용 모달을 띄우고, 모달에서 저장을 누를 때만 실제 저장되도록 합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "bulk|선택 항목|handleBulkAdd|입력 목록"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "bulk|선택 항목|handleBulkAdd|입력 목록",
+  "topFiles": [
+    {
+      "matchCount": 42,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 42
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statementEntryModalOpen"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statementEntryModalOpen",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Now I understand the flow:
+- User opens statement entry modal (`statementEntryModalOpen`) The user wants to modify the current flow so that:
+- Clicking "    " does not immediately add items to records
+- Instead, a confirmation modal should appear within the " " flow showing the list of items to be added
+- Items are only added to records when the user clicks "" in the confirmation modal
+
+This requires changing `handleBulkAddStatementItems` to:
+- Show a confirmation modal instead of calling `setRecords` directly
+- Only call `setRecords` when user confirms the action
+- Preserve the existing item selection and bulk addition logic Change `handleBulkAddStatementItems` to build `newRecords` like before, but instead of calling `setRecords`, store the records in `bulkAddPreviewRecords` state and display them in a preview section within the statement entry modal. Add a save button to commit the changes.
+
+Implement:
+- Preview section in the statement entry modal showing selected items
+- Save button to confirm and apply the bulk additions
+- Maintain existing selection and bulk addition logic</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "handleCloseBulkItemPicker"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "handleCloseBulkItemPicker",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll implement adding state near the bulk item picker. I'll implement adding state near the bulk item picker.
+
+- Store skipped items in the same flow
+- Show info banner when skipped items exist
+- Modify `handleBulkAddStatementItems` to:
+  - Build new records after validation
+  - Return early on duplicate confirm failure
+  - Set preview records and skipped items
+  - Close the bulk item picker</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-entry-modal"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-entry-modal",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add CSS for `.statement-bulk-add-preview-backdrop` with z-index 11600, placing it above the existing 11500 z-index value. - `bulkAddPreviewRecords` accepts `StatementRecord[] | null` type, where null indicates no preview is active; empty arrays should not occur due to conditional assignment only when length > 0.
+- Edge case handling for `bulkAddPreviewRecords` includes checking for empty arrays and skipping preview when `newRecords.length === 0`.
+- Added `bulkAddPreviewSkipped: string[]` to track skipped items for display in the preview dialog.
+- Updated primary button text in bulk picker from "    " to " " or "  ".
+- Flow adjustment: User sees modal first before saving, changing the workflow from direct addition to confirmation step. The bulk picker primary button will be labeled "" (Confirm), which opens the preview in the parent modal. The preview dialog will have "" (Save) to commit changes and "" (Cancel) to discard. The preview is nested within the   modal, appearing after clicking "    ". - First dialog will show "  " instead of "    "
+- Second dialog will have "" as the primary button to commit changes
+- Function `handleBulkAddStatementItems` will be renamed internally to `handleBulkOpenPreview` for clarity
+- Added comment to clarify the new behavior of opening preview instead of direct addition I'll update the escape key behavior to handle `bulkAddPreviewRecords` by dismissing the preview first if it's active. The logic should check `bulkAddPreviewRecords !== null` to distinguish between null (no preview) and empty array (preview active but no records). This ensures proper dismissal of the preview dialog using escape key.
+
+- Added escape key handler for bulk preview dismissal
+- Check uses `bulkAddPreviewRecords !== null` to differentiate null vs empty states
+- Preview dialog closes with escape when active
+- Prevents default behavior during preview state
+- Clears preview records and skipped items on escape
+- Maintains existing flow for other modals When the statement modal is closed, the bulk preview should also be cleared. The existing handler `setStatementEntryModalOpen(false)` should include an effect that sets `bulkAddPreviewRecords` to null.
+
+If the bulk picker is opened while a preview exists, it's rareeither clear the preview or leave as is; simpler to clear it.
+
+- Added effect to clear `bulkAddPreviewRecords` when `statementEntryModalOpen` becomes false
+- Clearing preview when opening bulk picker is simpler than allowing overlap
+- Escape key behavior updated to properly dismiss preview dialog when active setBulkAddPreviewSkipped([]) when statementEntryModalOpen changes.  
+- Added state variables for bulk preview functionality.  
+- Implemented useEffect to clear preview state when modal closes.  
+- Replaced handleBulkAddStatementItems with preview and commit logic.  
+- Added handleCommitBulkAddPreview and handleCancelBulkAddPreview functions. Added JSX for the preview dialog inside the `statementEntryModalOpen` block, placed before the closing parenthesis. The preview overlay is conditionally rendered when `bulkAddPreviewRecords` is not null and has items. To prevent backdrop clicks from closing the entire modal, `stopPropagation` is needed on the preview overlay. The structure uses a fragment to avoid unnecessary DOM nodes.</details></think>
+
+_**Agent (default)**_
+
+선택 후 즉시 `records`에 넣지 않고, 같은 거래명세서 입력 흐름 안에서 확인 모달을 띄운 뒤 '저장' 시에만 반영합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to locate the `compareStatementRecordsNewestFirst` function for use in the commit handler.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statement-entry-modal-backdrop"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statement-entry-modal-backdrop",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add implementation:
+
+- State after bulkItemPickerPick block:
+```tsx
+``` I'll add implementation:
+
+- State after bulkItemPickerPick block:
+```tsx
+const [bulkAddPendingRecords, setBulkAddPendingRecords] = useState<StatementRecord[] | null>(
+  null,
+)
+const [bulkAddPendingSkippedLabels, setBulkAddPendingSkippedLabels] = useState<string[]>([])
+```
+
+- useEffect to clear pending when modal closes:
+```tsx
+useEffect(() => {
+  if (!statementEntryModalOpen) {
+    setBulkAddPendingRecords(null)
+    setBulkAddPendingSkippedLabels([])
+  }
+}, [statementEntryModalOpen])
+```
+
+- Escape handler - insert before closing modal check:
+```tsx
+if (bulkItemPickerOpen || isAdminUnlockDialogOpen) {
+  return
+}
+if (bulkAddPendingRecords !== null) {
+  event.
+``` handleCancelBulkAddPending() and return
+setRecords((current) =>
+  [...bulkAddPendingRecords, ...current].sort(compareStatementRecordsNewestFirst),
+)
+setBulkAddPendingRecords(null)
+setBulkAddPendingSkippedLabels([])
+}
+
+Backdrop onClick:
+- If bulkAddPendingRecords exists, call handleCancelBulkAddPending and return
+- Otherwise, close the modal
+
+JSX insertion before closing backdrop:
+- Show bulk add pending records UI when bulkAddPendingRecords is not null
+- Use bulkAddPendingRecords.length to determine visibility
+- Append after inner modal div but inside backdrop If `bulkAddPendingRecords` has items, render a backdrop overlay with a dialog showing a preview of the records to be added. The dialog includes a table of records and buttons to either cancel or save the changes. The save button commits the pending records, while the cancel button discards them.</details></think>
+
+_**Agent (default)**_
+
+상태 추가, 핸들러 분리, JSX·Escape·CSS 적용 진행합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When users click the dimmed backdrop area of the main statement, the system will now either cancel any pending bulk actions or close the modal window.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The structure is correct. Now, add the CSS after the statement-entry-modal section.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Read lints for App.tsx
+
+One issue: The escape effect depends on bulkAddPendingRecords; when bulkAddPendingRecords is a large array, every commit might recreate...</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+구현해 두었습니다. 동작은 다음과 같습니다.
+
+### 변경 요약
+1. **품목 여러 개** 다이얼로그에서 **「확인 (미리보기)」**을 누르면, 곧바로 목록에 넣지 않고 **거래명세서 입력 모달 위에**「입력 목록에 추가 확인」창이 뜹니다.
+2. 표에서 **납품일, 거래처, 품목, 규격, 수량, 단가, 공급가액, 세액, 합계, 과세구분, 현금**을 한 번 더 확인할 수 있습니다.
+3. **「입력 목록에 저장」**을 눌렀을 때만 실제 `입력 목록`에 반영됩니다. **취소·바깥 영역 클릭·Esc**는 확인만 닫고 목록은 바꾸지 않습니다.
+4. 단가를 못 넣은 품목 등 **이번에 빠진 항목**이 있으면, 미리보기 상단에 노란 안내로 표시합니다.
+5. 거래명세 입력 모달을 닫으면 미리보기 상태도 함께 초기화됩니다.
+
+첫 단계 버튼 문구는 **「확인 (미리보기)」**, 품목 선택 도움말에도 **확인 후 거래명세 창에서 검토·저장**한다는 설명을 넣어 두었습니다.
+
+---
+
+_**User**_
+
+품목과 가격을 임의로 설정해서 저장하는 모드도 하나 추가해야할거같아 단위도 임의로 추가하고 이런거
+
+---
+
+_**Agent (default)**_
+
+거래명세서 입력에서 품목·단가·단위를 자유롭게 설정할 수 있는 모드를 추가합니다. 현재 검증·단가 적용 로직을 확인합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "resolveStatementPricingForClientItem|matchingPricingRule|handleSubmit"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "resolveStatementPricingForClientItem|matchingPricingRule|handleSubmit",
+  "topFiles": [
+    {
+      "matchCount": 13,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 13
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+
+Parameters:
+
+```json
+{
+  "explanation": "",
+  "includePattern": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "query": "Where is StatementRecord created on form submit for transaction statement?",
+  "topK": 10
+}
+```
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3168,
+            "text": "const handleRemoveMasterItem = "
+          },
+          {
+            "lineNumber": 3180,
+            "text": "」 품목을 삭제했습니다.&#96;)"
+          },
+          {
+            "lineNumber": 3181,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3182
+          },
+          {
+            "lineNumber": 3183,
+            "text": "  const resetStatementFormAfterSave = () =\u003e {"
+          },
+          {
+            "lineNumber": 3184,
+            "text": "    setForm((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 3185,
+            "text": "      ...defaultFormState(),"
+          },
+          {
+            "lineNumber": 3186,
+            "text": "      clientName: current.clientName,"
+          },
+          {
+            "lineNumber": 3187,
+            "text": "      deliveryDate: current.deliveryDate,"
+          },
+          {
+            "lineNumber": 3188,
+            "text": "    }))"
+          },
+          {
+            "lineNumber": 3189,
+            "text": "    setIsCustomClient(false)"
+          },
+          {
+            "lineNumber": 3190,
+            "text": "    setIsCustomItem(false)"
+          },
+          {
+            "lineNumber": 3191,
+            "text": "    setIsCustomSpec(false)"
+          },
+          {
+            "lineNumber": 3192,
+            "text": "    setEditingRecordId(null)"
+          },
+          {
+            "lineNumber": 3193,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3194
+          },
+          {
+            "lineNumber": 3195,
+            "text": "  const handleSubmit = (event: React.FormEvent\u003cHTMLFormElement\u003e) =\u003e {"
+          },
+          {
+            "lineNumber": 3196,
+            "text": "    event.preventDefault()"
+          },
+          {
+            "lineNumber": 3197
+          },
+          {
+            "lineNumber": 3198,
+            "text": "    if (!form.deliveryDate || !form.clientName.trim() || !form.itemName.trim()) {"
+          },
+          {
+            "lineNumber": 3199,
+            "text": "      window.alert('납품일, 거래처명, 품목은 꼭 입력해주세요.')"
+          },
+          {
+            "lineNumber": 3200,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3201,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3202
+          },
+          {
+            "lineNumber": 3203,
+            "text": "    if (calculatedAmounts.quantity \u003c= 0 || calculatedAmounts.unitPrice \u003c= 0) {"
+          },
+          {
+            "lineNumber": 3204,
+            "text": "      window.alert('수량과 단가는 0보다 커야 합니다.')"
+          },
+          {
+            "lineNumber": 3205,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3206,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3207
+          },
+          {
+            "lineNumber": 3208,
+            "text": "    if (duplicateCandidate \u0026\u0026 !editingRecordId) {"
+          },
+          {
+            "lineNumber": 3209,
+            "text": "      const confirmDup = window.confirm("
+          },
+          {
+            "lineNumber": 3210,
+            "text": "        &#96;이미 같은 날(${formatDateLabel(duplicateCandidate.deliveryDate)}) ${duplicateCandidate.clientName}에 「${duplicateCandidate.itemName}」 ${duplicateCandidate.quantity}개 건이 있습니다.\\n그래도 새로 저장할까요?&#96;,"
+          },
+          {
+            "lineNumber": 3211,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3212,
+            "text": "      if (!confirmDup) {"
+          },
+          {
+            "lineNumber": 3213,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 3214,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3215,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3216
+          },
+          {
+            "lineNumber": 3217,
+            "text": "    const existingRecord = editingRecordId ? records.find((r) =\u003e r.id === editingRecordId) : null"
+          },
+          {
+            "lineNumber": 3218,
+            "text": "    const nextRecord: StatementRecord = {"
+          },
+          {
+            "lineNumber": 3219,
+            "text": "      id: editingRecordId ?? crypto.randomUUID(),"
+          },
+          {
+            "lineNumber": 3220,
+            "text": "      deliveryDate: form.deliveryDate,"
+          },
+          {
+            "lineNumber": 3221,
+            "text": "      issueDate: form.issueDate.trim(),"
+          },
+          {
+            "lineNumber": 3222,
+            "text": "      paymentDate: '',"
+          },
+          {
+            "lineNumber": 3223,
+            "text": "      deliveryCount: form.deliveryCount,"
+          },
+          {
+            "lineNumber": 3224,
+            "text": "      clientName: form.clientName.trim(),"
+          },
+          {
+            "lineNumber": 3225,
+            "text": "      itemName: form.itemName.trim(),"
+          },
+          {
+            "lineNumber": 3226,
+            "text": "      specUnit: form.specUnit.trim(),"
+          },
+          {
+            "lineNumber": 3227,
+            "text": "      quantity: calculatedAmounts.quantity,"
+          },
+          {
+            "lineNumber": 3228,
+            "text": "      unitPrice: calculatedAmounts.unitPrice,"
+          },
+          {
+            "lineNumber": 3229,
+            "text": "      note: form.note,"
+          },
+          {
+            "lineNumber": 3230,
+            "text": "      isCashHandled: form.isCashHandled,"
+          },
+          {
+            "lineNumber": 3231,
+            "text": "      supplyAmount: calculatedAmounts.supplyAmount,"
+          },
+          {
+            "lineNumber": 3232,
+            "text": "      taxAmount: calculatedAmounts.taxAmount,"
+          },
+          {
+            "lineNumber": 3233,
+            "text": "      totalAmount: calculatedAmounts.totalAmount,"
+          },
+          {
+            "lineNumber": 3234,
+            "text": "      createdAt: existingRecord?.createdAt ?? new Date().toISOString(),"
+          },
+          {
+            "lineNumber": 3235,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3236
+          },
+          {
+            "lineNumber": 3237,
+            "text": "    if (editingRecordId) {"
+          },
+          {
+            "lineNumber": 3238,
+            "text": "      setRecords"
+          },
+          {
+            "lineNumber": 3242
+          },
+          {
+            "lineNumber": 3250
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.5263814330101013
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3195,
+            "text": "const handleSubmit = "
+          },
+          {
+            "lineNumber": 3235
+          },
+          {
+            "lineNumber": 3236
+          },
+          {
+            "lineNumber": 3237,
+            "text": "    if (editingRecordId) {"
+          },
+          {
+            "lineNumber": 3238,
+            "text": "      setRecords((current) =\u003e"
+          },
+          {
+            "lineNumber": 3239,
+            "text": "        current"
+          },
+          {
+            "lineNumber": 3240,
+            "text": "          .map((row) =\u003e (row.id === editingRecordId ? nextRecord : row))"
+          },
+          {
+            "lineNumber": 3241,
+            "text": "          .sort(compareStatementRecordsNewestFirst),"
+          },
+          {
+            "lineNumber": 3242,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3243,
+            "text": "    } else {"
+          },
+          {
+            "lineNumber": 3244,
+            "text": "      setRecords((current) =\u003e"
+          },
+          {
+            "lineNumber": 3245,
+            "text": "        [nextRecord, ...current].sort(compareStatementRecordsNewestFirst),"
+          },
+          {
+            "lineNumber": 3246,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3247,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3248
+          },
+          {
+            "lineNumber": 3249,
+            "text": "    resetStatementFormAfterSave()"
+          },
+          {
+            "lineNumber": 3250,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3251
+          },
+          {
+            "lineNumber": 3252,
+            "text": "  const handleCancelStatementEdit = () =\u003e {"
+          },
+          {
+            "lineNumber": 3253,
+            "text": "    resetStatementFormAfterSave()"
+          },
+          {
+            "lineNumber": 3254,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3255
+          },
+          {
+            "lineNumber": 3256,
+            "text": "  const handleStartEditStatementRecord = (record: StatementRecord) =\u003e {"
+          },
+          {
+            "lineNumber": 3257,
+            "text": "    const { form: nextForm, isCustomClient: nextCustomClient, isCustomItem: nextCustomItem, isCustomSpec: nextCustomSpec } ="
+          },
+          {
+            "lineNumber": 3258,
+            "text": "      buildEditFormStateFromRecord(record, pricingRules, records)"
+          },
+          {
+            "lineNumber": 3259,
+            "text": "    setForm(nextForm)"
+          },
+          {
+            "lineNumber": 3260,
+            "text": "    setIsCustomClient(nextCustomClient)"
+          },
+          {
+            "lineNumber": 3261,
+            "text": "    setIsCustomItem(nextCustomItem)"
+          },
+          {
+            "lineNumber": 3262,
+            "text": "    setIsCustomSpec(nextCustomSpec)"
+          },
+          {
+            "lineNumber": 3263,
+            "text": "    setEditingRecordId(record.id)"
+          },
+          {
+            "lineNumber": 3264,
+            "text": "    setStatementEntryModalOpen(true)"
+          },
+          {
+            "lineNumber": 3265,
+            "text": "    setActiveView('records')"
+          },
+          {
+            "lineNumber": 3266,
+            "text": "    const formPanel = document.querySelector('.statements-form-compact')"
+          },
+          {
+            "lineNumber": 3267,
+            "text": "    window.requestAnimationFrame(() =\u003e formPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))"
+          },
+          {
+            "lineNumber": 3268,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3269
+          },
+          {
+            "lineNumber": 3270,
+            "text": "  const handleDelete = (id: string) =\u003e {"
+          },
+          {
+            "lineNumber": 3271,
+            "text": "    if (editingRecordId === id) {"
+          },
+          {
+            "lineNumber": 3272,
+            "text": "      resetStatementFormAfterSave()"
+          },
+          {
+            "lineNumber": 3273,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3274,
+            "text": "    setRecords((current) =\u003e current.filter((record) =\u003e record.id !== id))"
+          },
+          {
+            "lineNumber": 3275,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3276
+          },
+          {
+            "lineNumber": 3277,
+            "text": "  const handleCopyFromRecentRecord = (record: StatementRecord) =\u003e"
+          },
+          {
+            "lineNumber": 3297
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 3195
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 3195
+              }
+            },
+            {
+              "endPosition": {
+                "column": 24,
+                "line": 3195
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 3195
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3763754963874817
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 2735
+          },
+          {
+            "lineNumber": 2736
+          },
+          {
+            "lineNumber": 2737,
+            "text": "  const handleBulkItemPickerQtyChange = (itemName: string, value: string) =\u003e {"
+          },
+          {
+            "lineNumber": 2738,
+            "text": "    setBulkItemPickerPick((prev) =\u003e ({"
+          },
+          {
+            "lineNumber": 2739,
+            "text": "      selected: new Set(prev.selected),"
+          },
+          {
+            "lineNumber": 2740,
+            "text": "      quantities: { ...prev.quantities, [itemName]: value },"
+          },
+          {
+            "lineNumber": 2741,
+            "text": "    }))"
+          },
+          {
+            "lineNumber": 2742,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 2743
+          },
+          {
+            "lineNumber": 2744,
+            "text": "  const handleBulkAddStatementItems = () =\u003e {"
+          },
+          {
+            "lineNumber": 2745,
+            "text": "    const clientTrim = form.clientName.trim()"
+          },
+          {
+            "lineNumber": 2746,
+            "text": "    if (!clientTrim) {"
+          },
+          {
+            "lineNumber": 2747,
+            "text": "      window.alert('거래처명을 먼저 선택하거나 입력해주세요.')"
+          },
+          {
+            "lineNumber": 2748,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2749,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2750,
+            "text": "    if (!form.deliveryDate) {"
+          },
+          {
+            "lineNumber": 2751,
+            "text": "      window.alert('납품일을 입력해주세요.')"
+          },
+          {
+            "lineNumber": 2752,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2753,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2754,
+            "text": "    const selectedNames = Array.from(bulkItemPickerPick.selected)"
+          },
+          {
+            "lineNumber": 2755,
+            "text": "    if (selectedNames.length === 0) {"
+          },
+          {
+            "lineNumber": 2756,
+            "text": "      window.alert('추가할 품목을 하나 이상 선택해주세요.')"
+          },
+          {
+            "lineNumber": 2757,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2758,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2759
+          },
+          {
+            "lineNumber": 2760,
+            "text": "    const unresolved: string[] = []"
+          },
+          {
+            "lineNumber": 2761,
+            "text": "    const zeroPrice: string[] = []"
+          },
+          {
+            "lineNumber": 2762,
+            "text": "    const newRecords: StatementRecord[] = []"
+          },
+          {
+            "lineNumber": 2763
+          },
+          {
+            "lineNumber": 2764,
+            "text": "    for (const rawName of selectedNames)"
+          },
+          {
+            "lineNumber": 2837
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3692370057106018
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 2744,
+            "text": "const handleBulkAddStatementItems = "
+          },
+          {
+            "lineNumber": 2762
+          },
+          {
+            "lineNumber": 2763
+          },
+          {
+            "lineNumber": 2764,
+            "text": "    for (const rawName of selectedNames) {"
+          },
+          {
+            "lineNumber": 2765,
+            "text": "      const itemLabel = rawName.trim()"
+          },
+          {
+            "lineNumber": 2766,
+            "text": "      const resolved = resolveStatementPricingForClientItem("
+          },
+          {
+            "lineNumber": 2767,
+            "text": "        pricingRules,"
+          },
+          {
+            "lineNumber": 2768,
+            "text": "        masterItems,"
+          },
+          {
+            "lineNumber": 2769,
+            "text": "        clientTrim,"
+          },
+          {
+            "lineNumber": 2770,
+            "text": "        itemLabel,"
+          },
+          {
+            "lineNumber": 2771,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 2772,
+            "text": "      if (!resolved) {"
+          },
+          {
+            "lineNumber": 2773,
+            "text": "        unresolved.push(itemLabel)"
+          },
+          {
+            "lineNumber": 2774,
+            "text": "        continue"
+          },
+          {
+            "lineNumber": 2775,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2776,
+            "text": "      if (resolved.unitPrice \u003c= 0) {"
+          },
+          {
+            "lineNumber": 2777,
+            "text": "        zeroPrice.push(itemLabel)"
+          },
+          {
+            "lineNumber": 2778,
+            "text": "        continue"
+          },
+          {
+            "lineNumber": 2779,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2780,
+            "text": "      const qtyRaw = bulkItemPickerPick.quantities[itemLabel] ?? ''"
+          },
+          {
+            "lineNumber": 2781,
+            "text": "      let quantity = parseNumber(qtyRaw)"
+          },
+          {
+            "lineNumber": 2782,
+            "text": "      if (!Number.isFinite(quantity) || quantity \u003c= 0) {"
+          },
+          {
+            "lineNumber": 2783,
+            "text": "        quantity = 1"
+          },
+          {
+            "lineNumber": 2784,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2785,
+            "text": "      const supplyAmount = quantity * resolved.unitPrice"
+          },
+          {
+            "lineNumber": 2786,
+            "text": "      const taxAmount = calculateTaxAmount(supplyAmount, form.note)"
+          },
+          {
+            "lineNumber": 2787,
+            "text": "      newRecords.push({"
+          },
+          {
+            "lineNumber": 2788,
+            "text": "        id: crypto.randomUUID(),"
+          },
+          {
+            "lineNumber": 2789,
+            "text": "        deliveryDate: form.deliveryDate,"
+          },
+          {
+            "lineNumber": 2790,
+            "text": "        issueDate: form.issueDate.trim(),"
+          },
+          {
+            "lineNumber": 2791,
+            "text": "        paymentDate: '',"
+          },
+          {
+            "lineNumber": 2792,
+            "text": "        deliveryCount: form.deliveryCount,"
+          },
+          {
+            "lineNumber": 2793,
+            "text": "        clientName: clientTrim,"
+          },
+          {
+            "lineNumber": 2794,
+            "text": "        itemName: itemLabel,"
+          },
+          {
+            "lineNumber": 2795,
+            "text": "        specUnit: resolved.specUnit,"
+          },
+          {
+            "lineNumber": 2796,
+            "text": "        quantity,"
+          },
+          {
+            "lineNumber": 2797,
+            "text": "        unitPrice: resolved.unitPrice,"
+          },
+          {
+            "lineNumber": 2798,
+            "text": "        note: form.note,"
+          },
+          {
+            "lineNumber": 2799,
+            "text": "        isCashHandled: form.isCashHandled,"
+          },
+          {
+            "lineNumber": 2800,
+            "text": "        supplyAmount,"
+          },
+          {
+            "lineNumber": 2801,
+            "text": "        taxAmount,"
+          },
+          {
+            "lineNumber": 2802,
+            "text": "        totalAmount: supplyAmount + taxAmount,"
+          },
+          {
+            "lineNumber": 2803,
+            "text": "        createdAt: new Date().toISOString(),"
+          },
+          {
+            "lineNumber": 2804,
+            "text": "      })"
+          },
+          {
+            "lineNumber": 2805,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2806
+          },
+          {
+            "lineNumber": 2807,
+            "text": "    const skipped = [...unresolved, ...zeroPrice]"
+          },
+          {
+            "lineNumber": 2808
+          },
+          {
+            "lineNumber": 2809,
+            "text": "    if (newRecords.length === 0) {"
+          },
+          {
+            "lineNumber": 2810,
+            "text": "      window.alert("
+          },
+          {
+            "lineNumber": 2811,
+            "text": "        skipped.length"
+          },
+          {
+            "lineNumber": 2812,
+            "text": "          ? &#96;단가를 적용할 수 있는 품목이 없습니다.\\n제외: ${skipped.join(', ')}&#96;"
+          },
+          {
+            "lineNumber": 2813,
+            "text": "          : '추가할 수 있는 품목이 없습니다.',"
+          },
+          {
+            "lineNumber": 2814,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 2815,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2816,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2817
+          },
+          {
+            "lineNumber": 2818,
+            "text": "    const hasDuplicateAgainstExisting = newRecords.some((r) =\u003e"
+          },
+          {
+            "lineNumber": 2819,
+            "text": "      records.some("
+          },
+          {
+            "lineNumber": 2820,
+            "text": "        (rec) =\u003e"
+          },
+          {
+            "lineNumber": 2821,
+            "text": "          rec.id !== editingRecordId \u0026\u0026"
+          },
+          {
+            "lineNumber": 2822,
+            "text": "          rec.deliveryDate === r.deliveryDate \u0026\u0026"
+          },
+          {
+            "lineNumber": 2823,
+            "text": "          normalizeName(rec.clientName) === normalizeName(r.clientName) \u0026\u0026"
+          },
+          {
+            "lineNumber": 2824,
+            "text": "          normalizeName(rec.itemName) === normalizeName(r.itemName),"
+          },
+          {
+            "lineNumber": 2825,
+            "text": "      ),"
+          },
+          {
+            "lineNumber": 2826,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 2827,
+            "text": "    if ("
+          },
+          {
+            "lineNumber": 2828,
+            "text": "      hasDuplicateAgainstExisting \u0026\u0026"
+          },
+          {
+            "lineNumber": 2837
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 2744
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 2744
+              }
+            },
+            {
+              "endPosition": {
+                "column": 39,
+                "line": 2744
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 2744
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36405205726623535
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 1658,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 1684
+          },
+          {
+            "lineNumber": 1685
+          },
+          {
+            "lineNumber": 1686,
+            "text": "    markStatementDirty()"
+          },
+          {
+            "lineNumber": 1687
+          },
+          {
+            "lineNumber": 1688,
+            "text": "    const timeoutId = window.setTimeout(() =\u003e {"
+          },
+          {
+            "lineNumber": 1689,
+            "text": "      markStatementSaving()"
+          },
+          {
+            "lineNumber": 1690,
+            "text": "      void saveCompanyDocument("
+          },
+          {
+            "lineNumber": 1691,
+            "text": "        activeCompanyId,"
+          },
+          {
+            "lineNumber": 1692,
+            "text": "        COMPANY_DOCUMENT_KEYS.statementPage,"
+          },
+          {
+            "lineNumber": 1693,
+            "text": "        {"
+          },
+          {
+            "lineNumber": 1694,
+            "text": "          records,"
+          },
+          {
+            "lineNumber": 1695,
+            "text": "          pricingRules,"
+          },
+          {
+            "lineNumber": 1696,
+            "text": "          masterItems,"
+          },
+          {
+            "lineNumber": 1697,
+            "text": "          statementTemplateBase64,"
+          },
+          {
+            "lineNumber": 1698,
+            "text": "          statementTemplateFileName,"
+          },
+          {
+            "lineNumber": 1699,
+            "text": "          statementTemplateUpdatedAt,"
+          },
+          {
+            "lineNumber": 1700,
+            "text": "          statementTemplateSettings,"
+          },
+          {
+            "lineNumber": 1701,
+            "text": "        },"
+          },
+          {
+            "lineNumber": 1702,
+            "text": "        user?.id,"
+          },
+          {
+            "lineNumber": 1703,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 1704,
+            "text": "        .then(() =\u003e {"
+          },
+          {
+            "lineNumber": 1705,
+            "text": "          markStatementSaved()"
+          },
+          {
+            "lineNumber": 1706,
+            "text": "        })"
+          },
+          {
+            "lineNumber": 1707,
+            "text": "        .catch((error) =\u003e {"
+          },
+          {
+            "lineNumber": 1708,
+            "text": "          console.error('거래명세 클라우드 저장에 실패했습니다.', error)"
+          },
+          {
+            "lineNumber": 1709,
+            "text": "          markStatementError()"
+          },
+          {
+            "lineNumber": 1710,
+            "text": "        })"
+          },
+          {
+            "lineNumber": 1711,
+            "text": "    }, 600)"
+          },
+          {
+            "lineNumber": 1712
+          },
+          {
+            "lineNumber": 1713,
+            "text": "    return () =\u003e window.clearTimeout(timeoutId)"
+          },
+          {
+            "lineNumber": 1714,
+            "text": "  }, ["
+          },
+          {
+            "lineNumber": 1715,
+            "text": "    activeCompanyId,"
+          },
+          {
+            "lineNumber": 1716,
+            "text": "    isPricingStorageReady,"
+          },
+          {
+            "lineNumber": 1717,
+            "text": "    isMasterItemsStorageReady,"
+          },
+          {
+            "lineNumber": 1718,
+            "text": "    isRecordsStorageReady,"
+          },
+          {
+            "lineNumber": 1719,
+            "text": "    isStatementCloudReady,"
+          },
+          {
+            "lineNumber": 1720,
+            "text": "    masterItems,"
+          },
+          {
+            "lineNumber": 1721,
+            "text": "    mode,"
+          },
+          {
+            "lineNumber": 1722,
+            "text": "    pricingRules,"
+          },
+          {
+            "lineNumber": 1723,
+            "text": "    records,"
+          },
+          {
+            "lineNumber": 1724,
+            "text": "    statementTemplateBase64,"
+          },
+          {
+            "lineNumber": 1725,
+            "text": "    statementTemplateFileName,"
+          },
+          {
+            "lineNumber": 1726,
+            "text": "    statementTemplateSettings,"
+          },
+          {
+            "lineNumber": 1727,
+            "text": "    statementTemplateUpdatedAt,"
+          },
+          {
+            "lineNumber": 1728,
+            "text": "    user?.id,"
+          },
+          {
+            "lineNumber": 1729,
+            "text": "    markStatementDirty,"
+          },
+          {
+            "lineNumber": 1730,
+            "text": "    markStatementError,"
+          },
+          {
+            "lineNumber": 1731,
+            "text": "    markStatementSaved,"
+          },
+          {
+            "lineNumber": 1732,
+            "text": "    markStatementSaving,"
+          },
+          {
+            "lineNumber": 1733,
+            "text": "    skipInitialStatementSave,"
+          },
+          {
+            "lineNumber": 1734,
+            "text": "  ])"
+          },
+          {
+            "lineNumber": 1735
+          },
+          {
+            "lineNumber": 1736,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 1737,
+            "text": "    if (mode !== 'cloud' || !activeCompanyId) {"
+          },
+          {
+            "lineNumber": 1738,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 1739,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1791,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1658
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 1658
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 1659
+              },
+              "startPosition": {
+                "column": 13,
+                "line": 1658
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.34574881196022034
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 247,
+            "text": "type StatementRecord = {"
+          },
+          {
+            "lineNumber": 248,
+            "text": "  id: string"
+          },
+          {
+            "lineNumber": 249,
+            "text": "  deliveryDate: string"
+          },
+          {
+            "lineNumber": 250,
+            "text": "  issueDate: string"
+          },
+          {
+            "lineNumber": 251,
+            "text": "  paymentDate: string"
+          },
+          {
+            "lineNumber": 252,
+            "text": "  deliveryCount: string"
+          },
+          {
+            "lineNumber": 253,
+            "text": "  clientName: string"
+          },
+          {
+            "lineNumber": 254,
+            "text": "  itemName: string"
+          },
+          {
+            "lineNumber": 255,
+            "text": "  specUnit: string"
+          },
+          {
+            "lineNumber": 256,
+            "text": "  quantity: number"
+          },
+          {
+            "lineNumber": 257,
+            "text": "  unitPrice: number"
+          },
+          {
+            "lineNumber": 258,
+            "text": "  note: string"
+          },
+          {
+            "lineNumber": 259,
+            "text": "  supplyAmount: number"
+          },
+          {
+            "lineNumber": 260,
+            "text": "  taxAmount: number"
+          },
+          {
+            "lineNumber": 261,
+            "text": "  totalAmount: number"
+          },
+          {
+            "lineNumber": 262,
+            "text": "  createdAt?: string"
+          },
+          {
+            "lineNumber": 263,
+            "text": "  isCashHandled?: boolean"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 264,
+            "text": "}"
+          },
+          {
+            "lineNumber": 265
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 266,
+            "text": "type StatementSortColumn = 'no' | 'deliveryDate' | 'clientName'"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 63,
+            "line": 265
+          },
+          "startPosition": {
+            "column": 94,
+            "line": 244
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.3373869061470032
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3322
+          },
+          {
+            "lineNumber": 3323
+          },
+          {
+            "lineNumber": 3324,
+            "text": "  const handleSaveInlineEdit = () =\u003e {"
+          },
+          {
+            "lineNumber": 3325,
+            "text": "    if (!inlineEditRecordId) {"
+          },
+          {
+            "lineNumber": 3326,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3327,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3328,
+            "text": "    const quantity = parseNumber(inlineEditDraft.quantity)"
+          },
+          {
+            "lineNumber": 3329,
+            "text": "    const unitPrice = parseNumber(inlineEditDraft.unitPrice)"
+          },
+          {
+            "lineNumber": 3330,
+            "text": "    if (!inlineEditDraft.deliveryDate || !inlineEditDraft.clientName.trim() || !inlineEditDraft.itemName.trim()) {"
+          },
+          {
+            "lineNumber": 3331,
+            "text": "      window.alert('납품일, 거래처명, 품목은 비워둘 수 없습니다.')"
+          },
+          {
+            "lineNumber": 3332,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3333,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3334,
+            "text": "    if (quantity \u003c= 0 || unitPrice \u003c= 0) {"
+          },
+          {
+            "lineNumber": 3335,
+            "text": "      window.alert('수량과 단가는 0보다 커야 합니다.')"
+          },
+          {
+            "lineNumber": 3336,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3337,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3338,
+            "text": "    const supplyAmount = quantity * unitPrice"
+          },
+          {
+            "lineNumber": 3339,
+            "text": "    const taxAmount = calculateTaxAmount(supplyAmount, inlineEditDraft.note)"
+          },
+          {
+            "lineNumber": 3340,
+            "text": "    const totalAmount = supplyAmount + taxAmount"
+          },
+          {
+            "lineNumber": 3341,
+            "text": "    setRecords((current) =\u003e"
+          },
+          {
+            "lineNumber": 3342,
+            "text": "      current"
+          },
+          {
+            "lineNumber": 3343,
+            "text": "        .map((record) =\u003e"
+          },
+          {
+            "lineNumber": 3344,
+            "text": "          record.id === inlineEditRecordId"
+          },
+          {
+            "lineNumber": 3345,
+            "text": "            ? {"
+          },
+          {
+            "lineNumber": 3346,
+            "text": "                ...record,"
+          },
+          {
+            "lineNumber": 3347,
+            "text": "                deliveryDate: inlineEditDraft.deliveryDate,"
+          },
+          {
+            "lineNumber": 3348,
+            "text": "                issueDate: inlineEditDraft.issueDate.trim(),"
+          },
+          {
+            "lineNumber": 3349,
+            "text": "                deliveryCount: inlineEditDraft.deliveryCount || '1',"
+          },
+          {
+            "lineNumber": 3350,
+            "text": "                clientName: inlineEditDraft.clientName.trim(),"
+          },
+          {
+            "lineNumber": 3351,
+            "text": "                itemName: inlineEditDraft.itemName.trim(),"
+          },
+          {
+            "lineNumber": 3352,
+            "text": "                specUnit: inlineEditDraft.specUnit.trim(),"
+          },
+          {
+            "lineNumber": 3353,
+            "text": "                quantity,"
+          },
+          {
+            "lineNumber": 3354,
+            "text": "                unitPrice,"
+          },
+          {
+            "lineNumber": 3355,
+            "text": "                note: inlineEditDraft.note,"
+          },
+          {
+            "lineNumber": 3356,
+            "text": "                isCashHandled: inlineEditDraft.isCashHandled,"
+          },
+          {
+            "lineNumber": 3357,
+            "text": "                supplyAmount,"
+          },
+          {
+            "lineNumber": 3358,
+            "text": "                taxAmount,"
+          },
+          {
+            "lineNumber": 3359,
+            "text": "                totalAmount,"
+          },
+          {
+            "lineNumber": 3360,
+            "text": "              }"
+          },
+          {
+            "lineNumber": 3361,
+            "text": "            : record,"
+          },
+          {
+            "lineNumber": 3362,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 3363,
+            "text": "        .sort(compareStatementRecordsNewestFirst),"
+          },
+          {
+            "lineNumber": 3364,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 3365,
+            "text": "    setInlineEditRecordId(null)"
+          },
+          {
+            "lineNumber": 3366,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3367
+          },
+          {
+            "lineNumber": 3368,
+            "text": "  const handleToggleStatementSort = (column: StatementSortColumn) =\u003e {"
+          },
+          {
+            "lineNumber": 3369,
+            "text": "    setStatementSort((prev) =\u003e {"
+          },
+          {
+            "lineNumber": 3370,
+            "text": "      if (prev?.column === column) {"
+          },
+          {
+            "lineNumber": 3371,
+            "text": "        if (prev.direction === 'asc') {"
+          },
+          {
+            "lineNumber": 3372,
+            "text": "          return { column, direction: 'desc' }"
+          },
+          {
+            "lineNumber": 3373,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 3374,
+            "text": "        return null"
+          },
+          {
+            "lineNumber": 3375,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3376,
+            "text": "      return { column, direction: 'asc' }"
+          },
+          {
+            "lineNumber": 3377,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 3378,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3379
+          },
+          {
+            "lineNumber": 3380,
+            "text": "  const handleCalendarShiftMonth = (delta: number) =\u003e"
+          },
+          {
+            "lineNumber": 3388
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.33344846963882446
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 1369
+          },
+          {
+            "lineNumber": 1370,
+            "text": "  const [inlineEditRecordId, setInlineEditRecordId] = useState\u003cstring | null\u003e(null)"
+          },
+          {
+            "lineNumber": 1371,
+            "text": "  const [inlineEditDraft, setInlineEditDraft] = useState\u003c{"
+          },
+          {
+            "lineNumber": 1372,
+            "text": "    deliveryDate: string"
+          },
+          {
+            "lineNumber": 1373,
+            "text": "    issueDate: string"
+          },
+          {
+            "lineNumber": 1374,
+            "text": "    deliveryCount: string"
+          },
+          {
+            "lineNumber": 1375,
+            "text": "    clientName: string"
+          },
+          {
+            "lineNumber": 1376,
+            "text": "    itemName: string"
+          },
+          {
+            "lineNumber": 1377,
+            "text": "    specUnit: string"
+          },
+          {
+            "lineNumber": 1378,
+            "text": "    quantity: string"
+          },
+          {
+            "lineNumber": 1379,
+            "text": "    unitPrice: string"
+          },
+          {
+            "lineNumber": 1380,
+            "text": "    note: string"
+          },
+          {
+            "lineNumber": 1381,
+            "text": "    isCashHandled: boolean"
+          },
+          {
+            "lineNumber": 1382,
+            "text": "  }\u003e({"
+          },
+          {
+            "lineNumber": 1383,
+            "text": "    deliveryDate: '',"
+          },
+          {
+            "lineNumber": 1384,
+            "text": "    issueDate: '',"
+          },
+          {
+            "lineNumber": 1385,
+            "text": "    deliveryCount: '',"
+          },
+          {
+            "lineNumber": 1386,
+            "text": "    clientName: '',"
+          },
+          {
+            "lineNumber": 1387,
+            "text": "    itemName: '',"
+          },
+          {
+            "lineNumber": 1388,
+            "text": "    specUnit: '',"
+          },
+          {
+            "lineNumber": 1389,
+            "text": "    quantity: '',"
+          },
+          {
+            "lineNumber": 1390,
+            "text": "    unitPrice: '',"
+          },
+          {
+            "lineNumber": 1391,
+            "text": "    note: '부가세 별도',"
+          },
+          {
+            "lineNumber": 1392,
+            "text": "    isCashHandled: false,"
+          },
+          {
+            "lineNumber": 1393,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 1394,
+            "text": "  const [calendarMonth, setCalendarMonth] = useState(() =\u003e new Date().toISOString().slice(0, 7))"
+          },
+          {
+            "lineNumber": 1395,
+            "text": "  const [editingRecordId, setEditingRecordId] = useState\u003cstring | null\u003e(null)"
+          },
+          {
+            "lineNumber": 1396,
+            "text": "  const [statementEntryModalOpen, setStatementEntryModalOpen] = useState(false)"
+          },
+          {
+            "lineNumber": 1397,
+            "text": "  const [bulkItemPickerOpen, setBulkItemPickerOpen] = useState(false)"
+          },
+          {
+            "lineNumber": 1398,
+            "text": "  const [bulkItemPickerQuery, setBulkItemPickerQuery] = useState('')"
+          },
+          {
+            "lineNumber": 1399,
+            "text": "  const [bulkItemPickerPick, setBulkItemPickerPick] = useState\u003c{"
+          },
+          {
+            "lineNumber": 1400,
+            "text": "    selected: Set\u003cstring\u003e"
+          },
+          {
+            "lineNumber": 1401,
+            "text": "    quantities: Record\u003cstring, string\u003e"
+          },
+          {
+            "lineNumber": 1402,
+            "text": "  }\u003e(() =\u003e ({ selected: new Set(), quantities: {} }))"
+          },
+          {
+            "lineNumber": 1403,
+            "text": "  /** 여러 품목 추가 시, 입력 목록에 반영하기 전 확인용 (거래명세서 입력 모달 안에서 표시) */"
+          },
+          {
+            "lineNumber": 1404,
+            "text": "  const [bulkAddPendingRecords, setBulkAddPendingRecords] = useState\u003cStatementRecord[] | null\u003e(null)"
+          },
+          {
+            "lineNumber": 1405,
+            "text": "  const [bulkAddPendingSkippedLabels, setBulkAddPendingSkippedLabels] = useState\u003cstring[]\u003e([])"
+          },
+          {
+            "lineNumber": 1406,
+            "text": "  const [pricingAdminClientKey, setPricingAdminClientKey] = useState('')"
+          },
+          {
+            "lineNumber": 1407,
+            "text": "  const [pricingAdminClientInput, setPricingAdminClientInput] = useState('')"
+          },
+          {
+            "lineNumber": 1408,
+            "text": "  const [pricingAdminLineDraft, setPricingAdminLineDraft] = useState({"
+          },
+          {
+            "lineNumber": 1409,
+            "text": "    itemName: '',"
+          },
+          {
+            "lineNumber": 1410,
+            "text": "    specUnit: '',"
+          },
+          {
+            "lineNumber": 1411,
+            "text": "    unitPrice: '',"
+          },
+          {
+            "lineNumber": 1412,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 1413,
+            "text": "  const [pricingRuleFormMessage, setPricingRuleFormMessage] = useState('')"
+          },
+          {
+            "lineNumber": 1414,
+            "text": "  const [isCustomClient, setIsCustomClient] = useState(false)"
+          },
+          {
+            "lineNumber": 1415,
+            "text": "  const [isCustomItem, setIsCustomItem] = useState(false)"
+          },
+          {
+            "lineNumber": 1416,
+            "text": "  const [isCustomSpec, setIsCustomSpec] = useState(false)"
+          },
+          {
+            "lineNumber": 1417,
+            "text": "  const [selectedSheetKey, setSelectedSheetKey] = useState('')"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3098227083683014
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 855,
+            "text": "const buildEditFormStateFromRecord = ("
+          },
+          {
+            "lineNumber": 856,
+            "text": "  record: StatementRecord,"
+          },
+          {
+            "lineNumber": 857,
+            "text": "  pricingRules: PricingRule[],"
+          },
+          {
+            "lineNumber": 858,
+            "text": "  records: StatementRecord[],"
+          },
+          {
+            "lineNumber": 859,
+            "text": "): { form: FormState; isCustomClient: boolean; isCustomItem: boolean; isCustomSpec: boolean } =\u003e {"
+          },
+          {
+            "lineNumber": 860,
+            "text": "  const mergedClients = new Set\u003cstring\u003e()"
+          },
+          {
+            "lineNumber": 861,
+            "text": "  pricingRules.forEach((rule) =\u003e mergedClients.add(rule.clientName))"
+          },
+          {
+            "lineNumber": 862,
+            "text": "  records.forEach((r) =\u003e {"
+          },
+          {
+            "lineNumber": 863,
+            "text": "    if (r.clientName.trim()) {"
+          },
+          {
+            "lineNumber": 864,
+            "text": "      mergedClients.add(r.clientName.trim())"
+          },
+          {
+            "lineNumber": 865,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 866,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 867,
+            "text": "  const trimmedClient = record.clientName.trim()"
+          },
+          {
+            "lineNumber": 868,
+            "text": "  const isCustomClient = !Array.from(mergedClients).some((c) =\u003e c === trimmedClient)"
+          },
+          {
+            "lineNumber": 869
+          },
+          {
+            "lineNumber": 870,
+            "text": "  const nextClientRules = pricingRules.filter("
+          },
+          {
+            "lineNumber": 871,
+            "text": "    (rule) =\u003e normalizeName(rule.clientName) === normalizeName(trimmedClient),"
+          },
+          {
+            "lineNumber": 872,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 873
+          },
+          {
+            "lineNumber": 874,
+            "text": "  const allItems = new Set\u003cstring\u003e([...DEFAULT_ITEM_OPTIONS])"
+          },
+          {
+            "lineNumber": 875,
+            "text": "  pricingRules.forEach((rule) =\u003e {"
+          },
+          {
+            "lineNumber": 876,
+            "text": "    if (rule.itemName.trim()) {"
+          },
+          {
+            "lineNumber": 877,
+            "text": "      allItems.add(rule.itemName.trim())"
+          },
+          {
+            "lineNumber": 878,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 879,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 880,
+            "text": "  records.forEach((r) =\u003e {"
+          },
+          {
+            "lineNumber": 881,
+            "text": "    if (r.itemName.trim()) {"
+          },
+          {
+            "lineNumber": 882,
+            "text": "      allItems.add(r.itemName.trim())"
+          },
+          {
+            "lineNumber": 883,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 884,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 885,
+            "text": "  const itemsForClient ="
+          },
+          {
+            "lineNumber": 886,
+            "text": "    nextClientRules.length === 0"
+          },
+          {
+            "lineNumber": 887,
+            "text": "      ? Array.from(allItems)"
+          },
+          {
+            "lineNumber": 888,
+            "text": "      : Array.from(new Set(nextClientRules.map((r) =\u003e r.itemName.trim()).filter(Boolean)))"
+          },
+          {
+            "lineNumber": 889
+          },
+          {
+            "lineNumber": 890,
+            "text": "  const trimmedItem = record.itemName.trim()"
+          },
+          {
+            "lineNumber": 891,
+            "text": "  const isCustomItem = !itemsForClient.some("
+          },
+          {
+            "lineNumber": 892,
+            "text": "    (name) =\u003e normalizeName(name) === normalizeName(trimmedItem),"
+          },
+          {
+            "lineNumber": 893,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 894
+          },
+          {
+            "lineNumber": 895,
+            "text": "  const matchedSpecs = nextClientRules"
+          },
+          {
+            "lineNumber": 896,
+            "text": "    .filter((rule) =\u003e normalizeName(rule.itemName) === normalizeName(trimmedItem))"
+          },
+          {
+            "lineNumber": 897,
+            "text": "    .map((rule) =\u003e rule.specUnit)"
+          },
+          {
+            "lineNumber": 898,
+            "text": "    .filter(Boolean)"
+          },
+          {
+            "lineNumber": 899
+          },
+          {
+            "lineNumber": 900,
+            "text": "  const mergedSpecs = new Set\u003cstring\u003e([...DEFAULT_SPEC_OPTIONS])"
+          },
+          {
+            "lineNumber": 901,
+            "text": "  pricingRules.forEach((rule) =\u003e {"
+          },
+          {
+            "lineNumber": 902,
+            "text": "    if (rule.specUnit.trim()) {"
+          },
+          {
+            "lineNumber": 903,
+            "text": "      mergedSpecs.add(rule.specUnit.trim())"
+          },
+          {
+            "lineNumber": 904,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 905,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 906,
+            "text": "  records.forEach((r) =\u003e {"
+          },
+          {
+            "lineNumber": 907,
+            "text": "    if (r.specUnit.trim()) {"
+          },
+          {
+            "lineNumber": 908,
+            "text": "      mergedSpecs.add(r.specUnit.trim())"
+          },
+          {
+            "lineNumber": 909,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 910,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 911,
+            "text": "  const specChoices ="
+          },
+          {
+            "lineNumber": 912,
+            "text": "    matchedSpecs.length \u003e 0 ? Array.from(new Set(matchedSpecs)) : Array.from(mergedSpecs)"
+          },
+          {
+            "lineNumber": 913
+          },
+          {
+            "lineNumber": 914,
+            "text": "  const trimmedSpec = record.specUnit.trim()"
+          },
+          {
+            "lineNumber": 915,
+            "text": "  const specInChoices = specChoices.some((choice) =\u003e choice === trimmedSpec)"
+          },
+          {
+            "lineNumber": 916,
+            "text": "  const isCustomSpec ="
+          },
+          {
+            "lineNumber": 917,
+            "text": "    trimmedSpec !== '' \u0026\u0026 !specInChoices \u0026\u0026"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 935
+          },
+          "startPosition": {
+            "column": 74,
+            "line": 852
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.30783501267433167
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 5166,
+            "text": " null}"
+          },
+          {
+            "lineNumber": 5167
+          },
+          {
+            "lineNumber": 5168,
+            "text": "          \u003cform id=\"statement-entry-form\" className=\"statement-form\" onSubmit={handleSubmit}\u003e"
+          },
+          {
+            "lineNumber": 5169,
+            "text": "            {editingRecordId ? ("
+          },
+          {
+            "lineNumber": 5170,
+            "text": "              \u003cp className=\"statement-edit-hint\"\u003e"
+          },
+          {
+            "lineNumber": 5171,
+            "text": "                입력 목록에서 선택한 건을 수정 중입니다. 반영하려면 위의 「저장」, 취소하려면 「수정 취소」를"
+          },
+          {
+            "lineNumber": 5172,
+            "text": "                눌러주세요."
+          },
+          {
+            "lineNumber": 5173,
+            "text": "              \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 5174,
+            "text": "            ) : null}"
+          },
+          {
+            "lineNumber": 5175
+          },
+          {
+            "lineNumber": 5176,
+            "text": "            {clientMonthSnapshot \u0026\u0026 clientMonthSnapshot.count \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 5177,
+            "text": "              \u003cdiv className=\"statement-client-snapshot\" role=\"status\"\u003e"
+          },
+          {
+            "lineNumber": 5178,
+            "text": "                \u003cspan className=\"statement-client-snapshot-title\"\u003e"
+          },
+          {
+            "lineNumber": 5179,
+            "text": "                  {form.clientName} · {clientMonthSnapshot.currentMonth.replace('-', '.')} 월 요약"
+          },
+          {
+            "lineNumber": 5180,
+            "text": "                \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5181,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e{clientMonthSnapshot.count}건\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5182,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e"
+          },
+          {
+            "lineNumber": 5183,
+            "text": "                  {formatCurrency(clientMonthSnapshot.totalAmount)}원"
+          },
+          {
+            "lineNumber": 5184,
+            "text": "                \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5185,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e누적 {clientMonthSnapshot.quantity}개\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5186,
+            "text": "                {clientMonthSnapshot.lastDeliveryDate ? ("
+          },
+          {
+            "lineNumber": 5187,
+            "text": "                  \u003cspan className=\"statement-client-snapshot-pill\"\u003e"
+          },
+          {
+            "lineNumber": 5188,
+            "text": "                    마지막 납품 {formatDateLabel(clientMonthSnapshot.lastDeliveryDate)}"
+          },
+          {
+            "lineNumber": 5189,
+            "text": "                  \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5190,
+            "text": "                ) : null}"
+          },
+          {
+            "lineNumber": 5191,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5192,
+            "text": "            ) : null}"
+          },
+          {
+            "lineNumber": 5193
+          },
+          {
+            "lineNumber": 5194,
+            "text": "            {recentRecordsForClient.length \u003e 0 \u0026\u0026 !editingRecordId ?"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.29721856117248535
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3275
+          },
+          {
+            "lineNumber": 3276
+          },
+          {
+            "lineNumber": 3277,
+            "text": "  const handleCopyFromRecentRecord = (record: StatementRecord) =\u003e {"
+          },
+          {
+            "lineNumber": 3278,
+            "text": "    setEditingRecordId(null)"
+          },
+          {
+            "lineNumber": 3279,
+            "text": "    setIsCustomClient(false)"
+          },
+          {
+            "lineNumber": 3280,
+            "text": "    setIsCustomItem(false)"
+          },
+          {
+            "lineNumber": 3281,
+            "text": "    setIsCustomSpec(!QUICK_SPEC_VALUES.has(record.specUnit.trim()) \u0026\u0026 record.specUnit.trim() !== '')"
+          },
+          {
+            "lineNumber": 3282,
+            "text": "    setForm({"
+          },
+          {
+            "lineNumber": 3283,
+            "text": "      deliveryDate: new Date().toISOString().slice(0, 10),"
+          },
+          {
+            "lineNumber": 3284,
+            "text": "      issueDate: '',"
+          },
+          {
+            "lineNumber": 3285,
+            "text": "      deliveryCount: record.deliveryCount,"
+          },
+          {
+            "lineNumber": 3286,
+            "text": "      clientName: record.clientName,"
+          },
+          {
+            "lineNumber": 3287,
+            "text": "      itemName: record.itemName,"
+          },
+          {
+            "lineNumber": 3288,
+            "text": "      specUnit: record.specUnit,"
+          },
+          {
+            "lineNumber": 3289,
+            "text": "      quantity: String(record.quantity),"
+          },
+          {
+            "lineNumber": 3290,
+            "text": "      unitPrice: String(record.unitPrice),"
+          },
+          {
+            "lineNumber": 3291,
+            "text": "      note: record.note,"
+          },
+          {
+            "lineNumber": 3292,
+            "text": "      isCashHandled: Boolean(record.isCashHandled),"
+          },
+          {
+            "lineNumber": 3293,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 3294,
+            "text": "    setStatementEntryModalOpen(true)"
+          },
+          {
+            "lineNumber": 3295,
+            "text": "    const formPanel = document.querySelector('.statements-form-compact')"
+          },
+          {
+            "lineNumber": 3296,
+            "text": "    window.requestAnimationFrame(() =\u003e formPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))"
+          },
+          {
+            "lineNumber": 3297,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3298
+          },
+          {
+            "lineNumber": 3299,
+            "text": "  const handleFilterByClient = (clientName: string) =\u003e {"
+          },
+          {
+            "lineNumber": 3300,
+            "text": "    setRecordsSearchQuery(clientName === CASH_CLIENT_LABEL ? CASH_CLIENT_LABEL : clientName)"
+          },
+          {
+            "lineNumber": 3301,
+            "text": "    setActiveView('records')"
+          },
+          {
+            "lineNumber": 3302,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3303
+          },
+          {
+            "lineNumber": 3304,
+            "text": "  const handleStartInlineEdit = (record: StatementRecord) =\u003e {"
+          },
+          {
+            "lineNumber": 3305,
+            "text": "    setInlineEditRecordId(record.id)"
+          },
+          {
+            "lineNumber": 3306,
+            "text": "    setInlineEditDraft({"
+          },
+          {
+            "lineNumber": 3307,
+            "text": "      deliveryDate: record.deliveryDate,"
+          },
+          {
+            "lineNumber": 3308,
+            "text": "      issueDate: record.issueDate ?? '',"
+          },
+          {
+            "lineNumber": 3309,
+            "text": "      deliveryCount: record.deliveryCount,"
+          },
+          {
+            "lineNumber": 3310,
+            "text": "      clientName: record.clientName,"
+          },
+          {
+            "lineNumber": 3311,
+            "text": "      itemName: record.itemName,"
+          },
+          {
+            "lineNumber": 3312,
+            "text": "      specUnit: record.specUnit,"
+          },
+          {
+            "lineNumber": 3313,
+            "text": "      quantity: String(record.quantity),"
+          },
+          {
+            "lineNumber": 3314,
+            "text": "      unitPrice: String(record.unitPrice),"
+          },
+          {
+            "lineNumber": 3315,
+            "text": "      note: record.note,"
+          },
+          {
+            "lineNumber": 3316,
+            "text": "      isCashHandled: Boolean(record.isCashHandled),"
+          },
+          {
+            "lineNumber": 3317,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 3318,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3319
+          },
+          {
+            "lineNumber": 3320,
+            "text": "  const handleCancelInlineEdit = () =\u003e {"
+          },
+          {
+            "lineNumber": 3321,
+            "text": "    setInlineEditRecordId(null)"
+          },
+          {
+            "lineNumber": 3322,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3323
+          },
+          {
+            "lineNumber": 3324,
+            "text": "  const handleSaveInlineEdit = () =\u003e {"
+          },
+          {
+            "lineNumber": 3325,
+            "text": "    if (!inlineEditRecordId)"
+          },
+          {
+            "lineNumber": 3366
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2950958013534546
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 1623,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 1626
+          },
+          {
+            "lineNumber": 1627,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1628,
+            "text": "  }, [statementEntryModalOpen])"
+          },
+          {
+            "lineNumber": 1629
+          },
+          {
+            "lineNumber": 1630,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 1631,
+            "text": "    if (!statementEntryModalOpen) {"
+          },
+          {
+            "lineNumber": 1632,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 1633,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1634,
+            "text": "    const onKeyDown = (event: KeyboardEvent) =\u003e {"
+          },
+          {
+            "lineNumber": 1635,
+            "text": "      if (event.key !== 'Escape') {"
+          },
+          {
+            "lineNumber": 1636,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 1637,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1638,
+            "text": "      if (bulkItemPickerOpen || isAdminUnlockDialogOpen) {"
+          },
+          {
+            "lineNumber": 1639,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 1640,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1641,
+            "text": "      if (bulkAddPendingRecords !== null) {"
+          },
+          {
+            "lineNumber": 1642,
+            "text": "        event.preventDefault()"
+          },
+          {
+            "lineNumber": 1643,
+            "text": "        setBulkAddPendingRecords(null)"
+          },
+          {
+            "lineNumber": 1644,
+            "text": "        setBulkAddPendingSkippedLabels([])"
+          },
+          {
+            "lineNumber": 1645,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 1646,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1647,
+            "text": "      setStatementEntryModalOpen(false)"
+          },
+          {
+            "lineNumber": 1648,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1649,
+            "text": "    window.addEventListener('keydown', onKeyDown)"
+          },
+          {
+            "lineNumber": 1650,
+            "text": "    return () =\u003e window.removeEventListener('keydown', onKeyDown)"
+          },
+          {
+            "lineNumber": 1651,
+            "text": "  }, ["
+          },
+          {
+            "lineNumber": 1652,
+            "text": "    statementEntryModalOpen,"
+          },
+          {
+            "lineNumber": 1653,
+            "text": "    bulkItemPickerOpen,"
+          },
+          {
+            "lineNumber": 1654,
+            "text": "    isAdminUnlockDialogOpen,"
+          },
+          {
+            "lineNumber": 1655,
+            "text": "    bulkAddPendingRecords,"
+          },
+          {
+            "lineNumber": 1656,
+            "text": "  ])"
+          },
+          {
+            "lineNumber": 1657
+          },
+          {
+            "lineNumber": 1658,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 1659,
+            "text": "    if ("
+          },
+          {
+            "lineNumber": 1660,
+            "text": "      !isRecordsStorageReady ||"
+          },
+          {
+            "lineNumber": 1661,
+            "text": "      !isPricingStorageReady ||"
+          },
+          {
+            "lineNumber": 1662,
+            "text": "      !isMasterItemsStorageReady ||"
+          },
+          {
+            "lineNumber": 1663,
+            "text": "      !isStatementCloudReady"
+          },
+          {
+            "lineNumber": 1664,
+            "text": "    ) {"
+          },
+          {
+            "lineNumber": 1665,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 1666,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1667,
+            "text": "    if (mode !== 'cloud' || !activeCompanyId) {"
+          },
+          {
+            "lineNumber": 1668,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 1669,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1670,
+            "text": "    if (skipInitialStatementSave()) {"
+          },
+          {
+            "lineNumber": 1671,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 1672,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1673,
+            "text": "    const currentJson = JSON.stringify({"
+          },
+          {
+            "lineNumber": 1674,
+            "text": "      records,"
+          },
+          {
+            "lineNumber": 1675,
+            "text": "      pricingRules,"
+          },
+          {
+            "lineNumber": 1676,
+            "text": "      masterItems,"
+          },
+          {
+            "lineNumber": 1677,
+            "text": "      statementTemplateBase64,"
+          },
+          {
+            "lineNumber": 1678,
+            "text": "      statementTemplateFileName,"
+          },
+          {
+            "lineNumber": 1679,
+            "text": "      statementTemplateUpdatedAt,"
+          },
+          {
+            "lineNumber": 1680,
+            "text": "      statementTemplateSettings,"
+          },
+          {
+            "lineNumber": 1681,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 1682,
+            "text": "    if (currentJson === lastCloudPollJsonRef.current) {"
+          },
+          {
+            "lineNumber": 1683,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 1684,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1685
+          },
+          {
+            "lineNumber": 1686,
+            "text": "    markStatementDirty()"
+          },
+          {
+            "lineNumber": 1687
+          },
+          {
+            "lineNumber": 1688,
+            "text": "    const timeoutId = window.setTimeout"
+          },
+          {
+            "lineNumber": 1711
+          },
+          {
+            "lineNumber": 1714,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1734
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2943975031375885
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3829
+          },
+          {
+            "lineNumber": 3830,
+            "text": "      \u003c/header\u003e"
+          },
+          {
+            "lineNumber": 3831
+          },
+          {
+            "lineNumber": 3832,
+            "text": "      {activePage === 'statements' ? ("
+          },
+          {
+            "lineNumber": 3833,
+            "text": "        \u003c\u003e"
+          },
+          {
+            "lineNumber": 3834,
+            "text": "      \u003cdiv className=\"statements-page\"\u003e"
+          },
+          {
+            "lineNumber": 3835,
+            "text": "      \u003cmain className=\"statements-main\"\u003e"
+          },
+          {
+            "lineNumber": 3836,
+            "text": "        \u003csection className=\"panel statements-records-panel\"\u003e"
+          },
+          {
+            "lineNumber": 3837,
+            "text": "          \u003cdiv className=\"panel-header controls statements-records-panel-toolbar\"\u003e"
+          },
+          {
+            "lineNumber": 3838,
+            "text": "            \u003cdiv className=\"statements-records-toolbar-left no-print\"\u003e"
+          },
+          {
+            "lineNumber": 3839,
+            "text": "              \u003cdiv className=\"segmented statements-records-view-toggle\"\u003e"
+          },
+          {
+            "lineNumber": 3840,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 3841,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 3842,
+            "text": "                  className={activeView === 'cards' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 3843,
+            "text": "                  onClick={() =\u003e setActiveView('cards')}"
+          },
+          {
+            "lineNumber": 3844,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 3845,
+            "text": "                  거래처 카드"
+          },
+          {
+            "lineNumber": 3846,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 3847,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 3848,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 3849,
+            "text": "                  className={activeView === 'records' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 3850,
+            "text": "                  onClick={() =\u003e {"
+          },
+          {
+            "lineNumber": 3851,
+            "text": "                    setRecordsRangeFilter('month')"
+          },
+          {
+            "lineNumber": 3852,
+            "text": "                    setActiveView('records')"
+          },
+          {
+            "lineNumber": 3853,
+            "text": "                  }}"
+          },
+          {
+            "lineNumber": 3854,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 3855,
+            "text": "                  입력 목록"
+          },
+          {
+            "lineNumber": 3856,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 3857,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 3858,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 3859,
+            "text": "                  className={activeView === 'calendar' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 3860,
+            "text": "                  onClick={() =\u003e setActiveView('calendar')}"
+          },
+          {
+            "lineNumber": 3861,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 3862,
+            "text": "                  캘린더"
+          },
+          {
+            "lineNumber": 3863,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 3864,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 3865,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 3866,
+            "text": "                  className={activeView === 'summary' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 3867,
+            "text": "                  onClick={() =\u003e setActiveView('summary')}"
+          },
+          {
+            "lineNumber": 3868,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 3869,
+            "text": "                  월별 납품현황"
+          },
+          {
+            "lineNumber": 3870,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 3871,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3872,
+            "text": "              \u003cdiv className=\"segmented statements-records-launch\"\u003e"
+          },
+          {
+            "lineNumber": 3873,
+            "text": "                \u003cbutton type=\"button\" onClick={() =\u003e setStatementEntryModalOpen(true)}\u003e"
+          },
+          {
+            "lineNumber": 3874,
+            "text": "                  거래명세서 입력"
+          },
+          {
+            "lineNumber": 3875,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 3876,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3877,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3878
+          },
+          {
+            "lineNumber": 3879,
+            "text": "            \u003cdiv"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2829119861125946
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1271,
+            "text": "const SORT_ARROW: Record\u003cStatementSortDirection, string\u003e = { asc: ' ▲', desc: ' ▼' }"
+          },
+          {
+            "lineNumber": 1272
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 1274,
+            "text": "  const { mode, activeCompany, activeCompanyId, user, signOut } = useAppRuntime()"
+          },
+          {
+            "lineNumber": 1275,
+            "text": "  const [form, setForm] = useState\u003cFormState\u003e(() =\u003e defaultFormState())"
+          },
+          {
+            "lineNumber": 1276,
+            "text": "  const [records, setRecords] = useState\u003cStatementRecord[]\u003e([])"
+          },
+          {
+            "lineNumber": 1277,
+            "text": "  const [pricingRules, setPricingRules] = useState\u003cPricingRule[]\u003e([])"
+          },
+          {
+            "lineNumber": 1278,
+            "text": "  const [masterItems, setMasterItems] = useState\u003cMasterItem[]\u003e([])"
+          },
+          {
+            "lineNumber": 1279,
+            "text": "  const [masterItemDraft, setMasterItemDraft] = useState\u003c{"
+          },
+          {
+            "lineNumber": 1280,
+            "text": "    itemName: string"
+          },
+          {
+            "lineNumber": 1281,
+            "text": "    specUnit: string"
+          },
+          {
+            "lineNumber": 1282,
+            "text": "    unitPrice: string"
+          },
+          {
+            "lineNumber": 1283,
+            "text": "  }\u003e({ itemName: '', specUnit: '', unitPrice: '' })"
+          },
+          {
+            "lineNumber": 1284,
+            "text": "  const [editingMasterItemId, setEditingMasterItemId] = useState\u003cstring | null\u003e(null)"
+          },
+          {
+            "lineNumber": 1285,
+            "text": "  const [editingMasterItemDraft, setEditingMasterItemDraft] = useState\u003c{"
+          },
+          {
+            "lineNumber": 1286,
+            "text": "    itemName: string"
+          },
+          {
+            "lineNumber": 1287,
+            "text": "    specUnit: string"
+          },
+          {
+            "lineNumber": 1288,
+            "text": "    unitPrice: string"
+          },
+          {
+            "lineNumber": 1289,
+            "text": "  }\u003e({ itemName: '', specUnit: '', unitPrice: '' })"
+          },
+          {
+            "lineNumber": 1290,
+            "text": "  const [masterItemMessage, setMasterItemMessage] = useState('')"
+          },
+          {
+            "lineNumber": 1291,
+            "text": "  const [activePage, setActivePage] = useState\u003cAppActivePage\u003e(() =\u003e {"
+          },
+          {
+            "lineNumber": 1292,
+            "text": "    const savedPage = window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY)"
+          },
+          {
+            "lineNumber": 1293,
+            "text": "    if ("
+          },
+          {
+            "lineNumber": 1294,
+            "text": "      savedPage === 'meeting' ||"
+          },
+          {
+            "lineNumber": 1295,
+            "text": "      savedPage === 'inventory' ||"
+          },
+          {
+            "lineNumber": 1296,
+            "text": "      savedPage === 'statements' ||"
+          },
+          {
+            "lineNumber": 1297,
+            "text": "      savedPage === 'expense' ||"
+          },
+          {
+            "lineNumber": 1298,
+            "text": "      savedPage === 'staffPayroll' ||"
+          },
+          {
+            "lineNumber": 1299,
+            "text": "      savedPage === 'greenBeanOrder' ||"
+          },
+          {
+            "lineNumber": 1300,
+            "text": "      savedPage === 'dailyMeeting' ||"
+          },
+          {
+            "lineNumber": 1301,
+            "text": "      savedPage === 'team' ||"
+          },
+          {
+            "lineNumber": 1302,
+            "text": "      savedPage === 'beanSalesAnalysis'"
+          },
+          {
+            "lineNumber": 1303,
+            "text": "    ) {"
+          },
+          {
+            "lineNumber": 1304,
+            "text": "      return savedPage"
+          },
+          {
+            "lineNumber": 1305,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1306,
+            "text": "    if (savedPage === 'memo') {"
+          },
+          {
+            "lineNumber": 1307,
+            "text": "      return 'dailyMeeting'"
+          },
+          {
+            "lineNumber": 1308,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1309
+          },
+          {
+            "lineNumber": 1310,
+            "text": "    return 'statements'"
+          },
+          {
+            "lineNumber": 1311,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 1312,
+            "text": "  const [isHomeRailOpen, setIsHomeRailOpen] = useState(false)"
+          },
+          {
+            "lineNumber": 1313
+          },
+          {
+            "lineNumber": 1314,
+            "text": "  const activeCategoryId = useMemo(() =\u003e categoryIdForPage(activePage), [activePage])"
+          },
+          {
+            "lineNumber": 1315,
+            "text": "  const activeCategoryLabel = useMemo("
+          },
+          {
+            "lineNumber": 1316,
+            "text": "    () =\u003e PAGE_CATEGORY_GROUPS.find((g) =\u003e g.id === activeCategoryId)?.label ?? '업무',"
+          },
+          {
+            "lineNumber": 1317,
+            "text": "    [activeCategoryId],"
+          },
+          {
+            "lineNumber": 1318,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 1319,
+            "text": "  const activePageMeta = useMemo(() =\u003e PAGE_HEADER_META[activePage], [activePage])"
+          },
+          {
+            "lineNumber": 1320,
+            "text": "  const activeCategoryGroup = useMemo("
+          },
+          {
+            "lineNumber": 1321,
+            "text": "    () =\u003e PAGE_CATEGORY_GROUPS.find"
+          },
+          {
+            "lineNumber": 1323
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 1268
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.2824523448944092
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4829
+          },
+          {
+            "lineNumber": 4830,
+            "text": "          \u003cdiv"
+          },
+          {
+            "lineNumber": 4831,
+            "text": "            className=\"statement-entry-modal\""
+          },
+          {
+            "lineNumber": 4832,
+            "text": "            role=\"dialog\""
+          },
+          {
+            "lineNumber": 4833,
+            "text": "            aria-modal=\"true\""
+          },
+          {
+            "lineNumber": 4834,
+            "text": "            aria-labelledby=\"statement-entry-dialog-title\""
+          },
+          {
+            "lineNumber": 4835,
+            "text": "            onClick={(event) =\u003e event.stopPropagation()}"
+          },
+          {
+            "lineNumber": 4836,
+            "text": "          \u003e"
+          },
+          {
+            "lineNumber": 4837,
+            "text": "                    \u003csection className=\"panel form-panel statements-form-compact\"\u003e"
+          },
+          {
+            "lineNumber": 4838,
+            "text": "          \u003cdiv className=\"panel-header\"\u003e"
+          },
+          {
+            "lineNumber": 4839,
+            "text": "            \u003cdiv\u003e"
+          },
+          {
+            "lineNumber": 4840,
+            "text": "              \u003ch2 id=\"statement-entry-dialog-title\"\u003e거래명세서 입력\u003c/h2\u003e"
+          },
+          {
+            "lineNumber": 4841,
+            "text": "              \u003cp\u003e입력하면 아래 목록과 월별 납품현황에 바로 반영됩니다.\u003c/p\u003e"
+          },
+          {
+            "lineNumber": 4842,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4843,
+            "text": "            \u003cdiv className=\"form-panel-actions\"\u003e"
+          },
+          {
+            "lineNumber": 4844,
+            "text": "              \u003cbutton"
+          },
+          {
+            "lineNumber": 4845,
+            "text": "                type=\"button\""
+          },
+          {
+            "lineNumber": 4846,
+            "text": "                className=\"ghost-button statement-header-close\""
+          },
+          {
+            "lineNumber": 4847,
+            "text": "                onClick={() =\u003e setStatementEntryModalOpen(false)}"
+          },
+          {
+            "lineNumber": 4848,
+            "text": "                aria-label=\"입력창 닫기\""
+          },
+          {
+            "lineNumber": 4849,
+            "text": "              \u003e"
+          },
+          {
+            "lineNumber": 4850,
+            "text": "                닫기"
+          },
+          {
+            "lineNumber": 4851,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4852,
+            "text": "              \u003cbutton"
+          },
+          {
+            "lineNumber": 4853,
+            "text": "                type=\"button\""
+          },
+          {
+            "lineNumber": 4854,
+            "text": "                className=\"ghost-button statement-header-admin\""
+          },
+          {
+            "lineNumber": 4855,
+            "text": "                onClick={handleAdminModeButtonClick}"
+          },
+          {
+            "lineNumber": 4856,
+            "text": "              \u003e"
+          },
+          {
+            "lineNumber": 4857,
+            "text": "                {isAdminOpen ? '관리자 모드 닫기' : '관리자 모드'}"
+          },
+          {
+            "lineNumber": 4858,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4859,
+            "text": "              \u003cbutton"
+          },
+          {
+            "lineNumber": 4860,
+            "text": "                type=\"submit\""
+          },
+          {
+            "lineNumber": 4861,
+            "text": "                form=\"statement-entry-form\""
+          },
+          {
+            "lineNumber": 4862,
+            "text": "                className=\"primary-button statement-header-save\""
+          },
+          {
+            "lineNumber": 4863,
+            "text": "              \u003e"
+          },
+          {
+            "lineNumber": 4864,
+            "text": "                저장"
+          },
+          {
+            "lineNumber": 4865,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4866,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4867,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4868
+          },
+          {
+            "lineNumber": 4869,
+            "text": "          {isAdminOpen ?"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.27695509791374207
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 2744,
+            "text": "const handleBulkAddStatementItems = "
+          },
+          {
+            "lineNumber": 2818,
+            "text": "const hasDuplicateAgainstExisting = "
+          },
+          {
+            "lineNumber": 2825
+          },
+          {
+            "lineNumber": 2826,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 2827,
+            "text": "    if ("
+          },
+          {
+            "lineNumber": 2828,
+            "text": "      hasDuplicateAgainstExisting \u0026\u0026"
+          },
+          {
+            "lineNumber": 2829,
+            "text": "      !window.confirm('선택한 품목 중 일부는 같은 날짜·거래처에 이미 있습니다. 그래도 추가할까요?')"
+          },
+          {
+            "lineNumber": 2830,
+            "text": "    ) {"
+          },
+          {
+            "lineNumber": 2831,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2832,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2833
+          },
+          {
+            "lineNumber": 2834,
+            "text": "    setBulkAddPendingRecords(newRecords)"
+          },
+          {
+            "lineNumber": 2835,
+            "text": "    setBulkAddPendingSkippedLabels(skipped)"
+          },
+          {
+            "lineNumber": 2836,
+            "text": "    handleCloseBulkItemPicker()"
+          },
+          {
+            "lineNumber": 2837,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 2838
+          },
+          {
+            "lineNumber": 2839,
+            "text": "  const handleCancelBulkAddPending = () =\u003e {"
+          },
+          {
+            "lineNumber": 2840,
+            "text": "    setBulkAddPendingRecords(null)"
+          },
+          {
+            "lineNumber": 2841,
+            "text": "    setBulkAddPendingSkippedLabels([])"
+          },
+          {
+            "lineNumber": 2842,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 2843
+          },
+          {
+            "lineNumber": 2844,
+            "text": "  const handleCommitBulkAddPending = () =\u003e {"
+          },
+          {
+            "lineNumber": 2845,
+            "text": "    if (!bulkAddPendingRecords || bulkAddPendingRecords.length === 0) {"
+          },
+          {
+            "lineNumber": 2846,
+            "text": "      handleCancelBulkAddPending()"
+          },
+          {
+            "lineNumber": 2847,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2848,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2849,
+            "text": "    setRecords((current) =\u003e"
+          },
+          {
+            "lineNumber": 2850,
+            "text": "      [...bulkAddPendingRecords, ...current].sort(compareStatementRecordsNewestFirst),"
+          },
+          {
+            "lineNumber": 2851,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 2852,
+            "text": "    setBulkAddPendingRecords(null)"
+          },
+          {
+            "lineNumber": 2853,
+            "text": "    setBulkAddPendingSkippedLabels([])"
+          },
+          {
+            "lineNumber": 2854,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 2855
+          },
+          {
+            "lineNumber": 2856,
+            "text": "  const handleSpecSelectionChange = (value: string) =\u003e {"
+          },
+          {
+            "lineNumber": 2857,
+            "text": "    setIsCustomSpec(false)"
+          },
+          {
+            "lineNumber": 2858,
+            "text": "    setForm((current) =\u003e ({ ...current, specUnit: value }))"
+          },
+          {
+            "lineNumber": 2859,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 2860
+          },
+          {
+            "lineNumber": 2861,
+            "text": "  const handleSpecOtherInputChange = (value: string) =\u003e {"
+          },
+          {
+            "lineNumber": 2862,
+            "text": "    handleFieldChange('specUnit', value)"
+          },
+          {
+            "lineNumber": 2863,
+            "text": "    setIsCustomSpec(value.trim() !== '' \u0026\u0026 !QUICK_SPEC_VALUES.has(value.trim()))"
+          },
+          {
+            "lineNumber": 2864,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 2865
+          },
+          {
+            "lineNumber": 2866,
+            "text": "  const saveExcelToPreferredFolder = async ("
+          },
+          {
+            "lineNumber": 2867,
+            "text": "    buffer: ArrayBuffer | Uint8Array,"
+          },
+          {
+            "lineNumber": 2868,
+            "text": "    filename: string,"
+          },
+          {
+            "lineNumber": 2869,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2942
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 2744
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 2744
+              }
+            },
+            {
+              "endPosition": {
+                "column": 39,
+                "line": 2744
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 2744
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.268935889005661
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 365,
+            "text": "const DEFAULT_STATEMENT_TEMPLATE_SETTINGS: StatementTemplateSettings = {"
+          },
+          {
+            "lineNumber": 366,
+            "text": "  businessNumber: '560.17.02264',"
+          },
+          {
+            "lineNumber": 367,
+            "text": "  companyName: '이오도',"
+          },
+          {
+            "lineNumber": 368,
+            "text": "  ownerName: '유성덕',"
+          },
+          {
+            "lineNumber": 369,
+            "text": "  address: '부산시 남구 용소로34번길 24-6',"
+          },
+          {
+            "lineNumber": 370,
+            "text": "  businessType: '제조업',"
+          },
+          {
+            "lineNumber": 371,
+            "text": "  businessItem: '커피차',"
+          },
+          {
+            "lineNumber": 372,
+            "text": "  phone: '051.621.9771',"
+          },
+          {
+            "lineNumber": 373,
+            "text": "  account: '부산은행 101.2087.7763.06 / 이오도 유성덕',"
+          },
+          {
+            "lineNumber": 374,
+            "text": "}"
+          },
+          {
+            "lineNumber": 375
+          },
+          {
+            "lineNumber": 376,
+            "text": "const today = new Date().toISOString().slice(0, 10)"
+          },
+          {
+            "lineNumber": 377
+          },
+          {
+            "lineNumber": 378,
+            "text": "const defaultFormState = (): FormState =\u003e ({"
+          },
+          {
+            "lineNumber": 379,
+            "text": "  deliveryDate: today,"
+          },
+          {
+            "lineNumber": 380,
+            "text": "  issueDate: '',"
+          },
+          {
+            "lineNumber": 381,
+            "text": "  deliveryCount: '1',"
+          },
+          {
+            "lineNumber": 382,
+            "text": "  clientName: '',"
+          },
+          {
+            "lineNumber": 383,
+            "text": "  itemName: '',"
+          },
+          {
+            "lineNumber": 384,
+            "text": "  specUnit: '',"
+          },
+          {
+            "lineNumber": 385,
+            "text": "  quantity: '',"
+          },
+          {
+            "lineNumber": 386,
+            "text": "  unitPrice: '',"
+          },
+          {
+            "lineNumber": 387,
+            "text": "  note: '부가세 별도',"
+          },
+          {
+            "lineNumber": 388,
+            "text": "  isCashHandled: false,"
+          },
+          {
+            "lineNumber": 389,
+            "text": "})"
+          },
+          {
+            "lineNumber": 390
+          },
+          {
+            "lineNumber": 391,
+            "text": "const parseNumber = (value: string) =\u003e {"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 393
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 362
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.2603147625923157
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 1471
+          },
+          {
+            "lineNumber": 1472
+          },
+          {
+            "lineNumber": 1473,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 1474,
+            "text": "    let cancelled = false"
+          },
+          {
+            "lineNumber": 1475
+          },
+          {
+            "lineNumber": 1476,
+            "text": "    setIsRecordsStorageReady(false)"
+          },
+          {
+            "lineNumber": 1477,
+            "text": "    setIsPricingStorageReady(false)"
+          },
+          {
+            "lineNumber": 1478,
+            "text": "    setIsMasterItemsStorageReady(false)"
+          },
+          {
+            "lineNumber": 1479,
+            "text": "    setIsStatementCloudReady(mode === 'local')"
+          },
+          {
+            "lineNumber": 1480,
+            "text": "    resetStatementSaveUi()"
+          },
+          {
+            "lineNumber": 1481
+          },
+          {
+            "lineNumber": 1482,
+            "text": "    const applyState = (next: StatementPageDocument) =\u003e {"
+          },
+          {
+            "lineNumber": 1483,
+            "text": "      if (cancelled) {"
+          },
+          {
+            "lineNumber": 1484,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 1485,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1486,
+            "text": "      setRecords(next.records)"
+          },
+          {
+            "lineNumber": 1487,
+            "text": "      setPricingRules(next.pricingRules)"
+          },
+          {
+            "lineNumber": 1488,
+            "text": "      setMasterItems(next.masterItems)"
+          },
+          {
+            "lineNumber": 1489,
+            "text": "      setStatementTemplateBase64(next.statementTemplateBase64)"
+          },
+          {
+            "lineNumber": 1490,
+            "text": "      setStatementTemplateFileName(next.statementTemplateFileName)"
+          },
+          {
+            "lineNumber": 1491,
+            "text": "      setStatementTemplateUpdatedAt(next.statementTemplateUpdatedAt)"
+          },
+          {
+            "lineNumber": 1492,
+            "text": "      setStatementTemplateSettings(next.statementTemplateSettings)"
+          },
+          {
+            "lineNumber": 1493,
+            "text": "      setIsRecordsStorageReady(true)"
+          },
+          {
+            "lineNumber": 1494,
+            "text": "      setIsPricingStorageReady(true)"
+          },
+          {
+            "lineNumber": 1495,
+            "text": "      setIsMasterItemsStorageReady(true)"
+          },
+          {
+            "lineNumber": 1496,
+            "text": "      setIsStatementCloudReady(true)"
+          },
+          {
+            "lineNumber": 1497,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1498
+          },
+          {
+            "lineNumber": 1499,
+            "text": "    const loadStatementState = async () =\u003e {"
+          },
+          {
+            "lineNumber": 1500,
+            "text": "      const localState = readStatementPageLocalState()"
+          },
+          {
+            "lineNumber": 1501,
+            "text": "      if (mode !== 'cloud' || !activeCompanyId) {"
+          },
+          {
+            "lineNumber": 1502,
+            "text": "        applyState(localState)"
+          },
+          {
+            "lineNumber": 1503,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 1504,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1505
+          },
+          {
+            "lineNumber": 1506,
+            "text": "      try {"
+          },
+          {
+            "lineNumber": 1507,
+            "text": "        const remoteState = await loadCompanyDocument\u003cStatementPageDocument\u003e("
+          },
+          {
+            "lineNumber": 1508,
+            "text": "          activeCompanyId,"
+          },
+          {
+            "lineNumber": 1509,
+            "text": "          COMPANY_DOCUMENT_KEYS.statementPage,"
+          },
+          {
+            "lineNumber": 1510,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 1511,
+            "text": "        applyState(remoteState ? normalizeStatementPageDocument(remoteState) : localState)"
+          },
+          {
+            "lineNumber": 1512,
+            "text": "      } catch (error) {"
+          },
+          {
+            "lineNumber": 1513,
+            "text": "        console.error('거래명세 클라우드 문서를 읽지 못했습니다.', error)"
+          },
+          {
+            "lineNumber": 1514,
+            "text": "        applyState(localState)"
+          },
+          {
+            "lineNumber": 1515,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1516,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1517
+          },
+          {
+            "lineNumber": 1518,
+            "text": "    void loadStatementState()"
+          },
+          {
+            "lineNumber": 1519,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 1520,
+            "text": "      cancelled = true"
+          },
+          {
+            "lineNumber": 1521,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1522,
+            "text": "  }, [activeCompanyId, mode, resetStatementSaveUi])"
+          },
+          {
+            "lineNumber": 1523
+          },
+          {
+            "lineNumber": 1524,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 1525,
+            "text": "    window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage)"
+          },
+          {
+            "lineNumber": 1526,
+            "text": "  }, [activePage])"
+          },
+          {
+            "lineNumber": 1527
+          },
+          {
+            "lineNumber": 1528,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 1529,
+            "text": "    if (!isHomeRailOpen) {"
+          },
+          {
+            "lineNumber": 1530,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 1531,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1539,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2504040598869324
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 2140
+          },
+          {
+            "lineNumber": 2141
+          },
+          {
+            "lineNumber": 2142,
+            "text": "  const activeQuickSpecOptions = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2143,
+            "text": "    if (isDutchItemName(form.itemName)) {"
+          },
+          {
+            "lineNumber": 2144,
+            "text": "      return QUICK_SPEC_OPTIONS_DUTCH"
+          },
+          {
+            "lineNumber": 2145,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2146,
+            "text": "    return QUICK_SPEC_OPTIONS_BEAN"
+          },
+          {
+            "lineNumber": 2147,
+            "text": "  }, [form.itemName])"
+          },
+          {
+            "lineNumber": 2148
+          },
+          {
+            "lineNumber": 2149,
+            "text": "  const filteredRecords = useMemo("
+          },
+          {
+            "lineNumber": 2150,
+            "text": "    () =\u003e records.filter((record) =\u003e record.deliveryDate.startsWith(selectedYear)),"
+          },
+          {
+            "lineNumber": 2151,
+            "text": "    [records, selectedYear],"
+          },
+          {
+            "lineNumber": 2152,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2153
+          },
+          {
+            "lineNumber": 2154,
+            "text": "  const statementPreviewRecords = useMemo("
+          },
+          {
+            "lineNumber": 2155,
+            "text": "    () =\u003e [...records].sort(compareStatementRecordsNewestFirst),"
+          },
+          {
+            "lineNumber": 2156,
+            "text": "    [records],"
+          },
+          {
+            "lineNumber": 2157,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2158
+          },
+          {
+            "lineNumber": 2159,
+            "text": "  const statementDeliveryMonthSeqById = useMemo("
+          },
+          {
+            "lineNumber": 2160,
+            "text": "    () =\u003e statementRecordDeliveryMonthSeqById(records),"
+          },
+          {
+            "lineNumber": 2161,
+            "text": "    [records],"
+          },
+          {
+            "lineNumber": 2162,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2163
+          },
+          {
+            "lineNumber": 2164,
+            "text": "  const visibleRecords = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2165,
+            "text": "    const todayIso = new Date().toISOString().slice(0, 10)"
+          },
+          {
+            "lineNumber": 2166,
+            "text": "    const today = new Date(todayIso)"
+          },
+          {
+            "lineNumber": 2167,
+            "text": "    const startOfWeek = new Date(today)"
+          },
+          {
+            "lineNumber": 2168,
+            "text": "    startOfWeek.setDate(today.getDate() - 6)"
+          },
+          {
+            "lineNumber": 2169,
+            "text": "    const startOfWeekIso = startOfWeek.toISOString().slice(0, 10)"
+          },
+          {
+            "lineNumber": 2170,
+            "text": "    const currentMonth = todayIso.slice(0, 7)"
+          },
+          {
+            "lineNumber": 2171,
+            "text": "    const query = recordsSearchQuery.trim().toLowerCase()"
+          },
+          {
+            "lineNumber": 2172,
+            "text": "    const seqById = statementDeliveryMonthSeqById"
+          },
+          {
+            "lineNumber": 2173
+          },
+          {
+            "lineNumber": 2174,
+            "text": "    const filtered = statementPreviewRecords.filter((record) =\u003e {"
+          },
+          {
+            "lineNumber": 2175,
+            "text": "      if (recordsRangeFilter === 'year' \u0026\u0026 !record.deliveryDate.startsWith(selectedYear)) {"
+          },
+          {
+            "lineNumber": 2176,
+            "text": "        return false"
+          },
+          {
+            "lineNumber": 2177,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2178,
+            "text": "      if (recordsRangeFilter === 'month' \u0026\u0026 !record.deliveryDate.startsWith(currentMonth)) {"
+          },
+          {
+            "lineNumber": 2179,
+            "text": "        return false"
+          },
+          {
+            "lineNumber": 2180,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2181,
+            "text": "      if (recordsRangeFilter === 'week' \u0026\u0026 record.deliveryDate \u003c startOfWeekIso) {"
+          },
+          {
+            "lineNumber": 2182,
+            "text": "        return false"
+          },
+          {
+            "lineNumber": 2183,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2184,
+            "text": "      if (recordsNoteFilter !== 'all' \u0026\u0026 record.note !== recordsNoteFilter) {"
+          },
+          {
+            "lineNumber": 2185,
+            "text": "        return false"
+          },
+          {
+            "lineNumber": 2186,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2187,
+            "text": "      if (query) {"
+          },
+          {
+            "lineNumber": 2188,
+            "text": "        const cashToken = record.isCashHandled ? &#96; ${record.clientName}-${CASH_CLIENT_LABEL} ${CASH_CLIENT_LABEL}&#96; : ''"
+          },
+          {
+            "lineNumber": 2189,
+            "text": "        const haystack = &#96;${record.clientName} ${record.itemName} ${record.specUnit} ${record.note}${cashToken}&#96;.toLowerCase()"
+          },
+          {
+            "lineNumber": 2190,
+            "text": "        if (!haystack.includes(query)) {"
+          },
+          {
+            "lineNumber": 2191,
+            "text": "          return false"
+          },
+          {
+            "lineNumber": 2192,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 2193,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2194,
+            "text": "      return true"
+          },
+          {
+            "lineNumber": 2195,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2196
+          },
+          {
+            "lineNumber": 2197,
+            "text": "    if (!statementSort) {"
+          },
+          {
+            "lineNumber": 2198,
+            "text": "      return filtered"
+          },
+          {
+            "lineNumber": 2199,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2200
+          },
+          {
+            "lineNumber": 2201,
+            "text": "    const dir = statementSort.direction === 'asc' ? 1 : -1"
+          },
+          {
+            "lineNumber": 2211,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.24911800026893616
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 5352
+          },
+          {
+            "lineNumber": 5353,
+            "text": "              \u003clabel className=\"statement-form-field statement-form-field--qty\"\u003e"
+          },
+          {
+            "lineNumber": 5354,
+            "text": "                수량"
+          },
+          {
+            "lineNumber": 5355,
+            "text": "                \u003cinput"
+          },
+          {
+            "lineNumber": 5356,
+            "text": "                  type=\"text\""
+          },
+          {
+            "lineNumber": 5357,
+            "text": "                  inputMode=\"decimal\""
+          },
+          {
+            "lineNumber": 5358,
+            "text": "                  value={form.quantity}"
+          },
+          {
+            "lineNumber": 5359,
+            "text": "                  onChange={(event) =\u003e handleFieldChange('quantity', event.target.value)}"
+          },
+          {
+            "lineNumber": 5360,
+            "text": "                  placeholder=\"예: 10\""
+          },
+          {
+            "lineNumber": 5361,
+            "text": "                /\u003e"
+          },
+          {
+            "lineNumber": 5362,
+            "text": "              \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 5363,
+            "text": "              \u003clabel className=\"statement-form-field statement-form-field--price\"\u003e"
+          },
+          {
+            "lineNumber": 5364,
+            "text": "                단가"
+          },
+          {
+            "lineNumber": 5365,
+            "text": "                \u003cinput"
+          },
+          {
+            "lineNumber": 5366,
+            "text": "                  type=\"text\""
+          },
+          {
+            "lineNumber": 5367,
+            "text": "                  inputMode=\"numeric\""
+          },
+          {
+            "lineNumber": 5368,
+            "text": "                  value={form.unitPrice}"
+          },
+          {
+            "lineNumber": 5369,
+            "text": "                  onChange={(event) =\u003e handleFieldChange('unitPrice', event.target.value)}"
+          },
+          {
+            "lineNumber": 5370,
+            "text": "                  placeholder=\"예: 33000\""
+          },
+          {
+            "lineNumber": 5371,
+            "text": "                /\u003e"
+          },
+          {
+            "lineNumber": 5372,
+            "text": "              \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 5373,
+            "text": "              \u003clabel className=\"statement-form-field statement-form-field--tax\"\u003e"
+          },
+          {
+            "lineNumber": 5374,
+            "text": "                과세구분"
+          },
+          {
+            "lineNumber": 5375,
+            "text": "                \u003cselect"
+          },
+          {
+            "lineNumber": 5376,
+            "text": "                  value={form.note}"
+          },
+          {
+            "lineNumber": 5377,
+            "text": "                  onChange={(event) =\u003e handleFieldChange('note', event.target.value)}"
+          },
+          {
+            "lineNumber": 5378,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 5379,
+            "text": "                  {NOTE_OPTIONS.map((option) =\u003e ("
+          },
+          {
+            "lineNumber": 5380,
+            "text": "                    \u003coption key={option} value={option}\u003e"
+          },
+          {
+            "lineNumber": 5381,
+            "text": "                      {option}"
+          },
+          {
+            "lineNumber": 5382,
+            "text": "                    \u003c/option\u003e"
+          },
+          {
+            "lineNumber": 5383,
+            "text": "                  ))}"
+          },
+          {
+            "lineNumber": 5384,
+            "text": "                \u003c/select\u003e"
+          },
+          {
+            "lineNumber": 5385,
+            "text": "                \u003clabel className=\"statement-cash-toggle\"\u003e"
+          },
+          {
+            "lineNumber": 5386,
+            "text": "                  \u003cinput"
+          },
+          {
+            "lineNumber": 5387,
+            "text": "                    type=\"checkbox\""
+          },
+          {
+            "lineNumber": 5388,
+            "text": "                    checked={form.isCashHandled}"
+          },
+          {
+            "lineNumber": 5389,
+            "text": "                    onChange={(event) =\u003e handleToggleCashHandled(event.target.checked)}"
+          },
+          {
+            "lineNumber": 5390,
+            "text": "                  /\u003e"
+          },
+          {
+            "lineNumber": 5391,
+            "text": "                  현금 처리"
+          },
+          {
+            "lineNumber": 5392,
+            "text": "                \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 5393,
+            "text": "              \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 5394,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5395
+          },
+          {
+            "lineNumber": 5396,
+            "text": "            \u003cdiv className=\"calculation-card span-2\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.24721306562423706
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 1734
+          },
+          {
+            "lineNumber": 1735
+          },
+          {
+            "lineNumber": 1736,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 1737,
+            "text": "    if (mode !== 'cloud' || !activeCompanyId) {"
+          },
+          {
+            "lineNumber": 1738,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 1739,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1740,
+            "text": "    let cancelled = false"
+          },
+          {
+            "lineNumber": 1741,
+            "text": "    let inFlight = false"
+          },
+          {
+            "lineNumber": 1742,
+            "text": "    let lastJson = ''"
+          },
+          {
+            "lineNumber": 1743
+          },
+          {
+            "lineNumber": 1744,
+            "text": "    const poll = async () =\u003e {"
+          },
+          {
+            "lineNumber": 1745,
+            "text": "      if (cancelled || inFlight) {"
+          },
+          {
+            "lineNumber": 1746,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 1747,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1748,
+            "text": "      inFlight = true"
+          },
+          {
+            "lineNumber": 1749,
+            "text": "      try {"
+          },
+          {
+            "lineNumber": 1750,
+            "text": "        const remote = await loadCompanyDocument\u003cStatementPageDocument\u003e("
+          },
+          {
+            "lineNumber": 1751,
+            "text": "          activeCompanyId,"
+          },
+          {
+            "lineNumber": 1752,
+            "text": "          COMPANY_DOCUMENT_KEYS.statementPage,"
+          },
+          {
+            "lineNumber": 1753,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 1754,
+            "text": "        if (cancelled || !remote) {"
+          },
+          {
+            "lineNumber": 1755,
+            "text": "          return"
+          },
+          {
+            "lineNumber": 1756,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 1757,
+            "text": "        const normalized = normalizeStatementPageDocument(remote)"
+          },
+          {
+            "lineNumber": 1758,
+            "text": "        const nextJson = JSON.stringify({"
+          },
+          {
+            "lineNumber": 1759,
+            "text": "          records: normalized.records,"
+          },
+          {
+            "lineNumber": 1760,
+            "text": "          pricingRules: normalized.pricingRules,"
+          },
+          {
+            "lineNumber": 1761,
+            "text": "          masterItems: normalized.masterItems,"
+          },
+          {
+            "lineNumber": 1762,
+            "text": "          statementTemplateBase64: normalized.statementTemplateBase64,"
+          },
+          {
+            "lineNumber": 1763,
+            "text": "          statementTemplateFileName: normalized.statementTemplateFileName,"
+          },
+          {
+            "lineNumber": 1764,
+            "text": "          statementTemplateUpdatedAt: normalized.statementTemplateUpdatedAt,"
+          },
+          {
+            "lineNumber": 1765,
+            "text": "          statementTemplateSettings: normalized.statementTemplateSettings,"
+          },
+          {
+            "lineNumber": 1766,
+            "text": "        })"
+          },
+          {
+            "lineNumber": 1767,
+            "text": "        if (nextJson !== lastJson) {"
+          },
+          {
+            "lineNumber": 1768,
+            "text": "          lastJson = nextJson"
+          },
+          {
+            "lineNumber": 1769,
+            "text": "          lastCloudPollJsonRef.current = nextJson"
+          },
+          {
+            "lineNumber": 1770,
+            "text": "          setRecords(normalized.records)"
+          },
+          {
+            "lineNumber": 1771,
+            "text": "          setPricingRules(normalized.pricingRules)"
+          },
+          {
+            "lineNumber": 1772,
+            "text": "          setMasterItems(normalized.masterItems)"
+          },
+          {
+            "lineNumber": 1773,
+            "text": "          setStatementTemplateBase64(normalized.statementTemplateBase64)"
+          },
+          {
+            "lineNumber": 1774,
+            "text": "          setStatementTemplateFileName(normalized.statementTemplateFileName)"
+          },
+          {
+            "lineNumber": 1775,
+            "text": "          setStatementTemplateUpdatedAt(normalized.statementTemplateUpdatedAt)"
+          },
+          {
+            "lineNumber": 1776,
+            "text": "          setStatementTemplateSettings(normalized.statementTemplateSettings)"
+          },
+          {
+            "lineNumber": 1777,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 1778,
+            "text": "      } catch {"
+          },
+          {
+            "lineNumber": 1779,
+            "text": "        /* retry next cycle */"
+          },
+          {
+            "lineNumber": 1780,
+            "text": "      } finally {"
+          },
+          {
+            "lineNumber": 1781,
+            "text": "        inFlight = false"
+          },
+          {
+            "lineNumber": 1782,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1783,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1784
+          },
+          {
+            "lineNumber": 1785,
+            "text": "    void poll()"
+          },
+          {
+            "lineNumber": 1786,
+            "text": "    const id = window.setInterval(() =\u003e void poll(), 2500)"
+          },
+          {
+            "lineNumber": 1787,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 1788,
+            "text": "      cancelled = true"
+          },
+          {
+            "lineNumber": 1789,
+            "text": "      window.clearInterval(id)"
+          },
+          {
+            "lineNumber": 1790,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1791,
+            "text": "  }, [mode, activeCompanyId])"
+          },
+          {
+            "lineNumber": 1792
+          },
+          {
+            "lineNumber": 1793,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 1794,
+            "text": "    let isMounted = true"
+          },
+          {
+            "lineNumber": 1905,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2462548017501831
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 855,
+            "text": "const buildEditFormStateFromRecord = "
+          },
+          {
+            "lineNumber": 914
+          },
+          {
+            "lineNumber": 915,
+            "text": "  const specInChoices = specChoices.some((choice) =\u003e choice === trimmedSpec)"
+          },
+          {
+            "lineNumber": 916,
+            "text": "  const isCustomSpec ="
+          },
+          {
+            "lineNumber": 917,
+            "text": "    trimmedSpec !== '' \u0026\u0026 !specInChoices \u0026\u0026 !QUICK_SPEC_VALUES.has(trimmedSpec)"
+          },
+          {
+            "lineNumber": 918
+          },
+          {
+            "lineNumber": 919,
+            "text": "  return {"
+          },
+          {
+            "lineNumber": 920,
+            "text": "    form: {"
+          },
+          {
+            "lineNumber": 921,
+            "text": "      deliveryDate: record.deliveryDate,"
+          },
+          {
+            "lineNumber": 922,
+            "text": "      issueDate: record.issueDate ?? '',"
+          },
+          {
+            "lineNumber": 923,
+            "text": "      deliveryCount: record.deliveryCount,"
+          },
+          {
+            "lineNumber": 924,
+            "text": "      clientName: trimmedClient,"
+          },
+          {
+            "lineNumber": 925,
+            "text": "      itemName: trimmedItem,"
+          },
+          {
+            "lineNumber": 926,
+            "text": "      specUnit: trimmedSpec,"
+          },
+          {
+            "lineNumber": 927,
+            "text": "      quantity: String(record.quantity),"
+          },
+          {
+            "lineNumber": 928,
+            "text": "      unitPrice: String(record.unitPrice),"
+          },
+          {
+            "lineNumber": 929,
+            "text": "      note: record.note,"
+          },
+          {
+            "lineNumber": 930,
+            "text": "      isCashHandled: Boolean(record.isCashHandled),"
+          },
+          {
+            "lineNumber": 931,
+            "text": "    },"
+          },
+          {
+            "lineNumber": 932,
+            "text": "    isCustomClient,"
+          },
+          {
+            "lineNumber": 933,
+            "text": "    isCustomItem,"
+          },
+          {
+            "lineNumber": 934,
+            "text": "    isCustomSpec,"
+          },
+          {
+            "lineNumber": 935,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 936,
+            "text": "}"
+          },
+          {
+            "lineNumber": 937
+          },
+          {
+            "lineNumber": 938,
+            "text": "const formatCurrency = (value: number) =\u003e currencyFormatter.format(value)"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 73,
+            "line": 937
+          },
+          "startPosition": {
+            "line": 854
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 7,
+                "line": 855
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 855
+              }
+            },
+            {
+              "endPosition": {
+                "column": 38,
+                "line": 855
+              },
+              "startPosition": {
+                "column": 7,
+                "line": 855
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.24369525909423828
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 987,
+            "text": "const normalizeLoadedRecords = (records: Array\u003cStatementRecord \u0026 { note?: string; isCashHandled?: boolean }\u003e) =\u003e"
+          },
+          {
+            "lineNumber": 988,
+            "text": "  records.map((record) =\u003e ({"
+          },
+          {
+            "lineNumber": 989,
+            "text": "    ...record,"
+          },
+          {
+            "lineNumber": 990,
+            "text": "    note: record.note ?? (record.taxAmount === 0 ? '부가세 없음' : '부가세 별도'),"
+          },
+          {
+            "lineNumber": 991,
+            "text": "    isCashHandled: Boolean(record.isCashHandled),"
+          },
+          {
+            "lineNumber": 992,
+            "text": "  }))"
+          },
+          {
+            "lineNumber": 993
+          },
+          {
+            "lineNumber": 994,
+            "text": "const FILE_HANDLE_DB_NAME = 'statement-file-handle-db'"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 54,
+            "line": 993
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 984
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.2399301528930664
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3418
+          },
+          {
+            "lineNumber": 3419
+          },
+          {
+            "lineNumber": 3420,
+            "text": "  const exportSelectedStatementSheetToTemplate = async () =\u003e {"
+          },
+          {
+            "lineNumber": 3421,
+            "text": "    if (!selectedSheet) {"
+          },
+          {
+            "lineNumber": 3422,
+            "text": "      setStatementTemplateMessage('채울 거래명세표가 없습니다.')"
+          },
+          {
+            "lineNumber": 3423,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3424,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3425
+          },
+          {
+            "lineNumber": 3426,
+            "text": "    if (!statementTemplateBase64) {"
+          },
+          {
+            "lineNumber": 3427,
+            "text": "      setStatementTemplateMessage('먼저 거래명세서 양식 엑셀을 업로드해주세요.')"
+          },
+          {
+            "lineNumber": 3428,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3429,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3430
+          },
+          {
+            "lineNumber": 3431,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 3432,
+            "text": "      const workbook = new ExcelJS.Workbook()"
+          },
+          {
+            "lineNumber": 3433,
+            "text": "      await workbook.xlsx.load(toArrayBuffer(base64ToUint8Array(statementTemplateBase64)))"
+          },
+          {
+            "lineNumber": 3434,
+            "text": "      workbook.calcProperties.fullCalcOnLoad = true"
+          },
+          {
+            "lineNumber": 3435,
+            "text": "      const worksheet = workbook.getWorksheet('거래명세서양식')"
+          },
+          {
+            "lineNumber": 3436
+          },
+          {
+            "lineNumber": 3437,
+            "text": "      if (!worksheet) {"
+          },
+          {
+            "lineNumber": 3438,
+            "text": "        setStatementTemplateMessage('업로드한 양식에서 &#96;거래명세서양식&#96; 시트를 찾지 못했습니다.')"
+          },
+          {
+            "lineNumber": 3439,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 3440,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3441,
+            "text": "      const layoutSnapshot = captureWorksheetLayout(worksheet)"
+          },
+          {
+            "lineNumber": 3442
+          },
+          {
+            "lineNumber": 3443,
+            "text": "      const safeClientName = selectedSheet.clientName.replace(/[\\\\/:*?\"\u003c\u003e|]/g, '_')"
+          },
+          {
+            "lineNumber": 3444,
+            "text": "      const pageSize = 15"
+          },
+          {
+            "lineNumber": 3445,
+            "text": "      const pageCount = Math.max(1, Math.ceil(selectedSheet.records.length / pageSize))"
+          },
+          {
+            "lineNumber": 3446
+          },
+          {
+            "lineNumber": 3447,
+            "text": "      const sheetsToExport: ExcelJS.Worksheet[] = []"
+          },
+          {
+            "lineNumber": 3448
+          },
+          {
+            "lineNumber": 3449,
+            "text": "      worksheet.name = pageCount === 1 ? &#96;${safeClientName}&#96; : &#96;${safeClientName}_1&#96;"
+          },
+          {
+            "lineNumber": 3450,
+            "text": "      fillStatementTemplateWorksheet(worksheet, selectedSheet, statementTemplateSettings, 0, pageSize)"
+          },
+          {
+            "lineNumber": 3451,
+            "text": "      applyWorksheetLayout(worksheet, layoutSnapshot)"
+          },
+          {
+            "lineNumber": 3452,
+            "text": "      sheetsToExport.push(worksheet)"
+          },
+          {
+            "lineNumber": 3453
+          },
+          {
+            "lineNumber": 3454,
+            "text": "      for (let pageIndex = 1; pageIndex \u003c pageCount; pageIndex += 1) {"
+          },
+          {
+            "lineNumber": 3455,
+            "text": "        const copiedSheet = createWorksheetCopy(workbook, worksheet, &#96;${safeClientName}_${pageIndex + 1}&#96;)"
+          },
+          {
+            "lineNumber": 3456,
+            "text": "        fillStatementTemplateWorksheet("
+          },
+          {
+            "lineNumber": 3457,
+            "text": "          copiedSheet,"
+          },
+          {
+            "lineNumber": 3458,
+            "text": "          selectedSheet,"
+          },
+          {
+            "lineNumber": 3459,
+            "text": "          statementTemplateSettings,"
+          },
+          {
+            "lineNumber": 3460,
+            "text": "          pageIndex * pageSize,"
+          },
+          {
+            "lineNumber": 3461,
+            "text": "          pageSize,"
+          },
+          {
+            "lineNumber": 3462,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 3463,
+            "text": "        applyWorksheetLayout(copiedSheet, layoutSnapshot)"
+          },
+          {
+            "lineNumber": 3464,
+            "text": "        sheetsToExport.push(copiedSheet)"
+          },
+          {
+            "lineNumber": 3465,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3466
+          },
+          {
+            "lineNumber": 3467,
+            "text": "      const keepIds = new Set(sheetsToExport.map((s) =\u003e s.id))"
+          },
+          {
+            "lineNumber": 3468,
+            "text": "      const removeIds: number[] = []"
+          },
+          {
+            "lineNumber": 3469,
+            "text": "      workbook.eachSheet((sheet) =\u003e {"
+          },
+          {
+            "lineNumber": 3470,
+            "text": "        if (!keepIds.has(sheet.id)) {"
+          },
+          {
+            "lineNumber": 3471,
+            "text": "          removeIds.push(sheet.id)"
+          },
+          {
+            "lineNumber": 3472,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 3473,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3491
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.23903554677963257
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1273,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 5192
+          },
+          {
+            "lineNumber": 5193
+          },
+          {
+            "lineNumber": 5194,
+            "text": "            {recentRecordsForClient.length \u003e 0 \u0026\u0026 !editingRecordId ? ("
+          },
+          {
+            "lineNumber": 5195,
+            "text": "              \u003cdiv className=\"statement-recent-panel\"\u003e"
+          },
+          {
+            "lineNumber": 5196,
+            "text": "                \u003cdiv className=\"statement-recent-panel-head\"\u003e"
+          },
+          {
+            "lineNumber": 5197,
+            "text": "                  \u003cstrong\u003e최근 납품\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 5198,
+            "text": "                  \u003cspan\u003e{form.clientName} · 클릭하면 오늘 날짜로 자동 입력\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5199,
+            "text": "                \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5200,
+            "text": "                \u003cdiv className=\"statement-recent-panel-list\"\u003e"
+          },
+          {
+            "lineNumber": 5201,
+            "text": "                  {recentRecordsForClient.map((record) =\u003e ("
+          },
+          {
+            "lineNumber": 5202,
+            "text": "                    \u003cbutton"
+          },
+          {
+            "lineNumber": 5203,
+            "text": "                      key={record.id}"
+          },
+          {
+            "lineNumber": 5204,
+            "text": "                      type=\"button\""
+          },
+          {
+            "lineNumber": 5205,
+            "text": "                      className=\"statement-recent-panel-item\""
+          },
+          {
+            "lineNumber": 5206,
+            "text": "                      onClick={() =\u003e handleCopyFromRecentRecord(record)}"
+          },
+          {
+            "lineNumber": 5207,
+            "text": "                      title=\"이 납품을 오늘 날짜로 복제합니다\""
+          },
+          {
+            "lineNumber": 5208,
+            "text": "                    \u003e"
+          },
+          {
+            "lineNumber": 5209,
+            "text": "                      \u003cspan className=\"statement-recent-panel-item-date\"\u003e"
+          },
+          {
+            "lineNumber": 5210,
+            "text": "                        {formatDateLabel(record.deliveryDate)}"
+          },
+          {
+            "lineNumber": 5211,
+            "text": "                      \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5212,
+            "text": "                      \u003cspan className=\"statement-recent-panel-item-name\"\u003e{record.itemName}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5213,
+            "text": "                      \u003cspan className=\"statement-recent-panel-item-meta\"\u003e"
+          },
+          {
+            "lineNumber": 5214,
+            "text": "                        {record.specUnit || '-'} · {record.quantity}개 · {formatCurrency(record.unitPrice)}원"
+          },
+          {
+            "lineNumber": 5215,
+            "text": "                      \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5216,
+            "text": "                    \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 5217,
+            "text": "                  ))}"
+          },
+          {
+            "lineNumber": 5218,
+            "text": "                \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5219,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5220,
+            "text": "            ) : null}"
+          },
+          {
+            "lineNumber": 5221
+          },
+          {
+            "lineNumber": 5222,
+            "text": "            {duplicateCandidate \u0026\u0026 !editingRecordId ? ("
+          },
+          {
+            "lineNumber": 5223,
+            "text": "              \u003cp className=\"statement-duplicate-warning\" role=\"alert\"\u003e"
+          },
+          {
+            "lineNumber": 5224,
+            "text": "                같은 날 {duplicateCandidate.clientName}에 「{duplicateCandidate.itemName}」 {duplicateCandidate.quantity}개 건이 이미 있습니다."
+          },
+          {
+            "lineNumber": 5225,
+            "text": "                그대로 저장하면 중복으로 들어갑니다."
+          },
+          {
+            "lineNumber": 5226,
+            "text": "              \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 5227,
+            "text": "            ) : null}"
+          },
+          {
+            "lineNumber": 5228,
+            "text": "            \u003cdiv className=\"statement-form-primary-row\"\u003e"
+          },
+          {
+            "lineNumber": 5229,
+            "text": "              \u003clabel className=\"statement-form-field statement-form-field--date\""
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5721,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5720
+          },
+          "startPosition": {
+            "line": 1272
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1274
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1273
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.23874519765377045
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "App.tsx",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "type FormState|calculatedAmounts|useMemo\\(\\(\\) =\u003e"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "type FormState|calculatedAmounts|useMemo\\(\\(\\) =\u003e",
+  "topFiles": [
+    {
+      "matchCount": 33,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 33
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants a manual or custom pricing mode that allows them to set prices freely. When custom pricing mode is enabled, the useEffect that auto-applies pricing rules or master item data should be skipped. This allows free entry of item name, price, and unit without interference. The form state needs a `useCustomLineValues` flag to control this behavior. Bulk add functionality will still require `resolveStatementPricingForClientItem` to succeed, but custom pricing entries won't trigger the automatic population of unit price or spec unit from matching rules or master items. When `useCustomLineValues` is enabled, the UI should indicate "  " and allow free text input for item names, quantities, units, and prices. For bulk additions, a separate UI or direct input fields should be provided. A toggle labeled "  " / "  " should control this behavior. In custom mode, auto-fill effects must be disabled, and the spec field should always display as a text input. When custom pricing mode is enabled, users can freely input item names, unit prices, and spec units without auto-population from rules or master items. For bulk additions in custom mode, a dedicated table or dialog should replace the standard bulk picker to allow direct entry of item details like name, specification, quantity, and unit price.
+
+- Implement `statementCustomLineMode` state to control custom pricing behavior
+- Replace bulk picker with a custom input table when in custom mode
+- Allow direct row-by-row entry of item details in bulk operations
+- Disable auto-fill effects during custom line value entry **defaultFormState**: add `useCustomStatementLineValues: false`
+
+- **useEffect** (2423-2457): Early return if `form.useCustomStatementLineValues` is true
+- **resetStatementFormAfterSave**: preserve client/deliveryDate but reset `useCustomStatementLineValues` to false OR keep user's preference - I'll preserve the mode preference from current when saving (user might want to enter many manual lines):
+  ```tsx
+  setForm((current) => ({
+    ...defaultFormState(),
+    clientName: current.clientName,
+    deliveryDate: current.deliveryDate,
+    useCustomStatementLineValues: current.
+  ``` When custom pricing mode is enabled, the UI should toggle to "   " with a help text indicating that values will be saved directly instead of from the price list. The warning about items not in the selected clients price list should be hidden or softened. Items should default to text input rather than selection, and the spec unit field should always show an other text input for free-form entry. When custom pricing mode is enabled, the spec field should always display as a free-text input, even if "other" is selected, and the bulk add feature should either be disabled with a message or replaced with a custom input table for direct entry.
+
+- Show spec field as free-text input in custom mode
+- Disable bulk add or replace with custom input table
+- Display message: "     ,      " When custom pricing mode is enabled, replace the bulk picker with a simplified UI using a " " button and text inputs for item name, specification/unit, quantity, and unit price. Alternatively, use an editable grid in the same dialog for direct entry. For v1, avoid complex prompts and instead allow users to paste data in a tab-separated format like "\t\t\t" into a textarea or multiple rows. When custom pricing mode is enabled, users can freely set item names, prices, and units without auto-population from pricing rules or master items. For bulk additions, the UI should allow direct entry of item details like name, specification, quantity, and unit price, replacing the standard picker with a simplified input table or textarea for pasted data. A toggle switch labeled "  " / "  " controls this behavior, disabling auto-fill effects and showing spec fields as free-text inputs. The bulk dialog changes to support per-row overrides for unit price while maintaining other fields from the selected items.
+
+- Toggle custom pricing mode to disable auto-fill and enable free-form entry
+- Replace bulk picker with input table or textarea for direct data entry
+- Allow per-row unit price overrides in bulk operations
+- Show spec field as free-text input regardless of selection - Hide the predefined item picker and show a repeatable row editor with fields for item name, specification, quantity, and unit price.
+- Allow multiple arbitrary lines without requiring them to exist in the pricing table.
+- Implement a separate `StatementBulkCustomDialog` for custom pricing mode, enabling direct entry of item details.
+
+**Implementation plan:**
+
+- **FormState**: Add `manualLineEntry: boolean` to control manual line entry
+- **Effects**: Guard effects using `!form.manualLineEntry`
+- **Bulk Dialog**: Show `StatementBulkCustomDialog` when in custom mode, allowing direct input of item details
+- **Row Editor**: Enable free-form entry of item name, spec, quantity, and unit price per row When toggling manual mode ON, the form should force custom item text areas, display spec unit as a full-width input, and allow editable unit prices. When toggling OFF, automation restores on the next item change.
+
+For the bulk dialog, when `form.manualLineEntry` is true, render editable rows with columns for item name, specification/unit, quantity, and unit price, including an "Add Row" button.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "inlineEditDraft|buildEditFormStateFromRecord"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "inlineEditDraft|buildEditFormStateFromRecord",
+  "topFiles": [
+    {
+      "matchCount": 28,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 28
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll implement:
+
+- FormState: add `manualLineEntry: boolean`
+- (The second point appears incomplete or missing in the provided text.) **defaultFormState**: `manualLineEntry: false`
+
+**buildEditFormStateFromRecord**: add `manualLineEntry: false` to form
+
+**useEffect** pricing auto-fill: guard with `if (!form.manualLineEntry) { ... }` - need to add `form.manualLineEntry` to dependency array
+
+- **handleFieldChange** or toggle: `handleToggleManualLineEntry`
+  - When turning ON: set `isCustomItem` true, maybe enable spec text
+  - When turning ON from OFF: user might have item from dropdown - we keep it
+  - When turning ON: set `setIsCustomSpec` to true if spec not in quick specs? When manual line entry is enabled, always display the spec as a text field using `showSpecOtherInput` memo that includes `form.manualLineEntry`.
+
+- **showSpecOtherInput** useMemo now includes `|| form.manualLineEntry`
+- **activeQuickSpecOptions**: Show both quick spec buttons and text input when manual line entry is on, allowing users to choose from quick options or enter arbitrary specs, since `showSpecOtherInput` manages the extra input visibility. When `manualLineEntry` is enabled, the "other" input field must remain visible, as `showSpecOtherInput` is already configured to show true in this case.
+
+- Add a warning condition for `hasPricingForSelectedClient` that excludes `form.manualLineEntry`
+- Introduce `bulkCustomRows` state with appropriate typing
+- Initialize `bulkCustomRows` during `handleOpenBulkItemPicker` when `manualLineEntry` is active
+- Optionally reset `bulkCustomRows` in `handleCloseBulkItemPicker`
+- Branch JSX logic in the bulk dialog based on `form.manualLineEntry`
+- Adjust `handleBulkAddStatementItems` to process items differently when `manualLineEntry` is enabled, building from `bulkCustomRows` **handleCopyFromRecentRecord**: should not reset manual mode  keep as false.
+
+Multiple items button: enable only when client is selected and in manual mode; may not need item list, but client is required.
+
+Panel description: add note about manual mode.
+
+Handler for toggling manual line entry:
+- Set `manualLineEntry` state
+- When enabling, also set `isCustomItem` to true
+- When disabling, allow auto-fill to run on next render via useEffect
+
+- When turning ON manual line entry: set `isCustomItem` to true
+- When turning OFF: auto-fill can run again on next render from useEffect
+- When turning ON: set `setIsCustomSpec` to true if spec not in quick specs
+- When manual line entry is enabled, always display the spec as a text field using `showSpecOtherInput` memo that includes `form.manualLineEntry`</details></think>
+
+_**Agent (default)**_
+
+직접 입력 모드 추가: `FormState`에 플래그를 넣고 단가 자동 적용 `useEffect`를 건너뛰며, 여러 품목은 직접 입력용 행 표로 전환합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add:
+- FormState manualLineEntry + defaultFormState
+- [missing item from original text] buildEditFormStateFromRecord now includes manualLineEntry: false
+- showSpecOtherInput now depends on form.manualLineEntry
+- useEffect now guards and depends on form.manualLineEntry
+- bulkCustomRows state added
+- handleOpenBulkItemPicker initializes rows
+- handleCloseBulkItemPicker clears rows
+- handleToggleManualLineEntry callback added
+- handleBulkAddStatementItems includes manual branch
+- UI shows banner + checkbox after duplicate warning or recent panel
+- When manualLineEntry is true, quick spec buttons are hidden and text input shown for spec When manualLineEntry is true, the quick options are hidden and the text input is shown for spec.
+The spec row JSX now conditionally renders the quick-option-row only when manualLineEntry is false, and shows the text input when either showSpecOtherInput or manualLineEntry is true.</details></think>
+
+_**Agent (default)**_
+
+구현 진행 중입니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "deliveryDate:|defaultFormState\\(\\)|setForm\\(\\{"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "deliveryDate:|defaultFormState\\(\\)|setForm\\(\\{",
+  "topFiles": [
+    {
+      "matchCount": 19,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 19
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to add manualLineEntry: false to the handleCopyFromRecentRecord setForm.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Now add:
+- handleToggleManualLineEntry</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+`bulkPickerDefaultQtyString`가 아래에서 정의돼 호이스팅 문제가 있습니다. 해당 함수를 위로 옮깁니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Now add JSX:
+- Manual mode checkbox and banner following duplicate warning
+- [No further content provided] When editing a record, disable the manual line toggle to prevent mode switching that could disrupt auto-filling. Allow users to edit in the same mode they originally selected, but disable the toggle to avoid conflicts during editing. For the " " button, update the title to reflect manual mode status.
+
+- Hide quick options when manualLineEntry is enabled
+- Conditionally show help text
+- Conditionally render bulk dialog body
+- Disable manual toggle when editingRecordId is set
+- Update multiple item button title for manual mode I'll disable the manual toggle when editing a record to prevent confusion.
+
+When manual line entry is enabled, the item field row will show only a text input instead of a select dropdown, allowing users to enter arbitrary item names directly.
+
+The bulk button will be moved outside the select dropdown area. When in manual mode, display a full-width text input for the item name instead of a dropdown, and hide the dropdown entirely. The " " button should remain visible to open the custom rows dialog, using the same label.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Replace the bulk dialog body from h2 through actions with conditional logic.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll replace the entire block from line 5659 to 5737 with a version that has: - h2 title conditional: `   ` vs `   ( )`
+- conditional body with same actions
+- Use form.manualLineEntry from closure for bulk dialog
+- Manual body with table structure and custom rows
+
+The manual entry section includes a title that changes based on the mode, a body explaining common application of delivery date, vendor, tax status, and cash handling, and a table for direct item input. The table features columns for item, specifications/unit, quantity, unit price, and an empty column. Each row uses a custom input component for data entry. The implementation uses form.manualLineEntry from the closure to control the dialog behavior.</details></think>
+
+_**Agent (default)**_
+
+폼 UI와 일괄 다이얼로그를 교체하는 중입니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The dialog class for manual mode may require a max-width constraint. This can be achieved by either extending the statement-bulk-item-dialog or adding a modifier. Add CSS classes to enforce max-width constraints on the dialog. When toggling off manual mode, set `isCustomItem` based on the dropdown selection using an optional `useEffect` when `manualLineEntry` is false.
+
+- When user unchecks manual mode:
+  - Set `isCustomItem` to false
+  - Re-sync item from list if current item matches an option
+  - Note: Setting `isCustomItem` to false might break if item is not in list When disabling manual mode, simplify by leaving `isCustomItem` as true if the item name isn't in `itemOptions`. For MVP: set `isCustomItem` to false only if `form.itemName` exists in `itemOptions`, otherwise keep it true.
+
+- Use a small effect to check if `form.itemName` matches any option
+- Handle `toggleManualLineEntry` without relying on `itemOptions` in dependencies
+- Update form state using `setForm(prev => ...)` to avoid closure issues</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The dialog statement-bulk-item-dialog may require a wider width for custom tablescheck if inventory-reset-dialog has a max-width setting.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-bulk-item-dialog"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-bulk-item-dialog",
+  "topFiles": [
+    {
+      "matchCount": 15,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 15
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "buildEditFormStateFromRecord|setForm\\("
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "buildEditFormStateFromRecord|setForm\\(",
+  "topFiles": [
+    {
+      "matchCount": 19,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 19
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+After `setForm` handleCopyFromRecentRecord, there's a manualLineEntry  that's good.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When manualEntry is true and isCustomItem is false, ensure resetStatementFormAfterSave is double-checked to confirm the UI uses the form.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+### 적용 내용
+
+1. **「직접 입력 모드」 체크**  
+   - 켜면 거래처/품목 단가표로 **단가·규격을 덮어쓰지 않고**, 입력한 값이 그대로 저장됩니다.  
+   - **목록에서 수정 중**일 때는 체크를 끄도록 비활성화했습니다.
+
+2. **한 건 입력**  
+   - 품목은 **자유 입력 한 줄**.  
+   - 규격/단위는 빠른 버튼 없이 **텍스트로만** 적을 수 있습니다(임의 문자열 가능).
+
+3. **「여러 품목」**  
+   - 직접 입력 모드에서는 **품목 · 규격/단위 · 수량 · 단가**를 줄마다 적는 표가 뜹니다.  
+   - **줄 추가 / ×로 줄 삭제** 가능. 기존과 같이 확인 → 미리보기 → 「입력 목록에 저장」 흐름은 유지됩니다.
+
+4. **일반 모드**  
+   - 체크를 끄면 이전처럼 단가표·마스터 단가 자동 적용이 다시 동작합니다. 끌 때 현재 품목명이 목록에 있으면 셀렉트로, 없으면 직접 입력으로 맞춰 둡니다.
+
+스타일은 `App.css`에 배너·표용 클래스를 추가했고, 넓은 직접 입력 다이얼로그용으로 `statement-bulk-item-dialog--manual` 너비만 조정했습니다.
+
+---
+
+_**User**_
+
+직접 입력 모드 체크하는게 굳이 저렇게 크게 존재해야하나 싶네
+
+---
+
+_**Agent (default)**_
+
+직접 입력 모드를 작고 덜 눈에 띄게 조정합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "statement-manual-entry"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "statement-manual-entry",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 5,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 2,
+  "totalMatches": 8
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll replace the big banner with a compact inline row.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll replace the banner and optional hint with a single compact line: a small label with checkbox, short text, and title attribute for the full explanation. Remove the separate hint paragraph for manual entry, folding its content into the title attribute of the compact line. Replace CSS with minimal stylinginline flex row, smaller font, no gradient background, and optionally a subtle top border. Consider placing the toggle in the first row next to "" or as a slim bar, avoiding a large toggle as requested.</details></think>
+
+_**Agent (default)**_
+
+배너형 UI를 한 줄짜리 작은 체크로 바꿉니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+다음처럼 바꿨습니다.
+
+- **큰 보라색 박스**는 없애고, 한 줄 **「☑ 직접 입력」** + 상태만 짧게 붙였습니다 (`단가표 자동 적용` 회색 / 켠 뒤 `단가표 미적용` 강조).
+- 긴 안내 문단은 빼고, 체크에 **`title`(말풍선)** 에만 요약 설명을 넣었습니다.
+- CSS는 평범한 텍스트·체크 크기만 쓰도록 정리했습니다.
+
+세부 설정은 마우스를 올려보면 툴팁으로 볼 수 있습니다.
+
+---
+
+_**User**_
+
+현금 처리 체크 박스랑 직접입력 체크 박스를 굳이 한줄씩 차지하게 저렇게 배치를 해야하나
+
+---
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to remove the separate full-width row for `statement-manual-entry-inline`. Cash is nested inside `statement-form-field--tax` alongside the select, possibly wrapping due to CSS flex behavior. The issue may stem from a nested label with flex column causing cash to wrap.
+
+Options include:
+- Removing the standalone `statement-manual-entry-inline` div from the primary row
+- Adding " " checkbox into the secondary row alongside tax
+- Placing both toggles on one compact row between primary and secondary
+- Integrating into secondary row as a flex row of:  |  | 
+
+Best approach:
+- Moving manual entry inline row inside `statement-form-secondary-row` as a small group at the end Combine the checkboxes into a single toolbar with optional muted text: `[  ]` `[  ]`.
+
+Remove the standalone `statement-manual-entry-inline` div before the primary row. Add a new compact row containing both toggles either after the secondary row or within it.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-secondary|statement-cash-toggle|statement-form-field--tax"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-secondary|statement-cash-toggle|statement-form-field--tax",
+  "topFiles": [
+    {
+      "matchCount": 10,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 10
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The secondary row contains four columns: spec, qty, price, and tax. The tax field's nested cash toggle uses `margin-top: 6px`, pushing cash below the select, creating two visual lines within one cell.
+
+To fix this:
+- Remove the standalone `statement-manual-entry-inline` block
+- Move cash toggle inside the tax label
+- Add a fifth column or a full-width slim row with both toggles
+
+A cleaner approach is to replace the bottom part of the secondary row with either:
+- A 5-column grid using `statement-form-field--options` as the 5th column
+- A single-row wrapper after secondary fields containing both toggles in one flex line The secondary row includes spec, qty, price, and tax (select only). A full-width option bar adds both toggles in one line, but the user wanted separate lines. 
+
+To achieve this:
+- Place the option bar inside the secondary row as a spanning cell
+- Use `statement-form-option-bar--span` class to span the full width
+- Keep toggles on separate lines within the option bar The secondary row remains 4 columns, with the tax field containing only the select element and no nested cash toggle. A new element `<div class="statement-form-option-bar">` is added, spanning 2 columns using grid column span (`gridColumn: '1 / -1'`) to accommodate both toggles in a clean layout.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-primary-row|statement-form "
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-primary-row|statement-form ",
+  "topFiles": [
+    {
+      "matchCount": 33,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 33
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add `.statement-form-option-bar` with `grid-column: 1 / -1` so it spans the full width of the form grid, positioning it after the secondary row.</details></think>
+
+_**Agent (default)**_
+
+직접 입력을 위에 두지 않고, 과세 행 아래에 ‘직접 입력’과 ‘현금 처리’를 한 줄(option bar)로 묶습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The secondary row contains 4 columns. Removing cash from tax could simplify the tax column to only allow selection, making it visually cleaner.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+다음처럼 정리했습니다.
+
+### 배치
+- **위에 따로 두던 「직접 입력」 줄**은 없앴습니다.
+- **과세구분** 아래 한 줄 **`statement-form-option-bar`**에 순서대로  
+  **직접 입력** 체크 → 짧은 상태 문구(**단가표 자동 적용** / **단가표 미적용**) → 구분선 → **현금 처리** 체크 를 붙였습니다.
+- 과세 라벨 안에 있던 **현금 처리**는 빼서, 과세 행에는 **구분 선택만** 남았습니다 (`label` 안에 `label` 겹치던 것도 함께 정리했습니다).
+
+### 스타일
+- 옵션 줄은 얇은 **위쪽 구분선**만 두고, 두 체크는 **가로 한 줄**로 맞추되 좁으면 줄바꿈되도록 했습니다.
+- `statement-cash-toggle--bar`로 예전 과세 블록용 `margin-top`을 없애 두 줄로 뜨던 느낌을 줄였습니다.
+
+금액 요약 카드는 그대로 옵션 줄 **바로 아래**에 있습니다.
+
+---
+
+_**User**_
+
+여러 품목 버튼 옆에다가 체크박스 말고 버튼 형식으로 만들어줘 단가표 자동적용이랑 텍스트는 없애주고
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to change the manual entry mode from a checkbox to a button format.
+- The new button should appear next to the " " (multiple items) button.
+- The button should be positioned alongside the cash handling option bar.</details></think>
+
+_**Agent (default)**_
+
+‘직접 입력’을 `여러 품목` 옆 버튼 토글로 옮기고, ‘단가표 자동 적용’ 관련 문구를 제거합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "직접 입력|statement-form-option-bar|manualLineEntry"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "직접 입력|statement-form-option-bar|manualLineEntry",
+  "topFiles": [
+    {
+      "matchCount": 33,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 33
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to:
+- Remove the manual entry checkbox and spans from the statement-form-option-bar
+- (missing second task) If the option bar only has cash left, simplify itperhaps rename or keep just cash without separator.
+
+Add a button next to  :
+- Button toggles manual line entry
+- Uses ghost-button styling with small size
+- Disabled when editing record
+- Title attribute needs completion
+- Text shows " "
+
+Button onClick handler should pass inverted boolean value to handleToggleManualLineEntry function.
+
+Remove the field-help span associated with manual mode "  : ..". Remove the " " text and related spans:
+- statement-manual-entry-muted / on spans
+- The field-help for manualLineEntry specifically
+- The duplicated help under item related to  text
+- Tooltip on button is sufficient instead
+
+If option_bar only contains cash, remove the separator sep.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add a toggle button after   in statement-item-field-row. Replace the option bar with a cash-only toggle labeled " " that removes the manual parts and separator. The simplest approach is to make the option bar a single checkbox, possibly without border-top, while removing the separator. Alternatively, place " " inside the  column below the select dropdown, similar to the original layout, since the manual section is no longer duplicated there. This maintains a compact cell structure for cash under tax. I'll move the   back under the  select using a div wrapper to avoid invalid nested label HTML. The structure will be:
+
+- A container div with class "statement-form-field statement-form-field--tax"
+- A span for the label text "" 
+- The select dropdown
+- A nested div "statement-cash-under-tax" containing the cash toggle label
+
+This avoids the invalid HTML of nested labels while maintaining the visual hierarchy. The cash toggle will be placed inside the tax field's container, keeping related elements together. The toggle button will replace the option bar, showing only a cash-only checkbox without a border-top. The structure will use a single div for the option bar, removing vertical stacking and renaming it to statement-form-cash-only for clarity. The label element will be kept intact, matching other fields' patterns. A simplified version keeps the checkbox within a div container, avoiding unnecessary complexity. - Delete the option bar entirely.
+- Add the cash toggle back inside the tax field as a sibling after the select dropdown, using a non-nested structure.
+- Keep the option bar but simplify it to only include " " as a single line with minimal styling.
+- Remove or lighten the border-top on the option bar. User didn't complain about cash position, so the option bar will remain but be simplified to only show " " inline after the "" select within the same grid cell. The cash-only toggle will be styled with no border-top and reduced padding. The structure will keep the option bar as a small bar with only cash-related elements, maintaining its current location rather than moving it to a secondary row or grid cell. The label element will stay intact, matching other fields' patterns. A simplified version keeps the checkbox within a div container, avoiding unnecessary complexity. The option bar will not be removed completely, but will be visually simplified. The label element for the tax field now contains both the select dropdown and the cash toggle, aligned horizontally using flexbox. The option bar has been completely removed, and the cash toggle is placed directly after the select dropdown within the same container. This creates a horizontal layout for the tax field and cash toggle when space allows.
+
+- Added manual toggle button next to  
+- Removed option bar completely
+- Placed cash toggle directly after select dropdown within same container
+- Used flexbox to align tax field and cash toggle horizontally when space allows Remove manual from option bar and delete option bar entirely. Add tax+cash flex inner container. Remove field-help for manualLineEntry. Remove CSS for manual toggle as checkbox and add .statement-manual-toggle button styles. Clean unused CSS: statement-manual-entry-muted, on, statement-form-option-bar-sep if unused. handleToggleManualLineEntry still works with button click. Button design uses active state when form.manualLineEntry with statement-manual-toggle--active class and primary or filled ghost style.</details></think>
+
+_**Agent (default)**_
+
+`여러 품목` 옆에 ‘직접 입력’ 토글 버튼을 두고, 옵션 바의 직접 입력·단가표 문구를 제거한 뒤 `현금 처리`만 과세 열에 붙입니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Fixed invalid HTML by removing nested `<label>` elements
+- Replaced incorrect label nesting for cash field
+- Corrected tax field labeling to avoid nested labels</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll update the tax field to use `<div className="statement-form-field statement-form-field--tax">` and style the label text as a span with consistent visual styling as other labels. I'll update the tax field to use `<div className="statement-form-field statement-form-field--tax">` with a heading span and row layout for the dropdowns.
+
+- Added CSS for consistent label styling with `statement-form-field-heading`
+- Created flexible row layout for tax dropdowns using `statement-tax-field-row`
+- Applied responsive flex properties to dropdowns with minimum width constraints
+- Maintained consistent spacing and alignment across tax field elements The tax field's parent div needs consistent flex column styling to match the label's layout. The updated CSS ensures the tax field displays as a flex column with 8px gap, using the selector `.statement-form .statement-form-field--tax` to maintain proper styling inheritance. This approach aligns with how other form fields handle their layout and typography, ensuring consistent visual presentation throughout the form. The tax field should use a div with the class `statement-form-field--tax` and `statement-form-field-stack` to maintain consistent layout with other form fields. The label text should be wrapped in a span element, and the dropdown should be placed inside a `statement-tax-field-row` div for proper alignment.
+
+- Use div container with matching label layout classes
+- Wrap label text in span element
+- Place dropdowns within statement-tax-field-row container
+- Maintain consistent flex column styling for proper grid alignment The tax field should use a `<div>` container with the class `statement-form-field--tax` and inherit label styling from `.statement-form label`. The label text should be wrapped in a span element, and the dropdowns should be placed inside a `statement-tax-field-row` container. The structure should avoid nesting labels, instead using span and div elements for proper layout alignment. The tax field needs to maintain consistent flex column styling with other form fields. The cash checkbox should remain accessible by using an invisible label associated via aria-labelledby or wrapping only the checkbox text in an implicit label. For the cash checkbox without nested labels, use a div container with id "statement-note-select" and a compact cash toggle div containing the input with aria-describedby and a label for " ". Replace the inner label with a statement-cash-inline div.</details></think>
+
+_**Agent (default)**_
+
+과세 필드에서 `label` 중첩을 제거하고, `select`와 현금 처리를 유효한 마크업으로 정리합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add CSS for the statement-form-field-heading element.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-field--"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-field--",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Statement-form-field might only depend on label selectors.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Replace the block from statement-form-option-bar through statement-cash-toggle--bar with new styles. - Added `flex-wrap` to `.statement-item-field-row`
+- Styled `.statement-manual-toggle--on` with blue border, background, and text color
+- Set disabled toggle opacity to 0.55 and cursor to not-allowed
+- Defined font size, weight, and color for `.statement-form-field-heading`
+- Created flex column layout for `.statement-form .statement-form-field--tax` with 8px gap
+- Applied flex wrap and alignment to `.statement-tax-field-row` with gap and width properties</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Secondary row requires styling for the div element.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "statement-cash-handled"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "statement-cash-handled",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "./app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Ensure the secondary row remains properly aligned. Use a div element instead of a label for the tax field. The grid item should work as expected.</details></think>
+
+_**Agent (default)**_
+
+### 변경 사항
+
+1. **「직접 입력」**  
+   - 체크박스 + 옵션 바를 없애고, **「여러 품목」 바로 옆**의 **토글 버튼**으로 옮겼습니다.  
+   - 켜진 상태에서는 파란 강조(`.statement-manual-toggle--on`).  
+   - `aria-pressed`와 `title`로 상태·설명 표시.
+
+2. **문구 제거**  
+   - 옵션 줄에 있던 **「단가표 자동 적용」**, **「단가표 미적용」**, 그리고 품목 아래의 **「직접 입력 모드: 단가란에…」** 안내 문구를 제거했습니다.
+
+3. **현금 처리**  
+   - 같은 줄의 별도 옵션 바는 없애고, **과세구분** 셀 안에서 선택 상자와 **한 줄**(`.statement-tax-field-row`)로 배치했습니다.
+
+4. **스타일**  
+   - 쓰이지 않는 옵션 바·체크 관련 클래스를 정리하고, 토글 버튼·과세 줄용 스타일을 추가했습니다. 품목 줄은 버튼이 늘어나도록 `flex-wrap`을 넣었습니다.
+
+---
+
+_**User**_
+
+입력하면 아래 목록과~ 이 설명도 없애도될거같아
+
+---
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "목록과|반영됩니다"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "목록과|반영됩니다",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The div wrapping h2 can likely be removed, using h2 directly in panel-header, but need to verify if panel-header expects specific structure for flex layout.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "panel-header"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "panel-header",
+  "topFiles": [
+    {
+      "matchCount": 29,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 29
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+`.statements-form-compact .panel-header p` had styles; removing `p` is fine.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+거래명세서 입력 모달 헤더에서 **「입력하면 아래 목록과 월별 납품현황에 바로 반영됩니다.」** 문단을 삭제했고, 제목만 남기도록 `<h2>` 바깥 불필요한 `<div>`도 정리했습니다.
+
+---
+
+_**User**_
+
+발행일자랑 납품일 크기 똑같이 만들어주고 발행일자도 오늘 날짜가 자동으로 뜨게 만들어줘
+
+---
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "deliveryDate|issueDate|defaultFormState"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "deliveryDate|issueDate|defaultFormState",
+  "topFiles": [
+    {
+      "matchCount": 95,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 95
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-field--date"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-field--date",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to:
+- Update `defaultFormState` to set `issueDate: today` instead of `issueDate: ''`
+- [No further details provided] Update `resetStatementFormAfterSave` to ensure both `issueDate` and `deliveryDate` reset to today after saving, matching the user's request for automatic today's date for both fields. The user wants "  " (automatic today's date for issue date), so `issueDate` in `defaultFormState` should be set to today. 
+
+For consistency, if `deliveryDate` is preserved after save, then `issueDate` should also be preserved. However, since the user specifically requested automatic today's date for issue date, it should reset to today on each save.
+
+- `issueDate` in `defaultFormState` should be `today`
+- On reset after save, `issueDate` should reset to today (unlike `deliveryDate` which is preserved)
+- `deliveryDate` should remain unchanged after save (as currently implemented) Typically, " " refers to initial load and form clearing. After adding a record, if `deliveryDate` is kept as-is, `issueDate` should also be set to today for each new row. For consistency, `issueDate` in `defaultFormState` should be set to today.
+
+When resetting after save:
+- `issueDate` should reset to today
+- `deliveryDate` should remain unchanged (preserving current behavior) - When starting fresh, `issueDate` should default to today.
+- After saving, `issueDate` should reset to today for the next form.
+- `deliveryDate` should remain unchanged after save.
+- To simplify, both `issueDate` and `deliveryDate` can default to today in `defaultFormState`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The primary row grid is defined using CSS.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The compact layout has  0.9fr and  0.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll set both date columns equal:</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "issueDate: ''"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "issueDate: ''",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Change lines 389-390 to set issueDate to today's date.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+defaultFormState() now spreads resetStatementFormAfterSave calls, setting issueDate to module-level `today`, then overrides it with nextToday. Good.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-primary-row"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-primary-row",
+  "topFiles": [
+    {
+      "matchCount": 10,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 10
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Media queries cause the layout to collapse to 2 columns, with items stacking evenly using `repeat(2, 1fr)`  this works well.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+적용해 두었습니다.
+
+### 1. 발행일자 기본값 = 오늘
+- `defaultFormState`에서 `issueDate`를 `today`로 두었습니다 (납품일과 동일).
+- 한 건 저장 후 폼을 비울 때(`resetStatementFormAfterSave`) 발행일자는 **그때의 오늘 날짜**로 다시 채웁니다 (`new Date().toISOString().slice(0, 10)`).
+- 최근 납품 복사로 폼을 채울 때도 발행일자는 **그날의 오늘**이 들어가게 맞춰 두었습니다.
+
+### 2. 납품일·발행일자 칸 넓이
+- 1·2번째 열(납품일 / 발행일자) 비율을 **같게** 맞췄습니다.  
+  - 기본: `1fr` · `1fr` (이전에는 두 번째만 `0.45fr` 등으로 더 좁았음)  
+  - `statements-form-compact`용도 동일하게 `1fr` · `1fr`.
+- `input[type="date"]`에 `min-width: 0`을 줘서 그리드 안에서도 동일하게 줄어들도록 했습니다.
+
+목록 수정·인라인 수정은 기존처럼 해당 레코드의 발행일자를 그대로 씁니다.
+
+---
+
+_**User**_
+
+과세구분 부분이 커졌어 크기 다시 조절해줘 현금 처리도 버튼 형식으로 단가 옆에 조그맣게 만들어주면될거같아
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to resize the VAT/tax section to its original size.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-tax|statement-cash|statement-form-field--tax|statement-form-secondary"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-tax|statement-cash|statement-form-field--tax|statement-form-secondary",
+  "topFiles": [
+    {
+      "matchCount": 18,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 18
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to move cash from the tax field to the price field, placing it next to the  input as a small toggle button similar to  .</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll replace the price label content in App.tsx with a row containing an input field and a cash button. Remove cash from the tax div and revert the tax label to its original structure: `<label className="...statement-form-field--tax"><select></select></label>`.
+
+- Add a cash button with `handleToggleCashHandled` handler, using `type="button"`, `aria-pressed={form.isCashHandled}`, and appropriate class names for styling.
+- Update CSS to repurpose `.statement-form-field--tax` styles to match other labels, leveraging existing `.statement-form label` flex column behavior.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Update grid to set base secondary to `minmax(0, 1`.</details></think>
+
+_**Agent (default)**_
+
+과세구분을 일반 레이블+셀렉트로 되돌리고, ‘현금’을 단가 옆 작은 토글 버튼으로 옮깁니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Now update CSS:
+- Replace tax/price old rules with new ones Now update CSS:
+- Update grid columns for secondary row
+- Remove obsolete statement-form-field--tax div rules and tax-field-row, cash compact
+
+Add:
+- .statement-price-field-row with flex layout and gap
+- .statement-price-field-row input with flex properties
+- .statements-form-compact .statement-price-field-row input and .statement-form-secondary-row .statement-price-field-row input with width overrides
+- .statement-cash-toggle-btn with flex-shrink and padding</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "statement-form-field-heading"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "statement-form-field-heading",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "./.specstory/history/2026-04-21_08-32-20Z-delete-button-styling-adjustment.md"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+No longer used in App.tsx/tsx - usage has been removed.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc --noEmit 2>&1
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+### 반영 내용
+
+1. **과세구분**  
+   - 다시 **일반 레이블 + 셀렉트만** 두고, 넓어지게 했던 `div`·가로 플렉스 줄을 없앴습니다.  
+   - 2행 그리드 비율을 조정해 **과세 열은 더 좁게**(마지막 컬럼 `0.62fr` / 컴팩트 `0.56fr`), 단가 열은 버튼 포함해 조금 넓게 맞춰 두었습니다.
+
+2. **현금 처리**  
+   - 과세 옆 체크 대신 **단가 입력칸 오른쪽**에 **`현금` 작은 버튼**(고스트 스타일 + 켠 상태 녹색 `.statement-cash-toggle-btn--on`)으로 옮겼습니다.  
+   - `aria-pressed`, `title` 유지.
+
+3. **단가 줄**  
+   - `statement-price-field-row`로 숫자 입력은 `flex`로 늘어나고, `현금` 버튼만 고정폭으로 붙도록 했습니다(전역 `width: 100%`와 겹치지 않게 `width: auto !important` 처리).
+
+---
+
+_**User**_
+
+품목 밑에 직접입력 드랍다운이 너무 작아졌네
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The " " dropdown appears too small below the "" field.</details></think>
+
+_**Agent (default)**_
+
+품목 선택 드롭다운이 좁아진 원인 확인 중입니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-primary-row|statement-form-field--item"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-form-primary-row|statement-form-field--item",
+  "topFiles": [
+    {
+      "matchCount": 10,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 10
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The primary row contains 4 columns. The primary row consists of four columns: , , , and .  
+The  field appears in a separate row and includes a dropdown with options and a button to add a custom item.  
+If the custom item option is selected, an additional input field appears below the dropdown.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The primary row contains 5 columns.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The primary row contains 5 labels, but the grid only defines 4 columns. As a result, the 5th item () automatically wraps to the next row in the grid layout.</details></think>
+
+_**Agent (default)**_
+
+원인: 1차 행이 4열 그리드인데 품목이 5번째 칸이라 **한 칸(약 1/4 너비)**만 차지합니다. 품목 블록이 가로 전체를 쓰도록 `grid-column`을 수정합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add min-width for select in item row for extra safety on edge cases - optional `min-width: min(100%, 240px)` on .</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+### 원인
+첫 번째 줄이 **4칸짜리 그리드**(납품일·발행일·횟수·거래처)인데, **품목이 5번째 칸으로만** 들어가서 기본 그리드 규칙상 **가로의 1칸(대략 1/4)**만 쓰게 되어 있었습니다. 그래서 그 안의 셀렉트(직접 입력 옵션 포함)가 좁게 보였습니다.
+
+### 수정
+1. **`.statement-form-primary-row .statement-form-field--item`**에 `grid-column: 1 / -1`를 넣어, 품목 줄이 **항상 아래 한 줄 전체 폭**을 쓰도록 했습니다.  
+2. 품목 줄 안 셀렉트에는 `min-width: min(100%, 200px)`로, 버튼(여러 품목·직접 입력)과 나랄 때도 최소 폭이 나오도록 조정했습니다.
+
+---
+
+_**User**_
+
+횟수 지정하는건 왜 있는걸까? 필요해보여?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to understand the purpose of the "" field in the transaction statement form and whether it's required.</details></think>
+
+_**Agent (default)**_
+
+코드베이스에서 `deliveryCount`(횟수)가 어디에 쓰이는지 확인합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "deliveryCount"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "deliveryCount",
+  "topFiles": [
+    {
+      "matchCount": 22,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 22
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The key usage is:
+- `statementSheetGroups` uses key `${record.</details></think>
+
+_**Agent (default)**_
+
+`횟수`(`deliveryCount`)는 **실수로 들어 있는 필드가 아니라**, 앱 안에서 의미 있는 구분용 값으로 쓰입니다.
+
+### 왜 있는지
+
+같은 **납품일**에 같은 **거래처**로 기록을 나누고 싶을 때, **몇 번째 납품/명세 세트인지**를 나타내는 값입니다 (화면에는 “n회”처럼 묶입니다).
+
+예를 들어 하루에 같은 거래처에 **두 번** 따로 명세를 쓸 때를 가정한 것입니다. 이때 회수만 다르게 두면 데이터가 서로 다른 **거래명세 묶음**으로 잡히도록 되어 있습니다. 코드에서는 이렇게 그룹 키를 만듭니다:
+
+```2389:2389:app/src/App.tsx
+      const key = `${record.deliveryDate}__${record.clientName}__${record.deliveryCount}`
+```
+
+즉 **「날짜 + 거래처 + 회수」** 단위로 거래명세 표/목록 묶음이 나뉩니다.
+
+### 꼭 필요하냐
+
+- **하루에 거래처당 납품·명세를 한 번만** 쓰는 흐름이면 대부분 **기본값 `1`만** 쓰게 되고, 체감상 “쓸 일이 없는 칸”처럼 느껴질 수 있습니다.
+- 반대로 **같은 날·같은 거래처에 두 번 이상** 나눠 적는 경우가 있으면, 그걸 **겹치지 않게 나누려면** 이 필드(또는 비슷한 구분)가 필요합니다.
+
+정리하면, **“같은 날 같은 거래처를 여러 번으로 나눌 일이 거의 없다”**면 UX상 숨기거나 접어 두는 건 고려할 만하고, **그런 구분이 필요하다**면 지금 구조는 그걸 지원하려는 용도입니다.  
+원하시면 기본은 `1`만 쓰는 팀에 맞게 **입력칸을 접거나 한 줄 설명만 남기는 식**으로 바꾸는 것도 가능합니다.
+
+---
+
+_**User**_
+
+전체 적인 모달 폼이 좀 콤팩트해졌으면 좋겠는데 아이디어 없어?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user seeks suggestions to reduce the size of the transaction statement entry modal.</details></think>
+
+_**Agent (default)**_
+
+거래명세서 입력 모달의 여백·폰트·격자를 확인한 뒤 콤팩트한 개선안을 적용합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "form-panel-actions|panel-header"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "form-panel-actions|panel-header",
+  "topFiles": [
+    {
+      "matchCount": 31,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 31
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The statements-form-compact is used on the statements page generally, not just in modals.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statements-form-compact"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statements-form-compact",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "statements-form-compact"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "statements-form-compact",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 44,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 2,
+  "totalMatches": 47
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The `statements-form-compact` only appears in the App's modal interface. Since `statements-form-compact` is only used in the modal, the cleanest approach is to add a `.statement-entry-modal` prefix to its rules or create a new combined selector block that only applies within the modal context. This avoids duplication while ensuring proper scoping.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The statements-form-compact overrides panel-header partially through statements-form-compact. The panel-header has margin-bottom 10px and padding-bottom 14px with a thick border-bottom. Under `.statement-entry-modal`, the following changes are added:
+
+- Modal shell: reduced max-width and backdrop padding
+- `.statement-entry-modal .states... panel` padding set to 10px 12px
+- `.statement-entry-modal .panel-header` - reduced padding-bottom, margin-bottom, and gap; border tightened
+- `.statement-entry-modal .statements-form-compact .statement-form` gap reduced to 8px (was 10)
+- Primary/secondary rows gap set to 8px</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add a CSS block after `.statement-entry-modal`. I'll add a CSS block after `.statement-entry-modal` to create a more compact layout.
+
+- Added `statements-form-compact.panel::before { content: none; }` for a comprehensive compact layer
+- Set padding to `10px 12px` for `.statement-entry-modal .statements-form-compact.panel`
+- Reduced padding on the modal inner panel
+- Adjusted `.panel-header` with `margin-bottom: 8px`, `padding-bottom: 8px`, `gap: 10px`, and `align-items: center`
+- Removed margin from `.statement-entry-modal .panel-header h2` - Set font size to 15px with line height 1.25 for compact statements form
+- Override h2 font size to 15px within modal header
+- Reduced gap to 8px for both statement forms
+- Applied grid gap to statement-form which is child of panel
+- Targeted form with id="statement-entry-form" and class="statement-form" directly</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statement-client-snapshot|statement-recent-panel|statement-duplicate|statement-edit-hint"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "statement-client-snapshot|statement-recent-panel|statement-duplicate|statement-edit-hint",
+  "topFiles": [
+    {
+      "matchCount": 15,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 15
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add compact overrides for those under .</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-client-snapshot|statement-recent-panel"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "statement-client-snapshot|statement-recent-panel",
+  "topFiles": [
+    {
+      "matchCount": 14,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 14
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add a consolidated block after line 1237 (following panel::before none) to handle all modal compact styles.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll insert a large block after `.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Verify the `.statement-entry-modal` class or element.
+- Ensure it's properly defined and functional. The `.statement-entry-modal` class needs proper styling for its inner elements. Specifically, the `h2` element inside the modal should have `margin: 0` applied directly. For the `.panel-header` within the modal, since it's nested under `.statements-form-compact.panel`, we may need to use `!important` or increase CSS specificity to override existing styles. The current setup places `.panel-header` inside a `section` that is wrapped by `.statement-entry-modal`.
+
+Key points:
+- Set `margin: 0` on `h2` inside modal
+- Apply `margin-bottom: 8px` to `.panel-header` inside modal with higher specificity
+- Structure is: `.statement-entry-modal > .statement-entry-modal (inner) > section.statements-form-compact.panel > .panel-header` The `.panel-header` inside the modal correctly overrides base styles with `margin-bottom: 8px` and `padding-bottom: 8px`.  
+The structure is:  
+- `section.statements-form-compact.panel`  
+  - `div.panel-header`  
+
+Specificity is handled with:  
+- `.statement-entry-modal .statements-form-compact .panel-header`  
+
+No conflict with `.statements-form-compact .panel-header` since `panel-header` doesn't have the `statements-form-compact` class. The `.panel-header` inside the modal should have `margin-bottom: 8px` applied with sufficient specificity to override base styles. Since both `.statement-entry-modal .panel-header` and `.statements-form-compact .panel-header` have equal specificity (0, 2, 1), the source order determines which rule applies. 
+
+- Both selectors have two classes and one element
+- Specificity calculation: (0, 2, 1) for each
+- Source order determines the winning rule when specificity matches Our new rules are placed after the `.statements-form-compact` block in the file, so they should take precedence if loaded later. However, checking the file order reveals that the `.statements-form-compact .panel-header` rule at line 2107 comes after our modal block at line ~1239. This means the `.statements-form-compact .panel-header` rule will override our `.statement-entry-modal .panel-header` rule due to later loading, even though both have equal specificity (0, 2, 1). 
+
+- Both selectors have two classes and one element
+- Specificity calculation: (0, 2, 1) for each
+- Source order determines the winning rule when specificity matches
+
+The `.statement-entry-modal .panel-header` rule must be moved to appear after `.statements-form-compact .panel-header` to ensure it takes precedence.</details></think>
+
+_**Agent (default)**_
+
+나중에 정의된 `.statements-form-compact .panel-header` 규칙이 덮어쓸 수 있어, 선택자를 더 구체적으로 수정합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Specificity comparison:
+- .statements-form-compact Specificity comparison:
+- .statements-form-compact .panel-header targets an element with class panel-header inside .statements-form-compact  specificity (0, 2, 1)
+- .statement-entry-modal .statements-form-compact > .panel-header  specificity (0, 3, 1)  wins due to more classes
+- For .statements-form-compact .panel-header h2 at 2111, .statement-entry-modal .statements-form-compact > .panel-header h2 wins (more specific)
+
+Statement-form gaps are addressed by targeting .statements-form-compact. The `.statement-entry-modal .statements-form-compact .statement-form` selector has higher specificity (0, 3, 1) than the base `.statements-form-compact .statement-form` (0, 2, 1), so it wins.
+
+For secondary row gaps:
+- Global `.statement-form-secondary-row` has `gap: 14px`
+- Our `.statement-entry-modal .statement-form-secondary-row` has (0, 2, 1) specificity vs base `.statement-form-secondary-row` with (0, 1, 0)
+- We need to ensure our modal version overrides the base style properly
+
+The `.statement-form` gap is set to 8px in the modal context, while the base form has a 10px gap. The modal version wins due to higher specificity.</details></think>
+
+_**Agent (default)**_
+
+구현을 반영했고, **아이디어는 아래처럼 정리**할 수 있습니다.
+
+### 적용한 것 (모달 안만)
+- **바깥 여백**: 배경 `padding` 줄임, 카드 `max-width`/둥근 모서리 약간 축소  
+- **패널 안쪽**: `10px 12px`로 타이트하게  
+- **헤더 한 줄**: 제목 `15px`, 아래 여백·구분선 영역 축소 (`> .panel-header`로 기존 규칙보다 우선 적용)  
+- **폼 세로 간격**: 폼·주/보조 행 `gap` `8px`, 라벨↔입력 `gap` `3px`, 라벨 글자 `11px`  
+- **입력**: `padding 6px 9px`, `font-size 13px`, 퀵 버튼·요약 카드·도움말도 한 단계 줄임  
+- **부가 블록**: 거래처 요약·최근 납품·중복 경고·편집 힌트 박스 패딩 축소  
+- **단가 옆 ‘현금’·품목 줄** 버튼 간격도 살짝 줄임
+
+`.statement-entry-modal .statements-form-compact > .panel-header`처럼 **구체적인 선택자**를 써서, 뒤쪽에 있는 일반 `statements-form-compact` 규칙에 밀리지 않게 했습니다.
+
+### 추가로 검토할 만한 아이디어 (코드는 선택)
+1. **관리자 모드**는 접기/탭으로 두고 기본은 입력만 보이기  
+2. **거래처 요약·최근 납품**은 “접기” 토글 또는 아이콘 한 줄로 접기  
+3. **2열 그리드**(날짜/거래처 한 줄, 품목 전체 너비)는 유지하되 브레이크포인트에서만 1열  
+4. **`max-height` + 내부만 스크롤**해서 모달 높이를 화면의 일정 비율로 고정  
+
+원하면 다음 단계로 **관리자 영역 접기**나 **요약 패널 접기**도 붙여 줄 수 있습니다.
+
+---
+
+_**User**_
+
+입출고현황에 기준일이 자동으로 오늘로 뜨는 로직이 적용이 되어있던거같은데 왜 안되는거같지

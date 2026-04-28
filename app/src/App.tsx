@@ -278,6 +278,16 @@ type FormState = {
   unitPrice: string
   note: string
   isCashHandled: boolean
+  /** 단가표 자동 적용 없이 품목·단가·규격을 직접 입력 */
+  manualLineEntry: boolean
+}
+
+type StatementBulkCustomRow = {
+  id: string
+  itemName: string
+  specUnit: string
+  quantity: string
+  unitPrice: string
 }
 
 type MonthlySummaryRow = {
@@ -377,7 +387,7 @@ const today = new Date().toISOString().slice(0, 10)
 
 const defaultFormState = (): FormState => ({
   deliveryDate: today,
-  issueDate: '',
+  issueDate: today,
   deliveryCount: '1',
   clientName: '',
   itemName: '',
@@ -386,6 +396,7 @@ const defaultFormState = (): FormState => ({
   unitPrice: '',
   note: '부가세 별도',
   isCashHandled: false,
+  manualLineEntry: false,
 })
 
 const parseNumber = (value: string) => {
@@ -928,6 +939,7 @@ const buildEditFormStateFromRecord = (
       unitPrice: String(record.unitPrice),
       note: record.note,
       isCashHandled: Boolean(record.isCashHandled),
+      manualLineEntry: false,
     },
     isCustomClient,
     isCustomItem,
@@ -1400,6 +1412,11 @@ function App() {
     selected: Set<string>
     quantities: Record<string, string>
   }>(() => ({ selected: new Set(), quantities: {} }))
+  /** 직접 입력 모드 — 여러 품목: 품목·규격·단가 줄 단위 입력 */
+  const [bulkCustomRows, setBulkCustomRows] = useState<StatementBulkCustomRow[]>([])
+  /** 여러 품목 추가 시, 입력 목록에 반영하기 전 확인용 (거래명세서 입력 모달 안에서 표시) */
+  const [bulkAddPendingRecords, setBulkAddPendingRecords] = useState<StatementRecord[] | null>(null)
+  const [bulkAddPendingSkippedLabels, setBulkAddPendingSkippedLabels] = useState<string[]>([])
   const [pricingAdminClientKey, setPricingAdminClientKey] = useState('')
   const [pricingAdminClientInput, setPricingAdminClientInput] = useState('')
   const [pricingAdminLineDraft, setPricingAdminLineDraft] = useState({
@@ -1619,6 +1636,13 @@ function App() {
 
   useEffect(() => {
     if (!statementEntryModalOpen) {
+      setBulkAddPendingRecords(null)
+      setBulkAddPendingSkippedLabels([])
+    }
+  }, [statementEntryModalOpen])
+
+  useEffect(() => {
+    if (!statementEntryModalOpen) {
       return
     }
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1628,11 +1652,22 @@ function App() {
       if (bulkItemPickerOpen || isAdminUnlockDialogOpen) {
         return
       }
+      if (bulkAddPendingRecords !== null) {
+        event.preventDefault()
+        setBulkAddPendingRecords(null)
+        setBulkAddPendingSkippedLabels([])
+        return
+      }
       setStatementEntryModalOpen(false)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [statementEntryModalOpen, bulkItemPickerOpen, isAdminUnlockDialogOpen])
+  }, [
+    statementEntryModalOpen,
+    bulkItemPickerOpen,
+    isAdminUnlockDialogOpen,
+    bulkAddPendingRecords,
+  ])
 
   useEffect(() => {
     if (
@@ -2111,12 +2146,15 @@ function App() {
   )
 
   const showSpecOtherInput = useMemo(() => {
+    if (form.manualLineEntry) {
+      return true
+    }
     const specTrim = form.specUnit.trim()
     return (
       (specTrim !== '' && !QUICK_SPEC_VALUES.has(specTrim)) ||
       (isCustomSpec && specTrim === '')
     )
-  }, [form.specUnit, isCustomSpec])
+  }, [form.manualLineEntry, form.specUnit, isCustomSpec])
 
   const activeQuickSpecOptions = useMemo(() => {
     if (isDutchItemName(form.itemName)) {
@@ -2400,6 +2438,9 @@ function App() {
   }, [selectedSheetKey, statementSheetGroups])
 
   useEffect(() => {
+    if (form.manualLineEntry) {
+      return
+    }
     if (matchingPricingRule) {
       setForm((current) => ({
         ...current,
@@ -2433,7 +2474,14 @@ function App() {
         specUnit: isCustomSpec ? current.specUnit : '',
       }))
     }
-  }, [form.itemName, hasPricingForSelectedClient, isCustomSpec, matchingMasterItem, matchingPricingRule])
+  }, [
+    form.itemName,
+    form.manualLineEntry,
+    hasPricingForSelectedClient,
+    isCustomSpec,
+    matchingMasterItem,
+    matchingPricingRule,
+  ])
 
   const summaryRows = useMemo(() => {
     const grouped = new Map<string, MonthlySummaryRow>()
@@ -2649,6 +2697,11 @@ function App() {
   const resetBulkItemPickerPick = () =>
     setBulkItemPickerPick({ selected: new Set(), quantities: {} })
 
+  const bulkPickerDefaultQtyString = () => {
+    const q = parseNumber(form.quantity)
+    return q > 0 ? String(q) : '1'
+  }
+
   const handleOpenBulkItemPicker = () => {
     if (!form.clientName.trim()) {
       window.alert('거래처명을 먼저 선택하거나 입력해주세요.')
@@ -2656,6 +2709,12 @@ function App() {
     }
     setBulkItemPickerQuery('')
     resetBulkItemPickerPick()
+    if (form.manualLineEntry) {
+      const q = bulkPickerDefaultQtyString()
+      setBulkCustomRows([
+        { id: crypto.randomUUID(), itemName: '', specUnit: '', quantity: q, unitPrice: '' },
+      ])
+    }
     setBulkItemPickerOpen(true)
   }
 
@@ -2663,11 +2722,47 @@ function App() {
     setBulkItemPickerOpen(false)
     setBulkItemPickerQuery('')
     resetBulkItemPickerPick()
+    setBulkCustomRows([])
   }
 
-  const bulkPickerDefaultQtyString = () => {
-    const q = parseNumber(form.quantity)
-    return q > 0 ? String(q) : '1'
+  const handleToggleManualLineEntry = (checked: boolean) => {
+    if (checked) {
+      setIsCustomItem(true)
+      setForm((prev) => ({ ...prev, manualLineEntry: true }))
+      return
+    }
+    const trimmed = form.itemName.trim()
+    const matched =
+      trimmed && itemOptions.some((name) => normalizeName(name) === normalizeName(trimmed))
+    setIsCustomItem(!matched)
+    setForm((prev) => ({ ...prev, manualLineEntry: false }))
+  }
+
+  const handleBulkCustomRowChange = (
+    rowId: string,
+    patch: Partial<Omit<StatementBulkCustomRow, 'id'>>,
+  ) => {
+    setBulkCustomRows((rows) =>
+      rows.map((row) => (row.id === rowId ? { ...row, ...patch } : row)),
+    )
+  }
+
+  const handleBulkCustomAddRow = () => {
+    const defQty = bulkPickerDefaultQtyString()
+    setBulkCustomRows((rows) => [
+      ...rows,
+      { id: crypto.randomUUID(), itemName: '', specUnit: '', quantity: defQty, unitPrice: '' },
+    ])
+  }
+
+  const handleBulkCustomRemoveRow = (rowId: string) => {
+    setBulkCustomRows((rows) => {
+      if (rows.length <= 1) {
+        const defQty = bulkPickerDefaultQtyString()
+        return [{ id: rows[0]?.id ?? crypto.randomUUID(), itemName: '', specUnit: '', quantity: defQty, unitPrice: '' }]
+      }
+      return rows.filter((r) => r.id !== rowId)
+    })
   }
 
   const handleBulkItemPickerToggle = (itemName: string) => {
@@ -2730,6 +2825,79 @@ function App() {
       window.alert('납품일을 입력해주세요.')
       return
     }
+
+    if (form.manualLineEntry) {
+      const filledRows = bulkCustomRows.filter((row) => row.itemName.trim())
+      if (filledRows.length === 0) {
+        window.alert('품목명이 입력된 줄이 없습니다.')
+        return
+      }
+      const unresolved: string[] = []
+      const newRecords: StatementRecord[] = []
+      for (const row of filledRows) {
+        const itemLabel = row.itemName.trim()
+        let quantity = parseNumber(row.quantity)
+        const unitPrice = parseNumber(row.unitPrice)
+        if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice <= 0) {
+          unresolved.push(itemLabel || '(품목 없음)')
+          continue
+        }
+        const supplyAmount = quantity * unitPrice
+        const taxAmount = calculateTaxAmount(supplyAmount, form.note)
+        const specTrim = row.specUnit.trim()
+        newRecords.push({
+          id: crypto.randomUUID(),
+          deliveryDate: form.deliveryDate,
+          issueDate: form.issueDate.trim(),
+          paymentDate: '',
+          deliveryCount: form.deliveryCount,
+          clientName: clientTrim,
+          itemName: itemLabel,
+          specUnit: specTrim,
+          quantity,
+          unitPrice,
+          note: form.note,
+          isCashHandled: form.isCashHandled,
+          supplyAmount,
+          taxAmount,
+          totalAmount: supplyAmount + taxAmount,
+          createdAt: new Date().toISOString(),
+        })
+      }
+
+      const skipped = unresolved
+
+      if (newRecords.length === 0) {
+        window.alert(
+          skipped.length
+            ? `수량과 단가(0 초과)를 입력할 수 있는 줄이 없습니다.\n미완 줄: ${skipped.join(', ')}`
+            : '추가할 수 있는 줄이 없습니다.',
+        )
+        return
+      }
+
+      const hasDuplicateAgainstExisting = newRecords.some((r) =>
+        records.some(
+          (rec) =>
+            rec.id !== editingRecordId &&
+            rec.deliveryDate === r.deliveryDate &&
+            normalizeName(rec.clientName) === normalizeName(r.clientName) &&
+            normalizeName(rec.itemName) === normalizeName(r.itemName),
+        ),
+      )
+      if (
+        hasDuplicateAgainstExisting &&
+        !window.confirm('선택한 품목 중 일부는 같은 날짜·거래처에 이미 있습니다. 그래도 추가할까요?')
+      ) {
+        return
+      }
+
+      setBulkAddPendingRecords(newRecords)
+      setBulkAddPendingSkippedLabels(skipped)
+      handleCloseBulkItemPicker()
+      return
+    }
+
     const selectedNames = Array.from(bulkItemPickerPick.selected)
     if (selectedNames.length === 0) {
       window.alert('추가할 품목을 하나 이상 선택해주세요.')
@@ -2810,12 +2978,26 @@ function App() {
       return
     }
 
-    setRecords((current) => [...newRecords, ...current].sort(compareStatementRecordsNewestFirst))
+    setBulkAddPendingRecords(newRecords)
+    setBulkAddPendingSkippedLabels(skipped)
     handleCloseBulkItemPicker()
+  }
 
-    if (skipped.length > 0) {
-      window.alert(`${newRecords.length}건을 추가했습니다.\n단가 없음·0원으로 제외: ${skipped.join(', ')}`)
+  const handleCancelBulkAddPending = () => {
+    setBulkAddPendingRecords(null)
+    setBulkAddPendingSkippedLabels([])
+  }
+
+  const handleCommitBulkAddPending = () => {
+    if (!bulkAddPendingRecords || bulkAddPendingRecords.length === 0) {
+      handleCancelBulkAddPending()
+      return
     }
+    setRecords((current) =>
+      [...bulkAddPendingRecords, ...current].sort(compareStatementRecordsNewestFirst),
+    )
+    setBulkAddPendingRecords(null)
+    setBulkAddPendingSkippedLabels([])
   }
 
   const handleSpecSelectionChange = (value: string) => {
@@ -3146,10 +3328,13 @@ function App() {
   }
 
   const resetStatementFormAfterSave = () => {
+    const nextToday = new Date().toISOString().slice(0, 10)
     setForm((current) => ({
       ...defaultFormState(),
       clientName: current.clientName,
       deliveryDate: current.deliveryDate,
+      issueDate: nextToday,
+      manualLineEntry: current.manualLineEntry,
     }))
     setIsCustomClient(false)
     setIsCustomItem(false)
@@ -3246,7 +3431,7 @@ function App() {
     setIsCustomSpec(!QUICK_SPEC_VALUES.has(record.specUnit.trim()) && record.specUnit.trim() !== '')
     setForm({
       deliveryDate: new Date().toISOString().slice(0, 10),
-      issueDate: '',
+      issueDate: new Date().toISOString().slice(0, 10),
       deliveryCount: record.deliveryCount,
       clientName: record.clientName,
       itemName: record.itemName,
@@ -3255,6 +3440,7 @@ function App() {
       unitPrice: String(record.unitPrice),
       note: record.note,
       isCashHandled: Boolean(record.isCashHandled),
+      manualLineEntry: false,
     })
     setStatementEntryModalOpen(true)
     const formPanel = document.querySelector('.statements-form-compact')
@@ -4784,7 +4970,13 @@ function App() {
         <div
           className="statement-entry-modal-backdrop"
           role="presentation"
-          onClick={() => setStatementEntryModalOpen(false)}
+          onClick={() => {
+            if (bulkAddPendingRecords !== null) {
+              handleCancelBulkAddPending()
+              return
+            }
+            setStatementEntryModalOpen(false)
+          }}
         >
           <div
             className="statement-entry-modal"
@@ -4795,10 +4987,7 @@ function App() {
           >
                     <section className="panel form-panel statements-form-compact">
           <div className="panel-header">
-            <div>
-              <h2 id="statement-entry-dialog-title">거래명세서 입력</h2>
-              <p>입력하면 아래 목록과 월별 납품현황에 바로 반영됩니다.</p>
-            </div>
+            <h2 id="statement-entry-dialog-title">거래명세서 입력</h2>
             <div className="form-panel-actions">
               <button
                 type="button"
@@ -5184,6 +5373,7 @@ function App() {
                 그대로 저장하면 중복으로 들어갑니다.
               </p>
             ) : null}
+
             <div className="statement-form-primary-row">
               <label className="statement-form-field statement-form-field--date">
                 납품일
@@ -5236,18 +5426,29 @@ function App() {
               <label className="statement-form-field statement-form-field--item">
                 품목
                 <div className="statement-item-field-row">
-                  <select
-                    value={isCustomItem ? CUSTOM_ITEM_OPTION : form.itemName}
-                    onChange={(event) => handleItemSelectionChange(event.target.value)}
-                  >
-                    <option value="">품목을 선택하세요</option>
-                    {itemOptions.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                    <option value={CUSTOM_ITEM_OPTION}>직접 입력</option>
-                  </select>
+                  {form.manualLineEntry ? (
+                    <input
+                      type="text"
+                      className="statement-item-manual-input"
+                      value={form.itemName}
+                      onChange={(event) => handleFieldChange('itemName', event.target.value)}
+                      placeholder="품목명 자유 입력"
+                      aria-label="품목명"
+                    />
+                  ) : (
+                    <select
+                      value={isCustomItem ? CUSTOM_ITEM_OPTION : form.itemName}
+                      onChange={(event) => handleItemSelectionChange(event.target.value)}
+                    >
+                      <option value="">품목을 선택하세요</option>
+                      {itemOptions.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                      <option value={CUSTOM_ITEM_OPTION}>직접 입력</option>
+                    </select>
+                  )}
                   <button
                     type="button"
                     className="ghost-button small"
@@ -5255,14 +5456,28 @@ function App() {
                     disabled={!form.clientName.trim()}
                     title={
                       form.clientName.trim()
-                        ? '선택한 품목을 여러 개 한 번에 입력 목록에 추가'
+                        ? form.manualLineEntry
+                          ? '줄마다 품목·규격·단가 입력 후 확인'
+                          : '선택한 품목을 여러 개 한 번에 입력 목록에 추가'
                         : '거래처를 먼저 선택하세요'
                     }
                   >
                     여러 품목
                   </button>
+                  <button
+                    type="button"
+                    className={`ghost-button small statement-manual-toggle${
+                      form.manualLineEntry ? ' statement-manual-toggle--on' : ''
+                    }`}
+                    disabled={Boolean(editingRecordId)}
+                    onClick={() => handleToggleManualLineEntry(!form.manualLineEntry)}
+                    title="켜면 거래처 단가표 없이 품목·규격·단가를 직접 지정합니다."
+                    aria-pressed={form.manualLineEntry}
+                  >
+                    직접 입력
+                  </button>
                 </div>
-                {isCustomItem ? (
+                {!form.manualLineEntry && isCustomItem ? (
                   <input
                     type="text"
                     value={form.itemName}
@@ -5270,7 +5485,7 @@ function App() {
                     placeholder="목록에 없는 품목 직접 입력"
                   />
                 ) : null}
-                {matchingPricingRule ? (
+                {form.manualLineEntry ? null : matchingPricingRule ? (
                   <span className="field-help">
                     거래처 전용 단가 {formatCurrency(matchingPricingRule.unitPrice)}원 자동 적용
                   </span>
@@ -5288,24 +5503,32 @@ function App() {
             <div className="statement-form-secondary-row">
               <label className="statement-form-field statement-form-field--spec">
                 규격/단위
-                <div className="quick-option-row">
-                  {activeQuickSpecOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={form.specUnit === option.value ? 'quick-option active' : 'quick-option'}
-                      onClick={() => handleSpecSelectionChange(option.value)}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                {!form.manualLineEntry ? (
+                  <div className="quick-option-row">
+                    {activeQuickSpecOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={form.specUnit === option.value ? 'quick-option active' : 'quick-option'}
+                        onClick={() => handleSpecSelectionChange(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 {showSpecOtherInput ? (
                   <input
                     type="text"
                     value={form.specUnit}
                     onChange={(event) => handleSpecOtherInputChange(event.target.value)}
-                    placeholder={isDutchItemName(form.itemName) ? '예: 2/L' : '예: 500/G'}
+                    placeholder={
+                      form.manualLineEntry
+                        ? '예: 1/KG, 200/G, 500/ML (자유 입력)'
+                        : isDutchItemName(form.itemName)
+                          ? '예: 2/L'
+                          : '예: 500/G'
+                    }
                   />
                 ) : null}
               </label>
@@ -5321,17 +5544,31 @@ function App() {
               </label>
               <label className="statement-form-field statement-form-field--price">
                 단가
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={form.unitPrice}
-                  onChange={(event) => handleFieldChange('unitPrice', event.target.value)}
-                  placeholder="예: 33000"
-                />
+                <div className="statement-price-field-row">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={form.unitPrice}
+                    onChange={(event) => handleFieldChange('unitPrice', event.target.value)}
+                    placeholder="예: 33000"
+                  />
+                  <button
+                    type="button"
+                    className={`ghost-button statement-cash-toggle-btn${
+                      form.isCashHandled ? ' statement-cash-toggle-btn--on' : ''
+                    }`}
+                    aria-pressed={form.isCashHandled}
+                    onClick={() => handleToggleCashHandled(!form.isCashHandled)}
+                    title="현금 거래로 표시"
+                  >
+                    현금
+                  </button>
+                </div>
               </label>
               <label className="statement-form-field statement-form-field--tax">
                 과세구분
                 <select
+                  id="statement-note-select"
                   value={form.note}
                   onChange={(event) => handleFieldChange('note', event.target.value)}
                 >
@@ -5341,14 +5578,6 @@ function App() {
                     </option>
                   ))}
                 </select>
-                <label className="statement-cash-toggle">
-                  <input
-                    type="checkbox"
-                    checked={form.isCashHandled}
-                    onChange={(event) => handleToggleCashHandled(event.target.checked)}
-                  />
-                  현금 처리
-                </label>
               </label>
             </div>
 
@@ -5377,6 +5606,85 @@ function App() {
           </form>
         </section>
           </div>
+          {bulkAddPendingRecords !== null && bulkAddPendingRecords.length > 0 ? (
+            <div
+              className="statement-bulk-add-preview-backdrop"
+              role="presentation"
+              onClick={handleCancelBulkAddPending}
+            >
+              <div
+                className="inventory-reset-dialog statement-bulk-add-preview-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="statement-bulk-add-preview-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <h2 id="statement-bulk-add-preview-title" className="inventory-reset-dialog-title">
+                  입력 목록에 추가 확인
+                </h2>
+                <p className="inventory-reset-dialog-body">
+                  아래 항목이 입력 목록에 추가됩니다. 내용을 확인한 뒤 <strong>저장</strong>을 누르세요.
+                </p>
+                {bulkAddPendingSkippedLabels.length > 0 ? (
+                  <p className="statement-bulk-add-preview-skipped" role="status">
+                    이번에 입력 목록에 넣지 않은 품목·줄: {bulkAddPendingSkippedLabels.join(', ')}
+                  </p>
+                ) : null}
+                <div className="statement-bulk-add-preview-table-wrap">
+                  <table className="statement-bulk-add-preview-table">
+                    <thead>
+                      <tr>
+                        <th>납품일</th>
+                        <th>거래처</th>
+                        <th>품목</th>
+                        <th>규격/단위</th>
+                        <th className="statement-bulk-add-preview-num">수량</th>
+                        <th className="statement-bulk-add-preview-num">단가</th>
+                        <th className="statement-bulk-add-preview-num">공급가액</th>
+                        <th className="statement-bulk-add-preview-num">세액</th>
+                        <th className="statement-bulk-add-preview-num">합계</th>
+                        <th>과세구분</th>
+                        <th>현금</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkAddPendingRecords.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.deliveryDate}</td>
+                          <td>{row.clientName}</td>
+                          <td>{row.itemName}</td>
+                          <td>{row.specUnit}</td>
+                          <td className="statement-bulk-add-preview-num">{row.quantity}</td>
+                          <td className="statement-bulk-add-preview-num">
+                            {formatCurrency(row.unitPrice)}
+                          </td>
+                          <td className="statement-bulk-add-preview-num">
+                            {formatCurrency(row.supplyAmount)}
+                          </td>
+                          <td className="statement-bulk-add-preview-num">
+                            {formatCurrency(row.taxAmount)}
+                          </td>
+                          <td className="statement-bulk-add-preview-num">
+                            {formatCurrency(row.totalAmount)}
+                          </td>
+                          <td>{row.note}</td>
+                          <td>{row.isCashHandled ? '예' : ''}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="inventory-reset-dialog-actions">
+                  <button type="button" className="ghost-button" onClick={handleCancelBulkAddPending}>
+                    취소
+                  </button>
+                  <button type="button" className="primary-button" onClick={handleCommitBulkAddPending}>
+                    입력 목록에 저장
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -5387,88 +5695,184 @@ function App() {
           onClick={handleCloseBulkItemPicker}
         >
           <div
-            className="inventory-reset-dialog statement-bulk-item-dialog"
+            className={`inventory-reset-dialog statement-bulk-item-dialog${
+              form.manualLineEntry ? ' statement-bulk-item-dialog--manual' : ''
+            }`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="statement-bulk-item-picker-title"
             onClick={(event) => event.stopPropagation()}
           >
             <h2 id="statement-bulk-item-picker-title" className="inventory-reset-dialog-title">
-              품목 여러 개 추가
+              {form.manualLineEntry ? '품목 여러 개 (직접 입력)' : '품목 여러 개 추가'}
             </h2>
-            <p className="inventory-reset-dialog-body">
-              현재 폼의 <strong>납품일·횟수·과세구분</strong>은 공통으로 적용됩니다. 각 품목 옆 <strong>수량</strong>
-              을 바꿀 수 있고, 새로 체크할 때는 폼 수량란 값(비어 있으면 1)이 기본으로 들어갑니다. 단가는 거래처
-              단가표가 있으면 우선 적용하고, 없으면 품목 마스터 단가를 씁니다.
-            </p>
-            <label className="inventory-reset-dialog-field">
-              <span className="inventory-reset-dialog-label">품목 검색</span>
-              <input
-                type="search"
-                className="statement-bulk-item-dialog-search"
-                value={bulkItemPickerQuery}
-                onChange={(event) => setBulkItemPickerQuery(event.target.value)}
-                placeholder="이름 일부로 좁히기"
-                autoComplete="off"
-              />
-            </label>
-            <div className="statement-bulk-item-dialog-toolbar">
-              <button type="button" className="ghost-button small" onClick={handleBulkItemPickerSelectAllVisible}>
-                보이는 항목 전체 선택
-              </button>
-              <button type="button" className="ghost-button small" onClick={handleBulkItemPickerClearVisible}>
-                보이는 항목 선택 해제
-              </button>
-              <span className="statement-bulk-item-dialog-count">{bulkItemPickerPick.selected.size}개 선택</span>
-            </div>
-            <div className="statement-bulk-item-dialog-list" role="list">
-              {bulkPickerVisibleItems.length === 0 ? (
-                <p className="statement-bulk-item-dialog-empty">표시할 품목이 없습니다.</p>
-              ) : (
-                bulkPickerVisibleItems.map((name) => {
-                  const preview = resolveStatementPricingForClientItem(
-                    pricingRules,
-                    masterItems,
-                    form.clientName.trim(),
-                    name,
-                  )
-                  const checked = bulkItemPickerPick.selected.has(name)
-                  return (
-                    <div key={name} className="statement-bulk-item-dialog-row" role="listitem">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => handleBulkItemPickerToggle(name)}
-                        aria-label={`${name} 선택`}
-                      />
-                      <div className="statement-bulk-item-dialog-row-main">
-                        <span className="statement-bulk-item-dialog-row-name">{name}</span>
-                        <span className="statement-bulk-item-dialog-row-meta">
-                          {preview && preview.unitPrice > 0
-                            ? `${preview.specUnit ? `${preview.specUnit} · ` : ''}${formatCurrency(preview.unitPrice)}원`
-                            : '단가 없음'}
-                        </span>
-                      </div>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className="statement-bulk-item-dialog-qty"
-                        disabled={!checked}
-                        value={checked ? bulkItemPickerPick.quantities[name] ?? '' : ''}
-                        onChange={(event) => handleBulkItemPickerQtyChange(name, event.target.value)}
-                        aria-label={`${name} 수량`}
-                      />
-                    </div>
-                  )
-                })
-              )}
-            </div>
+            {form.manualLineEntry ? (
+              <>
+                <p className="inventory-reset-dialog-body">
+                  <strong>납품일·거래처·과세·현금 처리</strong>는 위 입력란 값이 공통 적용됩니다. 아래 각 줄에{' '}
+                  <strong>품목·규격·수량·단가</strong>를 적은 뒤 확인을 누르면, 거래명세서 입력 창에서 한 번 더
+                  검토한 뒤 목록에 넣을 수 있습니다.
+                </p>
+                <div className="statement-bulk-custom-table-wrap">
+                  <table className="statement-bulk-custom-table">
+                    <thead>
+                      <tr>
+                        <th>품목</th>
+                        <th>규격/단위</th>
+                        <th className="statement-bulk-custom-num">수량</th>
+                        <th className="statement-bulk-custom-num">단가(원)</th>
+                        <th className="statement-bulk-custom-actions" aria-hidden />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkCustomRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>
+                            <input
+                              type="text"
+                              value={row.itemName}
+                              onChange={(event) =>
+                                handleBulkCustomRowChange(row.id, { itemName: event.target.value })
+                              }
+                              placeholder="품목명"
+                              aria-label="품목명"
+                              autoComplete="off"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              value={row.specUnit}
+                              onChange={(event) =>
+                                handleBulkCustomRowChange(row.id, { specUnit: event.target.value })
+                              }
+                              placeholder="예: 1/KG"
+                              aria-label="규격/단위"
+                              autoComplete="off"
+                            />
+                          </td>
+                          <td className="statement-bulk-custom-num">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={row.quantity}
+                              onChange={(event) =>
+                                handleBulkCustomRowChange(row.id, { quantity: event.target.value })
+                              }
+                              aria-label="수량"
+                              autoComplete="off"
+                            />
+                          </td>
+                          <td className="statement-bulk-custom-num">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={row.unitPrice}
+                              onChange={(event) =>
+                                handleBulkCustomRowChange(row.id, { unitPrice: event.target.value })
+                              }
+                              aria-label="단가"
+                              autoComplete="off"
+                            />
+                          </td>
+                          <td className="statement-bulk-custom-actions">
+                            <button
+                              type="button"
+                              className="ghost-button small statement-bulk-custom-remove"
+                              onClick={() => handleBulkCustomRemoveRow(row.id)}
+                              aria-label="이 줄 삭제"
+                              title="줄 삭제"
+                            >
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button type="button" className="ghost-button small statement-bulk-custom-add" onClick={handleBulkCustomAddRow}>
+                  + 줄 추가
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="inventory-reset-dialog-body">
+                  현재 폼의 <strong>납품일·횟수·과세구분</strong>은 공통으로 적용됩니다. 각 품목 옆{' '}
+                  <strong>수량</strong>을 바꿀 수 있고, 새로 체크할 때는 폼 수량란 값(비어 있으면 1)이 기본으로
+                  들어갑니다. 단가는 거래처 단가표가 있으면 우선 적용하고, 없으면 품목 마스터 단가를 씁니다. 확인을
+                  누르면 거래명세서 입력 창 안에서 <strong>추가 내용을 다시 검토한 뒤 저장</strong>할 수 있습니다.
+                </p>
+                <label className="inventory-reset-dialog-field">
+                  <span className="inventory-reset-dialog-label">품목 검색</span>
+                  <input
+                    type="search"
+                    className="statement-bulk-item-dialog-search"
+                    value={bulkItemPickerQuery}
+                    onChange={(event) => setBulkItemPickerQuery(event.target.value)}
+                    placeholder="이름 일부로 좁히기"
+                    autoComplete="off"
+                  />
+                </label>
+                <div className="statement-bulk-item-dialog-toolbar">
+                  <button type="button" className="ghost-button small" onClick={handleBulkItemPickerSelectAllVisible}>
+                    보이는 항목 전체 선택
+                  </button>
+                  <button type="button" className="ghost-button small" onClick={handleBulkItemPickerClearVisible}>
+                    보이는 항목 선택 해제
+                  </button>
+                  <span className="statement-bulk-item-dialog-count">{bulkItemPickerPick.selected.size}개 선택</span>
+                </div>
+                <div className="statement-bulk-item-dialog-list" role="list">
+                  {bulkPickerVisibleItems.length === 0 ? (
+                    <p className="statement-bulk-item-dialog-empty">표시할 품목이 없습니다.</p>
+                  ) : (
+                    bulkPickerVisibleItems.map((name) => {
+                      const preview = resolveStatementPricingForClientItem(
+                        pricingRules,
+                        masterItems,
+                        form.clientName.trim(),
+                        name,
+                      )
+                      const checked = bulkItemPickerPick.selected.has(name)
+                      return (
+                        <div key={name} className="statement-bulk-item-dialog-row" role="listitem">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => handleBulkItemPickerToggle(name)}
+                            aria-label={`${name} 선택`}
+                          />
+                          <div className="statement-bulk-item-dialog-row-main">
+                            <span className="statement-bulk-item-dialog-row-name">{name}</span>
+                            <span className="statement-bulk-item-dialog-row-meta">
+                              {preview && preview.unitPrice > 0
+                                ? `${preview.specUnit ? `${preview.specUnit} · ` : ''}${formatCurrency(preview.unitPrice)}원`
+                                : '단가 없음'}
+                            </span>
+                          </div>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="statement-bulk-item-dialog-qty"
+                            disabled={!checked}
+                            value={checked ? bulkItemPickerPick.quantities[name] ?? '' : ''}
+                            onChange={(event) => handleBulkItemPickerQtyChange(name, event.target.value)}
+                            aria-label={`${name} 수량`}
+                          />
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </>
+            )}
             <div className="inventory-reset-dialog-actions">
               <button type="button" className="ghost-button" onClick={handleCloseBulkItemPicker}>
                 닫기
               </button>
               <button type="button" className="primary-button" onClick={handleBulkAddStatementItems}>
-                선택 항목 입력 목록에 추가
+                확인 (미리보기)
               </button>
             </div>
           </div>

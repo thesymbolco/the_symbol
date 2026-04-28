@@ -360,6 +360,33 @@ export const createDefaultInventoryStatusState = (): InventoryStatusState => {
   })
 }
 
+/**
+ * 저장값을 불러온 직후에도 상단「기준일」을 브라우저 로컬 오늘로 맞출 때 사용합니다.
+ * 실사일은 같은 날 기준으로 맞춰 계산 오류(존재하지 않는 월 일자 등)를 피합니다.
+ */
+export const withReferenceDateToday = (state: InventoryStatusState): InventoryStatusState => {
+  const today = todayLocalIsoDateString()
+  if (state.referenceDate === today) {
+    return state
+  }
+  return {
+    ...state,
+    referenceDate: today,
+    physicalCountDate: defaultPhysicalCountDateFromReference(today),
+  }
+}
+
+/** 클라우드 동기화용: 기준일·실사일은 장치마다 두므로 페이로드에는 고정 placeholder만 넣습니다. */
+export const CLOUD_REFERENCE_DATE_PLACEHOLDER = '2000-01-01'
+
+export function stripReferenceDatesForCloudSync(state: InventoryStatusState): InventoryStatusState {
+  return {
+    ...state,
+    referenceDate: CLOUD_REFERENCE_DATE_PLACEHOLDER,
+    physicalCountDate: CLOUD_REFERENCE_DATE_PLACEHOLDER,
+  }
+}
+
 const normalizeCyclesArray = (raw: unknown, days: unknown): number[] => {
   if (Array.isArray(raw)) {
     return raw.map((v) => Math.max(0, Math.round(toNumber(v))))

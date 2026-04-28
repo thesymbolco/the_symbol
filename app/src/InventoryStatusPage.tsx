@@ -31,6 +31,7 @@ import {
   parseInventoryWorkbook,
   resizeBlendingCyclesToDayCount,
   todayLocalIsoDateString,
+  stripReferenceDatesForCloudSync,
   type BlendingRecipe,
   type BlendingRecipeComponent,
   type InventoryBeanRow,
@@ -41,6 +42,7 @@ type BlendTarget = 'dark' | 'light' | 'decaf'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
+import { applyEnvironmentReferenceDates, persistEnvironmentReferenceDates } from './inventoryEnvReferenceDates'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
 export const INVENTORY_STATUS_STORAGE_KEY = 'inventory-status-v1'
@@ -1752,6 +1754,9 @@ function InventoryStatusPage() {
         )
       }
 
+      next = applyEnvironmentReferenceDates(next, mode, activeCompanyId)
+      nextBaseline = migratedFromManual ? next : applyEnvironmentReferenceDates(nextBaseline, mode, activeCompanyId)
+
       if (cancelled) {
         return
       }
@@ -1815,6 +1820,24 @@ function InventoryStatusPage() {
     )
     window.dispatchEvent(new Event(INVENTORY_STATUS_CACHE_EVENT))
   }, [activeCompanyId, inventoryState, isStorageReady, mode])
+
+  useEffect(() => {
+    if (!isStorageReady) {
+      return
+    }
+    persistEnvironmentReferenceDates(
+      mode,
+      activeCompanyId,
+      inventoryState.referenceDate,
+      inventoryState.physicalCountDate,
+    )
+  }, [
+    activeCompanyId,
+    isStorageReady,
+    mode,
+    inventoryState.referenceDate,
+    inventoryState.physicalCountDate,
+  ])
 
   // 생두전체현황(beanRows)을 마스터로 삼아 로스팅 열을 자동 동기화한다.
   // - 이름 변경: 같은 위치(position)에서 이름만 갱신, 일별 값 보존
@@ -1912,7 +1935,14 @@ function InventoryStatusPage() {
     if (skipInitialDocumentSave()) {
       return
     }
-    const currentJson = JSON.stringify({ inventoryState, baselineState, templateBase64, templateFileName, historyNotes })
+    const cloudPayload = {
+      inventoryState: stripReferenceDatesForCloudSync(inventoryState),
+      baselineState: stripReferenceDatesForCloudSync(baselineState),
+      templateBase64,
+      templateFileName,
+      historyNotes,
+    }
+    const currentJson = JSON.stringify(cloudPayload)
     if (currentJson === lastCloudPollJsonRef.current) {
       return
     }
@@ -1924,13 +1954,7 @@ function InventoryStatusPage() {
       void saveCompanyDocument(
         activeCompanyId,
         COMPANY_DOCUMENT_KEYS.inventoryPage,
-        {
-          inventoryState,
-          baselineState,
-          templateBase64,
-          templateFileName,
-          historyNotes,
-        },
+        cloudPayload,
         user?.id,
       )
         .then(() => {
@@ -1983,28 +2007,38 @@ function InventoryStatusPage() {
           return
         }
         const normalized = normalizeInventoryPageDocument(remote)
-        const payload = {
-          inventoryState: normalized.inventoryState,
-          baselineState: normalized.baselineState,
+        const inventoryForUi = applyEnvironmentReferenceDates(
+          normalized.inventoryState,
+          mode,
+          activeCompanyId,
+        )
+        const baselineForUi = applyEnvironmentReferenceDates(
+          normalized.baselineState,
+          mode,
+          activeCompanyId,
+        )
+        const pollPayload = {
+          inventoryState: stripReferenceDatesForCloudSync(normalized.inventoryState),
+          baselineState: stripReferenceDatesForCloudSync(normalized.baselineState),
           templateBase64: normalized.templateBase64,
           templateFileName: normalized.templateFileName,
           historyNotes: normalized.historyNotes,
         }
-        const nextJson = JSON.stringify(payload)
+        const nextJson = JSON.stringify(pollPayload)
         if (nextJson !== lastJson) {
           lastJson = nextJson
           lastCloudPollJsonRef.current = nextJson
-          setInventoryState(normalized.inventoryState)
-          setBaselineState(normalized.baselineState)
+          setInventoryState(inventoryForUi)
+          setBaselineState(baselineForUi)
           setTemplateBase64(normalized.templateBase64)
           setTemplateFileName(normalized.templateFileName)
           setHistoryNotes(normalized.historyNotes)
-          if (normalized.inventoryState.beanRows[0]) {
+          if (inventoryForUi.beanRows[0]) {
             setSelectedBeanName((prev) => {
-              if (normalized.inventoryState.beanRows.some((b) => b.name === prev)) {
+              if (inventoryForUi.beanRows.some((b) => b.name === prev)) {
                 return prev
               }
-              return normalized.inventoryState.beanRows[0]?.name ?? ''
+              return inventoryForUi.beanRows[0]?.name ?? ''
             })
           }
         }
