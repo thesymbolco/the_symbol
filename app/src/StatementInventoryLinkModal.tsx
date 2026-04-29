@@ -22,8 +22,7 @@ import {
 } from './beanStatementManualMappings'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument } from './lib/companyDocuments'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel, type MapStatementItemToInventoryOptions } from './beanSalesStatementMapping'
-import { applyEnvironmentReferenceDates } from './inventoryEnvReferenceDates'
-import { normalizeInventoryStatusState, type BlendingRecipe, type InventoryBeanRow } from './inventoryStatusUtils'
+import { normalizeInventoryStatusState, withReferenceDateToday, type BlendingRecipe, type InventoryBeanRow } from './inventoryStatusUtils'
 
 const STATEMENT_RECORDS_KEY = 'statement-records-v1'
 
@@ -313,7 +312,7 @@ function StatementInventoryLinkModal({
               const st = normalizeInventoryStatusState(candidate)
               if (st) {
                 const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
-                const merged = applyEnvironmentReferenceDates(st, mode, activeCompanyId)
+                const merged = withReferenceDateToday(st)
                 window.localStorage.setItem(key, JSON.stringify(merged))
               }
             }

@@ -32,6 +32,7 @@ import {
   resizeBlendingCyclesToDayCount,
   todayLocalIsoDateString,
   stripReferenceDatesForCloudSync,
+  withReferenceDateToday,
   type BlendingRecipe,
   type BlendingRecipeComponent,
   type InventoryBeanRow,
@@ -42,7 +43,10 @@ type BlendTarget = 'dark' | 'light' | 'decaf'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
-import { applyEnvironmentReferenceDates, persistEnvironmentReferenceDates } from './inventoryEnvReferenceDates'
+import {
+  clearLegacyViewerReferenceOverlayLocalStorage,
+  mergeKeepViewerReferenceDates,
+} from './inventoryEnvReferenceDates'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
 export const INVENTORY_STATUS_STORAGE_KEY = 'inventory-status-v1'
@@ -1671,6 +1675,8 @@ function InventoryStatusPage() {
   const [baselineState, setBaselineState] = useState<InventoryStatusState>(() =>
     createDefaultInventoryStatusState(),
   )
+  const baselineStateRef = useRef(baselineState)
+  baselineStateRef.current = baselineState
   const [templateBase64, setTemplateBase64] = useState<string | null>(null)
   const [templateFileName, setTemplateFileName] = useState<string>('')
   const [roastingViewMode, setRoastingViewMode] = useState<RoastingViewMode>('daily')
@@ -1754,8 +1760,8 @@ function InventoryStatusPage() {
         )
       }
 
-      next = applyEnvironmentReferenceDates(next, mode, activeCompanyId)
-      nextBaseline = migratedFromManual ? next : applyEnvironmentReferenceDates(nextBaseline, mode, activeCompanyId)
+      next = withReferenceDateToday(next)
+      nextBaseline = migratedFromManual ? next : withReferenceDateToday(nextBaseline)
 
       if (cancelled) {
         return
@@ -1810,6 +1816,10 @@ function InventoryStatusPage() {
   }, [activeCompanyId, mode, resetDocumentSaveUi])
 
   useEffect(() => {
+    clearLegacyViewerReferenceOverlayLocalStorage(mode, activeCompanyId)
+  }, [activeCompanyId, mode])
+
+  useEffect(() => {
     if (!isStorageReady) {
       return
     }
@@ -1820,24 +1830,6 @@ function InventoryStatusPage() {
     )
     window.dispatchEvent(new Event(INVENTORY_STATUS_CACHE_EVENT))
   }, [activeCompanyId, inventoryState, isStorageReady, mode])
-
-  useEffect(() => {
-    if (!isStorageReady) {
-      return
-    }
-    persistEnvironmentReferenceDates(
-      mode,
-      activeCompanyId,
-      inventoryState.referenceDate,
-      inventoryState.physicalCountDate,
-    )
-  }, [
-    activeCompanyId,
-    isStorageReady,
-    mode,
-    inventoryState.referenceDate,
-    inventoryState.physicalCountDate,
-  ])
 
   // 생두전체현황(beanRows)을 마스터로 삼아 로스팅 열을 자동 동기화한다.
   // - 이름 변경: 같은 위치(position)에서 이름만 갱신, 일별 값 보존
@@ -2007,15 +1999,13 @@ function InventoryStatusPage() {
           return
         }
         const normalized = normalizeInventoryPageDocument(remote)
-        const inventoryForUi = applyEnvironmentReferenceDates(
+        const inventoryForUi = mergeKeepViewerReferenceDates(
           normalized.inventoryState,
-          mode,
-          activeCompanyId,
+          inventoryStateRef.current,
         )
-        const baselineForUi = applyEnvironmentReferenceDates(
+        const baselineForUi = mergeKeepViewerReferenceDates(
           normalized.baselineState,
-          mode,
-          activeCompanyId,
+          baselineStateRef.current,
         )
         const pollPayload = {
           inventoryState: stripReferenceDatesForCloudSync(normalized.inventoryState),

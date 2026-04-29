@@ -16,8 +16,7 @@ import {
   syncStatementInventoryManualsFromCloud,
 } from './beanStatementManualMappings'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
-import { applyEnvironmentReferenceDates } from './inventoryEnvReferenceDates'
-import { normalizeInventoryStatusState } from './inventoryStatusUtils'
+import { normalizeInventoryStatusState, withReferenceDateToday } from './inventoryStatusUtils'
 import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'
 import { roastedBeanCost1KgFromGreenWonPerKg, roastedBeanCost200gFrom1KgCost } from './beanSalesRoastedCost'
 import { STATEMENT_RECORDS_SAVED_EVENT } from './MonthlyMeetingPage'
@@ -262,7 +261,7 @@ function BeanSalesAnalysisPage() {
           const candidate = (inventoryDoc as any)?.inventoryState ?? inventoryDoc
           const normalized = normalizeInventoryStatusState(candidate)
           if (normalized) {
-            const forUi = applyEnvironmentReferenceDates(normalized, 'cloud', activeCompanyId)
+            const forUi = withReferenceDateToday(normalized)
             const nextJson = JSON.stringify(forUi)
             if (nextJson !== lastInventoryDoc) {
               lastInventoryDoc = nextJson
@@ -370,7 +369,7 @@ function BeanSalesAnalysisPage() {
           const candidate = remote?.inventoryState ?? remote
           const normalized = normalizeInventoryStatusState(candidate)
           if (normalized) {
-            setInventoryStateRaw(applyEnvironmentReferenceDates(normalized, mode, activeCompanyId))
+            setInventoryStateRaw(withReferenceDateToday(normalized))
             return
           }
         } catch (error) {

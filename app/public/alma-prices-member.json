@@ -1,8 +1,8 @@
 {
   "source": "almacielo-member",
   "sourceUrl": "https://www.almacielo.com/content/content.php?cont=my_price",
-  "fetchedAt": "2026-04-27T06:51:14.844Z",
-  "itemCount": 98,
+  "fetchedAt": "2026-04-28T04:07:48.673Z",
+  "itemCount": 100,
   "items": [
     {
       "itemName": "[20UP] 인도 카피로얄 로부스타 AB *20kg이상주문부터",
@@ -107,7 +107,7 @@
       "supplyNote": "일시결품"
     },
     {
-      "itemName": "브라질 로메로 펄프드 내추럴 NY2 FC ※6월 신규 펄프드 내추럴 입고 예정",
+      "itemName": "브라질 로메로 펄프드 내추럴 NY2 FC",
       "price": 14000,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=FC490CA45C00B1249BBE3554A4FDF6FB&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "일시결품"
@@ -440,7 +440,7 @@
       "itemName": "콜롬비아 레세르바 럼 베럴 에이지드 수프리모",
       "price": 48700,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=877A9BA7A98F75B90A9D49F53F15A858&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
-      "supplyNote": "종료임박"
+      "supplyNote": "판매종료"
     },
     {
       "itemName": "콜롬비아 보니야 워시드 수프리모",
@@ -557,6 +557,12 @@
       "supplyNote": "NEW / 마이크로랏"
     },
     {
+      "itemName": "탄자니아 마웰라 PB TOP 킬리만자로",
+      "price": 19800,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=5129A5DDCD0DCD755232BAA04C231698&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "NEW / 마이크로랏"
+    },
+    {
       "itemName": "탄자니아 맘바 PB TOP 킬리만자로",
       "price": 20700,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=8F19793B2671094E63A15AB883D50137&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
@@ -573,6 +579,12 @@
       "price": 15600,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=0EBCC77DC72360D0EB8E9504C78D38BD&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "NEW / 계절한정"
+    },
+    {
+      "itemName": "탄자니아 심브웨 PB TOP 킬리만자로",
+      "price": 19800,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=D72FBBCCD9FE64C3A14F85D225A046F4&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "NEW / 마이크로랏"
     },
     {
       "itemName": "탄자니아 아이사이소 AA",

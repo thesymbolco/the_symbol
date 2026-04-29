@@ -1,118 +1,40 @@
-import {
-  CLOUD_REFERENCE_DATE_PLACEHOLDER,
-  withReferenceDateToday,
-  type InventoryStatusState,
-} from './inventoryStatusUtils'
+import type { InventoryStatusState } from './inventoryStatusUtils'
 
-const STORAGE_BASE = 'inventory-env-reference-dates-v1'
-
-function scopedStorageKey(mode: 'local' | 'cloud', companyId: string | null): string {
-  if (mode === 'cloud' && companyId) {
-    return `${STORAGE_BASE}::${companyId}`
-  }
-  return STORAGE_BASE
-}
-
-const isoOk = (s: string) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
-
-const isCloudPlaceholderDate = (s: string) => s === CLOUD_REFERENCE_DATE_PLACEHOLDER
-
-function parseStored(raw: string | null): { referenceDate: string; physicalCountDate: string } | null {
-  if (!raw) {
-    return null
-  }
-  try {
-    const o = JSON.parse(raw) as unknown
-    if (!o || typeof o !== 'object' || Array.isArray(o)) {
-      return null
-    }
-    const ref = String((o as { referenceDate?: unknown }).referenceDate ?? '').trim()
-    const phys = String((o as { physicalCountDate?: unknown }).physicalCountDate ?? '').trim()
-    if (isoOk(ref) && isoOk(phys)) {
-      if (isCloudPlaceholderDate(ref) || isCloudPlaceholderDate(phys)) {
-        return null
-      }
-      return { referenceDate: ref, physicalCountDate: phys }
-    }
-    return null
-  } catch {
-    return null
-  }
-}
+const LEGACY_OVERLAY_KEYS = ['inventory-env-reference-dates-v1']
 
 /**
- * 회사별(클라우드) 이 브라우저만의 기준일·실사 기준일. 클라우드 문서에는 올라가지 않습니다.
+ * 폴링으로 받은 본문(재고표 등)은 반영하고, 화면에 이미 선택된 기준일·실사일만 유지합니다.
+ * 클라우드에는 날짜가 들어가지 않으므로 remote 쪽 플레이스홀더를 덮어씌웁니다.
  */
-export function readEnvironmentReferenceDates(
+export function mergeKeepViewerReferenceDates(
+  incomingFromRemote: InventoryStatusState,
+  viewerDates: Pick<InventoryStatusState, 'referenceDate' | 'physicalCountDate'>,
+): InventoryStatusState {
+  return {
+    ...incomingFromRemote,
+    referenceDate: viewerDates.referenceDate,
+    physicalCountDate: viewerDates.physicalCountDate,
+  }
+}
+
+/** 예전 브라우저 전용 저장(재고도 동기 안 함) 레거시 키 제거 — 새 방식에서는 세션 안에서만 날 유지 */
+export function clearLegacyViewerReferenceOverlayLocalStorage(
   mode: 'local' | 'cloud',
   companyId: string | null,
-): { referenceDate: string; physicalCountDate: string } | null {
-  if (typeof window === 'undefined' || mode !== 'cloud' || !companyId) {
-    return null
+): void {
+  if (typeof window === 'undefined') {
+    return
   }
-  const key = scopedStorageKey(mode, companyId)
-  const raw = window.localStorage.getItem(key)
-  const parsed = parseStored(raw)
-  if (!parsed && raw) {
+  if (mode === 'cloud' && companyId) {
     try {
-      const o = JSON.parse(raw) as { referenceDate?: unknown; physicalCountDate?: unknown }
-      const ref = String(o?.referenceDate ?? '')
-      const phys = String(o?.physicalCountDate ?? '')
-      if (isCloudPlaceholderDate(ref) || isCloudPlaceholderDate(phys)) {
-        window.localStorage.removeItem(key)
-      }
+      window.localStorage.removeItem(`${LEGACY_OVERLAY_KEYS[0]}::${companyId}`)
     } catch {
       /* ignore */
     }
   }
-  return parsed
-}
-
-export function persistEnvironmentReferenceDates(
-  mode: 'local' | 'cloud',
-  companyId: string | null,
-  referenceDate: string,
-  physicalCountDate: string,
-): void {
-  if (typeof window === 'undefined' || mode !== 'cloud' || !companyId) {
-    return
-  }
-  if (
-    !isoOk(referenceDate) ||
-    !isoOk(physicalCountDate) ||
-    isCloudPlaceholderDate(referenceDate) ||
-    isCloudPlaceholderDate(physicalCountDate)
-  ) {
-    return
-  }
   try {
-    window.localStorage.setItem(
-      scopedStorageKey(mode, companyId),
-      JSON.stringify({ referenceDate, physicalCountDate }),
-    )
+    window.localStorage.removeItem(LEGACY_OVERLAY_KEYS[0])
   } catch {
-    /* ignore quota */
+    /* ignore */
   }
-}
-
-/**
- * 클라우드+회사: 로컬에 저장된 날짜가 있으면 그걸 쓰고, 없으면 오늘(로컬)로 맞춥니다.
- * 그 외 모드는 항상 `withReferenceDateToday` 로 기본값(오늘)을 적용합니다.
- */
-export function applyEnvironmentReferenceDates(
-  state: InventoryStatusState,
-  mode: 'local' | 'cloud',
-  companyId: string | null,
-): InventoryStatusState {
-  if (mode === 'cloud' && companyId) {
-    const fromDisk = readEnvironmentReferenceDates(mode, companyId)
-    if (fromDisk) {
-      return {
-        ...state,
-        referenceDate: fromDisk.referenceDate,
-        physicalCountDate: fromDisk.physicalCountDate,
-      }
-    }
-  }
-  return withReferenceDateToday(state)
 }
