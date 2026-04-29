@@ -491,6 +491,30 @@ const pickBestInventoryMatch = (
   return best
 }
 
+const pickAliasInventoryMatch = (
+  rawName: string,
+  inventoryByName: Map<string, GreenBeanInventoryStockMatch>,
+  aliases: ReadonlyArray<readonly [string, string]>,
+): GreenBeanInventoryStockMatch | null => {
+  const compact = rawName.trim().toLowerCase().replace(/\s+/g, '')
+  if (!compact) {
+    return null
+  }
+  for (const [from, to] of aliases) {
+    const fromCompact = from.trim().toLowerCase().replace(/\s+/g, '')
+    if (!fromCompact) {
+      continue
+    }
+    if (compact.includes(fromCompact) || fromCompact.includes(compact)) {
+      const byTarget = inventoryByName.get(normalizeItemKey(to))
+      if (byTarget) {
+        return byTarget
+      }
+    }
+  }
+  return null
+}
+
 /** 느슨 매칭 시 주문 품목 쪽에서 요구하는 최소 ‘맞는 토큰’ 개수 상한 (실제 요구치는 min(3, 주문 토큰 수)) */
 const MIN_ALMA_TOKEN_OVERLAP = 3
 
@@ -2254,7 +2278,9 @@ export default function GreenBeanOrderPage() {
   }
 
   const applyRecommendedInventoryLink = (row: GreenBeanOrderRow) => {
-    const best = pickBestInventoryMatch(row.itemName, inventoryOrderHints.byItemKey)
+    const best =
+      pickBestInventoryMatch(row.itemName, inventoryOrderHints.byItemKey) ??
+      pickAliasInventoryMatch(row.itemName, inventoryOrderHints.byItemKey, effectiveBeanAliases)
     if (!best) {
       setStatusMessage('추천할 입출고 품목을 찾지 못했습니다. 품목명을 조금 더 구체적으로 적어 주세요.')
       return

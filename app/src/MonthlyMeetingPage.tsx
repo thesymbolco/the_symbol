@@ -42,16 +42,32 @@ import {
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
-import { BLENDING_DARK_BEAN_NAME } from './inventoryBlendRecipes'
+import { canonicalBlendDisplayName } from './inventoryBlendRecipes'
 
 /** 출고 표에서 생두 열과 구분하기 위한 기본 수동 품목(더치·디저트 등) 헤더 */
 const MEETING_OUTBOUND_MANUAL_COLUMN_LABELS = new Set(
   monthlyMeetingData.productionColumns.slice(1).map((label) => label.trim()),
 )
-const MEETING_OUTBOUND_TOTAL_EXCLUDED_BEAN_NAMES = new Set([
-  BLENDING_DARK_BEAN_NAME,
-  'Blending-Dark',
-])
+const normalizeMeetingBeanName = (rawName: string) => {
+  const canonical = canonicalBlendDisplayName(rawName).trim()
+  const withoutPrefix = canonical.replace(/^\d+(?:\.\s*|\s+)/, '').trim()
+  const collapsed = withoutPrefix.replace(/\s+/g, ' ')
+  if (/^ache\s+gayo\s+mountain$/i.test(collapsed)) {
+    return 'Aceh Gayo Mountain'
+  }
+  return collapsed
+}
+
+const meetingBeanMergeKey = (rawName: string) =>
+  normalizeMeetingBeanName(rawName)
+    .toLowerCase()
+    .replace(/[\s\-_./(),[\]{}]+/g, '')
+    .replace(/[^0-9a-z가-힣]/g, '')
+
+const isMeetingOutboundExcludedBeanName = (name: string) => {
+  const normalized = normalizeMeetingBeanName(name)
+  return normalized.length === 0
+}
 
 /** 생두 비율 도넛 — 채도 낮은 톤온톤(원두·로스터리 느낌), 무지개색 피함 */
 const OUTBOUND_SHARE_PIE_COLORS = [
@@ -671,55 +687,31 @@ const getInventoryBeanOutboundSummaries = (beanRows: unknown) => {
   if (!Array.isArray(beanRows)) {
     return [] as Array<{ name: string; totalOutbound: number }>
   }
-  return beanRows
-    .map((bean) => {
-      const candidate = bean as InventoryStorageBeanRow | null
-      const name = typeof candidate?.name === 'string' ? candidate.name.trim() : ''
-      const outbound = Array.isArray(candidate?.outbound) ? candidate.outbound : []
-      const totalOutbound = outbound.reduce<number>(
-        (sum, value) => sum + (typeof value === 'number' && Number.isFinite(value) ? value : 0),
-        0,
-      )
-      return { name, totalOutbound: Math.round(totalOutbound * 1000) / 1000 }
-    })
-    .filter((item) => item.name.length > 0)
-}
-
-/**
- * 재고 표 끝에 붙은 생두 열이 동기화 때마다 다시 붙으면 열이 중복됩니다.
- * 현재 입출고와 동일한 생두 순서 `orderedNames`와 맞는 꼬리 구간을 모두 제거한 뒤 한 번만 붙입니다.
- */
-const stripTrailingBeanColumnSuffix = (columns: string[], orderedNames: string[]): string[] => {
-  if (orderedNames.length === 0) {
-    return [...columns]
+  const merged = new Map<string, { name: string; totalOutbound: number }>()
+  for (const bean of beanRows) {
+    const candidate = bean as InventoryStorageBeanRow | null
+    const rawName = typeof candidate?.name === 'string' ? candidate.name : ''
+    const name = normalizeMeetingBeanName(rawName)
+    if (isMeetingOutboundExcludedBeanName(name)) {
+      continue
+    }
+    const outbound = Array.isArray(candidate?.outbound) ? candidate.outbound : []
+    const totalOutbound = outbound.reduce<number>(
+      (sum, value) => sum + (typeof value === 'number' && Number.isFinite(value) ? value : 0),
+      0,
+    )
+    const key = meetingBeanMergeKey(name)
+    const prev = merged.get(key)
+    if (prev) {
+      prev.totalOutbound += totalOutbound
+    } else {
+      merged.set(key, { name, totalOutbound })
+    }
   }
-  const norm = (s: string) => s.trim()
-  const names = orderedNames.map(norm)
-  const result = [...columns]
-  const n = names.length
-  const matchesBlockAtEnd = (cols: string[]) =>
-    cols.length >= n && names.every((name, i) => norm(cols[cols.length - n + i] ?? '') === name)
-
-  while (matchesBlockAtEnd(result)) {
-    result.splice(result.length - n, n)
-  }
-  return result
-}
-
-/** `oldValues` 끝에서 `blockLen`짜리 생두 값 블록을 반복 제거해 `headLen`칸만 남깁니다. */
-const stripTrailingBeanValueSuffix = (
-  oldValues: Array<number | null>,
-  headLen: number,
-  blockLen: number,
-): Array<number | null> => {
-  if (blockLen <= 0) {
-    return [...oldValues]
-  }
-  const vals = [...oldValues]
-  while (vals.length > headLen && vals.length >= headLen + blockLen) {
-    vals.splice(vals.length - blockLen, blockLen)
-  }
-  return vals
+  return [...merged.values()].map((row) => ({
+    name: row.name,
+    totalOutbound: Math.round(row.totalOutbound * 1000) / 1000,
+  }))
 }
 
 /** 입출고 기준일 열의 품목별 재고(저장된 stock 배열 기준). */
@@ -732,16 +724,29 @@ const getInventoryBeanStockSummaries = (
     return []
   }
   const dayIdx = dayIndexForReferenceDate(days as number[], referenceDate)
-  return beanRows
-    .map((bean) => {
-      const candidate = bean as InventoryStorageBeanRow | null
-      const name = typeof candidate?.name === 'string' ? candidate.name.trim() : ''
-      const stock = Array.isArray(candidate?.stock) ? candidate.stock : []
-      const raw = stock[dayIdx]
-      const n = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0
-      return { name, stockAtReference: Math.round(n * 1000) / 1000 }
-    })
-    .filter((item) => item.name.length > 0)
+  const merged = new Map<string, { name: string; stockAtReference: number }>()
+  for (const bean of beanRows) {
+    const candidate = bean as InventoryStorageBeanRow | null
+    const rawName = typeof candidate?.name === 'string' ? candidate.name : ''
+    const name = normalizeMeetingBeanName(rawName)
+    if (isMeetingOutboundExcludedBeanName(name)) {
+      continue
+    }
+    const stock = Array.isArray(candidate?.stock) ? candidate.stock : []
+    const raw = stock[dayIdx]
+    const n = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0
+    const key = meetingBeanMergeKey(name)
+    const prev = merged.get(key)
+    if (prev) {
+      prev.stockAtReference += n
+    } else {
+      merged.set(key, { name, stockAtReference: n })
+    }
+  }
+  return [...merged.values()].map((row) => ({
+    name: row.name,
+    stockAtReference: Math.round(row.stockAtReference * 1000) / 1000,
+  }))
 }
 
 /** 보기 모드: 가로로 긴 한 줄 표를 세로(품목 | kg)로 풀어 읽기 쉽게 함. 동일 품목명이 여러 열에 있으면 kg을 합쳐 한 줄로 표시(입출고 동기화로 생긴 중복 열 정리). */
@@ -2061,7 +2066,7 @@ function MonthlyMeetingPage() {
       const beanSummaries = getInventoryBeanOutboundSummaries(parsed.beanRows)
       const totalOutboundAllBeans = Math.round(
         beanSummaries.reduce((s, b) => {
-          if (MEETING_OUTBOUND_TOTAL_EXCLUDED_BEAN_NAMES.has(b.name.trim())) {
+          if (isMeetingOutboundExcludedBeanName(b.name)) {
             return s
           }
           return s + b.totalOutbound
@@ -2080,10 +2085,21 @@ function MonthlyMeetingPage() {
         const rawBeanColumnIndex = findOutboundAggregateColumnIndex(current.data.productionColumns)
         const outboundMerge = rawBeanColumnIndex >= 0
         const productionTailCols = current.data.productionColumns.slice(rawBeanColumnIndex + 1)
-        const productionTailColsDeduped = stripTrailingBeanColumnSuffix(
-          productionTailCols,
-          orderedOutboundBeanNames,
-        )
+        const outboundBeanKeySet = new Set(orderedOutboundBeanNames.map((name) => meetingBeanMergeKey(name)))
+        const productionTailColsDeduped: string[] = []
+        const seenTailKeys = new Set<string>()
+        for (const label of productionTailCols) {
+          const trimmed = label.trim()
+          if (!trimmed || isMeetingOutboundExcludedBeanName(trimmed)) {
+            continue
+          }
+          const key = meetingBeanMergeKey(trimmed)
+          if (outboundBeanKeySet.has(key) || seenTailKeys.has(key)) {
+            continue
+          }
+          seenTailKeys.add(key)
+          productionTailColsDeduped.push(label)
+        }
         const nextProductionColumns = outboundMerge
           ? [
               ...current.data.productionColumns.slice(0, rawBeanColumnIndex + 1),
@@ -2102,8 +2118,28 @@ function MonthlyMeetingPage() {
         const shouldMergeBeans = beanStockSummaries.length > 0
 
         const invHeadColumnLabels = shouldMergeBeans
-          ? stripTrailingBeanColumnSuffix(inventoryWithoutTotal, orderedStockBeanNames)
-          : inventoryWithoutTotal
+          ? (() => {
+              const stockBeanKeySet = new Set(orderedStockBeanNames.map((name) => meetingBeanMergeKey(name)))
+              const next: string[] = []
+              const seenKeys = new Set<string>()
+              for (const label of inventoryWithoutTotal) {
+                const trimmed = label.trim()
+                if (!trimmed || isMeetingOutboundExcludedBeanName(trimmed)) {
+                  continue
+                }
+                const key = meetingBeanMergeKey(trimmed)
+                if (stockBeanKeySet.has(key) || seenKeys.has(key)) {
+                  continue
+                }
+                seenKeys.add(key)
+                next.push(label)
+              }
+              return next
+            })()
+          : inventoryWithoutTotal.filter((label) => {
+              const trimmed = label.trim()
+              return trimmed.length > 0 && !isMeetingOutboundExcludedBeanName(trimmed)
+            })
 
         let nextInventoryColumns = current.data.inventoryColumns
         let invHeadLen = 0
@@ -2120,22 +2156,31 @@ function MonthlyMeetingPage() {
           return current
         }
 
-        const outboundBlockLen = orderedOutboundBeanNames.length
-
         const nextMonthStates = Object.fromEntries(
           Object.entries(current.monthStatesByMonth).map(([month, state]) => {
             let mergedProdValues = state.productionRow.values
             if (outboundMerge) {
               const headValues = state.productionRow.values.slice(0, rawBeanColumnIndex + 1)
-              let tailValues = state.productionRow.values.slice(rawBeanColumnIndex + 1)
-              while (
-                outboundBlockLen > 0 &&
-                tailValues.length > productionTailColsDeduped.length &&
-                tailValues.length >= outboundBlockLen
-              ) {
-                tailValues = tailValues.slice(0, -outboundBlockLen)
+              const tailValuesRaw = state.productionRow.values.slice(rawBeanColumnIndex + 1)
+              const pairedTail = productionTailCols.map((label, index) => ({
+                label,
+                value: tailValuesRaw[index] ?? null,
+              }))
+              const keptTailValues: Array<number | null> = []
+              const seenKeys = new Set<string>()
+              for (const { label, value } of pairedTail) {
+                const trimmed = label.trim()
+                if (!trimmed || isMeetingOutboundExcludedBeanName(trimmed)) {
+                  continue
+                }
+                const key = meetingBeanMergeKey(trimmed)
+                if (outboundBeanKeySet.has(key) || seenKeys.has(key)) {
+                  continue
+                }
+                seenKeys.add(key)
+                keptTailValues.push(value)
               }
-              tailValues = tailValues.slice(0, productionTailColsDeduped.length)
+              let tailValues = keptTailValues
               while (tailValues.length < productionTailColsDeduped.length) {
                 tailValues.push(null)
               }
@@ -2160,8 +2205,25 @@ function MonthlyMeetingPage() {
               if (shouldMergeBeans) {
                 const width = nextInventoryColumns.length
                 nextInvValues = Array.from({ length: width }, () => null as number | null)
-                const stockBlockLen = orderedStockBeanNames.length
-                const invHeadVals = stripTrailingBeanValueSuffix(oldInv, invHeadLen, stockBlockLen)
+                const stockBeanKeySet = new Set(orderedStockBeanNames.map((name) => meetingBeanMergeKey(name)))
+                const oldInvMapped = inventoryWithoutTotal.map((label, index) => ({
+                  label,
+                  value: oldInv[index] ?? null,
+                }))
+                const invHeadVals: Array<number | null> = []
+                const seenKeys = new Set<string>()
+                for (const { label, value } of oldInvMapped) {
+                  const trimmed = label.trim()
+                  if (!trimmed || isMeetingOutboundExcludedBeanName(trimmed)) {
+                    continue
+                  }
+                  const key = meetingBeanMergeKey(trimmed)
+                  if (stockBeanKeySet.has(key) || seenKeys.has(key)) {
+                    continue
+                  }
+                  seenKeys.add(key)
+                  invHeadVals.push(value)
+                }
                 for (let i = 0; i < invHeadLen; i++) {
                   nextInvValues[i] = invHeadVals[i] ?? null
                 }

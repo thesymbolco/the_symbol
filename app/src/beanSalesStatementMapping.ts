@@ -123,7 +123,7 @@ const KEYWORD_TO_BEAN_NAME: KeywordSpec[] = [
   { re: /mormora|모모라/i, target: 'Mormora' },
   { re: /aricha|아리차/i, target: 'Aricha' },
   { re: /ihider|아이히더/i, target: 'Ihider' },
-  { re: /achegayo|아체가요/i, target: 'Ache Gayo Mountain' },
+  { re: /achegayo|아체가요/i, target: 'Aceh Gayo Mountain' },
   { re: /mandling|만델링/i, target: 'Mandling' },
   // `Decaf Antigua SHB` 는 `antigua(?!.*디카)` 가 먼저 걸리면(뒤에 '디카'가 없는 한글) Antigua SHB로 잘몤 붙는다. 디카 쪽 키워드를 **항상 먼저** 둔다.
   { re: /decaf.*antigua|디카.*안티|decaf antigua|과테말라.*디카(?!.*yirg)/i, target: 'Decaf Antigua SHB' },
@@ -168,7 +168,7 @@ const PHRASE_TO_BEAN_NAME: ReadonlyArray<readonly [string, string]> = [
   ['에티오피아 예가체프 G2', 'Yirgacheffe'],
   ['에티오피아 모모라 워시드 구지 G1', 'Mormora'],
   ['케냐 AA FAQ', 'Ihider'],
-  ['인도네시아 아체가요 G1', 'Ache Gayo Mountain'],
+  ['인도네시아 아체가요 G1', 'Aceh Gayo Mountain'],
   ['인도네시아 만델링 G1', 'Mandling'],
   ['과테말라 안티구아 SHB', 'Antigua SHB'],
   ['디카페인 (안티구아+세하도 50:50)', 'Decaf Antigua SHB'],

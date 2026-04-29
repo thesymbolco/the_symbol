@@ -59,6 +59,14 @@ export type InventoryStatusState = {
   skipAutoStockDisplay?: boolean
 }
 
+const canonicalInventoryBeanName = (value: string) => {
+  const normalized = canonicalBlendDisplayName(value)
+  if (/^ache\s*gayo\s*mountain$/i.test(normalized.trim())) {
+    return 'Aceh Gayo Mountain'
+  }
+  return normalized
+}
+
 export const DEFAULT_BLENDING_DARK_RECIPE: BlendingRecipe = {
   components: [
     { beanName: 'Brazil', rawPerCycle: 12 },
@@ -458,13 +466,13 @@ export const normalizeInventoryStatusState = (value: unknown): InventoryStatusSt
       days: source.days.map((day) => toNumber(day)),
       beanRows: source.beanRows.map((bean) => ({
         no: toNumber(bean.no),
-        name: canonicalBlendDisplayName(String(bean.name ?? '')),
+        name: canonicalInventoryBeanName(String(bean.name ?? '')),
         inbound: Array.isArray(bean.inbound) ? bean.inbound.map(toNumber) : [],
         production: Array.isArray(bean.production) ? bean.production.map(toNumber) : [],
         outbound: Array.isArray(bean.outbound) ? bean.outbound.map(toNumber) : [],
         stock: Array.isArray(bean.stock) ? bean.stock.map(toNumber) : [],
       })),
-      roastingColumns: source.roastingColumns.map((column) => canonicalBlendDisplayName(String(column))),
+      roastingColumns: source.roastingColumns.map((column) => canonicalInventoryBeanName(String(column))),
       roastingRows: source.roastingRows.map((row) => ({
         day: row.day === '계' ? '계' : toNumber(row.day),
         values: Array.isArray(row.values) ? row.values.map(toNumber) : [],
@@ -574,7 +582,7 @@ export const parseInventoryWorkbook = (workbook: XLSX.WorkBook): InventoryStatus
     if (name) {
       currentBean = {
         no,
-        name: canonicalBlendDisplayName(name),
+        name: canonicalInventoryBeanName(name),
         inbound: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
         production: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
         outbound: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () => 0),
@@ -601,7 +609,7 @@ export const parseInventoryWorkbook = (workbook: XLSX.WorkBook): InventoryStatus
   }
 
   const roastingColumns = Array.from({ length: 26 }, (_, offset) =>
-    canonicalBlendDisplayName(String(getSheetCellValue(roastingSheet, 1, offset + 1) ?? '')),
+    canonicalInventoryBeanName(String(getSheetCellValue(roastingSheet, 1, offset + 1) ?? '')),
   ).filter((col) => col.length > 0)
 
   const roastingRows: InventoryRoastingRow[] = []
