@@ -31,6 +31,31 @@ const TITLE_OPTIONS = [
 
 type BusyState = null | { kind: 'create' } | { kind: 'member'; userId: string; action: string }
 
+function initialsForMember(displayName: string, username: string): string {
+  const base = (displayName || username).trim()
+  if (!base) {
+    return '?'
+  }
+  if (/^[가-힣]+$/.test(base) || /^[가-힣]/.test(base)) {
+    return base.slice(0, 2)
+  }
+  const parts = base.split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) {
+    const a = parts[0][0] ?? ''
+    const b = parts[1][0] ?? ''
+    return `${a}${b}`.toUpperCase()
+  }
+  return base.slice(0, 2).toUpperCase()
+}
+
+function hueFromUserId(userId: string): number {
+  let h = 0
+  for (let i = 0; i < userId.length; i += 1) {
+    h = (h + userId.charCodeAt(i) * 17) % 360
+  }
+  return h
+}
+
 export default function TeamManagementPage() {
   const {
     mode,
@@ -60,6 +85,8 @@ export default function TeamManagementPage() {
   })
   const [editDrafts, setEditDrafts] = useState<Record<string, Partial<TeamMember>>>({})
   const [passwordDraft, setPasswordDraft] = useState('')
+  /** 카드 뒤집기: 뒷면에 상세·수정 */
+  const [flippedMemberIds, setFlippedMemberIds] = useState<Set<string>>(() => new Set())
 
   const isOwner = useMemo(() => {
     const active = members.find((member) => member.userId === currentUser?.id)
@@ -126,6 +153,31 @@ export default function TeamManagementPage() {
 
   const beginEdit = (member: TeamMember) => {
     setEditDrafts((prev) => ({ ...prev, [member.userId]: { ...member } }))
+    setFlippedMemberIds((prev) => new Set(prev).add(member.userId))
+  }
+
+  const toggleMemberCardFlip = (userId: string) => {
+    setFlippedMemberIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(userId)) {
+        next.delete(userId)
+      } else {
+        next.add(userId)
+      }
+      return next
+    })
+  }
+
+  /** 뒷면: 입력·버튼이 아닌 영역을 누르면 다시 앞면으로 */
+  const maybeFlipTeamCardFromBackFace = (event: React.MouseEvent<HTMLElement>, userId: string) => {
+    const raw = event.target
+    if (!(raw instanceof Element)) {
+      return
+    }
+    if (raw.closest('button, input, select, textarea, a, label')) {
+      return
+    }
+    toggleMemberCardFlip(userId)
   }
 
   const cancelEdit = (userId: string) => {
@@ -207,7 +259,9 @@ export default function TeamManagementPage() {
           <div>
             <h2>구성원</h2>
             <p className="muted">
-              {activeCompany ? `${activeCompany.companyName} · ${members.length}명` : '회사를 선택해 주세요.'}
+              {activeCompany
+                ? `${activeCompany.companyName} · ${members.length}명 · 카드를 눌러 앞·뒷면 전환`
+                : '회사를 선택해 주세요.'}
             </p>
           </div>
           <button type="button" className="ghost-button" onClick={() => void loadMembers()} disabled={isLoading}>
@@ -218,208 +272,271 @@ export default function TeamManagementPage() {
         {flash ? (
           <p className={flash.kind === 'error' ? 'app-auth-error' : 'app-auth-status'}>{flash.text}</p>
         ) : null}
-        <div className="team-table-wrap">
-          <table className="team-table">
-            <thead>
-              <tr>
-                <th>이름</th>
-                <th>아이디</th>
-                <th>직책</th>
-                <th>부서</th>
-                <th>휴대폰</th>
-                <th>이메일</th>
-                <th>역할</th>
-                <th>상태</th>
-                <th aria-label="액션"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.length === 0 && !isLoading ? (
-                <tr>
-                  <td colSpan={9} className="muted" style={{ textAlign: 'center', padding: 20 }}>
-                    구성원이 없습니다. 아래 폼에서 추가해 보세요.
-                  </td>
-                </tr>
-              ) : null}
+        <div className="team-cards-wrap">
+          {members.length === 0 && !isLoading ? (
+            <p className="muted team-cards-empty">구성원이 없습니다. 아래 폼에서 추가해 보세요.</p>
+          ) : (
+            <div className="team-cards-grid">
               {members.map((member) => {
                 const draft = editDrafts[member.userId]
                 const isEditing = Boolean(draft)
                 const isSelf = member.userId === currentUser?.id
                 const disableEdit = !isOwner && !isSelf
+                const isFlipped = flippedMemberIds.has(member.userId)
+                const hue = hueFromUserId(member.userId)
+                const initials = initialsForMember(member.displayName, member.username)
                 return (
-                  <tr key={member.userId} className={member.status !== 'active' ? 'is-inactive' : ''}>
-                    <td>
-                      {isEditing ? (
-                        <input
-                          value={draft?.displayName ?? ''}
-                          onChange={(event) =>
-                            setEditDrafts((prev) => ({
-                              ...prev,
-                              [member.userId]: { ...prev[member.userId], displayName: event.target.value },
-                            }))
-                          }
-                        />
-                      ) : (
-                        <span>
-                          {member.displayName || '—'}
-                          {isSelf ? <span className="team-self-badge">나</span> : null}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <code>{member.username || '—'}</code>
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <select
-                          value={draft?.title ?? ''}
-                          onChange={(event) =>
-                            setEditDrafts((prev) => ({
-                              ...prev,
-                              [member.userId]: { ...prev[member.userId], title: event.target.value },
-                            }))
-                          }
+                  <div
+                    key={member.userId}
+                    className={`team-card-scene${isFlipped ? ' is-flipped' : ''}${member.status !== 'active' ? ' is-inactive' : ''}`}
+                  >
+                    <div className="team-card-inner">
+                      <div className="team-card-face team-card-front">
+                        <button
+                          type="button"
+                          className="team-card-front-hit"
+                          onClick={() => toggleMemberCardFlip(member.userId)}
+                          aria-expanded={isFlipped}
+                          aria-label={`${member.displayName || member.username} 상세 보기`}
                         >
-                          <option value="">—</option>
-                          {TITLE_OPTIONS.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                          {draft?.title && !TITLE_OPTIONS.includes(draft.title as (typeof TITLE_OPTIONS)[number]) ? (
-                            <option value={draft.title}>{draft.title} (기존)</option>
-                          ) : null}
-                        </select>
-                      ) : (
-                        member.title || '—'
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <input
-                          value={draft?.department ?? ''}
-                          onChange={(event) =>
-                            setEditDrafts((prev) => ({
-                              ...prev,
-                              [member.userId]: { ...prev[member.userId], department: event.target.value },
-                            }))
-                          }
-                          placeholder="부서"
-                        />
-                      ) : (
-                        member.department || '—'
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <input
-                          value={draft?.phone ?? ''}
-                          onChange={(event) =>
-                            setEditDrafts((prev) => ({
-                              ...prev,
-                              [member.userId]: { ...prev[member.userId], phone: event.target.value },
-                            }))
-                          }
-                        />
-                      ) : (
-                        member.phone || '—'
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <input
-                          value={draft?.email ?? ''}
-                          onChange={(event) =>
-                            setEditDrafts((prev) => ({
-                              ...prev,
-                              [member.userId]: { ...prev[member.userId], email: event.target.value },
-                            }))
-                          }
-                        />
-                      ) : (
-                        member.email || '—'
-                      )}
-                    </td>
-                    <td>
-                      {isEditing && isOwner ? (
-                        <select
-                          value={draft?.role ?? member.role}
-                          onChange={(event) =>
-                            setEditDrafts((prev) => ({
-                              ...prev,
-                              [member.userId]: { ...prev[member.userId], role: event.target.value },
-                            }))
-                          }
-                        >
-                          <option value="owner">owner</option>
-                          <option value="admin">admin</option>
-                          <option value="member">member</option>
-                        </select>
-                      ) : (
-                        ROLE_LABEL[member.role] ?? member.role
-                      )}
-                    </td>
-                    <td>
-                      {isEditing && isOwner ? (
-                        <select
-                          value={draft?.status ?? member.status}
-                          onChange={(event) =>
-                            setEditDrafts((prev) => ({
-                              ...prev,
-                              [member.userId]: { ...prev[member.userId], status: event.target.value },
-                            }))
-                          }
-                        >
-                          <option value="active">active</option>
-                          <option value="inactive">inactive</option>
-                        </select>
-                      ) : (
-                        STATUS_LABEL[member.status] ?? member.status
-                      )}
-                    </td>
-                    <td className="team-actions">
-                      {isEditing ? (
-                        <>
-                          <button
-                            type="button"
-                            className="primary-button small"
-                            onClick={() => void saveEdit(member)}
-                            disabled={busy?.kind === 'member' && busy.userId === member.userId}
+                          <div
+                            className="team-card-avatar"
+                            style={{
+                              background: `linear-gradient(145deg, hsl(${hue}, 52%, 88%), hsl(${hue}, 45%, 78%))`,
+                            }}
+                            aria-hidden
                           >
-                            저장
-                          </button>
-                          <button type="button" className="ghost-button small" onClick={() => cancelEdit(member.userId)}>
-                            취소
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            className="ghost-button small"
-                            onClick={() => beginEdit(member)}
-                            disabled={disableEdit}
-                          >
-                            수정
-                          </button>
-                          {isOwner && !isSelf ? (
-                            <button
-                              type="button"
-                              className="ghost-button small danger"
-                              onClick={() => void handleRemove(member)}
-                              disabled={busy?.kind === 'member' && busy.userId === member.userId}
-                            >
-                              제거
-                            </button>
-                          ) : null}
-                        </>
-                      )}
-                    </td>
-                  </tr>
+                            <span className="team-card-avatar-initials">{initials}</span>
+                          </div>
+                          <div className="team-card-front-text">
+                            <div className="team-card-name">
+                              {member.displayName || member.username || '—'}
+                              {isSelf ? <span className="team-self-badge">나</span> : null}
+                            </div>
+                            <div className="team-card-dept">{member.department?.trim() || '부서 미지정'}</div>
+                          </div>
+                        </button>
+                      </div>
+
+                      <div
+                        className="team-card-face team-card-back"
+                        onClick={(event) => maybeFlipTeamCardFromBackFace(event, member.userId)}
+                        role="presentation"
+                      >
+                        <div className="team-card-back-body">
+                          <dl className="team-card-dl">
+                            <div>
+                              <dt>이름</dt>
+                              <dd>
+                                {isEditing ? (
+                                  <input
+                                    className="team-card-field"
+                                    value={draft?.displayName ?? ''}
+                                    onChange={(event) =>
+                                      setEditDrafts((prev) => ({
+                                        ...prev,
+                                        [member.userId]: { ...prev[member.userId], displayName: event.target.value },
+                                      }))
+                                    }
+                                  />
+                                ) : (
+                                  <>
+                                    {member.displayName || '—'}
+                                    {isSelf ? <span className="team-self-badge">나</span> : null}
+                                  </>
+                                )}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>아이디</dt>
+                              <dd>
+                                <code>{member.username || '—'}</code>
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>직책</dt>
+                              <dd>
+                                {isEditing ? (
+                                  <select
+                                    className="team-card-field"
+                                    value={draft?.title ?? ''}
+                                    onChange={(event) =>
+                                      setEditDrafts((prev) => ({
+                                        ...prev,
+                                        [member.userId]: { ...prev[member.userId], title: event.target.value },
+                                      }))
+                                    }
+                                  >
+                                    <option value="">—</option>
+                                    {TITLE_OPTIONS.map((option) => (
+                                      <option key={option} value={option}>
+                                        {option}
+                                      </option>
+                                    ))}
+                                    {draft?.title &&
+                                    !TITLE_OPTIONS.includes(draft.title as (typeof TITLE_OPTIONS)[number]) ? (
+                                      <option value={draft.title}>{draft.title} (기존)</option>
+                                    ) : null}
+                                  </select>
+                                ) : (
+                                  member.title || '—'
+                                )}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>부서</dt>
+                              <dd>
+                                {isEditing ? (
+                                  <input
+                                    className="team-card-field"
+                                    value={draft?.department ?? ''}
+                                    onChange={(event) =>
+                                      setEditDrafts((prev) => ({
+                                        ...prev,
+                                        [member.userId]: { ...prev[member.userId], department: event.target.value },
+                                      }))
+                                    }
+                                    placeholder="부서"
+                                  />
+                                ) : (
+                                  member.department || '—'
+                                )}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>휴대폰</dt>
+                              <dd>
+                                {isEditing ? (
+                                  <input
+                                    className="team-card-field"
+                                    value={draft?.phone ?? ''}
+                                    onChange={(event) =>
+                                      setEditDrafts((prev) => ({
+                                        ...prev,
+                                        [member.userId]: { ...prev[member.userId], phone: event.target.value },
+                                      }))
+                                    }
+                                  />
+                                ) : (
+                                  member.phone || '—'
+                                )}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>이메일</dt>
+                              <dd>
+                                {isEditing ? (
+                                  <input
+                                    className="team-card-field"
+                                    value={draft?.email ?? ''}
+                                    onChange={(event) =>
+                                      setEditDrafts((prev) => ({
+                                        ...prev,
+                                        [member.userId]: { ...prev[member.userId], email: event.target.value },
+                                      }))
+                                    }
+                                  />
+                                ) : (
+                                  member.email || '—'
+                                )}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>역할</dt>
+                              <dd>
+                                {isEditing && isOwner ? (
+                                  <select
+                                    className="team-card-field"
+                                    value={draft?.role ?? member.role}
+                                    onChange={(event) =>
+                                      setEditDrafts((prev) => ({
+                                        ...prev,
+                                        [member.userId]: { ...prev[member.userId], role: event.target.value },
+                                      }))
+                                    }
+                                  >
+                                    <option value="owner">owner</option>
+                                    <option value="admin">admin</option>
+                                    <option value="member">member</option>
+                                  </select>
+                                ) : (
+                                  ROLE_LABEL[member.role] ?? member.role
+                                )}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>상태</dt>
+                              <dd>
+                                {isEditing && isOwner ? (
+                                  <select
+                                    className="team-card-field"
+                                    value={draft?.status ?? member.status}
+                                    onChange={(event) =>
+                                      setEditDrafts((prev) => ({
+                                        ...prev,
+                                        [member.userId]: { ...prev[member.userId], status: event.target.value },
+                                      }))
+                                    }
+                                  >
+                                    <option value="active">active</option>
+                                    <option value="inactive">inactive</option>
+                                  </select>
+                                ) : (
+                                  STATUS_LABEL[member.status] ?? member.status
+                                )}
+                              </dd>
+                            </div>
+                          </dl>
+                          <div className="team-card-actions">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="primary-button small"
+                                  onClick={() => void saveEdit(member)}
+                                  disabled={busy?.kind === 'member' && busy.userId === member.userId}
+                                >
+                                  저장
+                                </button>
+                                <button
+                                  type="button"
+                                  className="ghost-button small"
+                                  onClick={() => cancelEdit(member.userId)}
+                                >
+                                  취소
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  className="ghost-button small"
+                                  onClick={() => beginEdit(member)}
+                                  disabled={disableEdit}
+                                >
+                                  수정
+                                </button>
+                                {isOwner && !isSelf ? (
+                                  <button
+                                    type="button"
+                                    className="ghost-button small danger"
+                                    onClick={() => void handleRemove(member)}
+                                    disabled={busy?.kind === 'member' && busy.userId === member.userId}
+                                  >
+                                    제거
+                                  </button>
+                                ) : null}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )
               })}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
       </section>
 

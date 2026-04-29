@@ -1,3 +1,4 @@
+import type { FocusEvent } from 'react'
 import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   CartesianGrid,
@@ -1454,6 +1455,9 @@ function MonthlyMeetingPage() {
   /** 입출고 페이지와 동일한 localStorage 키 + 캐시 갱신 시 4번 출고·재고 표를 다시 읽음 */
   const [inventoryLinkTick, setInventoryLinkTick] = useState(0)
   const [pageState, setPageState] = useState<MonthlyMeetingPageState>(createDefaultState)
+  const pageStateRef = useRef(pageState)
+  pageStateRef.current = pageState
+  const monthlyMeetingCloudSaveTimerRef = useRef<number | null>(null)
   const [sectionEditModes, setSectionEditModes] = useState<Record<MeetingSectionEditKey, boolean>>(
     readStoredSectionEditModes,
   )
@@ -1749,6 +1753,58 @@ function MonthlyMeetingPage() {
     window.localStorage.setItem(MONTHLY_MEETING_DATA_KEY, JSON.stringify(pageState))
   }, [isStorageReady, pageState])
 
+  const flushMonthlyMeetingCloudSaveNow = async () => {
+    if (!isStorageReady || !isCloudReady) {
+      return
+    }
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+    if (skipInitialDocumentSave()) {
+      return
+    }
+    const payload = pageStateRef.current
+    const nextJson = JSON.stringify(payload)
+    if (nextJson === lastCloudPollJsonRef.current) {
+      return
+    }
+
+    markDocumentDirty()
+    markDocumentSaving()
+    try {
+      await saveCompanyDocument(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
+        payload,
+        user?.id,
+      )
+      lastCloudPollJsonRef.current = nextJson
+      markDocumentSaved()
+    } catch (error) {
+      console.error('월 마감회의 클라우드 저장에 실패했습니다.', error)
+      markDocumentError()
+    }
+  }
+
+  const scheduleDebouncedMonthlyMeetingCloudSave = () => {
+    if (monthlyMeetingCloudSaveTimerRef.current !== null) {
+      window.clearTimeout(monthlyMeetingCloudSaveTimerRef.current)
+    }
+    monthlyMeetingCloudSaveTimerRef.current = window.setTimeout(() => {
+      monthlyMeetingCloudSaveTimerRef.current = null
+      void flushMonthlyMeetingCloudSaveNow()
+    }, 600)
+  }
+
+  /** 입력 칸에서 포커스가 빠져나올 때 디바운스 대기 없이 업로드 */
+  const flushMonthlyMeetingCloudSaveOnEditableBlur = () => {
+    if (monthlyMeetingCloudSaveTimerRef.current !== null) {
+      window.clearTimeout(monthlyMeetingCloudSaveTimerRef.current)
+      monthlyMeetingCloudSaveTimerRef.current = null
+    }
+    void flushMonthlyMeetingCloudSaveNow()
+  }
+
   useEffect(() => {
     if (!isStorageReady || !isCloudReady) {
       return
@@ -1765,32 +1821,20 @@ function MonthlyMeetingPage() {
     }
 
     markDocumentDirty()
+    scheduleDebouncedMonthlyMeetingCloudSave()
 
-    const timeoutId = window.setTimeout(() => {
-      markDocumentSaving()
-      void saveCompanyDocument(
-        activeCompanyId,
-        COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
-        pageState,
-        user?.id,
-      )
-        .then(() => {
-          markDocumentSaved()
-        })
-        .catch((error) => {
-          console.error('월 마감회의 클라우드 저장에 실패했습니다.', error)
-          markDocumentError()
-        })
-    }, 600)
-
-    return () => window.clearTimeout(timeoutId)
+    return () => {
+      if (monthlyMeetingCloudSaveTimerRef.current !== null) {
+        window.clearTimeout(monthlyMeetingCloudSaveTimerRef.current)
+        monthlyMeetingCloudSaveTimerRef.current = null
+      }
+    }
   }, [
     activeCompanyId,
     isCloudReady,
     isStorageReady,
     mode,
     pageState,
-    user?.id,
     markDocumentDirty,
     markDocumentError,
     markDocumentSaved,
@@ -2918,7 +2962,23 @@ function MonthlyMeetingPage() {
 
   return (
     <>
-      <main className="meeting-layout">
+      <main
+        className="meeting-layout"
+        onBlurCapture={(event: FocusEvent<HTMLElement>) => {
+          const target = event.target
+          const isEditable =
+            target instanceof HTMLInputElement ||
+            target instanceof HTMLTextAreaElement ||
+            target instanceof HTMLSelectElement
+          if (!isEditable) {
+            return
+          }
+          if (mode !== 'cloud' || !activeCompanyId || !isStorageReady || !isCloudReady) {
+            return
+          }
+          flushMonthlyMeetingCloudSaveOnEditableBlur()
+        }}
+      >
         <div className="meeting-page-hero-rehome no-print" aria-label="회의 요약">
           <h2 className="meeting-page-hero-rehome-heading">{data.title}</h2>
           <div className="hero-metrics meeting-hero-metrics">

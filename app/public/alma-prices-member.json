@@ -1,8 +1,8 @@
 {
   "source": "almacielo-member",
   "sourceUrl": "https://www.almacielo.com/content/content.php?cont=my_price",
-  "fetchedAt": "2026-04-28T04:07:48.673Z",
-  "itemCount": 100,
+  "fetchedAt": "2026-04-29T01:13:16.911Z",
+  "itemCount": 102,
   "items": [
     {
       "itemName": "[20UP] 인도 카피로얄 로부스타 AB *20kg이상주문부터",
@@ -107,10 +107,16 @@
       "supplyNote": "일시결품"
     },
     {
+      "itemName": "브라질 까사블렌드 펄프드 내추럴 NY2 FC",
+      "price": 16300,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=FC528592C3858F90196FBFACC814F235&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "계절한정"
+    },
+    {
       "itemName": "브라질 로메로 펄프드 내추럴 NY2 FC",
-      "price": 14000,
+      "price": 16600,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=FC490CA45C00B1249BBE3554A4FDF6FB&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
-      "supplyNote": "일시결품"
+      "supplyNote": "NEW"
     },
     {
       "itemName": "브라질 모지아나 돌체 내추럴 NY2 FC",
@@ -128,6 +134,12 @@
       "itemName": "브라질 비뉴 호쇼 파젠다 카포에이라 무산소 내추럴 15UP",
       "price": 15800,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=D1A69640D53A32A9FB13E93D1C8F3104&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "마이크로랏"
+    },
+    {
+      "itemName": "브라질 산타 크루즈 내추럴 퍼멘티드",
+      "price": 25800,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=C7AF0926B294E47E52E46CFEBE173F20&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
     {
