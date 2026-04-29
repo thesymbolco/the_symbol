@@ -1,4 +1,4 @@
-export type MeetingValueRowRole = 'salesTotal' | 'salesNet' | 'costsGrand'
+export type MeetingValueRowRole = 'salesRoastingTotal' | 'salesTotal' | 'salesNet' | 'costsGrand'
 
 /**
  * `label`은 자유(표에 보이는 이름). 집계·지출 자동칸은 `role` / `expenseKey`로 구분.
@@ -72,6 +72,7 @@ export const monthlyMeetingData: MonthlyMeetingData = {
   monthLabel: currentMonthLabel,
   months,
   currentMonthSales: [
+    { label: '로스팅실 매출 총 합계', amount: null, share: null, role: 'salesRoastingTotal' },
     { label: '총매출', amount: null, share: null, role: 'salesTotal' },
     { label: '순이익(매출−비용)', amount: null, share: null, role: 'salesNet' },
   ],

@@ -83,6 +83,7 @@ const pieShadeStops = (hex: string) => {
 }
 
 export const MONTHLY_MEETING_DATA_KEY = 'monthly-meeting-data-v2'
+const MONTHLY_MEETING_LAST_SYNCED_JSON_KEY = 'monthly-meeting-last-synced-json-v1'
 /** 로스팅실 매출 거래명세 집계 기준 연·월 (`YYYY-MM`) */
 const ROASTING_REF_YM_STORAGE_KEY = 'monthly-meeting-roasting-ref-ym-v1'
 /** 1~5번 섹션 +/- 접힘 상태 */
@@ -273,7 +274,10 @@ const isSalesTotalRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) =>
   r.role === 'salesTotal' || r.label === '⑧총매출'
 const isSalesNetRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) =>
   r.role === 'salesNet' || r.label === '⑨순이익'
-const isComputedSalesRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) => isSalesTotalRow(r) || isSalesNetRow(r)
+const isSalesRoastingTotalRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) =>
+  r.role === 'salesRoastingTotal' || r.label === '로스팅실 매출 총 합계'
+const isComputedSalesRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) =>
+  isSalesTotalRow(r) || isSalesNetRow(r) || isSalesRoastingTotalRow(r)
 
 const isCostGrandRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) =>
   r.role === 'costsGrand' || r.label === '⑨비용계'
@@ -795,21 +799,38 @@ const computeCurrentMonthCosts = (rows: MeetingValueRow[]) => {
   )
 }
 
-const computeCurrentMonthSales = (sales: MeetingValueRow[], costs: MeetingValueRow[]) => {
-  const totalSales = sumValues(sales.filter((row) => !isComputedSalesRow(row)).map((row) => row.amount))
+const computeCurrentMonthSales = (
+  sales: MeetingValueRow[],
+  costs: MeetingValueRow[],
+  roastingComputed: ReturnType<typeof computeRoastingSales>,
+) => {
+  const manualSalesTotal = sumValues(
+    sales
+      .filter((row) => !isSalesTotalRow(row) && !isSalesNetRow(row) && !isSalesRoastingTotalRow(row))
+      .map((row) => row.amount),
+  )
+  const roastingSalesTotal = roastingComputed.find((row) => isRoastSubtotalRow(row))?.january ?? 0
+  const grandSalesTotal = manualSalesTotal + roastingSalesTotal
   const totalCosts = costs.find((row) => isCostGrandRow(row))?.amount ?? 0
 
   return sales.map((row) => {
+    if (isSalesRoastingTotalRow(row)) {
+      return {
+        ...row,
+        amount: roastingSalesTotal,
+        share: grandSalesTotal > 0 && roastingSalesTotal > 0 ? roastingSalesTotal / grandSalesTotal : null,
+      }
+    }
     if (isSalesTotalRow(row)) {
-      return { ...row, amount: totalSales, share: null }
+      return { ...row, amount: grandSalesTotal, share: null }
     }
     if (isSalesNetRow(row)) {
-      return { ...row, amount: totalSales - totalCosts, share: null }
+      return { ...row, amount: grandSalesTotal - totalCosts, share: null }
     }
 
     return {
       ...row,
-      share: totalSales > 0 && row.amount !== null ? row.amount / totalSales : null,
+      share: grandSalesTotal > 0 && row.amount !== null ? row.amount / grandSalesTotal : null,
     }
   })
 }
@@ -891,7 +912,12 @@ const buildMeetingCostsFromExpenses = (records: ExpenseRecord[], ym: string, bas
     }
     const key = costRowKey(row)
     if (!map.has(key)) {
-      return { ...row, amount: null }
+      // 매칭되는 지출 데이터가 없을 때는 사용자가 직접 입력한 값을 보존
+      return row
+    }
+    // 수동 입력이 이미 있는 칸은 자동 연동으로 덮어쓰지 않음
+    if (typeof row.amount === 'number' && Number.isFinite(row.amount)) {
+      return row
     }
     return { ...row, amount: Math.round(map.get(key) ?? 0) }
   })
@@ -990,6 +1016,10 @@ const applySalesPatchesFromMap = (
     }
     const pk = salesRowLabelToPatchKey(row.label)
     if (!pk || !patches.has(pk) || consumed.has(pk)) {
+      return row
+    }
+    // 수동 입력이 이미 있는 칸은 자동 연동으로 덮어쓰지 않음
+    if (typeof row.amount === 'number' && Number.isFinite(row.amount)) {
       return row
     }
     consumed.add(pk)
@@ -1289,7 +1319,9 @@ const createDefaultState = (): MonthlyMeetingPageState => ({
 const migrateMeetingValueRow = (r: MeetingValueRow, ctx: 'sales' | 'costs'): MeetingValueRow => {
   const out: MeetingValueRow = { ...r }
   if (!out.role) {
-    if (out.label === '⑧총매출') {
+    if (out.label === '로스팅실 매출 총 합계') {
+      out.role = 'salesRoastingTotal'
+    } else if (out.label === '⑧총매출') {
       out.role = 'salesTotal'
     } else if (out.label === '⑨순이익') {
       out.role = 'salesNet'
@@ -1302,6 +1334,21 @@ const migrateMeetingValueRow = (r: MeetingValueRow, ctx: 'sales' | 'costs'): Mee
   }
   out.label = stripLeadingIndexFromLabel(out.label)
   return out
+}
+
+const ensureRoastingTotalSalesRow = (rows: MeetingValueRow[]): MeetingValueRow[] => {
+  if (rows.some((row) => isSalesRoastingTotalRow(row))) {
+    return rows
+  }
+  const next = [...rows]
+  const insertAt = next.findIndex((row) => isSalesTotalRow(row) || isSalesNetRow(row))
+  const row: MeetingValueRow = { label: '로스팅실 매출 총 합계', amount: null, share: null, role: 'salesRoastingTotal' }
+  if (insertAt < 0) {
+    next.push(row)
+  } else {
+    next.splice(insertAt, 0, row)
+  }
+  return next
 }
 
 const migrateRoastRow = (r: MeetingMonthlyRow): MeetingMonthlyRow => {
@@ -1328,7 +1375,7 @@ const migrateMeetingTemplateData = (d: MonthlyMeetingData): MonthlyMeetingData =
   storeName: d.storeName,
   monthLabel: d.monthLabel,
   months: d.months,
-  currentMonthSales: d.currentMonthSales.map((row) => migrateMeetingValueRow(row, 'sales')),
+  currentMonthSales: ensureRoastingTotalSalesRow(d.currentMonthSales.map((row) => migrateMeetingValueRow(row, 'sales'))),
   currentMonthCosts: d.currentMonthCosts.map((row) => migrateMeetingValueRow(row, 'costs')),
   roastingSales: d.roastingSales.map(migrateRoastRow),
   storeSales: d.storeSales,
@@ -1339,7 +1386,7 @@ const migrateMeetingTemplateData = (d: MonthlyMeetingData): MonthlyMeetingData =
 })
 
 const migrateMonthState = (s: MonthlyMeetingMonthState): MonthlyMeetingMonthState => ({
-  currentMonthSales: s.currentMonthSales.map((row) => migrateMeetingValueRow(row, 'sales')),
+  currentMonthSales: ensureRoastingTotalSalesRow(s.currentMonthSales.map((row) => migrateMeetingValueRow(row, 'sales'))),
   currentMonthCosts: s.currentMonthCosts.map((row) => migrateMeetingValueRow(row, 'costs')),
   storeSales: s.storeSales,
   productionRow: s.productionRow,
@@ -1474,6 +1521,8 @@ function MonthlyMeetingPage() {
     saveState,
     skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
+  const saveStateRef = useRef(saveState)
+  saveStateRef.current = saveState
   const [copyTargetMonth, setCopyTargetMonth] = useState('')
   const [collapsedSections, setCollapsedSections] = useState<Record<MeetingSectionKey, boolean>>(
     readStoredCollapsedSections,
@@ -1712,6 +1761,7 @@ function MonthlyMeetingPage() {
 
     const loadState = async () => {
       const localState = readMonthlyMeetingPageStateFromStorage()
+      const localJson = JSON.stringify(localState)
       if (mode !== 'cloud' || !activeCompanyId) {
         applyState(localState)
         return
@@ -1722,7 +1772,25 @@ function MonthlyMeetingPage() {
           activeCompanyId,
           COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
         )
-        applyState(remoteState ? normalizeMonthlyMeetingPageState(remoteState) : localState)
+        const normalizedRemote = remoteState ? normalizeMonthlyMeetingPageState(remoteState) : null
+        const remoteJson = normalizedRemote ? JSON.stringify(normalizedRemote) : ''
+        const lastSyncedJson = window.localStorage.getItem(MONTHLY_MEETING_LAST_SYNCED_JSON_KEY) ?? ''
+        const hasUnsyncedLocalChanges = localJson !== lastSyncedJson
+        const shouldPreferLocalOnHydrate =
+          Boolean(normalizedRemote) && hasUnsyncedLocalChanges && localJson !== remoteJson
+
+        if (shouldPreferLocalOnHydrate) {
+          applyState(localState)
+          return
+        }
+
+        if (normalizedRemote) {
+          window.localStorage.setItem(MONTHLY_MEETING_LAST_SYNCED_JSON_KEY, remoteJson)
+          applyState(normalizedRemote)
+          return
+        }
+
+        applyState(localState)
       } catch (error) {
         console.error('월 마감회의 클라우드 문서를 읽지 못했습니다.', error)
         applyState(localState)
@@ -1753,7 +1821,7 @@ function MonthlyMeetingPage() {
     window.localStorage.setItem(MONTHLY_MEETING_DATA_KEY, JSON.stringify(pageState))
   }, [isStorageReady, pageState])
 
-  const flushMonthlyMeetingCloudSaveNow = async () => {
+  const flushMonthlyMeetingCloudSaveNow = useCallback(async () => {
     if (!isStorageReady || !isCloudReady) {
       return
     }
@@ -1779,12 +1847,24 @@ function MonthlyMeetingPage() {
         user?.id,
       )
       lastCloudPollJsonRef.current = nextJson
+      window.localStorage.setItem(MONTHLY_MEETING_LAST_SYNCED_JSON_KEY, nextJson)
       markDocumentSaved()
     } catch (error) {
       console.error('월 마감회의 클라우드 저장에 실패했습니다.', error)
       markDocumentError()
     }
-  }
+  }, [
+    activeCompanyId,
+    isCloudReady,
+    isStorageReady,
+    markDocumentDirty,
+    markDocumentError,
+    markDocumentSaved,
+    markDocumentSaving,
+    mode,
+    skipInitialDocumentSave,
+    user?.id,
+  ])
 
   const scheduleDebouncedMonthlyMeetingCloudSave = () => {
     if (monthlyMeetingCloudSaveTimerRef.current !== null) {
@@ -1804,6 +1884,36 @@ function MonthlyMeetingPage() {
     }
     void flushMonthlyMeetingCloudSaveNow()
   }
+
+  const flushMonthlyMeetingCloudSaveOnPageExit = useCallback(() => {
+    if (monthlyMeetingCloudSaveTimerRef.current !== null) {
+      window.clearTimeout(monthlyMeetingCloudSaveTimerRef.current)
+      monthlyMeetingCloudSaveTimerRef.current = null
+    }
+    void flushMonthlyMeetingCloudSaveNow()
+  }, [flushMonthlyMeetingCloudSaveNow])
+
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushMonthlyMeetingCloudSaveOnPageExit()
+      }
+    }
+
+    window.addEventListener('beforeunload', flushMonthlyMeetingCloudSaveOnPageExit)
+    window.addEventListener('pagehide', flushMonthlyMeetingCloudSaveOnPageExit)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      window.removeEventListener('beforeunload', flushMonthlyMeetingCloudSaveOnPageExit)
+      window.removeEventListener('pagehide', flushMonthlyMeetingCloudSaveOnPageExit)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [activeCompanyId, flushMonthlyMeetingCloudSaveOnPageExit, mode])
 
   useEffect(() => {
     if (!isStorageReady || !isCloudReady) {
@@ -1866,8 +1976,13 @@ function MonthlyMeetingPage() {
         const normalized = normalizeMonthlyMeetingPageState(remote)
         const nextJson = JSON.stringify(normalized)
         if (nextJson !== lastJson) {
+          // 미저장/저장 중/오류 중에는 원격 스냅샷 적용 안 함(lastJson 미갱신 → 저장 후 같은 원격 버전 재시도 가능)
+          if (saveStateRef.current !== 'saved') {
+            return
+          }
           lastJson = nextJson
           lastCloudPollJsonRef.current = nextJson
+          window.localStorage.setItem(MONTHLY_MEETING_LAST_SYNCED_JSON_KEY, nextJson)
           setPageState(normalized)
         }
       } catch {
@@ -2135,19 +2250,19 @@ function MonthlyMeetingPage() {
     [activeMonthState.currentMonthCosts],
   )
 
+  const computedRoastingSales = useMemo(
+    () => computeRoastingSales(data.roastingSales),
+    [data.roastingSales],
+  )
+
   const computedCurrentMonthSales = useMemo(
-    () => computeCurrentMonthSales(activeMonthState.currentMonthSales, computedCurrentMonthCosts),
-    [activeMonthState.currentMonthSales, computedCurrentMonthCosts],
+    () => computeCurrentMonthSales(activeMonthState.currentMonthSales, computedCurrentMonthCosts, computedRoastingSales),
+    [activeMonthState.currentMonthSales, computedCurrentMonthCosts, computedRoastingSales],
   )
 
   const computedStoreSales = useMemo(
     () => computeStoreSales(activeMonthState.storeSales),
     [activeMonthState.storeSales],
-  )
-
-  const computedRoastingSales = useMemo(
-    () => computeRoastingSales(data.roastingSales),
-    [data.roastingSales],
   )
 
   const inboundCashflow = useMemo(
@@ -2571,9 +2686,9 @@ function MonthlyMeetingPage() {
     (month: string): (string | number)[][] => {
       const monthState = monthStatesByMonth[month] ?? createMonthStates(data)[month]
       const monthCosts = computeCurrentMonthCosts(monthState.currentMonthCosts)
-      const monthSales = computeCurrentMonthSales(monthState.currentMonthSales, monthCosts)
-      const storeSales = computeStoreSales(monthState.storeSales)
       const roastingComputedExport = computeRoastingSales(data.roastingSales)
+      const monthSales = computeCurrentMonthSales(monthState.currentMonthSales, monthCosts, roastingComputedExport)
+      const storeSales = computeStoreSales(monthState.storeSales)
       const inboundParts = buildMeetingInboundCashflowParts(
         monthSales,
         roastingComputedExport,
