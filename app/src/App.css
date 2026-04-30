@@ -2008,7 +2008,7 @@ button.statement-bulk-custom-add {
 
 .statements-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
 
@@ -2073,9 +2073,9 @@ button.statement-bulk-custom-add {
 }
 
 .statements-client-card-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 12px;
   margin: 0;
   font-size: 12px;
 }
@@ -2089,12 +2089,14 @@ button.statement-bulk-custom-add {
 .statements-client-card-meta dt {
   color: #94a3b8;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .statements-client-card-meta dd {
   margin: 0;
   color: #0f172a;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .statements-calendar-viewport {
@@ -7291,10 +7293,16 @@ th,
 td {
   padding: 12px 10px;
   border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
   font-size: 14px;
   line-height: 1.45;
   text-align: center;
   white-space: nowrap;
+}
+
+th:last-child,
+td:last-child {
+  border-right: none;
 }
 
 thead th {
@@ -7322,8 +7330,13 @@ tbody tr.statement-row-cash:hover td {
 
 tbody td:nth-child(3),
 tbody td:nth-child(4),
-.summary-table tbody td:nth-child(2) {
-  text-align: left;
+.summary-table th,
+.summary-table td {
+  text-align: center;
+}
+
+.summary-table .statement-summary-date-input {
+  text-align: center;
 }
 
 tfoot td {
@@ -7366,6 +7379,58 @@ tfoot td {
 
 .summary-table {
   min-width: 1800px;
+}
+
+.table-wrapper.statements-main-table-hscroll-single-month {
+  overflow-x: hidden;
+}
+
+.summary-table.summary-table--single-month {
+  min-width: 760px;
+}
+
+.summary-table.summary-table--single-month th,
+.summary-table.summary-table--single-month td {
+  padding: 10px 8px;
+}
+
+.summary-table.summary-table--single-month .statement-summary-date-input {
+  min-width: 118px;
+}
+
+.summary-table td:has(.statement-summary-date-input) {
+  padding: 8px 6px;
+}
+
+.statement-summary-date-input {
+  width: 100%;
+  min-width: 132px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1.2;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+}
+
+.statement-summary-date-input:hover {
+  background: #ffffff;
+  border-color: #94a3b8;
+}
+
+.statement-summary-date-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
 }
 
 .preview-panel {

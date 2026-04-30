@@ -1257,7 +1257,10 @@ function ExpensePage() {
     [recordsForAggregates],
   )
   const categorySummaryRows = useMemo(
-    () => summarizeExpenseByCategory(recordsForAggregates, availableCategoryOptions),
+    () =>
+      summarizeExpenseByCategory(recordsForAggregates, availableCategoryOptions).filter(
+        (row) => row.count > 0,
+      ),
     [availableCategoryOptions, recordsForAggregates],
   )
 

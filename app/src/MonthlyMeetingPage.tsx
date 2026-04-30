@@ -1785,7 +1785,19 @@ const getMeetingOutboundCashflow = (
   const beanRaw = roastingComputed.find((r) => isRoastBeanCostRow(r))?.january
   const beanN = typeof beanRaw === 'number' && Number.isFinite(beanRaw) ? beanRaw : 0
   const hasRoastingBean = beanN !== 0
-  const roastingBeanCost: MeetingCashflowAmountLine | null = hasRoastingBean
+  const hasBeanMaterialCostAlreadyInCosts = computedCosts.some((r) => {
+    if (isCostGrandRow(r)) {
+      return false
+    }
+    const key = costRowKey(r)
+    if (key !== '①재료비' && key !== MEETING_BEAN_MATERIAL_BUCKET_KEY) {
+      return false
+    }
+    const amt = typeof r.amount === 'number' && Number.isFinite(r.amount) ? r.amount : 0
+    return amt > 0
+  })
+  const shouldAddRoastingBeanAsSeparateOutflow = hasRoastingBean && !hasBeanMaterialCostAlreadyInCosts
+  const roastingBeanCost: MeetingCashflowAmountLine | null = shouldAddRoastingBeanAsSeparateOutflow
     ? { label: '로스팅실 생두비용', amount: Math.round(beanRaw!), share: null }
     : null
 
@@ -3142,6 +3154,13 @@ function MonthlyMeetingPage() {
     () => computeCurrentMonthSales(activeMonthState.currentMonthSales, computedCurrentMonthCosts, computedRoastingSales),
     [activeMonthState.currentMonthSales, computedCurrentMonthCosts, computedRoastingSales],
   )
+  const summarySalesRows = useMemo(
+    () =>
+      activeMonth === '4월'
+        ? computedCurrentMonthSales.filter((row) => !isSalesNetRow(row))
+        : computedCurrentMonthSales,
+    [activeMonth, computedCurrentMonthSales],
+  )
 
   const computedStoreSales = useMemo(
     () => computeStoreSales(activeMonthState.storeSales),
@@ -4143,7 +4162,7 @@ function MonthlyMeetingPage() {
               tableId="summary-sales"
               title="매출"
               newRowButtonLabel="항목 추가"
-              rows={computedCurrentMonthSales}
+              rows={summarySalesRows}
               showShareColumn
               editMode={summaryEditMode}
               indexKind="sales"

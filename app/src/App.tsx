@@ -43,6 +43,7 @@ const STATEMENT_TEMPLATE_STORAGE_KEY = 'statement-template-base64-v1'
 const STATEMENT_TEMPLATE_NAME_STORAGE_KEY = 'statement-template-name-v1'
 const STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY = 'statement-template-updated-at-v1'
 const STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY = 'statement-template-settings-v1'
+const STATEMENT_MONTHLY_DATES_STORAGE_KEY = 'statement-monthly-dates-v1'
 const CURRENT_YEAR = new Date().getFullYear()
 const MONTH_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}월`)
 
@@ -301,6 +302,11 @@ type MonthlySummaryRow = {
   }[]
 }
 
+type StatementMonthlyDateOverride = {
+  issueDate: string
+  paymentDate: string
+}
+
 type PricingRule = {
   id: string
   clientName: string
@@ -366,6 +372,7 @@ type StatementPageDocument = {
   records: StatementRecord[]
   pricingRules: PricingRule[]
   masterItems: MasterItem[]
+  monthlyDateOverrides: Record<string, StatementMonthlyDateOverride>
   statementTemplateBase64: string | null
   statementTemplateFileName: string
   statementTemplateUpdatedAt: string
@@ -512,10 +519,35 @@ const readStatementPageLocalState = (): StatementPageDocument => {
     }
   }
 
+  let monthlyDateOverrides: Record<string, StatementMonthlyDateOverride> = {}
+  const savedMonthlyDates = window.localStorage.getItem(STATEMENT_MONTHLY_DATES_STORAGE_KEY)
+  if (savedMonthlyDates) {
+    try {
+      const parsed = JSON.parse(savedMonthlyDates) as unknown
+      if (parsed && typeof parsed === 'object') {
+        const next: Record<string, StatementMonthlyDateOverride> = {}
+        Object.entries(parsed as Record<string, unknown>).forEach(([key, value]) => {
+          if (!value || typeof value !== 'object') {
+            return
+          }
+          const source = value as Partial<StatementMonthlyDateOverride>
+          next[key] = {
+            issueDate: typeof source.issueDate === 'string' ? source.issueDate : '',
+            paymentDate: typeof source.paymentDate === 'string' ? source.paymentDate : '',
+          }
+        })
+        monthlyDateOverrides = next
+      }
+    } catch {
+      monthlyDateOverrides = {}
+    }
+  }
+
   return {
     records,
     pricingRules,
     masterItems,
+    monthlyDateOverrides,
     statementTemplateBase64: window.localStorage.getItem(STATEMENT_TEMPLATE_STORAGE_KEY),
     statementTemplateFileName: window.localStorage.getItem(STATEMENT_TEMPLATE_NAME_STORAGE_KEY) ?? '',
     statementTemplateUpdatedAt: window.localStorage.getItem(STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY) ?? '',
@@ -559,6 +591,7 @@ const normalizeStatementPageDocument = (value: unknown): StatementPageDocument =
       records: [],
       pricingRules: [],
       masterItems: [],
+      monthlyDateOverrides: {},
       statementTemplateBase64: null,
       statementTemplateFileName: '',
       statementTemplateUpdatedAt: '',
@@ -567,12 +600,26 @@ const normalizeStatementPageDocument = (value: unknown): StatementPageDocument =
   }
 
   const source = value as Partial<StatementPageDocument>
+  const monthlyDateOverrides: Record<string, StatementMonthlyDateOverride> = {}
+  if (source.monthlyDateOverrides && typeof source.monthlyDateOverrides === 'object') {
+    Object.entries(source.monthlyDateOverrides as Record<string, unknown>).forEach(([key, value]) => {
+      if (!value || typeof value !== 'object') {
+        return
+      }
+      const row = value as Partial<StatementMonthlyDateOverride>
+      monthlyDateOverrides[key] = {
+        issueDate: typeof row.issueDate === 'string' ? row.issueDate : '',
+        paymentDate: typeof row.paymentDate === 'string' ? row.paymentDate : '',
+      }
+    })
+  }
   return {
     records: Array.isArray(source.records)
       ? normalizeLoadedRecords(source.records as Array<StatementRecord & { note?: string }>)
       : [],
     pricingRules: Array.isArray(source.pricingRules) ? (source.pricingRules as PricingRule[]) : [],
     masterItems: normalizeMasterItemsList(source.masterItems),
+    monthlyDateOverrides,
     statementTemplateBase64:
       typeof source.statementTemplateBase64 === 'string' && source.statementTemplateBase64.length > 0
         ? source.statementTemplateBase64
@@ -1234,6 +1281,9 @@ const pickLatestDate = (dates: string[]) => {
   return filtered.at(-1) ?? ''
 }
 
+const statementMonthlyDateOverrideKey = (year: string, monthIndex: number, clientName: string) =>
+  `${year}-${String(monthIndex + 1).padStart(2, '0')}::${normalizeName(clientName)}`
+
 /** 납품일 연·월(YYYY-MM)이 같은 건끼리, 납품일·거래처·생성시각 순으로 월 내 몇 번째인지(1부터). */
 const statementRecordDeliveryMonthSeqById = (records: StatementRecord[]): Map<string, number> => {
   const byMonth = new Map<string, StatementRecord[]>()
@@ -1286,6 +1336,7 @@ function App() {
   const { mode, activeCompany, activeCompanyId, user, signOut } = useAppRuntime()
   const [form, setForm] = useState<FormState>(() => defaultFormState())
   const [records, setRecords] = useState<StatementRecord[]>([])
+  const [monthlyDateOverrides, setMonthlyDateOverrides] = useState<Record<string, StatementMonthlyDateOverride>>({})
   const [pricingRules, setPricingRules] = useState<PricingRule[]>([])
   const [masterItems, setMasterItems] = useState<MasterItem[]>([])
   const [masterItemDraft, setMasterItemDraft] = useState<{
@@ -1373,6 +1424,7 @@ function App() {
 
   const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR))
   const [activeView, setActiveView] = useState<'records' | 'summary' | 'cards' | 'calendar'>('cards')
+  const [showAllSummaryMonths, setShowAllSummaryMonths] = useState(false)
   const [recordsSearchQuery, setRecordsSearchQuery] = useState('')
   const [recordsRangeFilter, setRecordsRangeFilter] = useState<'all' | 'week' | 'month' | 'year'>('month')
   const [recordsNoteFilter, setRecordsNoteFilter] = useState<'all' | '부가세 별도' | '부가세 없음'>(
@@ -1500,6 +1552,7 @@ function App() {
       setRecords(next.records)
       setPricingRules(next.pricingRules)
       setMasterItems(next.masterItems)
+      setMonthlyDateOverrides(next.monthlyDateOverrides)
       setStatementTemplateBase64(next.statementTemplateBase64)
       setStatementTemplateFileName(next.statementTemplateFileName)
       setStatementTemplateUpdatedAt(next.statementTemplateUpdatedAt)
@@ -1602,6 +1655,10 @@ function App() {
   }, [isMasterItemsStorageReady, masterItems])
 
   useEffect(() => {
+    window.localStorage.setItem(STATEMENT_MONTHLY_DATES_STORAGE_KEY, JSON.stringify(monthlyDateOverrides))
+  }, [monthlyDateOverrides])
+
+  useEffect(() => {
     if (statementTemplateBase64) {
       window.localStorage.setItem(STATEMENT_TEMPLATE_STORAGE_KEY, statementTemplateBase64)
     } else {
@@ -1688,6 +1745,7 @@ function App() {
       records,
       pricingRules,
       masterItems,
+      monthlyDateOverrides,
       statementTemplateBase64,
       statementTemplateFileName,
       statementTemplateUpdatedAt,
@@ -1708,6 +1766,7 @@ function App() {
           records,
           pricingRules,
           masterItems,
+          monthlyDateOverrides,
           statementTemplateBase64,
           statementTemplateFileName,
           statementTemplateUpdatedAt,
@@ -1732,6 +1791,7 @@ function App() {
     isRecordsStorageReady,
     isStatementCloudReady,
     masterItems,
+    monthlyDateOverrides,
     mode,
     pricingRules,
     records,
@@ -1773,6 +1833,7 @@ function App() {
           records: normalized.records,
           pricingRules: normalized.pricingRules,
           masterItems: normalized.masterItems,
+          monthlyDateOverrides: normalized.monthlyDateOverrides,
           statementTemplateBase64: normalized.statementTemplateBase64,
           statementTemplateFileName: normalized.statementTemplateFileName,
           statementTemplateUpdatedAt: normalized.statementTemplateUpdatedAt,
@@ -1784,6 +1845,7 @@ function App() {
           setRecords(normalized.records)
           setPricingRules(normalized.pricingRules)
           setMasterItems(normalized.masterItems)
+          setMonthlyDateOverrides(normalized.monthlyDateOverrides)
           setStatementTemplateBase64(normalized.statementTemplateBase64)
           setStatementTemplateFileName(normalized.statementTemplateFileName)
           setStatementTemplateUpdatedAt(normalized.statementTemplateUpdatedAt)
@@ -2342,6 +2404,27 @@ function App() {
     [clientCardStats],
   )
 
+  const cardTaxIssueDateByClientName = useMemo(() => {
+    const ym = new Date().toISOString().slice(0, 7)
+    const [year, monthRaw] = ym.split('-')
+    const monthIndex = Number(monthRaw) - 1
+    if (!year || monthIndex < 0 || monthIndex > 11) {
+      return new Map<string, string>()
+    }
+    const out = new Map<string, string>()
+    clientCardStats.forEach((card) => {
+      const baseName = card.isCashHandled
+        ? card.clientName.replace(new RegExp(`-${CASH_CLIENT_LABEL}$`), '')
+        : card.clientName
+      const key = statementMonthlyDateOverrideKey(year, monthIndex, baseName)
+      const issueDate = monthlyDateOverrides[key]?.issueDate ?? ''
+      if (issueDate) {
+        out.set(card.clientName, issueDate)
+      }
+    })
+    return out
+  }, [clientCardStats, monthlyDateOverrides])
+
   const calendarEntries = useMemo(() => {
     const map = new Map<string, { count: number; totalAmount: number; records: StatementRecord[] }>()
     statementPreviewRecords.forEach((record) => {
@@ -2512,12 +2595,56 @@ function App() {
     })
 
     return Array.from(grouped.values())
-      .map((row) => ({
-        ...row,
-        share: yearlyTotal ? (row.totalAmount / yearlyTotal) * 100 : 0,
-      }))
+      .map((row) => {
+        const months = row.months.map((month, monthIndex) => {
+          const key = statementMonthlyDateOverrideKey(selectedYear, monthIndex, row.clientName)
+          const override = monthlyDateOverrides[key]
+          if (!override) {
+            return month
+          }
+          return {
+            ...month,
+            issueDate: override.issueDate,
+            paymentDate: override.paymentDate,
+          }
+        })
+        return {
+          ...row,
+          months,
+          share: yearlyTotal ? (row.totalAmount / yearlyTotal) * 100 : 0,
+        }
+      })
       .sort((a, b) => b.totalAmount - a.totalAmount)
-  }, [filteredRecords])
+  }, [filteredRecords, monthlyDateOverrides, selectedYear, yearlyTotal])
+
+  const summaryVisibleMonthIndexes = useMemo(() => {
+    if (showAllSummaryMonths) {
+      return MONTH_LABELS.map((_, index) => index)
+    }
+    return [new Date().getMonth()]
+  }, [showAllSummaryMonths])
+
+  const handleSummaryMonthDateChange = useCallback(
+    (
+      clientName: string,
+      monthIndex: number,
+      field: keyof StatementMonthlyDateOverride,
+      value: string,
+    ) => {
+      const key = statementMonthlyDateOverrideKey(selectedYear, monthIndex, clientName)
+      setMonthlyDateOverrides((current) => {
+        const prev = current[key] ?? { issueDate: '', paymentDate: '' }
+        const next = { ...prev, [field]: value }
+        if (!next.issueDate && !next.paymentDate) {
+          const copied = { ...current }
+          delete copied[key]
+          return copied
+        }
+        return { ...current, [key]: next }
+      })
+    },
+    [selectedYear],
+  )
 
   useLayoutEffect(() => {
     if (activePage !== 'statements') {
@@ -4039,6 +4166,15 @@ function App() {
                   </option>
                 ))}
               </select>
+              {activeView === 'summary' ? (
+                <button
+                  type="button"
+                  className="ghost-button statements-records-excel-btn"
+                  onClick={() => setShowAllSummaryMonths((current) => !current)}
+                >
+                  {showAllSummaryMonths ? '해당 월만 보기' : '전체 월 보기'}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="ghost-button statements-records-excel-btn"
@@ -4420,6 +4556,14 @@ function App() {
                                 <dd>{formatCurrency(card.monthAmount)}원</dd>
                               </div>
                               <div>
+                                <dt>발행일자</dt>
+                                <dd>
+                                  {cardTaxIssueDateByClientName.get(card.clientName)
+                                    ? formatDateLabel(cardTaxIssueDateByClientName.get(card.clientName)!)
+                                    : '—'}
+                                </dd>
+                              </div>
+                              <div>
                                 <dt>마지막 납품</dt>
                                 <dd>
                                   {card.lastDeliveryDate ? formatDateLabel(card.lastDeliveryDate) : '—'}
@@ -4454,6 +4598,14 @@ function App() {
                               <div>
                                 <dt>이번달</dt>
                                 <dd>{formatCurrency(card.monthAmount)}원</dd>
+                              </div>
+                              <div>
+                                <dt>발행일자</dt>
+                                <dd>
+                                  {cardTaxIssueDateByClientName.get(card.clientName)
+                                    ? formatDateLabel(cardTaxIssueDateByClientName.get(card.clientName)!)
+                                    : '—'}
+                                </dd>
                               </div>
                               <div>
                                 <dt>마지막 납품</dt>
@@ -4567,32 +4719,35 @@ function App() {
               })()}
             </div>
           ) : (
-            <div className="table-wrapper statements-main-table-hscroll" ref={statementMainTableScrollRef}>
-              <table className="summary-table">
+            <div
+              className={`table-wrapper statements-main-table-hscroll${!showAllSummaryMonths ? ' statements-main-table-hscroll-single-month' : ''}`}
+              ref={statementMainTableScrollRef}
+            >
+              <table className={`summary-table${!showAllSummaryMonths ? ' summary-table--single-month' : ''}`}>
                 <thead>
                   <tr>
                     <th rowSpan={2}>NO</th>
                     <th rowSpan={2}>거래처명</th>
                     <th rowSpan={2}>합계(부가세포함)</th>
                     <th rowSpan={2}>점유율</th>
-                    {MONTH_LABELS.map((label) => (
-                      <th key={label} colSpan={3}>
-                        {label}
+                    {summaryVisibleMonthIndexes.map((monthIndex) => (
+                      <th key={MONTH_LABELS[monthIndex]} colSpan={3}>
+                        {MONTH_LABELS[monthIndex]}
                       </th>
                     ))}
                   </tr>
                   <tr>
-                    {MONTH_LABELS.flatMap((label) => [
-                      <th key={`${label}-amount`}>금액</th>,
-                      <th key={`${label}-issue`}>발행일자</th>,
-                      <th key={`${label}-payment`}>입금일자</th>,
+                    {summaryVisibleMonthIndexes.flatMap((monthIndex) => [
+                      <th key={`${MONTH_LABELS[monthIndex]}-amount`}>금액</th>,
+                      <th key={`${MONTH_LABELS[monthIndex]}-issue`}>발행일자</th>,
+                      <th key={`${MONTH_LABELS[monthIndex]}-payment`}>입금일자</th>,
                     ])}
                   </tr>
                 </thead>
                 <tbody>
                   {summaryRows.length === 0 ? (
                     <tr>
-                      <td colSpan={40} className="empty-state">
+                      <td colSpan={4 + summaryVisibleMonthIndexes.length * 3} className="empty-state">
                         {selectedYear}년에 해당하는 데이터가 없습니다.
                       </td>
                     </tr>
@@ -4603,17 +4758,44 @@ function App() {
                         <td>{row.clientName}</td>
                         <td>{formatCurrency(row.totalAmount)}</td>
                         <td>{row.share.toFixed(1)}%</td>
-                        {row.months.flatMap((month, monthIndex) => [
+                        {summaryVisibleMonthIndexes.flatMap((monthIndex) => {
+                          const month = row.months[monthIndex]!
+                          return [
                           <td key={`${row.clientName}-${monthIndex}-amount`}>
                             {month.amount ? formatCurrency(month.amount) : ''}
                           </td>,
                           <td key={`${row.clientName}-${monthIndex}-issue`}>
-                            {month.issueDate ? formatDateLabel(month.issueDate) : ''}
+                            <input
+                              type="date"
+                              className="statement-summary-date-input"
+                              value={month.issueDate}
+                              onChange={(event) =>
+                                handleSummaryMonthDateChange(
+                                  row.clientName,
+                                  monthIndex,
+                                  'issueDate',
+                                  event.target.value,
+                                )
+                              }
+                            />
                           </td>,
                           <td key={`${row.clientName}-${monthIndex}-payment`}>
-                            {month.paymentDate ? formatDateLabel(month.paymentDate) : ''}
+                            <input
+                              type="date"
+                              className="statement-summary-date-input"
+                              value={month.paymentDate}
+                              onChange={(event) =>
+                                handleSummaryMonthDateChange(
+                                  row.clientName,
+                                  monthIndex,
+                                  'paymentDate',
+                                  event.target.value,
+                                )
+                              }
+                            />
                           </td>,
-                        ])}
+                        ]
+                        })}
                       </tr>
                     ))
                   )}
@@ -4623,7 +4805,7 @@ function App() {
                     <td colSpan={2}>합계</td>
                     <td>{formatCurrency(filteredRecords.reduce((sum, row) => sum + row.totalAmount, 0))}</td>
                     <td>100%</td>
-                    <td colSpan={36}></td>
+                    <td colSpan={summaryVisibleMonthIndexes.length * 3}></td>
                   </tr>
                 </tfoot>
               </table>

@@ -61828,13 +61828,4225 @@ Parameters:
 
 ```json
 {
-  "explanation": "Reading...",
+  "explanation": "",
   "includePattern": "/Users/parkcg/The Symbol_Edit/app/src",
   "query": "Where does monthly meeting inbound cashflow or channel sales aggregate from statements?",
   "topK": 10
 }
 ```
-Status: **loading**
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1733,
+            "text": "/** 당월 결제 매출 + 로스팅 집계월 매출(거래처별) + 매장 판매(홀·배달·간편) */"
+          },
+          {
+            "lineNumber": 1734,
+            "text": "const buildMeetingInboundCashflowParts = ("
+          },
+          {
+            "lineNumber": 1735,
+            "text": "  computedSales: MeetingValueRow[],"
+          },
+          {
+            "lineNumber": 1736,
+            "text": "  roastingComputed: ReturnType\u003ctypeof computeRoastingSales\u003e,"
+          },
+          {
+            "lineNumber": 1737,
+            "text": "  storeComputed: ReturnType\u003ctypeof computeStoreSales\u003e,"
+          },
+          {
+            "lineNumber": 1738,
+            "text": ") =\u003e {"
+          },
+          {
+            "lineNumber": 1739,
+            "text": "  const channelPart: MeetingCashflowAmountLine[] = computedSales"
+          },
+          {
+            "lineNumber": 1740,
+            "text": "    .filter((r) =\u003e !isComputedSalesRow(r))"
+          },
+          {
+            "lineNumber": 1741,
+            "text": "    .map((r) =\u003e ({ label: r.label, amount: r.amount, share: null }))"
+          },
+          {
+            "lineNumber": 1742
+          },
+          {
+            "lineNumber": 1743,
+            "text": "  const roastingLines: MeetingCashflowAmountLine[] = roastingComputed"
+          },
+          {
+            "lineNumber": 1744,
+            "text": "    .filter((r) =\u003e isRoastClientRow(r))"
+          },
+          {
+            "lineNumber": 1745,
+            "text": "    .filter((r) =\u003e (r.january ?? 0) !== 0)"
+          },
+          {
+            "lineNumber": 1746,
+            "text": "    .map((r) =\u003e ({"
+          },
+          {
+            "lineNumber": 1747,
+            "text": "      label: &#96;로스팅 · ${r.label}&#96;,"
+          },
+          {
+            "lineNumber": 1748,
+            "text": "      amount: r.january,"
+          },
+          {
+            "lineNumber": 1749,
+            "text": "      share: null,"
+          },
+          {
+            "lineNumber": 1750,
+            "text": "    }))"
+          },
+          {
+            "lineNumber": 1751
+          },
+          {
+            "lineNumber": 1752,
+            "text": "  const storeLines: MeetingCashflowAmountLine[] = []"
+          },
+          {
+            "lineNumber": 1753,
+            "text": "  const hall = storeComputed.hall"
+          },
+          {
+            "lineNumber": 1754,
+            "text": "  if (typeof hall === 'number' \u0026\u0026 Number.isFinite(hall) \u0026\u0026 hall !== 0) {"
+          },
+          {
+            "lineNumber": 1755,
+            "text": "    storeLines.push({ label: '매장 · 홀 매출', amount: hall, share: null })"
+          },
+          {
+            "lineNumber": 1756,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1757,
+            "text": "  const delivery = storeComputed.delivery"
+          },
+          {
+            "lineNumber": 1758,
+            "text": "  if (typeof delivery === 'number' \u0026\u0026 Number.isFinite(delivery) \u0026\u0026 delivery !== 0) {"
+          },
+          {
+            "lineNumber": 1759,
+            "text": "    storeLines.push({ label: '매장 · 배달 채널', amount: delivery, share: null })"
+          },
+          {
+            "lineNumber": 1760,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1761,
+            "text": "  const quick = storeComputed.quick"
+          },
+          {
+            "lineNumber": 1762,
+            "text": "  if (typeof quick === 'number' \u0026\u0026 Number.isFinite(quick) \u0026\u0026 quick !== 0) {"
+          },
+          {
+            "lineNumber": 1763,
+            "text": "    storeLines.push({ label: '매장 · 간편배달', amount: quick, share: null })"
+          },
+          {
+            "lineNumber": 1764,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1765
+          },
+          {
+            "lineNumber": 1766,
+            "text": "  const merged = [...channelPart, ...roastingLines, ...storeLines]"
+          },
+          {
+            "lineNumber": 1767,
+            "text": "  const totalIn = sumValues(merged.map((r) =\u003e r.amount))"
+          },
+          {
+            "lineNumber": 1768,
+            "text": "  return {"
+          },
+          {
+            "lineNumber": 1769,
+            "text": "    channelPart: applyCashflowSectionShares(channelPart),"
+          },
+          {
+            "lineNumber": 1770,
+            "text": "    roastingLines: applyCashflowSectionShares(roastingLines),"
+          },
+          {
+            "lineNumber": 1771,
+            "text": "    storeLines: applyCashflowSectionShares(storeLines),"
+          },
+          {
+            "lineNumber": 1772,
+            "text": "    totalIn,"
+          },
+          {
+            "lineNumber": 1773,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1774,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1775
+          },
+          {
+            "lineNumber": 1776,
+            "text": "const getMeetingOutboundCashflow = ("
+          },
+          {
+            "lineNumber": 1777,
+            "text": "  computedCosts: MeetingValueRow[],"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 1797
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 1730
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.5284724831581116
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3141,
+            "text": "const computedStoreSales = "
+          },
+          {
+            "lineNumber": 3142
+          },
+          {
+            "lineNumber": 3143,
+            "text": "    [activeMonthState.storeSales],"
+          },
+          {
+            "lineNumber": 3144,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3145
+          },
+          {
+            "lineNumber": 3146,
+            "text": "  const inboundCashflow = useMemo("
+          },
+          {
+            "lineNumber": 3147,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 3148,
+            "text": "      buildMeetingInboundCashflowParts("
+          },
+          {
+            "lineNumber": 3149,
+            "text": "        computedCurrentMonthSales,"
+          },
+          {
+            "lineNumber": 3150,
+            "text": "        computedRoastingSales,"
+          },
+          {
+            "lineNumber": 3151,
+            "text": "        computedStoreSales,"
+          },
+          {
+            "lineNumber": 3152,
+            "text": "      ),"
+          },
+          {
+            "lineNumber": 3153,
+            "text": "    [computedCurrentMonthSales, computedRoastingSales, computedStoreSales],"
+          },
+          {
+            "lineNumber": 3154,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3155
+          },
+          {
+            "lineNumber": 3156,
+            "text": "  const outboundCashflow = useMemo("
+          },
+          {
+            "lineNumber": 3157,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 3158,
+            "text": "      getMeetingOutboundCashflow(computedCurrentMonthCosts, computedRoastingSales),"
+          },
+          {
+            "lineNumber": 3159,
+            "text": "    [computedCurrentMonthCosts, computedRoastingSales],"
+          },
+          {
+            "lineNumber": 3160,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3161
+          },
+          {
+            "lineNumber": 3162,
+            "text": "  const cashflowPl = useMemo("
+          },
+          {
+            "lineNumber": 3163,
+            "text": "    () =\u003e getMeetingCashflowPl(inboundCashflow.totalIn, outboundCashflow.totalOut),"
+          },
+          {
+            "lineNumber": 3164,
+            "text": "    [inboundCashflow.totalIn, outboundCashflow.totalOut],"
+          },
+          {
+            "lineNumber": 3165,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3166
+          },
+          {
+            "lineNumber": 3167,
+            "text": "  const computedInventoryRow = useMemo("
+          },
+          {
+            "lineNumber": 3168,
+            "text": "    () =\u003e computeInventoryRow(activeMonthState.inventoryRow),"
+          },
+          {
+            "lineNumber": 3169,
+            "text": "    [activeMonthState.inventoryRow],"
+          },
+          {
+            "lineNumber": 3170,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3171
+          },
+          {
+            "lineNumber": 3172,
+            "text": "  const outboundAggregateColumnIndex = useMemo("
+          },
+          {
+            "lineNumber": 3173,
+            "text": "    () =\u003e findOutboundAggregateColumnIndex(data.productionColumns),"
+          },
+          {
+            "lineNumber": 3174,
+            "text": "    [data.productionColumns],"
+          },
+          {
+            "lineNumber": 3175,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3176
+          },
+          {
+            "lineNumber": 3177,
+            "text": "  const productionReadRows = useMemo("
+          },
+          {
+            "lineNumber": 3178,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 3179,
+            "text": "      buildMeetingKgReadRows(data.productionColumns, activeMonthState.productionRow.values, {"
+          },
+          {
+            "lineNumber": 3180,
+            "text": "        hideZero: true,"
+          },
+          {
+            "lineNumber": 3181,
+            "text": "        aggregateColumnIndex: outboundAggregateColumnIndex,"
+          },
+          {
+            "lineNumber": 3182,
+            "text": "      }),"
+          },
+          {
+            "lineNumber": 3183,
+            "text": "    [data.productionColumns, activeMonthState.productionRow.values, outboundAggregateColumnIndex],"
+          },
+          {
+            "lineNumber": 3184,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3185
+          },
+          {
+            "lineNumber": 3186,
+            "text": "  const inventoryReadRows = useMemo("
+          },
+          {
+            "lineNumber": 3187,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 3188,
+            "text": "      buildMeetingKgReadRows(data.inventoryColumns, computedInventoryRow.values, {"
+          },
+          {
+            "lineNumber": 3189,
+            "text": "        hideZero: true,"
+          },
+          {
+            "lineNumber": 3190,
+            "text": "        aggregateColumnIndex: -1,"
+          },
+          {
+            "lineNumber": 3191,
+            "text": "      }),"
+          },
+          {
+            "lineNumber": 3192,
+            "text": "    [data.inventoryColumns, computedInventoryRow.values],"
+          },
+          {
+            "lineNumber": 3193,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3194
+          },
+          {
+            "lineNumber": 3195,
+            "text": "  const outboundSummaryKg = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 3196,
+            "text": "    if (outboundAggregateColumnIndex \u003e= 0) {"
+          },
+          {
+            "lineNumber": 3197,
+            "text": "      const v = activeMonthState.productionRow.values[outboundAggregateColumnIndex]"
+          },
+          {
+            "lineNumber": 3198,
+            "text": "      return typeof v === 'number' \u0026\u0026 Number.isFinite(v) ? v : 0"
+          },
+          {
+            "lineNumber": 3199,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3200,
+            "text": "    return sumValues(activeMonthState.productionRow.values)"
+          },
+          {
+            "lineNumber": 3201,
+            "text": "  }, [activeMonthState.productionRow.values, outboundAggregateColumnIndex])"
+          },
+          {
+            "lineNumber": 3202
+          },
+          {
+            "lineNumber": 3203,
+            "text": "  const inventoryTotalKg = useMemo("
+          },
+          {
+            "lineNumber": 3204,
+            "text": "    () =\u003e sumValues"
+          },
+          {
+            "lineNumber": 3206
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.5120952129364014
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 2391,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 2398
+          },
+          {
+            "lineNumber": 2399
+          },
+          {
+            "lineNumber": 2400,
+            "text": "    setPageState((current) =\u003e {"
+          },
+          {
+            "lineNumber": 2401,
+            "text": "      const fallbackStates = createMonthStates(current.data)"
+          },
+          {
+            "lineNumber": 2402,
+            "text": "      let nextMonthStates = { ...current.monthStatesByMonth }"
+          },
+          {
+            "lineNumber": 2403,
+            "text": "      let changed = false"
+          },
+          {
+            "lineNumber": 2404,
+            "text": "      for (const monthLabel of current.data.months) {"
+          },
+          {
+            "lineNumber": 2405,
+            "text": "        const ym = meetingMonthLabelToExpenseYm(monthLabel, records)"
+          },
+          {
+            "lineNumber": 2406,
+            "text": "        if (!ym) {"
+          },
+          {
+            "lineNumber": 2407,
+            "text": "          continue"
+          },
+          {
+            "lineNumber": 2408,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 2409,
+            "text": "        const base = nextMonthStates[monthLabel] ?? fallbackStates[monthLabel]!"
+          },
+          {
+            "lineNumber": 2410,
+            "text": "        const built = buildMeetingCostsFromExpenses(records, ym, base.currentMonthCosts)"
+          },
+          {
+            "lineNumber": 2411,
+            "text": "        const stmMonth = filterStatementsByYmDelivery(stmtAll, ym)"
+          },
+          {
+            "lineNumber": 2412,
+            "text": "        const beanResult = computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, mapOpts)"
+          },
+          {
+            "lineNumber": 2413,
+            "text": "        const nextCosts = computeCurrentMonthCosts(mergeBeanSalesMaterialCostIntoMeetingRows(built, ym, beanResult))"
+          },
+          {
+            "lineNumber": 2414,
+            "text": "        const salesPatchMap = aggregateExpenseSalesPatches(records, ym)"
+          },
+          {
+            "lineNumber": 2415,
+            "text": "        const nextSalesRaw = applySalesPatchesFromMap(base.currentMonthSales, salesPatchMap)"
+          },
+          {
+            "lineNumber": 2416
+          },
+          {
+            "lineNumber": 2417,
+            "text": "        const costsUnchanged ="
+          },
+          {
+            "lineNumber": 2418,
+            "text": "          meetingValueRowsSignature(nextCosts) === meetingValueRowsSignature(computeCurrentMonthCosts(base.currentMonthCosts))"
+          },
+          {
+            "lineNumber": 2419,
+            "text": "        const salesUnchanged = meetingValueRowsSignature(nextSalesRaw) === meetingValueRowsSignature(base.currentMonthSales)"
+          },
+          {
+            "lineNumber": 2420
+          },
+          {
+            "lineNumber": 2421,
+            "text": "        if (costsUnchanged \u0026\u0026 salesUnchanged) {"
+          },
+          {
+            "lineNumber": 2422,
+            "text": "          continue"
+          },
+          {
+            "lineNumber": 2423,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 2424
+          },
+          {
+            "lineNumber": 2425,
+            "text": "        nextMonthStates = {"
+          },
+          {
+            "lineNumber": 2426,
+            "text": "          ...nextMonthStates,"
+          },
+          {
+            "lineNumber": 2427,
+            "text": "          [monthLabel]: {"
+          },
+          {
+            "lineNumber": 2428,
+            "text": "            ...base,"
+          },
+          {
+            "lineNumber": 2429,
+            "text": "            currentMonthCosts: nextCosts,"
+          },
+          {
+            "lineNumber": 2430,
+            "text": "            currentMonthSales: nextSalesRaw,"
+          },
+          {
+            "lineNumber": 2431,
+            "text": "          },"
+          },
+          {
+            "lineNumber": 2432,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 2433,
+            "text": "        changed = true"
+          },
+          {
+            "lineNumber": 2434,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2435,
+            "text": "      if (!changed) {"
+          },
+          {
+            "lineNumber": 2436,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2437,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2438,
+            "text": "      return { ...current, monthStatesByMonth: nextMonthStates }"
+          },
+          {
+            "lineNumber": 2439,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2440,
+            "text": "  }, ["
+          },
+          {
+            "lineNumber": 2441,
+            "text": "    expenseRecordsForMeetingLink,"
+          },
+          {
+            "lineNumber": 2442,
+            "text": "    isStorageReady,"
+          },
+          {
+            "lineNumber": 2443,
+            "text": "    sectionEditModes.summary,"
+          },
+          {
+            "lineNumber": 2444,
+            "text": "    mode,"
+          },
+          {
+            "lineNumber": 2445,
+            "text": "    activeCompanyId,"
+          },
+          {
+            "lineNumber": 2446,
+            "text": "    statementRecordsStorageRev,"
+          },
+          {
+            "lineNumber": 2447,
+            "text": "    inventoryLinkTick,"
+          },
+          {
+            "lineNumber": 2448,
+            "text": "    beanMeetingMaterialDepsRev,"
+          },
+          {
+            "lineNumber": 2449,
+            "text": "  ])"
+          },
+          {
+            "lineNumber": 2450
+          },
+          {
+            "lineNumber": 2451,
+            "text": "  useEffect"
+          },
+          {
+            "lineNumber": 2509
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2391
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 2391
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 2392
+              },
+              "startPosition": {
+                "column": 13,
+                "line": 2391
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4616090655326843
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3585
+          },
+          {
+            "lineNumber": 3586
+          },
+          {
+            "lineNumber": 3587,
+            "text": "  const buildMonthExportMatrix = useCallback("
+          },
+          {
+            "lineNumber": 3588,
+            "text": "    (month: string): (string | number)[][] =\u003e {"
+          },
+          {
+            "lineNumber": 3589,
+            "text": "      const monthState = monthStatesByMonth[month] ?? createMonthStates(data)[month]"
+          },
+          {
+            "lineNumber": 3590,
+            "text": "      const monthCosts = computeCurrentMonthCosts(monthState.currentMonthCosts)"
+          },
+          {
+            "lineNumber": 3591,
+            "text": "      const roastingComputedExport = computeRoastingSales(data.roastingSales)"
+          },
+          {
+            "lineNumber": 3592,
+            "text": "      const monthSales = computeCurrentMonthSales(monthState.currentMonthSales, monthCosts, roastingComputedExport)"
+          },
+          {
+            "lineNumber": 3593,
+            "text": "      const storeSales = computeStoreSales(monthState.storeSales)"
+          },
+          {
+            "lineNumber": 3594,
+            "text": "      const inboundParts = buildMeetingInboundCashflowParts("
+          },
+          {
+            "lineNumber": 3595,
+            "text": "        monthSales,"
+          },
+          {
+            "lineNumber": 3596,
+            "text": "        roastingComputedExport,"
+          },
+          {
+            "lineNumber": 3597,
+            "text": "        storeSales,"
+          },
+          {
+            "lineNumber": 3598,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3599,
+            "text": "      const outboundCf = getMeetingOutboundCashflow(monthCosts, roastingComputedExport)"
+          },
+          {
+            "lineNumber": 3600,
+            "text": "      const plCf = getMeetingCashflowPl(inboundParts.totalIn, outboundCf.totalOut)"
+          },
+          {
+            "lineNumber": 3601,
+            "text": "      const inventoryRow = computeInventoryRow(monthState.inventoryRow)"
+          },
+          {
+            "lineNumber": 3602,
+            "text": "      const notes = notesByMonth[month] ?? { summary: '', actions: '' }"
+          },
+          {
+            "lineNumber": 3603
+          },
+          {
+            "lineNumber": 3604,
+            "text": "      return ["
+          },
+          {
+            "lineNumber": 3605,
+            "text": "        [&#96;[${month} 마감회의]&#96;, '', '', ''],"
+          },
+          {
+            "lineNumber": 3673,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3675
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4441811144351959
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 639,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 640,
+            "text": " * 거래명세 납품일(YYYY-MM)이 지정 연·월과 같으면 합산. 표·저장 호환을 위해 금액은 &#96;january&#96;에만 넣습니다."
+          },
+          {
+            "lineNumber": 641,
+            "text": " */"
+          },
+          {
+            "lineNumber": 642,
+            "text": "const aggregateRoastingSalesForYm = ("
+          },
+          {
+            "lineNumber": 643,
+            "text": "  records: StatementRecordStored[],"
+          },
+          {
+            "lineNumber": 644,
+            "text": "  year: number,"
+          },
+          {
+            "lineNumber": 645,
+            "text": "  month: number,"
+          },
+          {
+            "lineNumber": 646,
+            "text": "): Map\u003cstring, { november: number; december: number; january: number }\u003e =\u003e {"
+          },
+          {
+            "lineNumber": 647,
+            "text": "  const map = new Map\u003cstring, number\u003e()"
+          },
+          {
+            "lineNumber": 648
+          },
+          {
+            "lineNumber": 649,
+            "text": "  for (const rec of records) {"
+          },
+          {
+            "lineNumber": 650,
+            "text": "    const clientRaw = typeof rec.clientName === 'string' ? rec.clientName : ''"
+          },
+          {
+            "lineNumber": 651,
+            "text": "    const client = normalizeClientLabel(clientRaw)"
+          },
+          {
+            "lineNumber": 652,
+            "text": "    if (!client) {"
+          },
+          {
+            "lineNumber": 653,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 654,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 655,
+            "text": "    const ds = typeof rec.deliveryDate === 'string' ? rec.deliveryDate.trim() : ''"
+          },
+          {
+            "lineNumber": 656,
+            "text": "    if (ds.length \u003c 7) {"
+          },
+          {
+            "lineNumber": 657,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 658,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 659,
+            "text": "    const amt ="
+          },
+          {
+            "lineNumber": 660,
+            "text": "      typeof rec.totalAmount === 'number' \u0026\u0026 Number.isFinite(rec.totalAmount) ? rec.totalAmount : 0"
+          },
+          {
+            "lineNumber": 661,
+            "text": "    if (amt === 0) {"
+          },
+          {
+            "lineNumber": 662,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 663,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 664
+          },
+          {
+            "lineNumber": 665,
+            "text": "    const ym = ds.slice(0, 7)"
+          },
+          {
+            "lineNumber": 666,
+            "text": "    const [yy, mm] = ym.split('-')"
+          },
+          {
+            "lineNumber": 667,
+            "text": "    const yNum = Number(yy)"
+          },
+          {
+            "lineNumber": 668,
+            "text": "    const mNum = Number(mm)"
+          },
+          {
+            "lineNumber": 669,
+            "text": "    if (!Number.isFinite(yNum) || !Number.isFinite(mNum)) {"
+          },
+          {
+            "lineNumber": 670,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 671,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 672,
+            "text": "    if (yNum !== year || mNum !== month) {"
+          },
+          {
+            "lineNumber": 673,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 674,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 675
+          },
+          {
+            "lineNumber": 676,
+            "text": "    map.set(client, (map.get(client) ?? 0) + amt)"
+          },
+          {
+            "lineNumber": 677,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 678
+          },
+          {
+            "lineNumber": 679,
+            "text": "  const rounded = new Map\u003cstring, { november: number; december: number; january: number }\u003e()"
+          },
+          {
+            "lineNumber": 680,
+            "text": "  for (const [key, total] of map) {"
+          },
+          {
+            "lineNumber": 681,
+            "text": "    rounded.set(key, {"
+          },
+          {
+            "lineNumber": 682,
+            "text": "      november: 0,"
+          },
+          {
+            "lineNumber": 683,
+            "text": "      december: 0,"
+          },
+          {
+            "lineNumber": 684,
+            "text": "      january: Math.round(total),"
+          },
+          {
+            "lineNumber": 685,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 686,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 687,
+            "text": "  return rounded"
+          },
+          {
+            "lineNumber": 688,
+            "text": "}"
+          },
+          {
+            "lineNumber": 689
+          },
+          {
+            "lineNumber": 690,
+            "text": "const mergeRoastingSalesWithStatementAggregates = ("
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 741
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 636
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.4389098882675171
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1814,
+            "text": "const buildInboundCashflowExcelRows = (parts: MeetingInboundCashflowParts): (string | number)[][] =\u003e {"
+          },
+          {
+            "lineNumber": 1815,
+            "text": "  const rows: (string | number)[][] = ["
+          },
+          {
+            "lineNumber": 1816,
+            "text": "    ['1-4. 입금액 요약', '', '', ''],"
+          },
+          {
+            "lineNumber": 1817,
+            "text": "    ['항목', '금액', '점유비', ''],"
+          },
+          {
+            "lineNumber": 1818,
+            "text": "  ]"
+          },
+          {
+            "lineNumber": 1819,
+            "text": "  if (parts.channelPart.length \u003e 0) {"
+          },
+          {
+            "lineNumber": 1820,
+            "text": "    rows.push(['〈당월 매출(결제)〉', '', '', ''])"
+          },
+          {
+            "lineNumber": 1821,
+            "text": "    for (const row of parts.channelPart) {"
+          },
+          {
+            "lineNumber": 1822,
+            "text": "      rows.push([row.label, excelCellAmount(row.amount), excelCellShare(row.share), ''])"
+          },
+          {
+            "lineNumber": 1823,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1824,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1825,
+            "text": "  if (parts.roastingLines.length \u003e 0) {"
+          },
+          {
+            "lineNumber": 1826,
+            "text": "    rows.push(['〈로스팅실 매출〉', '', '', ''])"
+          },
+          {
+            "lineNumber": 1827,
+            "text": "    for (const row of parts.roastingLines) {"
+          },
+          {
+            "lineNumber": 1828,
+            "text": "      rows.push([row.label, excelCellAmount(row.amount), excelCellShare(row.share), ''])"
+          },
+          {
+            "lineNumber": 1829,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1830,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1831,
+            "text": "  if (parts.storeLines.length \u003e 0) {"
+          },
+          {
+            "lineNumber": 1832,
+            "text": "    rows.push(['〈매장 전체 판매〉', '', '', ''])"
+          },
+          {
+            "lineNumber": 1833,
+            "text": "    for (const row of parts.storeLines) {"
+          },
+          {
+            "lineNumber": 1834,
+            "text": "      rows.push([row.label, excelCellAmount(row.amount), excelCellShare(row.share), ''])"
+          },
+          {
+            "lineNumber": 1835,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1836,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1837,
+            "text": "  rows.push(['입금 합계', excelCellAmount(parts.totalIn), '', ''])"
+          },
+          {
+            "lineNumber": 1838,
+            "text": "  return rows"
+          },
+          {
+            "lineNumber": 1839,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1840
+          },
+          {
+            "lineNumber": 1841,
+            "text": "const buildOutboundCashflowExcelRows = (parts: MeetingOutboundCashflowParts)"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 1860
+          },
+          "startPosition": {
+            "column": 81,
+            "line": 1811
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.38521578907966614
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 2282
+          },
+          {
+            "lineNumber": 2309,
+            "text": " statementRecordsStorageRev])"
+          },
+          {
+            "lineNumber": 2310
+          },
+          {
+            "lineNumber": 2311,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2312,
+            "text": "    if (!isStorageReady || sectionEditModes.roasting) {"
+          },
+          {
+            "lineNumber": 2313,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2314,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2315,
+            "text": "    const ym = roastingSalesReferenceYm.trim()"
+          },
+          {
+            "lineNumber": 2316,
+            "text": "    if (!parseYm(ym)) {"
+          },
+          {
+            "lineNumber": 2317,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2318,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2319,
+            "text": "    const agg = getGreenBeanOrderMonthAggregate(ym)"
+          },
+          {
+            "lineNumber": 2320,
+            "text": "    if (!agg?.hasMonth) {"
+          },
+          {
+            "lineNumber": 2321,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2322,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2323,
+            "text": "    const next = agg.sumMoney"
+          },
+          {
+            "lineNumber": 2324,
+            "text": "    setPageState((current) =\u003e {"
+          },
+          {
+            "lineNumber": 2325,
+            "text": "      const rows = current.data.roastingSales"
+          },
+          {
+            "lineNumber": 2326,
+            "text": "      const idx = rows.findIndex((r) =\u003e isRoastBeanCostRow(r))"
+          },
+          {
+            "lineNumber": 2327,
+            "text": "      if (idx === -1) {"
+          },
+          {
+            "lineNumber": 2328,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2329,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2330,
+            "text": "      if (rows[idx]!.january === next) {"
+          },
+          {
+            "lineNumber": 2331,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2332,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2333,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 2334,
+            "text": "        ...current,"
+          },
+          {
+            "lineNumber": 2335,
+            "text": "        data: {"
+          },
+          {
+            "lineNumber": 2336,
+            "text": "          ...current.data,"
+          },
+          {
+            "lineNumber": 2337,
+            "text": "          roastingSales: rows.map((r, i) =\u003e (i === idx ? { ...r, january: next } : r)),"
+          },
+          {
+            "lineNumber": 2338,
+            "text": "        },"
+          },
+          {
+            "lineNumber": 2339,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2340,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2341,
+            "text": "  }, [isStorageReady, sectionEditModes.roasting, roastingSalesReferenceYm, greenBeanOrderStorageRev])"
+          },
+          {
+            "lineNumber": 2342
+          },
+          {
+            "lineNumber": 2343,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2344,
+            "text": "    if (mode !== 'cloud' || !activeCompanyId) {"
+          },
+          {
+            "lineNumber": 2345,
+            "text": "      setCompanyExpenseRecordsCached([])"
+          },
+          {
+            "lineNumber": 2346,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2347,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2348
+          },
+          {
+            "lineNumber": 2349,
+            "text": "    let cancelled = false"
+          },
+          {
+            "lineNumber": 2350
+          },
+          {
+            "lineNumber": 2351,
+            "text": "    const pullExpenseFromCloud = async () =\u003e {"
+          },
+          {
+            "lineNumber": 2352,
+            "text": "      try {"
+          },
+          {
+            "lineNumber": 2353,
+            "text": "        const remote = await loadCompanyDocument\u003cExpensePageState\u003e("
+          },
+          {
+            "lineNumber": 2354,
+            "text": "          activeCompanyId,"
+          },
+          {
+            "lineNumber": 2355,
+            "text": "          COMPANY_DOCUMENT_KEYS.expensePage,"
+          },
+          {
+            "lineNumber": 2356,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 2357,
+            "text": "        if (cancelled) {"
+          },
+          {
+            "lineNumber": 2358,
+            "text": "          return"
+          },
+          {
+            "lineNumber": 2359,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 2360,
+            "text": "        const records = remote ? normalizeExpensePageState(remote).records : []"
+          },
+          {
+            "lineNumber": 2361,
+            "text": "        setCompanyExpenseRecordsCached(records)"
+          },
+          {
+            "lineNumber": 2362,
+            "text": "      } catch (error) {"
+          },
+          {
+            "lineNumber": 2363,
+            "text": "        console.error('월 마감회의: 회사 클라우드 지출표를 읽지 못했습니다.', error)"
+          },
+          {
+            "lineNumber": 2364,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2365,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2366
+          },
+          {
+            "lineNumber": 2367,
+            "text": "    void pullExpenseFromCloud()"
+          },
+          {
+            "lineNumber": 2368,
+            "text": "    const id = window.setInterval(() =\u003e void pullExpenseFromCloud(), 8_000)"
+          },
+          {
+            "lineNumber": 2369,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 2370,
+            "text": "      cancelled = true"
+          },
+          {
+            "lineNumber": 2371,
+            "text": "      window.clearInterval(id)"
+          },
+          {
+            "lineNumber": 2372,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2373,
+            "text": "  }, [activeCompanyId, mode])"
+          },
+          {
+            "lineNumber": 2374
+          },
+          {
+            "lineNumber": 2375,
+            "text": "  const lsExpenseRecordsForMeetingLink = useMemo("
+          },
+          {
+            "lineNumber": 2376,
+            "text": "    () =\u003e readExpensePageStateFromStorage().records,"
+          },
+          {
+            "lineNumber": 2377,
+            "text": "    [expensePageStorageRev],"
+          },
+          {
+            "lineNumber": 2378,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2379
+          },
+          {
+            "lineNumber": 2380,
+            "text": "  const expenseRecordsForMeetingLink = useMemo"
+          },
+          {
+            "lineNumber": 2388
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3844287395477295
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1594,
+            "text": "const aggregateExpenseSalesPatches = (records: ExpenseRecord[], ym: string): Map\u003cMeetingSalesPatchKey, number\u003e =\u003e {"
+          },
+          {
+            "lineNumber": 1595,
+            "text": "  const ymPrefix = ym.trim()"
+          },
+          {
+            "lineNumber": 1596,
+            "text": "  const map = new Map\u003cMeetingSalesPatchKey, number\u003e()"
+          },
+          {
+            "lineNumber": 1597,
+            "text": "  for (const r of records) {"
+          },
+          {
+            "lineNumber": 1598,
+            "text": "    const ds = typeof r.expenseDate === 'string' ? r.expenseDate.trim() : ''"
+          },
+          {
+            "lineNumber": 1599,
+            "text": "    if (!ds.startsWith(ymPrefix)) {"
+          },
+          {
+            "lineNumber": 1600,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 1601,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1602,
+            "text": "    const amt = typeof r.totalAmount === 'number' \u0026\u0026 Number.isFinite(r.totalAmount) ? r.totalAmount : 0"
+          },
+          {
+            "lineNumber": 1603,
+            "text": "    if (amt === 0) {"
+          },
+          {
+            "lineNumber": 1604,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 1605,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1606,
+            "text": "    const hay = &#96;${r.category} ${r.vendorName} ${r.detail} ${r.memo}&#96;"
+          },
+          {
+            "lineNumber": 1607,
+            "text": "    const key = haystackToSalesPatchKey(hay)"
+          },
+          {
+            "lineNumber": 1608,
+            "text": "    if (!key) {"
+          },
+          {
+            "lineNumber": 1609,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 1610,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1611,
+            "text": "    map.set(key, (map.get(key) ?? 0) + amt)"
+          },
+          {
+            "lineNumber": 1612,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1613,
+            "text": "  return map"
+          },
+          {
+            "lineNumber": 1614,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1615
+          },
+          {
+            "lineNumber": 1616,
+            "text": "const applySalesPatchesFromMap = ("
+          },
+          {
+            "lineNumber": 1617,
+            "text": "  sales: MeetingValueRow[],"
+          },
+          {
+            "lineNumber": 1618,
+            "text": "  patches: Map\u003cMeetingSalesPatchKey, number\u003e,"
+          },
+          {
+            "lineNumber": 1619,
+            "text": ")"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 1642
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 1591
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.3757322132587433
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 795,
+            "text": "/** 같은 달에 여러 번 저장하면 수량·총액·품목별 값을 합산해 월별 점으로 만듭니다. */"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 796,
+            "text": "export function aggregateOrderSnapshotsToMonthlyPoints("
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 797,
+            "text": "  snapshots: GreenBeanOrderDatedSnapshot[],"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 798,
+            "text": "): GreenBeanMonthlyPoint[] {"
+          },
+          {
+            "lineNumber": 799,
+            "text": "  const byMonth = new Map\u003cstring, GreenBeanOrderDatedSnapshot[]\u003e()"
+          },
+          {
+            "lineNumber": 800,
+            "text": "  for (const s of snapshots) {"
+          },
+          {
+            "lineNumber": 801,
+            "text": "    const mk = monthKeyFromOrderDate(s.orderDate)"
+          },
+          {
+            "lineNumber": 802,
+            "text": "    if (!/^\\d{4}-\\d{2}$/.test(mk)) {"
+          },
+          {
+            "lineNumber": 803,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 804,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 805,
+            "text": "    const arr = byMonth.get(mk) ?? []"
+          },
+          {
+            "lineNumber": 806,
+            "text": "    arr.push(s)"
+          },
+          {
+            "lineNumber": 807,
+            "text": "    byMonth.set(mk, arr)"
+          },
+          {
+            "lineNumber": 808,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 809,
+            "text": "  const result: GreenBeanMonthlyPoint[] = []"
+          },
+          {
+            "lineNumber": 810,
+            "text": "  for (const [monthKey, list] of byMonth) {"
+          },
+          {
+            "lineNumber": 811,
+            "text": "    list.sort((a, b) =\u003e a.orderDate.localeCompare(b.orderDate) || a.savedAt.localeCompare(b.savedAt))"
+          },
+          {
+            "lineNumber": 812,
+            "text": "    const sumQty = list.reduce((acc, x) =\u003e acc + x.sumQty, 0)"
+          },
+          {
+            "lineNumber": 813,
+            "text": "    const sumMoney = list.reduce((acc, x) =\u003e acc + x.sumMoney, 0)"
+          },
+          {
+            "lineNumber": 814,
+            "text": "    const itemMap = new Map\u003cstring, GreenBeanMonthlyItemSnapshot\u003e()"
+          },
+          {
+            "lineNumber": 815,
+            "text": "    for (const snap of list) {"
+          },
+          {
+            "lineNumber": 816,
+            "text": "      for (const it of snap.items ?? []) {"
+          },
+          {
+            "lineNumber": 817,
+            "text": "        const key = normalizeItemKey(it.itemName)"
+          },
+          {
+            "lineNumber": 818,
+            "text": "        if (!key) {"
+          },
+          {
+            "lineNumber": 819,
+            "text": "          continue"
+          },
+          {
+            "lineNumber": 820,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 821,
+            "text": "        const prev = itemMap.get(key)"
+          },
+          {
+            "lineNumber": 822,
+            "text": "        if (prev) {"
+          },
+          {
+            "lineNumber": 823,
+            "text": "          itemMap.set(key, {"
+          },
+          {
+            "lineNumber": 824,
+            "text": "            itemName: prev.itemName,"
+          },
+          {
+            "lineNumber": 825,
+            "text": "            quantityKg: prev.quantityKg + it.quantityKg,"
+          },
+          {
+            "lineNumber": 826,
+            "text": "            lineTotal: prev.lineTotal + it.lineTotal,"
+          },
+          {
+            "lineNumber": 827,
+            "text": "          })"
+          },
+          {
+            "lineNumber": 828,
+            "text": "        } else {"
+          },
+          {
+            "lineNumber": 829,
+            "text": "          itemMap.set(key, {"
+          },
+          {
+            "lineNumber": 830,
+            "text": "            itemName: it.itemName.trim(),"
+          },
+          {
+            "lineNumber": 831,
+            "text": "            quantityKg: it.quantityKg,"
+          },
+          {
+            "lineNumber": 832,
+            "text": "            lineTotal: it.lineTotal,"
+          },
+          {
+            "lineNumber": 833,
+            "text": "          })"
+          },
+          {
+            "lineNumber": 834,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 835,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 836,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 837,
+            "text": "    const items = [...itemMap.values()].filter((x) =\u003e x.itemName.trim())"
+          },
+          {
+            "lineNumber": 838,
+            "text": "    const savedAt = [...list.map((x) =\u003e x.savedAt)].sort().at(-1) ?? ''"
+          },
+          {
+            "lineNumber": 839,
+            "text": "    result.push({"
+          },
+          {
+            "lineNumber": 840,
+            "text": "      id: &#96;agg-month-${monthKey}&#96;,"
+          },
+          {
+            "lineNumber": 841,
+            "text": "      monthKey,"
+          },
+          {
+            "lineNumber": 842,
+            "text": "      savedAt,"
+          },
+          {
+            "lineNumber": 843,
+            "text": "      sumQty,"
+          },
+          {
+            "lineNumber": 844,
+            "text": "      sumMoney,"
+          },
+          {
+            "lineNumber": 845,
+            "text": "      itemCount: items.length,"
+          },
+          {
+            "lineNumber": 846,
+            "text": "      items: items.length \u003e 0 ? items : undefined,"
+          },
+          {
+            "lineNumber": 847,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 848,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 849,
+            "text": "  return result.sort((a, b) =\u003e a.monthKey.localeCompare(b.monthKey))"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 850,
+            "text": "}"
+          },
+          {
+            "lineNumber": 851
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 852,
+            "text": "function snapshotGrossMoney(row: GreenBeanOrderDatedSnapshot): number {"
+          },
+          {
+            "lineNumber": 853,
+            "text": "  if"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 857,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 856
+          },
+          "startPosition": {
+            "column": 74,
+            "line": 792
+          }
+        },
+        "relativeWorkspacePath": "./app/src/GreenBeanOrderPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.3726041316986084
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 2223,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 2247,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 2255,
+            "text": "('storage', onStorage)"
+          },
+          {
+            "lineNumber": 2256,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2257,
+            "text": "  }, [])"
+          },
+          {
+            "lineNumber": 2258
+          },
+          {
+            "lineNumber": 2259,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2260,
+            "text": "    const bump = () =\u003e setInventoryLinkTick((n) =\u003e n + 1)"
+          },
+          {
+            "lineNumber": 2261,
+            "text": "    const bumpBean = () =\u003e setBeanMeetingMaterialDepsRev((n) =\u003e n + 1)"
+          },
+          {
+            "lineNumber": 2262,
+            "text": "    window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, bump)"
+          },
+          {
+            "lineNumber": 2263,
+            "text": "    window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, bumpBean)"
+          },
+          {
+            "lineNumber": 2264,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 2265,
+            "text": "      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, bump)"
+          },
+          {
+            "lineNumber": 2266,
+            "text": "      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, bumpBean)"
+          },
+          {
+            "lineNumber": 2267,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2268,
+            "text": "  }, [])"
+          },
+          {
+            "lineNumber": 2269
+          },
+          {
+            "lineNumber": 2270,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2271,
+            "text": "    const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)"
+          },
+          {
+            "lineNumber": 2272,
+            "text": "    const onStorage = (event: StorageEvent) =\u003e {"
+          },
+          {
+            "lineNumber": 2273,
+            "text": "      if (event.key === key) {"
+          },
+          {
+            "lineNumber": 2274,
+            "text": "        setInventoryLinkTick((n) =\u003e n + 1)"
+          },
+          {
+            "lineNumber": 2275,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2276,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2277,
+            "text": "    window.addEventListener('storage', onStorage)"
+          },
+          {
+            "lineNumber": 2278,
+            "text": "    return () =\u003e window.removeEventListener('storage', onStorage)"
+          },
+          {
+            "lineNumber": 2279,
+            "text": "  }, [mode, activeCompanyId])"
+          },
+          {
+            "lineNumber": 2280
+          },
+          {
+            "lineNumber": 2281,
+            "text": "  /** 거래명세 납품일(집계 월) 기준으로 2번 표 거래처명 행의 매출 열을 자동 반영 */"
+          },
+          {
+            "lineNumber": 2282,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2283,
+            "text": "    if (!isStorageReady || sectionEditModes.roasting) {"
+          },
+          {
+            "lineNumber": 2284,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2285,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2286,
+            "text": "    const ref = parseYm(roastingSalesReferenceYm.trim())"
+          },
+          {
+            "lineNumber": 2287,
+            "text": "    if (!ref) {"
+          },
+          {
+            "lineNumber": 2288,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2289,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2290,
+            "text": "    const raw = window.localStorage.getItem(STATEMENT_RECORDS_STORAGE_KEY)"
+          },
+          {
+            "lineNumber": 2291,
+            "text": "    const records = raw ? parseStatementRecordsForRoasting(raw) : []"
+          },
+          {
+            "lineNumber": 2292,
+            "text": "    const aggregates = aggregateRoastingSalesForYm(records, ref.y, ref.m)"
+          },
+          {
+            "lineNumber": 2293,
+            "text": "    setPageState((current) =\u003e {"
+          },
+          {
+            "lineNumber": 2294,
+            "text": "      const merged = mergeRoastingSalesWithStatementAggregates(current.data.roastingSales, aggregates)"
+          },
+          {
+            "lineNumber": 2295,
+            "text": "      if ("
+          },
+          {
+            "lineNumber": 2296,
+            "text": "        roastingSalesStatementSyncSignature(current.data.roastingSales) ==="
+          },
+          {
+            "lineNumber": 2297,
+            "text": "        roastingSalesStatementSyncSignature(merged)"
+          },
+          {
+            "lineNumber": 2298,
+            "text": "      ) {"
+          },
+          {
+            "lineNumber": 2299,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2300,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2301,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 2302,
+            "text": "        ...current,"
+          },
+          {
+            "lineNumber": 2303,
+            "text": "        data: {"
+          },
+          {
+            "lineNumber": 2304,
+            "text": "          ...current.data,"
+          },
+          {
+            "lineNumber": 2305,
+            "text": "          roastingSales: merged,"
+          },
+          {
+            "lineNumber": 2306,
+            "text": "        },"
+          },
+          {
+            "lineNumber": 2307,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2308,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2309,
+            "text": "  }, [isStorageReady, sectionEditModes.roasting, roastingSalesReferenceYm, statementRecordsStorageRev])"
+          },
+          {
+            "lineNumber": 2310
+          },
+          {
+            "lineNumber": 2311,
+            "text": "  useEffect"
+          },
+          {
+            "lineNumber": 2341
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3714796304702759
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 68,
+            "text": "/** 입출고 &#96;beanRows&#96; + 거래명세·생두 주문가로 월별 추정 재료 원가 라인 계산 */"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 69,
+            "text": "export function computeBeanSalesMaterialCostForYm("
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 70,
+            "text": "  ym: string | null,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 71,
+            "text": "  statementsInMonth: readonly BeanStatementDeliveryRecord[],"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 72,
+            "text": "  inventory: InventoryStatusState | null,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 73,
+            "text": "  mapOptions: MapStatementItemToInventoryOptions,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 74,
+            "text": "): BeanSalesMaterialMeetingResult | null {"
+          },
+          {
+            "lineNumber": 75,
+            "text": "  if (!ym || !/^\\d{4}-\\d{2}$/.test(ym.trim())) {"
+          },
+          {
+            "lineNumber": 76,
+            "text": "    return null"
+          },
+          {
+            "lineNumber": 77,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 78
+          },
+          {
+            "lineNumber": 79,
+            "text": "  const scopedMode: 'local' | 'cloud' = mapOptions.mode ?? 'local'"
+          },
+          {
+            "lineNumber": 80,
+            "text": "  const scopedCompanyId = mapOptions.companyId ?? null"
+          },
+          {
+            "lineNumber": 81
+          },
+          {
+            "lineNumber": 82,
+            "text": "  const inventoryBeanRows: InventoryBeanRow[] = Array.isArray(inventory?.beanRows) ? inventory.beanRows : []"
+          },
+          {
+            "lineNumber": 83,
+            "text": "  const allowedInventoryLabels = new Set(inventoryBeanRows.map((b) =\u003e formatBeanRowLabel(b)))"
+          },
+          {
+            "lineNumber": 84,
+            "text": "  const blendSnapshot = blendRecipeSnapshotFromInventory(inventory)"
+          },
+          {
+            "lineNumber": 85,
+            "text": "  const latestGreenWonByLabel = getLatestGreenOrderWonPerKgByInventoryLabel("
+          },
+          {
+            "lineNumber": 86,
+            "text": "    inventoryBeanRows,"
+          },
+          {
+            "lineNumber": 87,
+            "text": "    mapOptions,"
+          },
+          {
+            "lineNumber": 88,
+            "text": "    blendSnapshot,"
+          },
+          {
+            "lineNumber": 89,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 90
+          },
+          {
+            "lineNumber": 91,
+            "text": "  type BuildAcc = {"
+          },
+          {
+            "lineNumber": 92,
+            "text": "    beanLabel: string"
+          },
+          {
+            "lineNumber": 93,
+            "text": "    sortKey: number"
+          },
+          {
+            "lineNumber": 94,
+            "text": "    totalQuantityKg: number"
+          },
+          {
+            "lineNumber": 95,
+            "text": "    totalRevenueWon: number"
+          },
+          {
+            "lineNumber": 96,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 97,
+            "text": "  const salesMap = new Map\u003cstring, BuildAcc\u003e()"
+          },
+          {
+            "lineNumber": 98
+          },
+          {
+            "lineNumber": 99,
+            "text": "  for (const record of statementsInMonth)"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 159,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 158
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 65
+          }
+        },
+        "relativeWorkspacePath": "./app/src/beanSalesMeetingMaterialCost.ts",
+        "signatures": {}
+      },
+      "score": 0.3693838119506836
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 2749,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 2780,
+            "text": "(current) =\u003e {"
+          },
+          {
+            "lineNumber": 2856,
+            "text": " {"
+          },
+          {
+            "lineNumber": 2857,
+            "text": "          return current"
+          },
+          {
+            "lineNumber": 2858,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 2859
+          },
+          {
+            "lineNumber": 2860,
+            "text": "        const nextMonthStates = Object.fromEntries("
+          },
+          {
+            "lineNumber": 2861,
+            "text": "          Object.entries(current.monthStatesByMonth).map(([month, state]) =\u003e {"
+          },
+          {
+            "lineNumber": 2862,
+            "text": "            let mergedProdValues = state.productionRow.values"
+          },
+          {
+            "lineNumber": 2863,
+            "text": "            if (outboundMerge) {"
+          },
+          {
+            "lineNumber": 2864,
+            "text": "              const headValues = state.productionRow.values.slice(0, rawBeanColumnIndex + 1)"
+          },
+          {
+            "lineNumber": 2865,
+            "text": "              const tailValuesRaw = state.productionRow.values.slice(rawBeanColumnIndex + 1)"
+          },
+          {
+            "lineNumber": 2866,
+            "text": "              const pairedTail = productionTailCols.map((label, index) =\u003e ({"
+          },
+          {
+            "lineNumber": 2867,
+            "text": "                label,"
+          },
+          {
+            "lineNumber": 2868,
+            "text": "                value: tailValuesRaw[index] ?? null,"
+          },
+          {
+            "lineNumber": 2869,
+            "text": "              }))"
+          },
+          {
+            "lineNumber": 2870,
+            "text": "              const keptTailValues: Array\u003cnumber | null\u003e = []"
+          },
+          {
+            "lineNumber": 2871,
+            "text": "              const seenKeys = new Set\u003cstring\u003e()"
+          },
+          {
+            "lineNumber": 2872,
+            "text": "              for (const { label, value } of pairedTail) {"
+          },
+          {
+            "lineNumber": 2873,
+            "text": "                const trimmed = label.trim()"
+          },
+          {
+            "lineNumber": 2874,
+            "text": "                if (!trimmed || isMeetingOutboundExcludedBeanName(trimmed)) {"
+          },
+          {
+            "lineNumber": 2875,
+            "text": "                  continue"
+          },
+          {
+            "lineNumber": 2876,
+            "text": "                }"
+          },
+          {
+            "lineNumber": 2877,
+            "text": "                const key = meetingBeanMergeKey(trimmed)"
+          },
+          {
+            "lineNumber": 2878,
+            "text": "                if (outboundBeanKeySet.has(key) || seenKeys.has(key)) {"
+          },
+          {
+            "lineNumber": 2879,
+            "text": "                  continue"
+          },
+          {
+            "lineNumber": 2880,
+            "text": "                }"
+          },
+          {
+            "lineNumber": 2881,
+            "text": "                seenKeys.add(key)"
+          },
+          {
+            "lineNumber": 2882,
+            "text": "                keptTailValues.push(value)"
+          },
+          {
+            "lineNumber": 2883,
+            "text": "              }"
+          },
+          {
+            "lineNumber": 2884,
+            "text": "              let tailValues = keptTailValues"
+          },
+          {
+            "lineNumber": 2885,
+            "text": "              while (tailValues.length \u003c productionTailColsDeduped.length) {"
+          },
+          {
+            "lineNumber": 2886,
+            "text": "                tailValues.push(null)"
+          },
+          {
+            "lineNumber": 2887,
+            "text": "              }"
+          },
+          {
+            "lineNumber": 2888,
+            "text": "              const beanTailValues = beanSummaries.map(() =\u003e null as number | null)"
+          },
+          {
+            "lineNumber": 2889,
+            "text": "              mergedProdValues = [...headValues, ...tailValues, ...beanTailValues]"
+          },
+          {
+            "lineNumber": 2890,
+            "text": "              if (month === current.activeMonth) {"
+          },
+          {
+            "lineNumber": 2891,
+            "text": "                mergedProdValues[rawBeanColumnIndex] = totalOutboundAllBeans"
+          },
+          {
+            "lineNumber": 2892,
+            "text": "                beanSummaries.forEach((item, index) =\u003e {"
+          },
+          {
+            "lineNumber": 2893,
+            "text": "                  mergedProdValues[rawBeanColumnIndex + 1 + productionTailColsDeduped.length + index] ="
+          },
+          {
+            "lineNumber": 2894,
+            "text": "                    item.totalOutbound"
+          },
+          {
+            "lineNumber": 2895,
+            "text": "                })"
+          },
+          {
+            "lineNumber": 2896,
+            "text": "              }"
+          },
+          {
+            "lineNumber": 2897,
+            "text": "            }"
+          },
+          {
+            "lineNumber": 2898
+          },
+          {
+            "lineNumber": 2899,
+            "text": "            let oldInv = [...state.inventoryRow.values]"
+          },
+          {
+            "lineNumber": 2900,
+            "text": "            if (strippedTotal \u0026\u0026 totalIdxInCols \u003c oldInv.length) {"
+          },
+          {
+            "lineNumber": 2901,
+            "text": "              oldInv.splice(totalIdxInCols, 1)"
+          },
+          {
+            "lineNumber": 2902,
+            "text": "            }"
+          },
+          {
+            "lineNumber": 2958,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 2959
+          },
+          {
+            "lineNumber": 2972,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2976,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2749
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 2749
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 2750
+              },
+              "startPosition": {
+                "column": 13,
+                "line": 2749
+              }
+            },
+            {
+              "endPosition": {
+                "column": 7,
+                "line": 2780
+              },
+              "startPosition": {
+                "column": 7,
+                "line": 2780
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 2781
+              },
+              "startPosition": {
+                "column": 20,
+                "line": 2780
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36671435832977295
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 2294,
+            "text": "const clientCardStats = "
+          },
+          {
+            "lineNumber": 2333,
+            "text": " [statementPreviewRecords])"
+          },
+          {
+            "lineNumber": 2334
+          },
+          {
+            "lineNumber": 2335,
+            "text": "  const regularClientCards = useMemo("
+          },
+          {
+            "lineNumber": 2336,
+            "text": "    () =\u003e clientCardStats.filter((card) =\u003e !card.isCashHandled),"
+          },
+          {
+            "lineNumber": 2337,
+            "text": "    [clientCardStats],"
+          },
+          {
+            "lineNumber": 2338,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2339
+          },
+          {
+            "lineNumber": 2340,
+            "text": "  const cashClientCards = useMemo("
+          },
+          {
+            "lineNumber": 2341,
+            "text": "    () =\u003e clientCardStats.filter((card) =\u003e card.isCashHandled),"
+          },
+          {
+            "lineNumber": 2342,
+            "text": "    [clientCardStats],"
+          },
+          {
+            "lineNumber": 2343,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2344
+          },
+          {
+            "lineNumber": 2345,
+            "text": "  const calendarEntries = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 2346,
+            "text": "    const map = new Map\u003cstring, { count: number; totalAmount: number; records: StatementRecord[] }\u003e()"
+          },
+          {
+            "lineNumber": 2347,
+            "text": "    statementPreviewRecords.forEach((record) =\u003e {"
+          },
+          {
+            "lineNumber": 2348,
+            "text": "      if (!record.deliveryDate.startsWith(calendarMonth)) {"
+          },
+          {
+            "lineNumber": 2349,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 2350,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2351,
+            "text": "      const existing = map.get(record.deliveryDate) ?? {"
+          },
+          {
+            "lineNumber": 2352,
+            "text": "        count: 0,"
+          },
+          {
+            "lineNumber": 2353,
+            "text": "        totalAmount: 0,"
+          },
+          {
+            "lineNumber": 2354,
+            "text": "        records: [] as StatementRecord[],"
+          },
+          {
+            "lineNumber": 2355,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2356,
+            "text": "      existing.count += 1"
+          },
+          {
+            "lineNumber": 2357,
+            "text": "      existing.totalAmount += record.totalAmount"
+          },
+          {
+            "lineNumber": 2358,
+            "text": "      existing.records.push(record)"
+          },
+          {
+            "lineNumber": 2359,
+            "text": "      map.set(record.deliveryDate, existing)"
+          },
+          {
+            "lineNumber": 2360,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2361,
+            "text": "    return map"
+          },
+          {
+            "lineNumber": 2362,
+            "text": "  }, [statementPreviewRecords, calendarMonth])"
+          },
+          {
+            "lineNumber": 2363
+          },
+          {
+            "lineNumber": 2364,
+            "text": "  const totalSupplyAmount = useMemo("
+          },
+          {
+            "lineNumber": 2365,
+            "text": "    () =\u003e statementPreviewRecords.reduce((sum, record) =\u003e sum + record.supplyAmount, 0),"
+          },
+          {
+            "lineNumber": 2366,
+            "text": "    [statementPreviewRecords],"
+          },
+          {
+            "lineNumber": 2367,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2368
+          },
+          {
+            "lineNumber": 2369,
+            "text": "  const yearlyTotal = useMemo("
+          },
+          {
+            "lineNumber": 2370,
+            "text": "    () =\u003e filteredRecords.reduce((sum, row) =\u003e sum + row.totalAmount, 0),"
+          },
+          {
+            "lineNumber": 2371,
+            "text": "    [filteredRecords],"
+          },
+          {
+            "lineNumber": 2372,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2373
+          },
+          {
+            "lineNumber": 2374,
+            "text": "  const monthlyTotals = useMemo("
+          },
+          {
+            "lineNumber": 2375,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 2376,
+            "text": "      MONTH_LABELS.map((_, index) =\u003e"
+          },
+          {
+            "lineNumber": 2377,
+            "text": "        filteredRecords.reduce((sum, record) =\u003e {"
+          },
+          {
+            "lineNumber": 2378,
+            "text": "          const monthIndex = Number(record.deliveryDate.slice(5, 7)) - 1"
+          },
+          {
+            "lineNumber": 2379,
+            "text": "          return monthIndex === index ? sum + record.totalAmount : sum"
+          },
+          {
+            "lineNumber": 2380,
+            "text": "        }, 0),"
+          },
+          {
+            "lineNumber": 2381,
+            "text": "      ),"
+          },
+          {
+            "lineNumber": 2382,
+            "text": "    [filteredRecords],"
+          },
+          {
+            "lineNumber": 2383,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2384
+          },
+          {
+            "lineNumber": 2385,
+            "text": "  const statementSheetGroups = useMemo"
+          },
+          {
+            "lineNumber": 2413
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36399710178375244
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 2375,
+            "text": "const lsExpenseRecordsForMeetingLink = "
+          },
+          {
+            "lineNumber": 2377,
+            "text": ","
+          },
+          {
+            "lineNumber": 2378,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2379
+          },
+          {
+            "lineNumber": 2380,
+            "text": "  const expenseRecordsForMeetingLink = useMemo("
+          },
+          {
+            "lineNumber": 2381,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 2382,
+            "text": "      pickExpenseRecordsForMeetingLink("
+          },
+          {
+            "lineNumber": 2383,
+            "text": "        mode === 'cloud',"
+          },
+          {
+            "lineNumber": 2384,
+            "text": "        lsExpenseRecordsForMeetingLink,"
+          },
+          {
+            "lineNumber": 2385,
+            "text": "        companyExpenseRecordsCached,"
+          },
+          {
+            "lineNumber": 2386,
+            "text": "      ),"
+          },
+          {
+            "lineNumber": 2387,
+            "text": "    [companyExpenseRecordsCached, lsExpenseRecordsForMeetingLink, mode],"
+          },
+          {
+            "lineNumber": 2388,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2389
+          },
+          {
+            "lineNumber": 2390,
+            "text": "  /** 지출표 → 재료비·기타 세부, 비용현황 ①②, 매출 채널(키워드) 자동 연동 + 거래명세·입출고·생두단가 기반 재료비(매출·생두) */"
+          },
+          {
+            "lineNumber": 2391,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2392,
+            "text": "    if (!isStorageReady || sectionEditModes.summary) {"
+          },
+          {
+            "lineNumber": 2393,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2394,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2395,
+            "text": "    const records = expenseRecordsForMeetingLink"
+          },
+          {
+            "lineNumber": 2396,
+            "text": "    const stmtAll = parseMeetingStatementDeliveryRecords()"
+          },
+          {
+            "lineNumber": 2397,
+            "text": "    const inv = readMeetingInventoryForBeanMaterial(mode, activeCompanyId)"
+          },
+          {
+            "lineNumber": 2398,
+            "text": "    const mapOpts = { mode, companyId: activeCompanyId } as const"
+          },
+          {
+            "lineNumber": 2399
+          },
+          {
+            "lineNumber": 2400,
+            "text": "    setPageState((current) =\u003e {"
+          },
+          {
+            "lineNumber": 2401,
+            "text": "      const fallbackStates = createMonthStates(current.data)"
+          },
+          {
+            "lineNumber": 2439,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2440,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 2449
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3622325658798218
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 690,
+            "text": "const mergeRoastingSalesWithStatementAggregates = ("
+          },
+          {
+            "lineNumber": 691,
+            "text": "  roastingSales: MonthlyMeetingData['roastingSales'],"
+          },
+          {
+            "lineNumber": 692,
+            "text": "  aggregates: Map\u003cstring, { november: number; december: number; january: number }\u003e,"
+          },
+          {
+            "lineNumber": 693,
+            "text": "): MonthlyMeetingData['roastingSales'] =\u003e {"
+          },
+          {
+            "lineNumber": 694,
+            "text": "  const norm = (label: string) =\u003e normalizeClientLabel(label)"
+          },
+          {
+            "lineNumber": 695
+          },
+          {
+            "lineNumber": 696,
+            "text": "  const updated = roastingSales.map((row) =\u003e {"
+          },
+          {
+            "lineNumber": 697,
+            "text": "    if (isRoastFixedBlockRow(row)) {"
+          },
+          {
+            "lineNumber": 698,
+            "text": "      return row"
+          },
+          {
+            "lineNumber": 699,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 700,
+            "text": "    const agg = aggregates.get(norm(row.label))"
+          },
+          {
+            "lineNumber": 701,
+            "text": "    if (!agg) {"
+          },
+          {
+            "lineNumber": 702,
+            "text": "      return row"
+          },
+          {
+            "lineNumber": 703,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 704,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 705,
+            "text": "      ...row,"
+          },
+          {
+            "lineNumber": 706,
+            "text": "      share: null,"
+          },
+          {
+            "lineNumber": 707,
+            "text": "      november: agg.november,"
+          },
+          {
+            "lineNumber": 708,
+            "text": "      december: agg.december,"
+          },
+          {
+            "lineNumber": 709,
+            "text": "      january: agg.january,"
+          },
+          {
+            "lineNumber": 710,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 711,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 712
+          },
+          {
+            "lineNumber": 713,
+            "text": "  const existingKeys = new Set("
+          },
+          {
+            "lineNumber": 714,
+            "text": "    updated.filter((row) =\u003e isRoastClientRow(row)).map((row) =\u003e norm(row.label)),"
+          },
+          {
+            "lineNumber": 715,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 716
+          },
+          {
+            "lineNumber": 717,
+            "text": "  const insertIndex = updated.findIndex((row) =\u003e isRoastSubtotalRow(row))"
+          },
+          {
+            "lineNumber": 718,
+            "text": "  const insertAt = insertIndex === -1 ? updated.length : insertIndex"
+          },
+          {
+            "lineNumber": 719,
+            "text": "  const extras: MonthlyMeetingData['roastingSales'] = []"
+          },
+          {
+            "lineNumber": 720
+          },
+          {
+            "lineNumber": 721,
+            "text": "  for (const [client, agg] of aggregates) {"
+          },
+          {
+            "lineNumber": 722,
+            "text": "    if (!existingKeys.has(client)) {"
+          },
+          {
+            "lineNumber": 723,
+            "text": "      extras.push({"
+          },
+          {
+            "lineNumber": 724,
+            "text": "        label: client,"
+          },
+          {
+            "lineNumber": 725,
+            "text": "        november: agg.november,"
+          },
+          {
+            "lineNumber": 726,
+            "text": "        december: agg.december,"
+          },
+          {
+            "lineNumber": 727,
+            "text": "        january: agg.january,"
+          },
+          {
+            "lineNumber": 728,
+            "text": "        share: null,"
+          },
+          {
+            "lineNumber": 729,
+            "text": "        roastRole: 'client',"
+          },
+          {
+            "lineNumber": 730,
+            "text": "      })"
+          },
+          {
+            "lineNumber": 731,
+            "text": "      existingKeys.add(client)"
+          },
+          {
+            "lineNumber": 732,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 733,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 734
+          },
+          {
+            "lineNumber": 735,
+            "text": "  if (extras.length === 0) {"
+          },
+          {
+            "lineNumber": 736,
+            "text": "    return updated"
+          },
+          {
+            "lineNumber": 737,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 738
+          },
+          {
+            "lineNumber": 739,
+            "text": "  const merged = [...updated]"
+          },
+          {
+            "lineNumber": 740,
+            "text": "  merged.splice(insertAt, 0, ...extras)"
+          },
+          {
+            "lineNumber": 741,
+            "text": "  return merged"
+          },
+          {
+            "lineNumber": 742,
+            "text": "}"
+          },
+          {
+            "lineNumber": 743
+          },
+          {
+            "lineNumber": 744,
+            "text": "const roastingSalesStatementSyncSignature = (rows: MonthlyMeetingData['roastingSales'])"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 751
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 687
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.36038950085639954
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1662,
+            "text": "const computeRoastingSales = (rows: MonthlyMeetingData['roastingSales']) =\u003e {"
+          },
+          {
+            "lineNumber": 1663,
+            "text": "  const targetRows = rows.filter((row) =\u003e isRoastClientRow(row))"
+          },
+          {
+            "lineNumber": 1664,
+            "text": "  const totalNovember = sumValues(targetRows.map((row) =\u003e row.november))"
+          },
+          {
+            "lineNumber": 1665,
+            "text": "  const totalDecember = sumValues(targetRows.map((row) =\u003e row.december))"
+          },
+          {
+            "lineNumber": 1666,
+            "text": "  const totalJanuary = sumValues(targetRows.map((row) =\u003e row.january))"
+          },
+          {
+            "lineNumber": 1667,
+            "text": "  /** 집계 월 매출(거래명세·표에서 &#96;january&#96; 열에 해당) */"
+          },
+          {
+            "lineNumber": 1668,
+            "text": "  const totalClosingMonth = totalJanuary"
+          },
+          {
+            "lineNumber": 1669
+          },
+          {
+            "lineNumber": 1670,
+            "text": "  return rows.map((row) =\u003e {"
+          },
+          {
+            "lineNumber": 1671,
+            "text": "    if (isRoastSubtotalRow(row)) {"
+          },
+          {
+            "lineNumber": 1672,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 1673,
+            "text": "        ...row,"
+          },
+          {
+            "lineNumber": 1674,
+            "text": "        november: totalNovember,"
+          },
+          {
+            "lineNumber": 1675,
+            "text": "        december: totalDecember,"
+          },
+          {
+            "lineNumber": 1676,
+            "text": "        january: totalJanuary,"
+          },
+          {
+            "lineNumber": 1677,
+            "text": "        share: null,"
+          },
+          {
+            "lineNumber": 1678,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1679,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1680
+          },
+          {
+            "lineNumber": 1681,
+            "text": "    if (isRoastNetRow(row)) {"
+          },
+          {
+            "lineNumber": 1682,
+            "text": "      const beanCost = rows.find((item) =\u003e isRoastBeanCostRow(item))"
+          },
+          {
+            "lineNumber": 1683,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 1684,
+            "text": "        ...row,"
+          },
+          {
+            "lineNumber": 1685,
+            "text": "        november: totalNovember - (beanCost?.november ?? 0),"
+          },
+          {
+            "lineNumber": 1686,
+            "text": "        december: totalDecember - (beanCost?.december ?? 0),"
+          },
+          {
+            "lineNumber": 1687,
+            "text": "        january: totalJanuary - (beanCost?.january ?? 0),"
+          },
+          {
+            "lineNumber": 1688,
+            "text": "        share: null,"
+          },
+          {
+            "lineNumber": 1689,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1690,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1691
+          },
+          {
+            "lineNumber": 1692,
+            "text": "    if (isRoastBeanCostRow(row)) {"
+          },
+          {
+            "lineNumber": 1693,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 1694,
+            "text": "        ...row,"
+          },
+          {
+            "lineNumber": 1695,
+            "text": "        share: null,"
+          },
+          {
+            "lineNumber": 1696,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1697,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1698
+          },
+          {
+            "lineNumber": 1699,
+            "text": "    const currentValue = row.january"
+          },
+          {
+            "lineNumber": 1700
+          },
+          {
+            "lineNumber": 1701,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 1702,
+            "text": "      ...row,"
+          },
+          {
+            "lineNumber": 1703,
+            "text": "      share:"
+          },
+          {
+            "lineNumber": 1704,
+            "text": "        totalClosingMonth \u003e 0 \u0026\u0026 currentValue !== null ? currentValue / totalClosingMonth : null,"
+          },
+          {
+            "lineNumber": 1705,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1706,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 1707,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1708
+          },
+          {
+            "lineNumber": 1709,
+            "text": "/** 출금: 「비용 현황」에서 ⑨(비용 합계)를 제외한 항목 + (별도인 경우) 생두비용. */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 114,
+            "line": 1708
+          },
+          "startPosition": {
+            "column": 2,
+            "line": 1659
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.35832878947257996
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3298,
+            "text": "const inventoryStockTotalKgForOverview = "
+          },
+          {
+            "lineNumber": 3322,
+            "text": " inventoryLinkTick])"
+          },
+          {
+            "lineNumber": 3323
+          },
+          {
+            "lineNumber": 3324,
+            "text": "  const activeOverview = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 3325,
+            "text": "    const costs = computedCurrentMonthCosts"
+          },
+          {
+            "lineNumber": 3326,
+            "text": "    const costGrand = costs.find((row) =\u003e isCostGrandRow(row))?.amount ?? 0"
+          },
+          {
+            "lineNumber": 3327,
+            "text": "    const inventoryTotalKg = inventoryStockTotalKgForOverview ?? sumValues(computedInventoryRow.values)"
+          },
+          {
+            "lineNumber": 3328,
+            "text": "    return ["
+          },
+          {
+            "lineNumber": 3329,
+            "text": "      { label: &#96;${activeMonth} 입금 합계&#96;, value: inboundCashflow.totalIn, unit: 'won' as const },"
+          },
+          {
+            "lineNumber": 3330,
+            "text": "      { label: &#96;${activeMonth} 입출금 순손익&#96;, value: cashflowPl.net, unit: 'won' as const },"
+          },
+          {
+            "lineNumber": 3331,
+            "text": "      {"
+          },
+          {
+            "lineNumber": 3332,
+            "text": "        label: &#96;${activeMonth} 입출금 순손익율&#96;,"
+          },
+          {
+            "lineNumber": 3333,
+            "text": "        value: cashflowPl.netCashMarginRatio,"
+          },
+          {
+            "lineNumber": 3334,
+            "text": "        unit: 'ratio' as const,"
+          },
+          {
+            "lineNumber": 3335,
+            "text": "      },"
+          },
+          {
+            "lineNumber": 3336,
+            "text": "      { label: &#96;${activeMonth} 비용계&#96;, value: costGrand, unit: 'won' as const },"
+          },
+          {
+            "lineNumber": 3337,
+            "text": "      { label: &#96;${activeMonth} 재료비&#96;, value: pickCostLineAmount(costs, '①재료비'), unit: 'won' as const },"
+          },
+          {
+            "lineNumber": 3338,
+            "text": "      {"
+          },
+          {
+            "lineNumber": 3339,
+            "text": "        label: &#96;${activeMonth} 재료비(매출·생두)&#96;,"
+          },
+          {
+            "lineNumber": 3340,
+            "text": "        value: pickCostLineAmount(costs, MEETING_BEAN_MATERIAL_BUCKET_KEY),"
+          },
+          {
+            "lineNumber": 3341,
+            "text": "        unit: 'won' as const,"
+          },
+          {
+            "lineNumber": 3342,
+            "text": "      },"
+          },
+          {
+            "lineNumber": 3343,
+            "text": "      { label: &#96;${activeMonth} 기타경비&#96;, value: pickCostLineAmount(costs, '②기타경비'), unit: 'won' as const },"
+          },
+          {
+            "lineNumber": 3344,
+            "text": "      { label: &#96;${activeMonth} 운영경비&#96;, value: pickCostLineAmount(costs, '②운영경비'), unit: 'won' as const },"
+          },
+          {
+            "lineNumber": 3345,
+            "text": "      { label: &#96;${activeMonth} 인건비&#96;, value: pickCostLineAmount(costs, '⑧인건비'), unit: 'won' as const },"
+          },
+          {
+            "lineNumber": 3346,
+            "text": "      { label: &#96;${activeMonth} 재고 합계&#96;, value: inventoryTotalKg, unit: 'kg' as const },"
+          },
+          {
+            "lineNumber": 3347,
+            "text": "    ]"
+          },
+          {
+            "lineNumber": 3348,
+            "text": "  }, ["
+          },
+          {
+            "lineNumber": 3349,
+            "text": "    activeMonth,"
+          },
+          {
+            "lineNumber": 3350,
+            "text": "    cashflowPl.net,"
+          },
+          {
+            "lineNumber": 3351,
+            "text": "    cashflowPl.netCashMarginRatio,"
+          },
+          {
+            "lineNumber": 3352,
+            "text": "    computedCurrentMonthCosts,"
+          },
+          {
+            "lineNumber": 3353,
+            "text": "    computedInventoryRow,"
+          },
+          {
+            "lineNumber": 3354,
+            "text": "    inboundCashflow.totalIn,"
+          },
+          {
+            "lineNumber": 3355,
+            "text": "    inventoryStockTotalKgForOverview,"
+          },
+          {
+            "lineNumber": 3356,
+            "text": "  ])"
+          },
+          {
+            "lineNumber": 3357
+          },
+          {
+            "lineNumber": 3358,
+            "text": "  const updateData = (updater: (current: MonthlyMeetingData) =\u003e MonthlyMeetingData) =\u003e {"
+          },
+          {
+            "lineNumber": 3359,
+            "text": "    setPageState((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 3360,
+            "text": "      ...current,"
+          },
+          {
+            "lineNumber": 3361,
+            "text": "      data: updater(current.data),"
+          },
+          {
+            "lineNumber": 3362,
+            "text": "    }))"
+          },
+          {
+            "lineNumber": 3363,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3364
+          },
+          {
+            "lineNumber": 3365,
+            "text": "  const updateValueRow = ("
+          },
+          {
+            "lineNumber": 3366,
+            "text": "    section: 'currentMonthSales' | 'currentMonthCosts'"
+          },
+          {
+            "lineNumber": 3387
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.358279287815094
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4204
+          },
+          {
+            "lineNumber": 4205,
+            "text": "                        ) : null}"
+          },
+          {
+            "lineNumber": 4206,
+            "text": "                        {inboundCashflow.roastingLines.length \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4207,
+            "text": "                          \u003c\u003e"
+          },
+          {
+            "lineNumber": 4208,
+            "text": "                            \u003ctr className=\"meeting-cashflow-section-row\"\u003e"
+          },
+          {
+            "lineNumber": 4209,
+            "text": "                              \u003ctd colSpan={3}\u003e로스팅실 매출 ({roastingSalesMonthHeaderLabel})\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4210,
+            "text": "                            \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4211,
+            "text": "                            {inboundCashflow.roastingLines.map((row, idx) =\u003e ("
+          },
+          {
+            "lineNumber": 4212,
+            "text": "                              \u003ctr key={&#96;inbound-rs-${idx}-${row.label}&#96;}\u003e"
+          },
+          {
+            "lineNumber": 4213,
+            "text": "                                \u003ctd\u003e{row.label}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4214,
+            "text": "                                \u003ctd\u003e{formatMoney(row.amount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4215,
+            "text": "                                \u003ctd\u003e{formatSharePercent(row.share)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4216,
+            "text": "                              \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4217,
+            "text": "                            ))}"
+          },
+          {
+            "lineNumber": 4218,
+            "text": "                          \u003c/\u003e"
+          },
+          {
+            "lineNumber": 4219,
+            "text": "                        ) : null}"
+          },
+          {
+            "lineNumber": 4220,
+            "text": "                        {inboundCashflow.storeLines.length \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4221,
+            "text": "                          \u003c\u003e"
+          },
+          {
+            "lineNumber": 4222,
+            "text": "                            \u003ctr className=\"meeting-cashflow-section-row\"\u003e"
+          },
+          {
+            "lineNumber": 4223,
+            "text": "                              \u003ctd colSpan={3}\u003e매장 전체 판매 ({activeMonth})\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4224,
+            "text": "                            \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4225,
+            "text": "                            {inboundCashflow.storeLines.map((row, idx) =\u003e ("
+          },
+          {
+            "lineNumber": 4226,
+            "text": "                              \u003ctr key={&#96;inbound-st-${idx}-${row.label}&#96;}\u003e"
+          },
+          {
+            "lineNumber": 4227,
+            "text": "                                \u003ctd\u003e{row.label}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4228,
+            "text": "                                \u003ctd\u003e{formatMoney(row.amount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4229,
+            "text": "                                \u003ctd\u003e{formatSharePercent(row.share)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4230,
+            "text": "                              \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4231,
+            "text": "                            ))}"
+          },
+          {
+            "lineNumber": 4232,
+            "text": "                          \u003c/\u003e"
+          },
+          {
+            "lineNumber": 4233,
+            "text": "                        ) : null}"
+          },
+          {
+            "lineNumber": 4234,
+            "text": "                        \u003ctr className=\"meeting-cashflow-total-row\"\u003e"
+          },
+          {
+            "lineNumber": 4235,
+            "text": "                          \u003ctd\u003e입금 합계\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4236,
+            "text": "                          \u003ctd\u003e{formatMoney(inboundCashflow.totalIn)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4237,
+            "text": "                          \u003ctd\u003e—\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4238,
+            "text": "                        \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4239,
+            "text": "                      \u003c/tbody\u003e"
+          },
+          {
+            "lineNumber": 4240,
+            "text": "                    \u003c/table\u003e"
+          },
+          {
+            "lineNumber": 4241,
+            "text": "                  \u003c/article\u003e"
+          },
+          {
+            "lineNumber": 4242
+          },
+          {
+            "lineNumber": 4243,
+            "text": "                  \u003carticle className=\"meeting-card meeting-cashflow-card\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.35589858889579773
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4177,
+            "text": "\u003c/p\u003e"
+          },
+          {
+            "lineNumber": 4178,
+            "text": "                \u003cdiv className=\"meeting-cashflow-columns\"\u003e"
+          },
+          {
+            "lineNumber": 4179,
+            "text": "                  \u003carticle className=\"meeting-card meeting-cashflow-card\"\u003e"
+          },
+          {
+            "lineNumber": 4180,
+            "text": "                    \u003cdiv className=\"meeting-card-header\"\u003e"
+          },
+          {
+            "lineNumber": 4181,
+            "text": "                      \u003ch3\u003e입금액 요약\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 4182,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4183,
+            "text": "                    \u003ctable className=\"meeting-table meeting-table-compact\"\u003e"
+          },
+          {
+            "lineNumber": 4184,
+            "text": "                      \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 4185,
+            "text": "                        \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4186,
+            "text": "                          \u003cth\u003e항목\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4187,
+            "text": "                          \u003cth\u003e금액\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4188,
+            "text": "                          \u003cth\u003e점유비\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4189,
+            "text": "                        \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4190,
+            "text": "                      \u003c/thead\u003e"
+          },
+          {
+            "lineNumber": 4191,
+            "text": "                      \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 4192,
+            "text": "                        {inboundCashflow.channelPart.length \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4193,
+            "text": "                          \u003c\u003e"
+          },
+          {
+            "lineNumber": 4194,
+            "text": "                            \u003ctr className=\"meeting-cashflow-section-row\"\u003e"
+          },
+          {
+            "lineNumber": 4195,
+            "text": "                              \u003ctd colSpan={3}\u003e당월 매출 (결제)\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4196,
+            "text": "                            \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4197,
+            "text": "                            {inboundCashflow.channelPart.map((row, idx) =\u003e ("
+          },
+          {
+            "lineNumber": 4198,
+            "text": "                              \u003ctr key={&#96;inbound-ch-${idx}-${row.label}&#96;}\u003e"
+          },
+          {
+            "lineNumber": 4199,
+            "text": "                                \u003ctd\u003e{row.label}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4200,
+            "text": "                                \u003ctd\u003e{formatMoney(row.amount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4201,
+            "text": "                                \u003ctd\u003e{formatSharePercent(row.share)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4202,
+            "text": "                              \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4203,
+            "text": "                            ))}"
+          },
+          {
+            "lineNumber": 4204,
+            "text": "                          \u003c/\u003e"
+          },
+          {
+            "lineNumber": 4205,
+            "text": "                        ) : null}"
+          },
+          {
+            "lineNumber": 4206,
+            "text": "                        {inboundCashflow.roastingLines.length \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4207,
+            "text": "                          \u003c\u003e"
+          },
+          {
+            "lineNumber": 4208,
+            "text": "                            \u003ctr className=\"meeting-cashflow-section-row\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3544001877307892
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4166
+          },
+          {
+            "lineNumber": 4167,
+            "text": "            /\u003e"
+          },
+          {
+            "lineNumber": 4168,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4169
+          },
+          {
+            "lineNumber": 4170,
+            "text": "          \u003cdiv className=\"meeting-summary-cashflow\"\u003e"
+          },
+          {
+            "lineNumber": 4171,
+            "text": "                \u003cp className=\"meeting-cashflow-hint\"\u003e"
+          },
+          {
+            "lineNumber": 4172,
+            "text": "                  당월 매출(결제), 로스팅실 집계 월 거래처 매출, 매장 전체 판매(홀·배달·간편배달)을 합산한 입금"
+          },
+          {
+            "lineNumber": 4173,
+            "text": "                  합계입니다. 점유비는 각 구간 안에서만 나눈 비율입니다(당월 결제끼리, 로스팅 거래처끼리, 매장 채널끼리 합이"
+          },
+          {
+            "lineNumber": 4174,
+            "text": "                  100%). 출금은 위 「비용 현황」표의 ⑨(비용 합계)를 제외한 각 항목 금액, 로스팅실 생두비용(별도 반영"
+          },
+          {
+            "lineNumber": 4175,
+            "text": "                  시)을 더한 값이며, 맨 아래 출금 합계에 표시됩니다(생두비용이 비용 표 ⑨에 이미 포함되면 이중 합산되지"
+          },
+          {
+            "lineNumber": 4176,
+            "text": "                  않도록 한 줄을 생략합니다)."
+          },
+          {
+            "lineNumber": 4177,
+            "text": "                \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 4178,
+            "text": "                \u003cdiv className=\"meeting-cashflow-columns\"\u003e"
+          },
+          {
+            "lineNumber": 4179,
+            "text": "                  \u003carticle className=\"meeting-card meeting-cashflow-card\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.35117828845977783
+    }
+  ]
+}
+```
+Status: **completed**
 
 
 </details>
@@ -61842,5 +66054,10507 @@ Status: **loading**
 
 <tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
 <summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user refers to the "statement of account" input field.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I see the bug now. In `mergeRoastingSalesWithStatementAggregates`:
+
+- The function is not properly handling cases where roasting sales data is missing or null
+- It fails to merge data when there are no matching records between roasting sales and statement aggregates
+- The logic doesn't account for empty result sets from either data source
+- This causes downstream errors when trying to process incomplete datasets
+
+The issue occurs because the function assumes both datasets will always contain data, but in practice one or both may be empty or null, leading to runtime exceptions during the merge operation.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.tsx",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "roastingSalesMonthHeaderLabel|january|november|december"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "roastingSalesMonthHeaderLabel|january|november|december",
+  "topFiles": [
+    {
+      "matchCount": 40,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 48
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+
+Parameters:
+
+```json
+{
+  "explanation": "",
+  "includePattern": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "query": "Roasting sales table column january november december month mapping",
+  "topK": 10
+}
+```
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1662,
+            "text": "const computeRoastingSales = (rows: MonthlyMeetingData['roastingSales']) =\u003e {"
+          },
+          {
+            "lineNumber": 1663,
+            "text": "  const targetRows = rows.filter((row) =\u003e isRoastClientRow(row))"
+          },
+          {
+            "lineNumber": 1664,
+            "text": "  const totalNovember = sumValues(targetRows.map((row) =\u003e row.november))"
+          },
+          {
+            "lineNumber": 1665,
+            "text": "  const totalDecember = sumValues(targetRows.map((row) =\u003e row.december))"
+          },
+          {
+            "lineNumber": 1666,
+            "text": "  const totalJanuary = sumValues(targetRows.map((row) =\u003e row.january))"
+          },
+          {
+            "lineNumber": 1667,
+            "text": "  /** 집계 월 매출(거래명세·표에서 &#96;january&#96; 열에 해당) */"
+          },
+          {
+            "lineNumber": 1668,
+            "text": "  const totalClosingMonth = totalJanuary"
+          },
+          {
+            "lineNumber": 1669
+          },
+          {
+            "lineNumber": 1670,
+            "text": "  return rows.map((row) =\u003e {"
+          },
+          {
+            "lineNumber": 1671,
+            "text": "    if (isRoastSubtotalRow(row)) {"
+          },
+          {
+            "lineNumber": 1672,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 1673,
+            "text": "        ...row,"
+          },
+          {
+            "lineNumber": 1674,
+            "text": "        november: totalNovember,"
+          },
+          {
+            "lineNumber": 1675,
+            "text": "        december: totalDecember,"
+          },
+          {
+            "lineNumber": 1676,
+            "text": "        january: totalJanuary,"
+          },
+          {
+            "lineNumber": 1677,
+            "text": "        share: null,"
+          },
+          {
+            "lineNumber": 1678,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1679,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1680
+          },
+          {
+            "lineNumber": 1681,
+            "text": "    if (isRoastNetRow(row)) {"
+          },
+          {
+            "lineNumber": 1682,
+            "text": "      const beanCost = rows.find((item) =\u003e isRoastBeanCostRow(item))"
+          },
+          {
+            "lineNumber": 1683,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 1684,
+            "text": "        ...row,"
+          },
+          {
+            "lineNumber": 1685,
+            "text": "        november: totalNovember - (beanCost?.november ?? 0),"
+          },
+          {
+            "lineNumber": 1686,
+            "text": "        december: totalDecember - (beanCost?.december ?? 0),"
+          },
+          {
+            "lineNumber": 1687,
+            "text": "        january: totalJanuary - (beanCost?.january ?? 0),"
+          },
+          {
+            "lineNumber": 1688,
+            "text": "        share: null,"
+          },
+          {
+            "lineNumber": 1689,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1690,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1691
+          },
+          {
+            "lineNumber": 1692,
+            "text": "    if (isRoastBeanCostRow(row)) {"
+          },
+          {
+            "lineNumber": 1693,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 1694,
+            "text": "        ...row,"
+          },
+          {
+            "lineNumber": 1695,
+            "text": "        share: null,"
+          },
+          {
+            "lineNumber": 1696,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1697,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1698
+          },
+          {
+            "lineNumber": 1699,
+            "text": "    const currentValue = row.january"
+          },
+          {
+            "lineNumber": 1700
+          },
+          {
+            "lineNumber": 1701,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 1702,
+            "text": "      ...row,"
+          },
+          {
+            "lineNumber": 1703,
+            "text": "      share:"
+          },
+          {
+            "lineNumber": 1704,
+            "text": "        totalClosingMonth \u003e 0 \u0026\u0026 currentValue !== null ? currentValue / totalClosingMonth : null,"
+          },
+          {
+            "lineNumber": 1705,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1706,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 1707,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1708
+          },
+          {
+            "lineNumber": 1709,
+            "text": "/** 출금: 「비용 현황」에서 ⑨(비용 합계)를 제외한 항목 + (별도인 경우) 생두비용. */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 114,
+            "line": 1708
+          },
+          "startPosition": {
+            "column": 2,
+            "line": 1659
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.5230073928833008
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 639,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 640,
+            "text": " * 거래명세 납품일(YYYY-MM)이 지정 연·월과 같으면 합산. 표·저장 호환을 위해 금액은 &#96;january&#96;에만 넣습니다."
+          },
+          {
+            "lineNumber": 641,
+            "text": " */"
+          },
+          {
+            "lineNumber": 642,
+            "text": "const aggregateRoastingSalesForYm = ("
+          },
+          {
+            "lineNumber": 643,
+            "text": "  records: StatementRecordStored[],"
+          },
+          {
+            "lineNumber": 644,
+            "text": "  year: number,"
+          },
+          {
+            "lineNumber": 645,
+            "text": "  month: number,"
+          },
+          {
+            "lineNumber": 646,
+            "text": "): Map\u003cstring, { november: number; december: number; january: number }\u003e =\u003e {"
+          },
+          {
+            "lineNumber": 647,
+            "text": "  const map = new Map\u003cstring, number\u003e()"
+          },
+          {
+            "lineNumber": 648
+          },
+          {
+            "lineNumber": 649,
+            "text": "  for (const rec of records) {"
+          },
+          {
+            "lineNumber": 650,
+            "text": "    const clientRaw = typeof rec.clientName === 'string' ? rec.clientName : ''"
+          },
+          {
+            "lineNumber": 651,
+            "text": "    const client = normalizeClientLabel(clientRaw)"
+          },
+          {
+            "lineNumber": 652,
+            "text": "    if (!client) {"
+          },
+          {
+            "lineNumber": 653,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 654,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 655,
+            "text": "    const ds = typeof rec.deliveryDate === 'string' ? rec.deliveryDate.trim() : ''"
+          },
+          {
+            "lineNumber": 656,
+            "text": "    if (ds.length \u003c 7) {"
+          },
+          {
+            "lineNumber": 657,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 658,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 659,
+            "text": "    const amt ="
+          },
+          {
+            "lineNumber": 660,
+            "text": "      typeof rec.totalAmount === 'number' \u0026\u0026 Number.isFinite(rec.totalAmount) ? rec.totalAmount : 0"
+          },
+          {
+            "lineNumber": 661,
+            "text": "    if (amt === 0) {"
+          },
+          {
+            "lineNumber": 662,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 663,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 664
+          },
+          {
+            "lineNumber": 665,
+            "text": "    const ym = ds.slice(0, 7)"
+          },
+          {
+            "lineNumber": 666,
+            "text": "    const [yy, mm] = ym.split('-')"
+          },
+          {
+            "lineNumber": 667,
+            "text": "    const yNum = Number(yy)"
+          },
+          {
+            "lineNumber": 668,
+            "text": "    const mNum = Number(mm)"
+          },
+          {
+            "lineNumber": 669,
+            "text": "    if (!Number.isFinite(yNum) || !Number.isFinite(mNum)) {"
+          },
+          {
+            "lineNumber": 670,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 671,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 672,
+            "text": "    if (yNum !== year || mNum !== month) {"
+          },
+          {
+            "lineNumber": 673,
+            "text": "      continue"
+          },
+          {
+            "lineNumber": 674,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 675
+          },
+          {
+            "lineNumber": 676,
+            "text": "    map.set(client, (map.get(client) ?? 0) + amt)"
+          },
+          {
+            "lineNumber": 677,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 678
+          },
+          {
+            "lineNumber": 679,
+            "text": "  const rounded = new Map\u003cstring, { november: number; december: number; january: number }\u003e()"
+          },
+          {
+            "lineNumber": 680,
+            "text": "  for (const [key, total] of map) {"
+          },
+          {
+            "lineNumber": 681,
+            "text": "    rounded.set(key, {"
+          },
+          {
+            "lineNumber": 682,
+            "text": "      november: 0,"
+          },
+          {
+            "lineNumber": 683,
+            "text": "      december: 0,"
+          },
+          {
+            "lineNumber": 684,
+            "text": "      january: Math.round(total),"
+          },
+          {
+            "lineNumber": 685,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 686,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 687,
+            "text": "  return rounded"
+          },
+          {
+            "lineNumber": 688,
+            "text": "}"
+          },
+          {
+            "lineNumber": 689
+          },
+          {
+            "lineNumber": 690,
+            "text": "const mergeRoastingSalesWithStatementAggregates = ("
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 741
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 636
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.5140760540962219
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 690,
+            "text": "const mergeRoastingSalesWithStatementAggregates = ("
+          },
+          {
+            "lineNumber": 691,
+            "text": "  roastingSales: MonthlyMeetingData['roastingSales'],"
+          },
+          {
+            "lineNumber": 692,
+            "text": "  aggregates: Map\u003cstring, { november: number; december: number; january: number }\u003e,"
+          },
+          {
+            "lineNumber": 693,
+            "text": "): MonthlyMeetingData['roastingSales'] =\u003e {"
+          },
+          {
+            "lineNumber": 694,
+            "text": "  const norm = (label: string) =\u003e normalizeClientLabel(label)"
+          },
+          {
+            "lineNumber": 695
+          },
+          {
+            "lineNumber": 696,
+            "text": "  const updated = roastingSales.map((row) =\u003e {"
+          },
+          {
+            "lineNumber": 697,
+            "text": "    if (isRoastFixedBlockRow(row)) {"
+          },
+          {
+            "lineNumber": 698,
+            "text": "      return row"
+          },
+          {
+            "lineNumber": 699,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 700,
+            "text": "    const agg = aggregates.get(norm(row.label))"
+          },
+          {
+            "lineNumber": 701,
+            "text": "    if (!agg) {"
+          },
+          {
+            "lineNumber": 702,
+            "text": "      return row"
+          },
+          {
+            "lineNumber": 703,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 704,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 705,
+            "text": "      ...row,"
+          },
+          {
+            "lineNumber": 706,
+            "text": "      share: null,"
+          },
+          {
+            "lineNumber": 707,
+            "text": "      november: agg.november,"
+          },
+          {
+            "lineNumber": 708,
+            "text": "      december: agg.december,"
+          },
+          {
+            "lineNumber": 709,
+            "text": "      january: agg.january,"
+          },
+          {
+            "lineNumber": 710,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 711,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 712
+          },
+          {
+            "lineNumber": 713,
+            "text": "  const existingKeys = new Set("
+          },
+          {
+            "lineNumber": 714,
+            "text": "    updated.filter((row) =\u003e isRoastClientRow(row)).map((row) =\u003e norm(row.label)),"
+          },
+          {
+            "lineNumber": 715,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 716
+          },
+          {
+            "lineNumber": 717,
+            "text": "  const insertIndex = updated.findIndex((row) =\u003e isRoastSubtotalRow(row))"
+          },
+          {
+            "lineNumber": 718,
+            "text": "  const insertAt = insertIndex === -1 ? updated.length : insertIndex"
+          },
+          {
+            "lineNumber": 719,
+            "text": "  const extras: MonthlyMeetingData['roastingSales'] = []"
+          },
+          {
+            "lineNumber": 720
+          },
+          {
+            "lineNumber": 721,
+            "text": "  for (const [client, agg] of aggregates) {"
+          },
+          {
+            "lineNumber": 722,
+            "text": "    if (!existingKeys.has(client)) {"
+          },
+          {
+            "lineNumber": 723,
+            "text": "      extras.push({"
+          },
+          {
+            "lineNumber": 724,
+            "text": "        label: client,"
+          },
+          {
+            "lineNumber": 725,
+            "text": "        november: agg.november,"
+          },
+          {
+            "lineNumber": 726,
+            "text": "        december: agg.december,"
+          },
+          {
+            "lineNumber": 727,
+            "text": "        january: agg.january,"
+          },
+          {
+            "lineNumber": 728,
+            "text": "        share: null,"
+          },
+          {
+            "lineNumber": 729,
+            "text": "        roastRole: 'client',"
+          },
+          {
+            "lineNumber": 730,
+            "text": "      })"
+          },
+          {
+            "lineNumber": 731,
+            "text": "      existingKeys.add(client)"
+          },
+          {
+            "lineNumber": 732,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 733,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 734
+          },
+          {
+            "lineNumber": 735,
+            "text": "  if (extras.length === 0) {"
+          },
+          {
+            "lineNumber": 736,
+            "text": "    return updated"
+          },
+          {
+            "lineNumber": 737,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 738
+          },
+          {
+            "lineNumber": 739,
+            "text": "  const merged = [...updated]"
+          },
+          {
+            "lineNumber": 740,
+            "text": "  merged.splice(insertAt, 0, ...extras)"
+          },
+          {
+            "lineNumber": 741,
+            "text": "  return merged"
+          },
+          {
+            "lineNumber": 742,
+            "text": "}"
+          },
+          {
+            "lineNumber": 743
+          },
+          {
+            "lineNumber": 744,
+            "text": "const roastingSalesStatementSyncSignature = (rows: MonthlyMeetingData['roastingSales'])"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 751
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 687
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.49390709400177
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1874,
+            "text": "const createEmptyRoastingRow = (label: string): MonthlyMeetingData['roastingSales'][number] =\u003e ({"
+          },
+          {
+            "lineNumber": 1875,
+            "text": "  label,"
+          },
+          {
+            "lineNumber": 1876,
+            "text": "  november: null,"
+          },
+          {
+            "lineNumber": 1877,
+            "text": "  december: null,"
+          },
+          {
+            "lineNumber": 1878,
+            "text": "  january: null,"
+          },
+          {
+            "lineNumber": 1879,
+            "text": "  share: null,"
+          },
+          {
+            "lineNumber": 1880,
+            "text": "  roastRole: 'client',"
+          },
+          {
+            "lineNumber": 1881,
+            "text": "})"
+          },
+          {
+            "lineNumber": 1882
+          },
+          {
+            "lineNumber": 1883,
+            "text": "const createEmptyStoreRow = (month: string): MeetingStoreSalesRow =\u003e"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 1891
+          },
+          "startPosition": {
+            "column": 2,
+            "line": 1872
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.4437519311904907
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3363
+          },
+          {
+            "lineNumber": 3364
+          },
+          {
+            "lineNumber": 3365,
+            "text": "  const updateValueRow = ("
+          },
+          {
+            "lineNumber": 3366,
+            "text": "    section: 'currentMonthSales' | 'currentMonthCosts',"
+          },
+          {
+            "lineNumber": 3367,
+            "text": "    rowIndex: number,"
+          },
+          {
+            "lineNumber": 3368,
+            "text": "    value: string,"
+          },
+          {
+            "lineNumber": 3369,
+            "text": "  ) =\u003e {"
+          },
+          {
+            "lineNumber": 3370,
+            "text": "    updateMonthState((current) =\u003e {"
+          },
+          {
+            "lineNumber": 3371,
+            "text": "      const rows = current[section]"
+          },
+          {
+            "lineNumber": 3372,
+            "text": "      const targetRow = rows[rowIndex]"
+          },
+          {
+            "lineNumber": 3373,
+            "text": "      if ("
+          },
+          {
+            "lineNumber": 3374,
+            "text": "        section === 'currentMonthCosts' \u0026\u0026"
+          },
+          {
+            "lineNumber": 3375,
+            "text": "        targetRow \u0026\u0026"
+          },
+          {
+            "lineNumber": 3376,
+            "text": "        isExpenseSheetFedCostAmountRow(targetRow)"
+          },
+          {
+            "lineNumber": 3377,
+            "text": "      ) {"
+          },
+          {
+            "lineNumber": 3378,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 3379,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3380,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 3381,
+            "text": "        ...current,"
+          },
+          {
+            "lineNumber": 3382,
+            "text": "        [section]: rows.map((row, index) =\u003e"
+          },
+          {
+            "lineNumber": 3383,
+            "text": "          index === rowIndex ? { ...row, amount: parseNullableNumber(value) } : row,"
+          },
+          {
+            "lineNumber": 3384,
+            "text": "        ),"
+          },
+          {
+            "lineNumber": 3385,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3386,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 3387,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3388
+          },
+          {
+            "lineNumber": 3389,
+            "text": "  const updateRoastingSales = ("
+          },
+          {
+            "lineNumber": 3390,
+            "text": "    rowIndex: number,"
+          },
+          {
+            "lineNumber": 3391,
+            "text": "    field: 'november' | 'december' | 'january',"
+          },
+          {
+            "lineNumber": 3392,
+            "text": "    value: string,"
+          },
+          {
+            "lineNumber": 3393,
+            "text": "  ) =\u003e {"
+          },
+          {
+            "lineNumber": 3394,
+            "text": "    updateData((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 3395,
+            "text": "      ...current,"
+          },
+          {
+            "lineNumber": 3396,
+            "text": "      roastingSales: current.roastingSales.map((row, index) =\u003e"
+          },
+          {
+            "lineNumber": 3397,
+            "text": "        index === rowIndex ? { ...row, [field]: parseNullableNumber(value) } : row,"
+          },
+          {
+            "lineNumber": 3398,
+            "text": "      ),"
+          },
+          {
+            "lineNumber": 3399,
+            "text": "    }))"
+          },
+          {
+            "lineNumber": 3400,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3401
+          },
+          {
+            "lineNumber": 3402,
+            "text": "  const updateStoreSales = ("
+          },
+          {
+            "lineNumber": 3403,
+            "text": "    field: 'hall' | 'delivery' | 'quick',"
+          },
+          {
+            "lineNumber": 3404,
+            "text": "    value: string,"
+          },
+          {
+            "lineNumber": 3405,
+            "text": "  ) =\u003e {"
+          },
+          {
+            "lineNumber": 3406,
+            "text": "    updateMonthState((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 3407,
+            "text": "      ...current,"
+          },
+          {
+            "lineNumber": 3408,
+            "text": "      storeSales: {"
+          },
+          {
+            "lineNumber": 3409,
+            "text": "        ...current.storeSales,"
+          },
+          {
+            "lineNumber": 3410,
+            "text": "        [field]: parseNullableNumber(value),"
+          },
+          {
+            "lineNumber": 3411,
+            "text": "      },"
+          },
+          {
+            "lineNumber": 3412,
+            "text": "    }))"
+          },
+          {
+            "lineNumber": 3413,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3414
+          },
+          {
+            "lineNumber": 3415,
+            "text": "  const updateProductionRow = ("
+          },
+          {
+            "lineNumber": 3416,
+            "text": "    section: 'productionRow' | 'inventoryRow',"
+          },
+          {
+            "lineNumber": 3417,
+            "text": "    valueIndex: number,"
+          },
+          {
+            "lineNumber": 3418,
+            "text": "    value: string,"
+          },
+          {
+            "lineNumber": 3419,
+            "text": "  ) =\u003e {"
+          },
+          {
+            "lineNumber": 3420,
+            "text": "    updateMonthState((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 3421,
+            "text": "      ...current,"
+          },
+          {
+            "lineNumber": 3422,
+            "text": "      [section]: {"
+          },
+          {
+            "lineNumber": 3423,
+            "text": "        ...current[section],"
+          },
+          {
+            "lineNumber": 3424,
+            "text": "        values: current[section].values.map((cell, cellIndex) =\u003e"
+          },
+          {
+            "lineNumber": 3425,
+            "text": "          cellIndex === valueIndex ? parseNullableNumber(value) : cell,"
+          },
+          {
+            "lineNumber": 3426,
+            "text": "        ),"
+          },
+          {
+            "lineNumber": 3427,
+            "text": "      },"
+          },
+          {
+            "lineNumber": 3428,
+            "text": "    }))"
+          },
+          {
+            "lineNumber": 3429,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3430
+          },
+          {
+            "lineNumber": 3431,
+            "text": "  const updateColumnLabel = ("
+          },
+          {
+            "lineNumber": 3432,
+            "text": "    section: 'productionColumns' | 'inventoryColumns',"
+          },
+          {
+            "lineNumber": 3433,
+            "text": "    columnIndex: number,"
+          },
+          {
+            "lineNumber": 3434,
+            "text": "    value: string,"
+          },
+          {
+            "lineNumber": 3435,
+            "text": "  ) =\u003e {"
+          },
+          {
+            "lineNumber": 3436,
+            "text": "    updateData((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 3437,
+            "text": "      ...current,"
+          },
+          {
+            "lineNumber": 3438,
+            "text": "      [section]: current[section].map((column, index) =\u003e (index === columnIndex ? value : column)),"
+          },
+          {
+            "lineNumber": 3439,
+            "text": "    }))"
+          },
+          {
+            "lineNumber": 3440,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3441
+          },
+          {
+            "lineNumber": 3442,
+            "text": "  const updateMonthStateLabel = ("
+          },
+          {
+            "lineNumber": 3454
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4399488568305969
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 744,
+            "text": "const roastingSalesStatementSyncSignature = (rows: MonthlyMeetingData['roastingSales']) =\u003e"
+          },
+          {
+            "lineNumber": 745,
+            "text": "  JSON.stringify("
+          },
+          {
+            "lineNumber": 746,
+            "text": "    rows.map((r) =\u003e ({"
+          },
+          {
+            "lineNumber": 747,
+            "text": "      label: r.label,"
+          },
+          {
+            "lineNumber": 748,
+            "text": "      november: r.november,"
+          },
+          {
+            "lineNumber": 749,
+            "text": "      december: r.december,"
+          },
+          {
+            "lineNumber": 750,
+            "text": "      january: r.january,"
+          },
+          {
+            "lineNumber": 751,
+            "text": "    })),"
+          },
+          {
+            "lineNumber": 752,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 753
+          },
+          {
+            "lineNumber": 754,
+            "text": "/** 월마감 4번 표 첫 열(출고 합계 등)과 생두별 열을 붙일 때 인식하는 헤더 */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 103,
+            "line": 753
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 741
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.4318197965621948
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 894,
+            "text": "const computeCurrentMonthSales = ("
+          },
+          {
+            "lineNumber": 895,
+            "text": "  sales: MeetingValueRow[],"
+          },
+          {
+            "lineNumber": 896,
+            "text": "  costs: MeetingValueRow[],"
+          },
+          {
+            "lineNumber": 897,
+            "text": "  roastingComputed: ReturnType\u003ctypeof computeRoastingSales\u003e,"
+          },
+          {
+            "lineNumber": 898,
+            "text": ") =\u003e {"
+          },
+          {
+            "lineNumber": 899,
+            "text": "  const manualSalesTotal = sumValues("
+          },
+          {
+            "lineNumber": 900,
+            "text": "    sales"
+          },
+          {
+            "lineNumber": 901,
+            "text": "      .filter((row) =\u003e !isSalesTotalRow(row) \u0026\u0026 !isSalesNetRow(row) \u0026\u0026 !isSalesRoastingTotalRow(row))"
+          },
+          {
+            "lineNumber": 902,
+            "text": "      .map((row) =\u003e row.amount),"
+          },
+          {
+            "lineNumber": 903,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 904,
+            "text": "  const roastingSalesTotal = roastingComputed.find((row) =\u003e isRoastSubtotalRow(row))?.january ?? 0"
+          },
+          {
+            "lineNumber": 905,
+            "text": "  const grandSalesTotal = manualSalesTotal + roastingSalesTotal"
+          },
+          {
+            "lineNumber": 906,
+            "text": "  const totalCosts = costs.find((row) =\u003e isCostGrandRow(row))?.amount ?? 0"
+          },
+          {
+            "lineNumber": 907
+          },
+          {
+            "lineNumber": 908,
+            "text": "  return sales.map((row) =\u003e {"
+          },
+          {
+            "lineNumber": 909,
+            "text": "    if (isSalesRoastingTotalRow(row)) {"
+          },
+          {
+            "lineNumber": 910,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 911,
+            "text": "        ...row,"
+          },
+          {
+            "lineNumber": 912,
+            "text": "        amount: roastingSalesTotal,"
+          },
+          {
+            "lineNumber": 913,
+            "text": "        share: grandSalesTotal \u003e 0 \u0026\u0026 roastingSalesTotal \u003e 0 ? roastingSalesTotal / grandSalesTotal : null,"
+          },
+          {
+            "lineNumber": 914,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 915,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 916,
+            "text": "    if (isSalesTotalRow(row)) {"
+          },
+          {
+            "lineNumber": 917,
+            "text": "      return { ...row, amount: grandSalesTotal, share: null }"
+          },
+          {
+            "lineNumber": 918,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 919,
+            "text": "    if (isSalesNetRow(row)) {"
+          },
+          {
+            "lineNumber": 920,
+            "text": "      return { ...row, amount: grandSalesTotal - totalCosts, share: null }"
+          },
+          {
+            "lineNumber": 921,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 922
+          },
+          {
+            "lineNumber": 923,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 924,
+            "text": "      ...row,"
+          },
+          {
+            "lineNumber": 925,
+            "text": "      share: grandSalesTotal \u003e 0 \u0026\u0026 row.amount !== null ? row.amount / grandSalesTotal : null,"
+          },
+          {
+            "lineNumber": 926,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 927,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 928,
+            "text": "}"
+          },
+          {
+            "lineNumber": 929
+          },
+          {
+            "lineNumber": 930,
+            "text": "const EXPENSE_CATEGORY_TO_MEETING_COST_LABEL: Array\u003c{"
+          },
+          {
+            "lineNumber": 931,
+            "text": "  meetingLabel: string"
+          },
+          {
+            "lineNumber": 932,
+            "text": "  categories: string[]"
+          },
+          {
+            "lineNumber": 933,
+            "text": "}\u003e = ["
+          },
+          {
+            "lineNumber": 934,
+            "text": "  "
+          },
+          {
+            "lineNumber": 937,
+            "text": ","
+          },
+          {
+            "lineNumber": 938,
+            "text": "]"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 937
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 891
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.4204498529434204
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3587,
+            "text": "const buildMonthExportMatrix = "
+          },
+          {
+            "lineNumber": 3588,
+            "text": "(month: string): (string | number)[][] =\u003e {"
+          },
+          {
+            "lineNumber": 3602
+          },
+          {
+            "lineNumber": 3603
+          },
+          {
+            "lineNumber": 3604,
+            "text": "      return ["
+          },
+          {
+            "lineNumber": 3605,
+            "text": "        [&#96;[${month} 마감회의]&#96;, '', '', ''],"
+          },
+          {
+            "lineNumber": 3606,
+            "text": "        ['매장명', data.storeName, '회의 제목', data.title],"
+          },
+          {
+            "lineNumber": 3607,
+            "text": "        ['월', month, '', ''],"
+          },
+          {
+            "lineNumber": 3608,
+            "text": "        [],"
+          },
+          {
+            "lineNumber": 3609,
+            "text": "        ['1. 당월 매출', '', '', ''],"
+          },
+          {
+            "lineNumber": 3610,
+            "text": "        ['번호', '항목', '금액', '점유비', ''],"
+          },
+          {
+            "lineNumber": 3611,
+            "text": "        ...monthSales.map((row, rowIndex) =\u003e ["
+          },
+          {
+            "lineNumber": 3612,
+            "text": "          meetingValueRowIndexText(monthSales, rowIndex, 'sales'),"
+          },
+          {
+            "lineNumber": 3613,
+            "text": "          row.label,"
+          },
+          {
+            "lineNumber": 3614,
+            "text": "          excelCellAmount(row.amount),"
+          },
+          {
+            "lineNumber": 3615,
+            "text": "          excelCellShare(row.share),"
+          },
+          {
+            "lineNumber": 3616,
+            "text": "          '',"
+          },
+          {
+            "lineNumber": 3617,
+            "text": "        ]),"
+          },
+          {
+            "lineNumber": 3618,
+            "text": "        [],"
+          },
+          {
+            "lineNumber": 3619,
+            "text": "        ['1-1. 당월 비용현황', '', '', ''],"
+          },
+          {
+            "lineNumber": 3620,
+            "text": "        ['번호', '항목', '금액', '점유비', ''],"
+          },
+          {
+            "lineNumber": 3621,
+            "text": "        ...monthCosts.map((row, rowIndex) =\u003e ["
+          },
+          {
+            "lineNumber": 3622,
+            "text": "          meetingValueRowIndexText(monthCosts, rowIndex, 'costs'),"
+          },
+          {
+            "lineNumber": 3623,
+            "text": "          row.label,"
+          },
+          {
+            "lineNumber": 3624,
+            "text": "          excelCellAmount(row.amount),"
+          },
+          {
+            "lineNumber": 3625,
+            "text": "          excelCellShare(row.share),"
+          },
+          {
+            "lineNumber": 3626,
+            "text": "          '',"
+          },
+          {
+            "lineNumber": 3627,
+            "text": "        ]),"
+          },
+          {
+            "lineNumber": 3628,
+            "text": "        [],"
+          },
+          {
+            "lineNumber": 3629,
+            "text": "        ...buildInboundCashflowExcelRows(inboundParts),"
+          },
+          {
+            "lineNumber": 3630,
+            "text": "        [],"
+          },
+          {
+            "lineNumber": 3631,
+            "text": "        ...buildOutboundCashflowExcelRows(outboundCf),"
+          },
+          {
+            "lineNumber": 3632,
+            "text": "        [],"
+          },
+          {
+            "lineNumber": 3633,
+            "text": "        ['1-4. 입출금·손익 요약', '', '', ''],"
+          },
+          {
+            "lineNumber": 3634,
+            "text": "        ['구분', '금액', '', ''],"
+          },
+          {
+            "lineNumber": 3635,
+            "text": "        ['입금 합계', excelCellAmount(plCf.totalIn), '', ''],"
+          },
+          {
+            "lineNumber": 3636,
+            "text": "        ['출금 합계', excelCellAmount(plCf.totalOut), '', ''],"
+          },
+          {
+            "lineNumber": 3637,
+            "text": "        ['입출금 순손익 (입금 합계 − 출금 합계)', excelCellAmount(plCf.net), '', ''],"
+          },
+          {
+            "lineNumber": 3638,
+            "text": "        ["
+          },
+          {
+            "lineNumber": 3639,
+            "text": "          '입출금 순손익율 (순손익 ÷ 입금 합계)',"
+          },
+          {
+            "lineNumber": 3640,
+            "text": "          plCf.netCashMarginRatio == null ? '' : excelCellShare(plCf.netCashMarginRatio),"
+          },
+          {
+            "lineNumber": 3641,
+            "text": "          '',"
+          },
+          {
+            "lineNumber": 3642,
+            "text": "          '',"
+          },
+          {
+            "lineNumber": 3643,
+            "text": "        ],"
+          },
+          {
+            "lineNumber": 3644,
+            "text": "        [],"
+          },
+          {
+            "lineNumber": 3645,
+            "text": "        ['2. 로스팅실 매출 및 생두비용현황', '', '', ''],"
+          },
+          {
+            "lineNumber": 3646,
+            "text": "        ['번호', '거래처명', roastingSalesMonthHeaderLabel, '점유비'],"
+          },
+          {
+            "lineNumber": 3647,
+            "text": "        ...computeRoastingSales(data.roastingSales).map((row, rowIndex) =\u003e ["
+          },
+          {
+            "lineNumber": 3648,
+            "text": "          meetingRoastRowIndexText(data.roastingSales, rowIndex),"
+          },
+          {
+            "lineNumber": 3649,
+            "text": "          row.label,"
+          },
+          {
+            "lineNumber": 3650,
+            "text": "          excelCellAmount(row.january),"
+          },
+          {
+            "lineNumber": 3651,
+            "text": "          excelCellShare(row.share),"
+          },
+          {
+            "lineNumber": 3652,
+            "text": "        ]),"
+          },
+          {
+            "lineNumber": 3653,
+            "text": "        [],"
+          },
+          {
+            "lineNumber": 3654,
+            "text": "        ['3. 매장 전체 판매 현황', '', '', ''],"
+          },
+          {
+            "lineNumber": 3655,
+            "text": "        ['기준 월', month, '', ''],"
+          },
+          {
+            "lineNumber": 3656,
+            "text": "        ['항목', '금액', '점유비', '']"
+          },
+          {
+            "lineNumber": 3673,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3675
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 3587
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 3587
+              }
+            },
+            {
+              "endPosition": {
+                "column": 34,
+                "line": 3587
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 3587
+              }
+            },
+            {
+              "endPosition": {
+                "column": 7,
+                "line": 3589
+              },
+              "startPosition": {
+                "column": 5,
+                "line": 3588
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4201345145702362
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4391,
+            "text": "({ row, rowIndex }, displayIdx) =\u003e ("
+          },
+          {
+            "lineNumber": 4428
+          },
+          {
+            "lineNumber": 4429,
+            "text": "                        \u003ctd\u003e"
+          },
+          {
+            "lineNumber": 4430,
+            "text": "                          \u003cinput"
+          },
+          {
+            "lineNumber": 4431,
+            "text": "                            className={"
+          },
+          {
+            "lineNumber": 4432,
+            "text": "                              isRoastReadonlyAmountRow(row)"
+          },
+          {
+            "lineNumber": 4433,
+            "text": "                                ? 'meeting-cell-input meeting-cell-input-readonly'"
+          },
+          {
+            "lineNumber": 4434,
+            "text": "                                : 'meeting-cell-input'"
+          },
+          {
+            "lineNumber": 4435,
+            "text": "                            }"
+          },
+          {
+            "lineNumber": 4436,
+            "text": "                            type=\"text\""
+          },
+          {
+            "lineNumber": 4437,
+            "text": "                            inputMode=\"numeric\""
+          },
+          {
+            "lineNumber": 4438,
+            "text": "                            value={formatAmountForInput(row.january)}"
+          },
+          {
+            "lineNumber": 4439,
+            "text": "                            readOnly={isRoastReadonlyAmountRow(row)}"
+          },
+          {
+            "lineNumber": 4440,
+            "text": "                            onChange={(event) =\u003e"
+          },
+          {
+            "lineNumber": 4441,
+            "text": "                              updateRoastingSales(rowIndex, 'january', event.target.value)"
+          },
+          {
+            "lineNumber": 4442,
+            "text": "                            }"
+          },
+          {
+            "lineNumber": 4443,
+            "text": "                          /\u003e"
+          },
+          {
+            "lineNumber": 4444,
+            "text": "                        \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4445,
+            "text": "                        \u003ctd\u003e"
+          },
+          {
+            "lineNumber": 4446,
+            "text": "                          \u003cinput"
+          },
+          {
+            "lineNumber": 4447,
+            "text": "                            className=\"meeting-cell-input meeting-cell-input-readonly\""
+          },
+          {
+            "lineNumber": 4448,
+            "text": "                            type=\"text\""
+          },
+          {
+            "lineNumber": 4449,
+            "text": "                            inputMode=\"decimal\""
+          },
+          {
+            "lineNumber": 4450,
+            "text": "                            value={formatSharePercent(row.share)}"
+          },
+          {
+            "lineNumber": 4451,
+            "text": "                            readOnly"
+          },
+          {
+            "lineNumber": 4452,
+            "text": "                          /\u003e"
+          },
+          {
+            "lineNumber": 4453,
+            "text": "                        \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4454,
+            "text": "                      \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4455,
+            "text": "                      \u003c/Fragment\u003e"
+          },
+          {
+            "lineNumber": 4456,
+            "text": "                    ))}"
+          },
+          {
+            "lineNumber": 4457,
+            "text": "                  \u003c/tbody\u003e"
+          },
+          {
+            "lineNumber": 4458,
+            "text": "                \u003c/table\u003e"
+          },
+          {
+            "lineNumber": 4459,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4460,
+            "text": "            \u003c/article\u003e"
+          },
+          {
+            "lineNumber": 4461,
+            "text": "          \u003c/div\u003e : null}"
+          },
+          {
+            "lineNumber": 4462,
+            "text": "        \u003c/section\u003e"
+          },
+          {
+            "lineNumber": 4463
+          },
+          {
+            "lineNumber": 4464,
+            "text": "        \u003csection className=\"panel\"\u003e"
+          },
+          {
+            "lineNumber": 4465,
+            "text": "          \u003cdiv className=\"panel-header\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            },
+            {
+              "endPosition": {
+                "column": 22,
+                "line": 4391
+              },
+              "startPosition": {
+                "column": 22,
+                "line": 4391
+              }
+            },
+            {
+              "endPosition": {
+                "column": 23,
+                "line": 4392
+              },
+              "startPosition": {
+                "column": 51,
+                "line": 4391
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4006439447402954
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3254
+          },
+          {
+            "lineNumber": 3255
+          },
+          {
+            "lineNumber": 3256,
+            "text": "  /** 범례: 퍼센트 높은 순 — sliceIndex로 도넛 조각·색과 대응 */"
+          },
+          {
+            "lineNumber": 3257,
+            "text": "  const outboundDonutLegendRows = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 3258,
+            "text": "    const total = activeMonthBeanOutboundPieTotal"
+          },
+          {
+            "lineNumber": 3259,
+            "text": "    if (total \u003c= 0 || activeMonthBeanOutboundSharePie.length === 0) {"
+          },
+          {
+            "lineNumber": 3260,
+            "text": "      return [] as Array\u003c{"
+          },
+          {
+            "lineNumber": 3261,
+            "text": "        name: string"
+          },
+          {
+            "lineNumber": 3262,
+            "text": "        value: number"
+          },
+          {
+            "lineNumber": 3263,
+            "text": "        sliceIndex: number"
+          },
+          {
+            "lineNumber": 3264,
+            "text": "        pct: number"
+          },
+          {
+            "lineNumber": 3265,
+            "text": "        fill: string"
+          },
+          {
+            "lineNumber": 3266,
+            "text": "      }\u003e"
+          },
+          {
+            "lineNumber": 3267,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3268,
+            "text": "    return activeMonthBeanOutboundSharePie"
+          },
+          {
+            "lineNumber": 3269,
+            "text": "      .map((row, sliceIndex) =\u003e ({"
+          },
+          {
+            "lineNumber": 3270,
+            "text": "        name: row.name,"
+          },
+          {
+            "lineNumber": 3271,
+            "text": "        value: row.value,"
+          },
+          {
+            "lineNumber": 3272,
+            "text": "        sliceIndex,"
+          },
+          {
+            "lineNumber": 3273,
+            "text": "        pct: (row.value / total) * 100,"
+          },
+          {
+            "lineNumber": 3274,
+            "text": "        fill: OUTBOUND_SHARE_PIE_COLORS[sliceIndex % OUTBOUND_SHARE_PIE_COLORS.length],"
+          },
+          {
+            "lineNumber": 3275,
+            "text": "      }))"
+          },
+          {
+            "lineNumber": 3276,
+            "text": "      .sort((a, b) =\u003e b.pct - a.pct || b.value - a.value)"
+          },
+          {
+            "lineNumber": 3277,
+            "text": "  }, [activeMonthBeanOutboundPieTotal, activeMonthBeanOutboundSharePie])"
+          },
+          {
+            "lineNumber": 3278
+          },
+          {
+            "lineNumber": 3279,
+            "text": "  /** 보기 모드에서는 집계 월 매출이 없는(0·미입력) 거래처 행만 숨김. 합계·생두비용·순이익은 유지. */"
+          },
+          {
+            "lineNumber": 3280,
+            "text": "  const roastingSalesDisplayRows = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 3281,
+            "text": "    const indexed = computedRoastingSales.map((row, rowIndex) =\u003e ({ row, rowIndex }))"
+          },
+          {
+            "lineNumber": 3282,
+            "text": "    if (sectionEditModes.roasting) {"
+          },
+          {
+            "lineNumber": 3283,
+            "text": "      return indexed"
+          },
+          {
+            "lineNumber": 3284,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3285,
+            "text": "    return indexed.filter(({ row }) =\u003e {"
+          },
+          {
+            "lineNumber": 3286,
+            "text": "      if (isRoastFixedBlockRow(row)) {"
+          },
+          {
+            "lineNumber": 3287,
+            "text": "        return true"
+          },
+          {
+            "lineNumber": 3288,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3289,
+            "text": "      const v = row.january"
+          },
+          {
+            "lineNumber": 3290,
+            "text": "      return v !== null \u0026\u0026 v !== 0 \u0026\u0026 Number.isFinite(v)"
+          },
+          {
+            "lineNumber": 3291,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 3292,
+            "text": "  }, [computedRoastingSales, sectionEditModes.roasting])"
+          },
+          {
+            "lineNumber": 3293
+          },
+          {
+            "lineNumber": 3294,
+            "text": "  /**"
+          },
+          {
+            "lineNumber": 3295,
+            "text": "   * 입출고 상단「기말 합」과 맞춤: 기준일·원두별 stock 합(저장된 beanRows 기준)."
+          },
+          {
+            "lineNumber": 3296,
+            "text": "   * 재고현황 표에는 수동 열·생두 열이 같이 있어 &#96;values&#96; 전체 합은 생두 합과 달랐음."
+          },
+          {
+            "lineNumber": 3297,
+            "text": "   */"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.39879006147384644
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4379
+          },
+          {
+            "lineNumber": 4380,
+            "text": "              \u003cdiv className=\"table-wrapper\"\u003e"
+          },
+          {
+            "lineNumber": 4381,
+            "text": "                \u003ctable className=\"meeting-table meeting-table-compact\"\u003e"
+          },
+          {
+            "lineNumber": 4382,
+            "text": "                  \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 4383,
+            "text": "                    \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4384,
+            "text": "                      \u003cth className=\"meeting-col-idx\"\u003e번호\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4385,
+            "text": "                      \u003cth\u003e거래처명\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4386,
+            "text": "                      \u003cth\u003e{roastingSalesMonthHeaderLabel}\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4387,
+            "text": "                      \u003cth\u003e점유비\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4388,
+            "text": "                    \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4389,
+            "text": "                  \u003c/thead\u003e"
+          },
+          {
+            "lineNumber": 4390,
+            "text": "                  \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 4391,
+            "text": "                    {roastingSalesDisplayRows.map(({ row, rowIndex }, displayIdx) =\u003e ("
+          },
+          {
+            "lineNumber": 4392,
+            "text": "                      \u003cFragment key={&#96;roasting-sales-block-${rowIndex}&#96;}\u003e"
+          },
+          {
+            "lineNumber": 4393,
+            "text": "                        {displayIdx \u003e 0 \u0026\u0026"
+          },
+          {
+            "lineNumber": 4394,
+            "text": "                        isRoastFixedBlockRow(row) \u0026\u0026"
+          },
+          {
+            "lineNumber": 4395,
+            "text": "                        !isRoastFixedBlockRow(roastingSalesDisplayRows[displayIdx - 1]!.row) ? ("
+          },
+          {
+            "lineNumber": 4396,
+            "text": "                          \u003ctr className=\"meeting-cashflow-section-row\"\u003e"
+          },
+          {
+            "lineNumber": 4397,
+            "text": "                            \u003ctd colSpan={4}\u003e집계 · 생두 · 손익\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4398,
+            "text": "                          \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4399,
+            "text": "                        ) : null}"
+          },
+          {
+            "lineNumber": 4400,
+            "text": "                        \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4401,
+            "text": "                        \u003ctd className=\"meeting-col-idx\" title=\"자동\"\u003e"
+          },
+          {
+            "lineNumber": 4456,
+            "text": "                    )"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.38001808524131775
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1970,
+            "text": "const migrateRoastRow = (r: MeetingMonthlyRow): MeetingMonthlyRow =\u003e {"
+          },
+          {
+            "lineNumber": 1971,
+            "text": "  let out: MeetingMonthlyRow"
+          },
+          {
+            "lineNumber": 1972,
+            "text": "  if (r.roastRole) {"
+          },
+          {
+            "lineNumber": 1973,
+            "text": "    out = { ...r }"
+          },
+          {
+            "lineNumber": 1974,
+            "text": "  } else if (r.label === '합 계' || r.label === '합계') {"
+          },
+          {
+            "lineNumber": 1975,
+            "text": "    out = { ...r, roastRole: 'subtotal' }"
+          },
+          {
+            "lineNumber": 1976,
+            "text": "  } else if (r.label === '생두비용') {"
+          },
+          {
+            "lineNumber": 1977,
+            "text": "    out = { ...r, roastRole: 'beanCost' }"
+          },
+          {
+            "lineNumber": 1978,
+            "text": "  } else if (r.label === '순이익') {"
+          },
+          {
+            "lineNumber": 1979,
+            "text": "    out = { ...r, roastRole: 'net' }"
+          },
+          {
+            "lineNumber": 1980,
+            "text": "  } else {"
+          },
+          {
+            "lineNumber": 1981,
+            "text": "    out = { ...r, roastRole: 'client' }"
+          },
+          {
+            "lineNumber": 1982,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1983,
+            "text": "  if (isRoastClientRow(out)) {"
+          },
+          {
+            "lineNumber": 1984,
+            "text": "    return { ...out, label: stripLeadingIndexFromLabel(out.label) }"
+          },
+          {
+            "lineNumber": 1985,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1986,
+            "text": "  return out"
+          },
+          {
+            "lineNumber": 1987,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1988
+          },
+          {
+            "lineNumber": 1989,
+            "text": "const migrateMeetingTemplateData = (d: MonthlyMeetingData)"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 2003
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 1967
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.3603518009185791
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1989,
+            "text": "const migrateMeetingTemplateData = (d: MonthlyMeetingData): MonthlyMeetingData =\u003e ({"
+          },
+          {
+            "lineNumber": 1990,
+            "text": "  title: d.title,"
+          },
+          {
+            "lineNumber": 1991,
+            "text": "  storeName: d.storeName,"
+          },
+          {
+            "lineNumber": 1992,
+            "text": "  monthLabel: d.monthLabel,"
+          },
+          {
+            "lineNumber": 1993,
+            "text": "  months: d.months,"
+          },
+          {
+            "lineNumber": 1994,
+            "text": "  currentMonthSales: ensureRoastingTotalSalesRow(d.currentMonthSales.map((row) =\u003e migrateMeetingValueRow(row, 'sales'))),"
+          },
+          {
+            "lineNumber": 1995,
+            "text": "  currentMonthCosts: ensureEditableExpenseCostRowsShape("
+          },
+          {
+            "lineNumber": 1996,
+            "text": "    d.currentMonthCosts.map((row) =\u003e migrateMeetingValueRow(row, 'costs')),"
+          },
+          {
+            "lineNumber": 1997,
+            "text": "  ),"
+          },
+          {
+            "lineNumber": 1998,
+            "text": "  roastingSales: d.roastingSales.map(migrateRoastRow),"
+          },
+          {
+            "lineNumber": 1999,
+            "text": "  storeSales: d.storeSales,"
+          },
+          {
+            "lineNumber": 2000,
+            "text": "  productionColumns: d.productionColumns,"
+          },
+          {
+            "lineNumber": 2001,
+            "text": "  productionRows: d.productionRows,"
+          },
+          {
+            "lineNumber": 2002,
+            "text": "  inventoryColumns: d.inventoryColumns,"
+          },
+          {
+            "lineNumber": 2003,
+            "text": "  inventoryRows: d.inventoryRows,"
+          },
+          {
+            "lineNumber": 2004,
+            "text": "})"
+          },
+          {
+            "lineNumber": 2005
+          },
+          {
+            "lineNumber": 2006,
+            "text": "const migrateMonthState = (s: MonthlyMeetingMonthState)"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 2013
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 1986
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.3563584089279175
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 2282
+          },
+          {
+            "lineNumber": 2309,
+            "text": " statementRecordsStorageRev])"
+          },
+          {
+            "lineNumber": 2310
+          },
+          {
+            "lineNumber": 2311,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2312,
+            "text": "    if (!isStorageReady || sectionEditModes.roasting) {"
+          },
+          {
+            "lineNumber": 2313,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2314,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2315,
+            "text": "    const ym = roastingSalesReferenceYm.trim()"
+          },
+          {
+            "lineNumber": 2316,
+            "text": "    if (!parseYm(ym)) {"
+          },
+          {
+            "lineNumber": 2317,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2318,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2319,
+            "text": "    const agg = getGreenBeanOrderMonthAggregate(ym)"
+          },
+          {
+            "lineNumber": 2320,
+            "text": "    if (!agg?.hasMonth) {"
+          },
+          {
+            "lineNumber": 2321,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2322,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2323,
+            "text": "    const next = agg.sumMoney"
+          },
+          {
+            "lineNumber": 2324,
+            "text": "    setPageState((current) =\u003e {"
+          },
+          {
+            "lineNumber": 2325,
+            "text": "      const rows = current.data.roastingSales"
+          },
+          {
+            "lineNumber": 2326,
+            "text": "      const idx = rows.findIndex((r) =\u003e isRoastBeanCostRow(r))"
+          },
+          {
+            "lineNumber": 2327,
+            "text": "      if (idx === -1) {"
+          },
+          {
+            "lineNumber": 2328,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2329,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2330,
+            "text": "      if (rows[idx]!.january === next) {"
+          },
+          {
+            "lineNumber": 2331,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2332,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2333,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 2334,
+            "text": "        ...current,"
+          },
+          {
+            "lineNumber": 2335,
+            "text": "        data: {"
+          },
+          {
+            "lineNumber": 2336,
+            "text": "          ...current.data,"
+          },
+          {
+            "lineNumber": 2337,
+            "text": "          roastingSales: rows.map((r, i) =\u003e (i === idx ? { ...r, january: next } : r)),"
+          },
+          {
+            "lineNumber": 2338,
+            "text": "        },"
+          },
+          {
+            "lineNumber": 2339,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2340,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2341,
+            "text": "  }, [isStorageReady, sectionEditModes.roasting, roastingSalesReferenceYm, greenBeanOrderStorageRev])"
+          },
+          {
+            "lineNumber": 2342
+          },
+          {
+            "lineNumber": 2343,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2344,
+            "text": "    if (mode !== 'cloud' || !activeCompanyId) {"
+          },
+          {
+            "lineNumber": 2345,
+            "text": "      setCompanyExpenseRecordsCached([])"
+          },
+          {
+            "lineNumber": 2346,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2347,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2348
+          },
+          {
+            "lineNumber": 2349,
+            "text": "    let cancelled = false"
+          },
+          {
+            "lineNumber": 2350
+          },
+          {
+            "lineNumber": 2351,
+            "text": "    const pullExpenseFromCloud = async () =\u003e {"
+          },
+          {
+            "lineNumber": 2352,
+            "text": "      try {"
+          },
+          {
+            "lineNumber": 2353,
+            "text": "        const remote = await loadCompanyDocument\u003cExpensePageState\u003e("
+          },
+          {
+            "lineNumber": 2354,
+            "text": "          activeCompanyId,"
+          },
+          {
+            "lineNumber": 2355,
+            "text": "          COMPANY_DOCUMENT_KEYS.expensePage,"
+          },
+          {
+            "lineNumber": 2356,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 2357,
+            "text": "        if (cancelled) {"
+          },
+          {
+            "lineNumber": 2358,
+            "text": "          return"
+          },
+          {
+            "lineNumber": 2359,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 2360,
+            "text": "        const records = remote ? normalizeExpensePageState(remote).records : []"
+          },
+          {
+            "lineNumber": 2361,
+            "text": "        setCompanyExpenseRecordsCached(records)"
+          },
+          {
+            "lineNumber": 2362,
+            "text": "      } catch (error) {"
+          },
+          {
+            "lineNumber": 2363,
+            "text": "        console.error('월 마감회의: 회사 클라우드 지출표를 읽지 못했습니다.', error)"
+          },
+          {
+            "lineNumber": 2364,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2365,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2366
+          },
+          {
+            "lineNumber": 2367,
+            "text": "    void pullExpenseFromCloud()"
+          },
+          {
+            "lineNumber": 2368,
+            "text": "    const id = window.setInterval(() =\u003e void pullExpenseFromCloud(), 8_000)"
+          },
+          {
+            "lineNumber": 2369,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 2370,
+            "text": "      cancelled = true"
+          },
+          {
+            "lineNumber": 2371,
+            "text": "      window.clearInterval(id)"
+          },
+          {
+            "lineNumber": 2372,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2373,
+            "text": "  }, [activeCompanyId, mode])"
+          },
+          {
+            "lineNumber": 2374
+          },
+          {
+            "lineNumber": 2375,
+            "text": "  const lsExpenseRecordsForMeetingLink = useMemo("
+          },
+          {
+            "lineNumber": 2376,
+            "text": "    () =\u003e readExpensePageStateFromStorage().records,"
+          },
+          {
+            "lineNumber": 2377,
+            "text": "    [expensePageStorageRev],"
+          },
+          {
+            "lineNumber": 2378,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2379
+          },
+          {
+            "lineNumber": 2380,
+            "text": "  const expenseRecordsForMeetingLink = useMemo"
+          },
+          {
+            "lineNumber": 2388
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.35255691409111023
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2120,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3585
+          },
+          {
+            "lineNumber": 3586
+          },
+          {
+            "lineNumber": 3587,
+            "text": "  const buildMonthExportMatrix = useCallback("
+          },
+          {
+            "lineNumber": 3588,
+            "text": "    (month: string): (string | number)[][] =\u003e {"
+          },
+          {
+            "lineNumber": 3589,
+            "text": "      const monthState = monthStatesByMonth[month] ?? createMonthStates(data)[month]"
+          },
+          {
+            "lineNumber": 3590,
+            "text": "      const monthCosts = computeCurrentMonthCosts(monthState.currentMonthCosts)"
+          },
+          {
+            "lineNumber": 3591,
+            "text": "      const roastingComputedExport = computeRoastingSales(data.roastingSales)"
+          },
+          {
+            "lineNumber": 3592,
+            "text": "      const monthSales = computeCurrentMonthSales(monthState.currentMonthSales, monthCosts, roastingComputedExport)"
+          },
+          {
+            "lineNumber": 3593,
+            "text": "      const storeSales = computeStoreSales(monthState.storeSales)"
+          },
+          {
+            "lineNumber": 3594,
+            "text": "      const inboundParts = buildMeetingInboundCashflowParts("
+          },
+          {
+            "lineNumber": 3595,
+            "text": "        monthSales,"
+          },
+          {
+            "lineNumber": 3596,
+            "text": "        roastingComputedExport,"
+          },
+          {
+            "lineNumber": 3597,
+            "text": "        storeSales,"
+          },
+          {
+            "lineNumber": 3598,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3599,
+            "text": "      const outboundCf = getMeetingOutboundCashflow(monthCosts, roastingComputedExport)"
+          },
+          {
+            "lineNumber": 3600,
+            "text": "      const plCf = getMeetingCashflowPl(inboundParts.totalIn, outboundCf.totalOut)"
+          },
+          {
+            "lineNumber": 3601,
+            "text": "      const inventoryRow = computeInventoryRow(monthState.inventoryRow)"
+          },
+          {
+            "lineNumber": 3602,
+            "text": "      const notes = notesByMonth[month] ?? { summary: '', actions: '' }"
+          },
+          {
+            "lineNumber": 3603
+          },
+          {
+            "lineNumber": 3604,
+            "text": "      return ["
+          },
+          {
+            "lineNumber": 3605,
+            "text": "        [&#96;[${month} 마감회의]&#96;, '', '', ''],"
+          },
+          {
+            "lineNumber": 3673,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3675
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5131,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5130
+          },
+          "startPosition": {
+            "line": 2119
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2121
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2120
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.35117584466934204
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.tsx",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "november|december|january"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "november|december|january",
+  "topFiles": [
+    {
+      "matchCount": 43,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 43
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Only January is displayed or editable for roasting clients in the UI, while November and December may be hidden or identical.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Only the January column is displayed in the UI for roasting amounts. Clearing January when no aggregate is correct.  
+- Edge case: `aggregateRoastingSalesForYm` skips amt === 0, but negative values (e.g., refunds) are not skipped and accumulate correctly.  
+- If user clears totalAmount in App statement form, the record may persist with an empty string parsed as NaN  0  skipped in aggregation, but old merge retained stale datathis is fixed.  
+- Another edge case: Clients with totals of 0 after summing all lines (e.g., +100 and -100) result in a map entry with 0 total, which is rounded. If total is 0, the loop still creates an entry with january: 0, which is correct.
+
+If a client is removed from the map entirely, no entry exists, so the row is cleared. Good.
+
+Orphan clientsrows for clients no longer in statementsare zeroed out in january. Users can manually remove these rows in edit mode, which is acceptable.
+
+When sectionEditModes.roasting is true, syncing is skipped to preserve manual values. Good.
+
+Set january: 0 only when !agg.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user's main issue is a merge bug affecting roasting and statement synchronization. The merge fix involves updating `roastingSales` to handle cases where aggregated data is missing, setting `share` and `january` to `null` to clear display values. Using `null` instead of `0` ensures blank display in `formatAmountForInput`. The function `aggregateRoastingSalesForYm` already allows negative amounts and skips zero values.
+
+- `aggregateRoastingSalesForYm` skips `amt === 0` but allows negative amounts.
+- Merge fix updates `roastingSales` map to set `share` and `january` to `null` when aggregates are missing.
+- `null` is used instead of `0` to ensure blank display in `formatAmountForInput`.</details></think>
+
+_**Agent (default)**_
+
+원인: 거래명세 집계에 거래처가 없을 때 `mergeRoastingSalesWithStatementAggregates`가 **`return row`로 이전 `january`를 그대로 둬** 지운 금액이 합계에 남습니다. 집계 맵에 없는 거래처 행은 집계 월 열(`january`)을 비웁니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+""    "january"     , sync      null    .</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-BYtSzd1H.css    161.71 kB │ gzip:  26.93 kB
+dist/assets/index-DfzCTbin.js   2,670.96 kB │ gzip: 758.79 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 453ms
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+### 원인
+
+`입금 합계` 안의 **로스팅실 매출**은 거래명세서를 납품일 기준으로 합산해 **로스팅 표의 집계 월 열(`january`)**에 넣습니다. 그런데 `mergeRoastingSalesWithStatementAggregates`에서 **거래명세 집계에 그 거래처가 더 이상 없을 때**(줄 삭제, 금액 지워서 반영 안 됨 등)에는 **`agg`가 없어도 `return row`** 해서 **이전에 채워 둔 `january`가 그대로 남는 버그**가 있었습니다. 그래서 지운 금액만큼 합계가 줄어들지 않았습니다.
+
+### 수정
+
+집계 맵에 해당 거래처가 없으면, 그 라인은 **자동 반영되는 집계 월 매출 칸만 `january: null`**로 비워서 합계·입금 합계에서 빠지게 했습니다. (합계·입출금 쪽에서는 `null`을 0처럼 더합니다.)
+
+```696:716:app/src/MonthlyMeetingPage.tsx
+    const agg = aggregates.get(norm(row.label))
+    if (!agg) {
+      // 거래명세에 해당 집계 월·거래처가 없으면(줄 삭제·금액 삭제 등) 이전 자동 반영액이 입금 합계에 남지 않게 집계 열을 비웁니다.
+      return {
+        ...row,
+        share: null,
+        january: null,
+      }
+    }
+```
+
+**참고:** 로스팅 섹션을 **수동 수정 중**일 때는 기존처럼 명세 동기화가 멈춥니다; 수정 완료 후 다시 동기화됩니다.
+
+**환불/마이너스 금액**은 거래명세에 음수로 들어가 있으면 합계에 그대로 반영됩니다(0만 제외). “마이너스가 안 된다”가 **반품 숫자를 음수로 넣어도 집계에 안 들어간다**는 뜻이면, 해당 입력이 앱 저장 시 숫자로 파싱되는지 한 번 확인해 보시면 됩니다.
+
+---
+
+_**User**_
+
+거리맹셔관리 페이지에 월별 납품현황 탭에서 발생일자 입금일자를 월별로 기입가능하게 만들어주고 발생일자의 경우 업체별 거래처 카드에 뜨게 만들어줘 세금계산서 발행일자 라고 적으면될거같아
+
+---
+
+_**Agent (default)**_
+
+요청하신 건 거래명세관리의 월별 납품현황에서 `발생일자/입금일자`를 월별 입력 가능하게 하고, `발생일자`는 업체별 카드에 `세금계산서 발행일자`로 노출하는 변경으로 이해했습니다. 관련 화면/데이터 구조부터 확인해서 바로 반영하겠습니다.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+
+Parameters:
+
+```json
+{
+  "explanation": "",
+  "includePattern": "/Users/parkcg/The Symbol_Edit/app/src",
+  "query": "Where is 거래명세관리 page and 월별 납품현황 tab implemented?",
+  "topK": 10
+}
+```
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3980
+          },
+          {
+            "lineNumber": 3981,
+            "text": "      \u003c/header\u003e"
+          },
+          {
+            "lineNumber": 3982
+          },
+          {
+            "lineNumber": 3983,
+            "text": "      {activePage === 'statements' ? ("
+          },
+          {
+            "lineNumber": 3984,
+            "text": "        \u003c\u003e"
+          },
+          {
+            "lineNumber": 3985,
+            "text": "      \u003cdiv className=\"statements-page\"\u003e"
+          },
+          {
+            "lineNumber": 3986,
+            "text": "      \u003cmain className=\"statements-main\"\u003e"
+          },
+          {
+            "lineNumber": 3987,
+            "text": "        \u003csection className=\"panel statements-records-panel\"\u003e"
+          },
+          {
+            "lineNumber": 3988,
+            "text": "          \u003cdiv className=\"panel-header controls statements-records-panel-toolbar\"\u003e"
+          },
+          {
+            "lineNumber": 3989,
+            "text": "            \u003cdiv className=\"statements-records-toolbar-left no-print\"\u003e"
+          },
+          {
+            "lineNumber": 3990,
+            "text": "              \u003cdiv className=\"segmented statements-records-view-toggle\"\u003e"
+          },
+          {
+            "lineNumber": 3991,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 3992,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 3993,
+            "text": "                  className={activeView === 'cards' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 3994,
+            "text": "                  onClick={() =\u003e setActiveView('cards')}"
+          },
+          {
+            "lineNumber": 3995,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 3996,
+            "text": "                  거래처 카드"
+          },
+          {
+            "lineNumber": 3997,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 3998,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 3999,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 4000,
+            "text": "                  className={activeView === 'records' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 4001,
+            "text": "                  onClick={() =\u003e {"
+          },
+          {
+            "lineNumber": 4002,
+            "text": "                    setRecordsRangeFilter('month')"
+          },
+          {
+            "lineNumber": 4003,
+            "text": "                    setActiveView('records')"
+          },
+          {
+            "lineNumber": 4004,
+            "text": "                  }}"
+          },
+          {
+            "lineNumber": 4005,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 4006,
+            "text": "                  입력 목록"
+          },
+          {
+            "lineNumber": 4007,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4008,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 4009,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 4010,
+            "text": "                  className={activeView === 'calendar' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 4011,
+            "text": "                  onClick={() =\u003e setActiveView('calendar')}"
+          },
+          {
+            "lineNumber": 4012,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 4013,
+            "text": "                  캘린더"
+          },
+          {
+            "lineNumber": 4014,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4015,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 4016,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 4017,
+            "text": "                  className={activeView === 'summary' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 4018,
+            "text": "                  onClick={() =\u003e setActiveView('summary')}"
+          },
+          {
+            "lineNumber": 4019,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 4020,
+            "text": "                  월별 납품현황"
+          },
+          {
+            "lineNumber": 4021,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4022,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4023,
+            "text": "              \u003cdiv className=\"segmented statements-records-launch\"\u003e"
+          },
+          {
+            "lineNumber": 4024,
+            "text": "                \u003cbutton type=\"button\" onClick={() =\u003e setStatementEntryModalOpen(true)}\u003e"
+          },
+          {
+            "lineNumber": 4025,
+            "text": "                  거래명세서 입력"
+          },
+          {
+            "lineNumber": 4026,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4027,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4028,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4029
+          },
+          {
+            "lineNumber": 4030,
+            "text": "            \u003cdiv"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.41112229228019714
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 5924
+          },
+          {
+            "lineNumber": 5925,
+            "text": "            \u003cdiv className=\"inventory-reset-dialog-actions\"\u003e"
+          },
+          {
+            "lineNumber": 5926,
+            "text": "              \u003cbutton type=\"button\" className=\"ghost-button\" onClick={closeAdminUnlockDialog}\u003e"
+          },
+          {
+            "lineNumber": 5927,
+            "text": "                취소"
+          },
+          {
+            "lineNumber": 5928,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 5929,
+            "text": "              \u003cbutton type=\"button\" className=\"primary-button\" onClick={handleAdminUnlockConfirm}\u003e"
+          },
+          {
+            "lineNumber": 5930,
+            "text": "                확인"
+          },
+          {
+            "lineNumber": 5931,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 5932,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5933,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5934,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5935,
+            "text": "      ) : null}"
+          },
+          {
+            "lineNumber": 5936,
+            "text": "        \u003c/\u003e"
+          },
+          {
+            "lineNumber": 5937,
+            "text": "      ) : activePage === 'beanSalesAnalysis' ? ("
+          },
+          {
+            "lineNumber": 5938,
+            "text": "        \u003cBeanSalesAnalysisPage /\u003e"
+          },
+          {
+            "lineNumber": 5939,
+            "text": "      ) : activePage === 'meeting' ? ("
+          },
+          {
+            "lineNumber": 5940,
+            "text": "        \u003cMonthlyMeetingPage /\u003e"
+          },
+          {
+            "lineNumber": 5941,
+            "text": "      ) : activePage === 'expense' ? ("
+          },
+          {
+            "lineNumber": 5942,
+            "text": "        \u003cExpensePage /\u003e"
+          },
+          {
+            "lineNumber": 5943,
+            "text": "      ) : activePage === 'staffPayroll' ? ("
+          },
+          {
+            "lineNumber": 5944,
+            "text": "        \u003cStaffPayrollPage /\u003e"
+          },
+          {
+            "lineNumber": 5945,
+            "text": "      ) : activePage === 'greenBeanOrder' ? ("
+          },
+          {
+            "lineNumber": 5946,
+            "text": "        \u003cGreenBeanOrderPage /\u003e"
+          },
+          {
+            "lineNumber": 5947,
+            "text": "      ) : activePage === 'dailyMeeting' ? ("
+          },
+          {
+            "lineNumber": 5948,
+            "text": "        \u003cMemoPage mode=\"dailyOnly\" /\u003e"
+          },
+          {
+            "lineNumber": 5949,
+            "text": "      ) : activePage === 'team' ? ("
+          },
+          {
+            "lineNumber": 5950,
+            "text": "        \u003cTeamManagementPage /\u003e"
+          },
+          {
+            "lineNumber": 5951,
+            "text": "      ) : ("
+          },
+          {
+            "lineNumber": 5952,
+            "text": "        \u003cInventoryStatusPage /\u003e"
+          },
+          {
+            "lineNumber": 5953,
+            "text": "      )}"
+          },
+          {
+            "lineNumber": 5954,
+            "text": "      {activePage === 'statements' ? ("
+          },
+          {
+            "lineNumber": 5955,
+            "text": "        \u003cdiv"
+          },
+          {
+            "lineNumber": 5956,
+            "text": "          ref={statementStickyHScrollRef}"
+          },
+          {
+            "lineNumber": 5957,
+            "text": "          className={&#96;statements-sticky-hscroll${statementStickyHScrollVisible ? ' is-visible' : ''}&#96;}"
+          },
+          {
+            "lineNumber": 5958,
+            "text": "          aria-hidden={!statementStickyHScrollVisible}"
+          },
+          {
+            "lineNumber": 5959,
+            "text": "        \u003e"
+          },
+          {
+            "lineNumber": 5960,
+            "text": "          \u003cdiv ref={statementStickyHScrollInnerRef} className=\"statements-sticky-hscroll-inner\" /\u003e"
+          },
+          {
+            "lineNumber": 5961,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5962,
+            "text": "      ) : null}"
+          },
+          {
+            "lineNumber": 5963
+          },
+          {
+            "lineNumber": 5964,
+            "text": "      {lowGreenBeanWarningItems.length \u003e 0 \u0026\u0026 !isLowGreenBeanPanelDismissed ?"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4001131057739258
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 63,
+            "text": "const PAGE_CATEGORY_GROUPS: {"
+          },
+          {
+            "lineNumber": 64,
+            "text": "  id: PageCategoryId"
+          },
+          {
+            "lineNumber": 65,
+            "text": "  label: string"
+          },
+          {
+            "lineNumber": 66,
+            "text": "  pages: { page: AppActivePage; label: string }[]"
+          },
+          {
+            "lineNumber": 67,
+            "text": "}[] = ["
+          },
+          {
+            "lineNumber": 68,
+            "text": "  {"
+          },
+          {
+            "lineNumber": 69,
+            "text": "    id: 'trade',"
+          },
+          {
+            "lineNumber": 70,
+            "text": "    label: '입력·분석',"
+          },
+          {
+            "lineNumber": 71,
+            "text": "    pages: ["
+          },
+          {
+            "lineNumber": 72,
+            "text": "      { page: 'statements', label: '거래명세 관리' },"
+          },
+          {
+            "lineNumber": 73,
+            "text": "      { page: 'beanSalesAnalysis', label: '원두별 매출 분석' },"
+          },
+          {
+            "lineNumber": 74,
+            "text": "    ],"
+          },
+          {
+            "lineNumber": 75,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 76,
+            "text": "  {"
+          },
+          {
+            "lineNumber": 77,
+            "text": "    id: 'supply',"
+          },
+          {
+            "lineNumber": 78,
+            "text": "    label: '재고·생산',"
+          },
+          {
+            "lineNumber": 79,
+            "text": "    pages: ["
+          },
+          {
+            "lineNumber": 80,
+            "text": "      { page: 'inventory', label: '입출고 현황' },"
+          },
+          {
+            "lineNumber": 81,
+            "text": "      { page: 'greenBeanOrder', label: '생두 주문' },"
+          },
+          {
+            "lineNumber": 82,
+            "text": "    ],"
+          },
+          {
+            "lineNumber": 83,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 84,
+            "text": "  {"
+          },
+          {
+            "lineNumber": 85,
+            "text": "    id: 'closing',"
+          },
+          {
+            "lineNumber": 86,
+            "text": "    label: '회의·마감',"
+          },
+          {
+            "lineNumber": 87,
+            "text": "    pages: ["
+          },
+          {
+            "lineNumber": 88,
+            "text": "      { page: 'dailyMeeting', label: '일일회의' },"
+          },
+          {
+            "lineNumber": 89,
+            "text": "      { page: 'meeting', label: '월 마감회의' },"
+          },
+          {
+            "lineNumber": 90,
+            "text": "      { page: 'expense', label: '지출표' },"
+          },
+          {
+            "lineNumber": 91,
+            "text": "    ],"
+          },
+          {
+            "lineNumber": 92,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 93,
+            "text": "  {"
+          },
+          {
+            "lineNumber": 94,
+            "text": "    id: 'org',"
+          },
+          {
+            "lineNumber": 95,
+            "text": "    label: '조직·인사',"
+          },
+          {
+            "lineNumber": 96,
+            "text": "    pages: ["
+          },
+          {
+            "lineNumber": 97,
+            "text": "      { page: 'staffPayroll', label: '직원·급여' },"
+          },
+          {
+            "lineNumber": 98,
+            "text": "      { page: 'team', label: '팀 관리' },"
+          },
+          {
+            "lineNumber": 99,
+            "text": "    ],"
+          },
+          {
+            "lineNumber": 100,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 101,
+            "text": "]"
+          },
+          {
+            "lineNumber": 102
+          },
+          {
+            "lineNumber": 103,
+            "text": "const PAGE_HEADER_META: Record\u003cAppActivePage, { title: string; description: string }\u003e = {"
+          },
+          {
+            "lineNumber": 104,
+            "text": "  "
+          },
+          {
+            "lineNumber": 143,
+            "text": ","
+          },
+          {
+            "lineNumber": 144,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 143
+          },
+          "startPosition": {
+            "column": 60,
+            "line": 60
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.3770689368247986
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 43,
+            "text": "const STATEMENT_TEMPLATE_NAME_STORAGE_KEY = 'statement-template-name-v1'"
+          },
+          {
+            "lineNumber": 44,
+            "text": "const STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY = 'statement-template-updated-at-v1'"
+          },
+          {
+            "lineNumber": 45,
+            "text": "const STATEMENT_TEMPLATE_SETTINGS_STORAGE_KEY = 'statement-template-settings-v1'"
+          },
+          {
+            "lineNumber": 46,
+            "text": "const CURRENT_YEAR = new Date().getFullYear()"
+          },
+          {
+            "lineNumber": 47,
+            "text": "const MONTH_LABELS = Array.from({ length: 12 }, (_, index) =\u003e &#96;${index + 1}월&#96;)"
+          },
+          {
+            "lineNumber": 48
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 49,
+            "text": "type AppActivePage ="
+          },
+          {
+            "lineNumber": 50,
+            "text": "  | 'statements'"
+          },
+          {
+            "lineNumber": 51,
+            "text": "  | 'beanSalesAnalysis'"
+          },
+          {
+            "lineNumber": 52,
+            "text": "  | 'meeting'"
+          },
+          {
+            "lineNumber": 53,
+            "text": "  | 'inventory'"
+          },
+          {
+            "lineNumber": 54,
+            "text": "  | 'expense'"
+          },
+          {
+            "lineNumber": 55,
+            "text": "  | 'staffPayroll'"
+          },
+          {
+            "lineNumber": 56,
+            "text": "  | 'greenBeanOrder'"
+          },
+          {
+            "lineNumber": 57,
+            "text": "  | 'memo'"
+          },
+          {
+            "lineNumber": 58,
+            "text": "  | 'dailyMeeting'"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 59,
+            "text": "  | 'team'"
+          },
+          {
+            "lineNumber": 60
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 61,
+            "text": "type PageCategoryId = 'trade' | 'closing' | 'supply' | 'org'"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 60,
+            "line": 60
+          },
+          "startPosition": {
+            "column": 69,
+            "line": 41
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.3493318557739258
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1,
+            "text": " from 'react'"
+          },
+          {
+            "lineNumber": 2,
+            "text": "import ExcelJS from 'exceljs'"
+          },
+          {
+            "lineNumber": 3,
+            "text": "import BeanSalesAnalysisPage from './BeanSalesAnalysisPage'"
+          },
+          {
+            "lineNumber": 4,
+            "text": "import ExpensePage, { EXPENSE_PAGE_STORAGE_KEY } from './ExpensePage'"
+          },
+          {
+            "lineNumber": 5,
+            "text": "import MemoPage, { MEMO_PAGE_STORAGE_KEY } from './MemoPage'"
+          },
+          {
+            "lineNumber": 6,
+            "text": "import TeamManagementPage from './TeamManagementPage'"
+          },
+          {
+            "lineNumber": 7,
+            "text": "import GreenBeanOrderPage, { GREEN_BEAN_ORDER_STORAGE_KEY } from './GreenBeanOrderPage'"
+          },
+          {
+            "lineNumber": 8,
+            "text": "import StaffPayrollPage, { STAFF_PAYROLL_STORAGE_KEY } from './StaffPayrollPage.tsx'"
+          },
+          {
+            "lineNumber": 9,
+            "text": "import InventoryStatusPage, {"
+          },
+          {
+            "lineNumber": 10,
+            "text": "  getLowGreenBeanWarningItems,"
+          },
+          {
+            "lineNumber": 11,
+            "text": "  INVENTORY_STATUS_CACHE_EVENT,"
+          },
+          {
+            "lineNumber": 12,
+            "text": "  INVENTORY_AUTO_STOCK_MODE_KEY,"
+          },
+          {
+            "lineNumber": 13,
+            "text": "  INVENTORY_STATUS_BASELINE_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 14,
+            "text": "  INVENTORY_STATUS_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 15,
+            "text": "  INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 16,
+            "text": "  INVENTORY_STATUS_TEMPLATE_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 17,
+            "text": "  inventoryPageScopedKey,"
+          },
+          {
+            "lineNumber": 18,
+            "text": "  type LowGreenBeanWarningItem,"
+          },
+          {
+            "lineNumber": 19,
+            "text": "} from './InventoryStatusPage'"
+          },
+          {
+            "lineNumber": 20,
+            "text": "import { normalizeInventoryStatusState } from './inventoryStatusUtils'"
+          },
+          {
+            "lineNumber": 21,
+            "text": "import MonthlyMeetingPage, {"
+          },
+          {
+            "lineNumber": 22,
+            "text": "  MONTHLY_MEETING_DATA_KEY,"
+          },
+          {
+            "lineNumber": 23,
+            "text": "  STATEMENT_RECORDS_SAVED_EVENT,"
+          },
+          {
+            "lineNumber": 24,
+            "text": "  STATEMENT_RECORDS_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 25,
+            "text": "} from './MonthlyMeetingPage'"
+          },
+          {
+            "lineNumber": 26,
+            "text": "import { ADMIN_FOUR_DIGIT_PIN } from './adminPin.ts'"
+          },
+          {
+            "lineNumber": 27,
+            "text": "import PageSaveStatus from './components/PageSaveStatus'"
+          },
+          {
+            "lineNumber": 28,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 29,
+            "text": "  buildStyledStatementInputListBuffer,"
+          },
+          {
+            "lineNumber": 30,
+            "text": "  buildStyledStatementMonthlySummaryBuffer,"
+          },
+          {
+            "lineNumber": 31,
+            "text": "  statementInputListDefaultColumnWidths,"
+          },
+          {
+            "lineNumber": 32,
+            "text": "} from './statementExcelStyledExport.ts'"
+          },
+          {
+            "lineNumber": 33,
+            "text": "import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'"
+          },
+          {
+            "lineNumber": 34,
+            "text": "import { useDocumentSaveUi } from './lib/documentSaveUi'"
+          },
+          {
+            "lineNumber": 35,
+            "text": "import { useAppRuntime } from './providers/AppRuntimeProvider.tsx'"
+          },
+          {
+            "lineNumber": 36,
+            "text": "import './App.css'"
+          },
+          {
+            "lineNumber": 37
+          },
+          {
+            "lineNumber": 38,
+            "text": "const STORAGE_KEY = STATEMENT_RECORDS_STORAGE_KEY"
+          },
+          {
+            "lineNumber": 39,
+            "text": "const PRICING_RULES_STORAGE_KEY = 'pricing-rules-v1'"
+          },
+          {
+            "lineNumber": 40,
+            "text": "const MASTER_ITEMS_STORAGE_KEY = 'master-items-v1'"
+          },
+          {
+            "lineNumber": 41,
+            "text": "const ACTIVE_PAGE_STORAGE_KEY = 'active-page-v1'"
+          },
+          {
+            "lineNumber": 42,
+            "text": "const STATEMENT_TEMPLATE_STORAGE_KEY = 'statement-template-base64-v1'"
+          },
+          {
+            "lineNumber": 43,
+            "text": "const STATEMENT_TEMPLATE_NAME_STORAGE_KEY = 'statement-template-name-v1'"
+          },
+          {
+            "lineNumber": 44,
+            "text": "const STATEMENT_TEMPLATE_UPDATED_AT_STORAGE_KEY = 'statement-template-updated-at-v1'"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 84,
+            "line": 43
+          },
+          "startPosition": {
+            "column": 77
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.344955712556839
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4123,
+            "text": "{statementTemplateMessage}\u003c/p\u003e : null}"
+          },
+          {
+            "lineNumber": 4124,
+            "text": "          {statementTemplateFileName ? ("
+          },
+          {
+            "lineNumber": 4125,
+            "text": "            \u003cp className=\"local-save-status\"\u003e"
+          },
+          {
+            "lineNumber": 4126,
+            "text": "              일반 저장은 &#96;입력목록 엑셀 저장&#96;, 양식 반영 저장은 아래 거래명세표의 &#96;선택 문서 양식 저장&#96;을 사용하세요."
+          },
+          {
+            "lineNumber": 4127,
+            "text": "            \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 4128,
+            "text": "          ) : null}"
+          },
+          {
+            "lineNumber": 4129
+          },
+          {
+            "lineNumber": 4130,
+            "text": "          \u003cdiv className=\"statements-table-viewport\"\u003e"
+          },
+          {
+            "lineNumber": 4131,
+            "text": "          {activeView === 'records' ? ("
+          },
+          {
+            "lineNumber": 4132,
+            "text": "            \u003cdiv className=\"table-wrapper statements-main-table-hscroll\" ref={statementMainTableScrollRef}\u003e"
+          },
+          {
+            "lineNumber": 4133,
+            "text": "              \u003ctable\u003e"
+          },
+          {
+            "lineNumber": 4134,
+            "text": "                \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 4135,
+            "text": "                  \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4136,
+            "text": "                    \u003cth"
+          },
+          {
+            "lineNumber": 4137,
+            "text": "                      className=\"sortable-th\""
+          },
+          {
+            "lineNumber": 4138,
+            "text": "                      title=\"납품일이 속한 달에서, 납품일·거래처·입력순으로 몇 번째 건인지\""
+          },
+          {
+            "lineNumber": 4139,
+            "text": "                      onClick={() =\u003e handleToggleStatementSort('no')}"
+          },
+          {
+            "lineNumber": 4140,
+            "text": "                    \u003e"
+          },
+          {
+            "lineNumber": 4141,
+            "text": "                      번호{statementSort?.column === 'no' ? SORT_ARROW[statementSort.direction] : ''}"
+          },
+          {
+            "lineNumber": 4142,
+            "text": "                    \u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4143,
+            "text": "                    \u003cth"
+          },
+          {
+            "lineNumber": 4144,
+            "text": "                      className=\"sortable-th\""
+          },
+          {
+            "lineNumber": 4145,
+            "text": "                      onClick={() =\u003e handleToggleStatementSort('deliveryDate')}"
+          },
+          {
+            "lineNumber": 4146,
+            "text": "                    \u003e"
+          },
+          {
+            "lineNumber": 4147,
+            "text": "                      납품일{statementSort?.column === 'deliveryDate' ? SORT_ARROW[statementSort.direction] : ''}"
+          },
+          {
+            "lineNumber": 4148,
+            "text": "                    \u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4149,
+            "text": "                    \u003cth\u003e발행일자\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4150,
+            "text": "                    \u003cth\u003e횟수\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4151,
+            "text": "                    \u003cth"
+          },
+          {
+            "lineNumber": 4152,
+            "text": "                      className=\"sortable-th\""
+          },
+          {
+            "lineNumber": 4153,
+            "text": "                      onClick={() =\u003e handleToggleStatementSort('clientName')}"
+          },
+          {
+            "lineNumber": 4154,
+            "text": "                    \u003e"
+          },
+          {
+            "lineNumber": 4155,
+            "text": "                      거래처명{statementSort?.column === 'clientName' ? SORT_ARROW[statementSort.direction] : ''}"
+          },
+          {
+            "lineNumber": 4156,
+            "text": "                    \u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4157,
+            "text": "                    \u003cth\u003e품목\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4158,
+            "text": "                    \u003cth\u003e규격/단위\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4159,
+            "text": "                    \u003cth\u003e수량\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4160,
+            "text": "                    \u003cth\u003e단가\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4161,
+            "text": "                    \u003cth\u003e과세구분\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4162,
+            "text": "                    \u003cth\u003e공급가액\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4163,
+            "text": "                    \u003cth\u003e세액\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4164,
+            "text": "                    \u003cth\u003e계\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4165,
+            "text": "                    \u003cth\u003e\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4166,
+            "text": "                  \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4167,
+            "text": "                \u003c/thead\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3381460905075073
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 149,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 657
+          },
+          {
+            "lineNumber": 658
+          },
+          {
+            "lineNumber": 659,
+            "text": "  return ("
+          },
+          {
+            "lineNumber": 660,
+            "text": "    \u003cdiv className=\"bean-sales-analysis-page\"\u003e"
+          },
+          {
+            "lineNumber": 661,
+            "text": "      \u003cdiv className=\"page-header\"\u003e"
+          },
+          {
+            "lineNumber": 662,
+            "text": "        \u003cdiv className=\"page-header__title-row\"\u003e"
+          },
+          {
+            "lineNumber": 663,
+            "text": "          \u003ch1\u003e원두별 매출 분석\u003c/h1\u003e"
+          },
+          {
+            "lineNumber": 664,
+            "text": "          \u003cbutton"
+          },
+          {
+            "lineNumber": 665,
+            "text": "            type=\"button\""
+          },
+          {
+            "lineNumber": 666,
+            "text": "            className=\"bean-sales-open-link-modal\""
+          },
+          {
+            "lineNumber": 667,
+            "text": "            onClick={() =\u003e {"
+          },
+          {
+            "lineNumber": 668,
+            "text": "              setLinkModalPreferredToLabel(null)"
+          },
+          {
+            "lineNumber": 669,
+            "text": "              setLinkModalOpen(true)"
+          },
+          {
+            "lineNumber": 670,
+            "text": "            }}"
+          },
+          {
+            "lineNumber": 671,
+            "text": "          \u003e"
+          },
+          {
+            "lineNumber": 672,
+            "text": "            명세↔입고"
+          },
+          {
+            "lineNumber": 673,
+            "text": "          \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 674,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 675,
+            "text": "      \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 676
+          },
+          {
+            "lineNumber": 677,
+            "text": "      \u003cdiv className=\"analysis-controls\"\u003e"
+          },
+          {
+            "lineNumber": 678,
+            "text": "        \u003clabel className=\"analysis-control-field\"\u003e"
+          },
+          {
+            "lineNumber": 679,
+            "text": "          연도"
+          },
+          {
+            "lineNumber": 680,
+            "text": "          \u003cselect value={selectedYear} onChange={(e) =\u003e setSelectedYear(Number(e.target.value))}\u003e"
+          },
+          {
+            "lineNumber": 681,
+            "text": "            {Array.from({ length: 5 }, (_, i) =\u003e new Date().getFullYear() - i).map(year =\u003e ("
+          },
+          {
+            "lineNumber": 682,
+            "text": "              \u003coption key={year} value={year}\u003e{year}년\u003c/option\u003e"
+          },
+          {
+            "lineNumber": 683,
+            "text": "            ))}"
+          },
+          {
+            "lineNumber": 684,
+            "text": "          \u003c/select\u003e"
+          },
+          {
+            "lineNumber": 685,
+            "text": "        \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 686
+          },
+          {
+            "lineNumber": 687,
+            "text": "        \u003cdiv className=\"view-mode-tabs\"\u003e"
+          },
+          {
+            "lineNumber": 688,
+            "text": "          \u003cbutton "
+          },
+          {
+            "lineNumber": 689,
+            "text": "            className={viewMode === 'revenue' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 690,
+            "text": "            onClick={() =\u003e setViewMode('revenue')}"
+          },
+          {
+            "lineNumber": 691,
+            "text": "          \u003e"
+          },
+          {
+            "lineNumber": 692,
+            "text": "            매출 현황"
+          },
+          {
+            "lineNumber": 693,
+            "text": "          \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 694,
+            "text": "          \u003cbutton "
+          },
+          {
+            "lineNumber": 695,
+            "text": "            className={viewMode === 'detailed' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 696,
+            "text": "            onClick={() =\u003e setViewMode('detailed')}"
+          },
+          {
+            "lineNumber": 697,
+            "text": "          \u003e"
+          },
+          {
+            "lineNumber": 698,
+            "text": "            상세 분석"
+          },
+          {
+            "lineNumber": 699,
+            "text": "          \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 700,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 701
+          },
+          {
+            "lineNumber": 702,
+            "text": "        \u003clabel className=\"analysis-control-field\"\u003e"
+          },
+          {
+            "lineNumber": 703,
+            "text": "          목록 정렬"
+          },
+          {
+            "lineNumber": 704,
+            "text": "          \u003cselect value={sortBy} onChange={(e) =\u003e setSortBy(e.target.value as typeof sortBy)}\u003e"
+          },
+          {
+            "lineNumber": 705,
+            "text": "            \u003coption value=\"inventory\"\u003e입출고 순(번호)\u003c/option\u003e"
+          },
+          {
+            "lineNumber": 706,
+            "text": "            \u003coption value=\"revenue\"\u003e매출순\u003c/option\u003e"
+          },
+          {
+            "lineNumber": 707,
+            "text": "            \u003coption value=\"quantity\"\u003e수량순\u003c/option\u003e"
+          },
+          {
+            "lineNumber": 708,
+            "text": "          \u003c/select\u003e"
+          },
+          {
+            "lineNumber": 709,
+            "text": "        \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 710
+          },
+          {
+            "lineNumber": 711,
+            "text": "        \u003cbutton"
+          },
+          {
+            "lineNumber": 712,
+            "text": "          type=\"button\""
+          },
+          {
+            "lineNumber": 713,
+            "text": "          className=\"ghost-button bean-sales-export-excel\""
+          },
+          {
+            "lineNumber": 714,
+            "text": "          onClick={() =\u003e void handleExportBeanSalesExcel()}"
+          },
+          {
+            "lineNumber": 715,
+            "text": "        \u003e"
+          },
+          {
+            "lineNumber": 716,
+            "text": "          엑셀 내보내기"
+          },
+          {
+            "lineNumber": 717,
+            "text": "        \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 718,
+            "text": "      \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 719
+          },
+          {
+            "lineNumber": 720,
+            "text": "      \u003cdiv className=\"summary-metrics\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1520,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1519
+          },
+          "startPosition": {
+            "line": 148
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 150
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 149
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.33653339743614197
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 103,
+            "text": "const PAGE_HEADER_META: Record\u003cAppActivePage, { title: string; description: string }\u003e = {"
+          },
+          {
+            "lineNumber": 104,
+            "text": "  statements: {"
+          },
+          {
+            "lineNumber": 105,
+            "text": "    title: '거래명세 관리',"
+          },
+          {
+            "lineNumber": 106,
+            "text": "    description: '거래명세 입력, 단가 관리, 월별 납품현황을 한 화면에서 이어서 관리합니다.',"
+          },
+          {
+            "lineNumber": 107,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 108,
+            "text": "  beanSalesAnalysis: {"
+          },
+          {
+            "lineNumber": 109,
+            "text": "    title: '원두별 매출 분석',"
+          },
+          {
+            "lineNumber": 110,
+            "text": "    description: '거래명세서 데이터를 기반으로 원두별 매출과 수익성을 분석합니다.',"
+          },
+          {
+            "lineNumber": 111,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 112,
+            "text": "  meeting: {"
+          },
+          {
+            "lineNumber": 113,
+            "text": "    title: '월 마감회의',"
+          },
+          {
+            "lineNumber": 114,
+            "text": "    description: '월 요약, 비용 현황, 생산과 판매 지표를 한 번에 정리하는 회의 화면입니다.',"
+          },
+          {
+            "lineNumber": 115,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 116,
+            "text": "  inventory: {"
+          },
+          {
+            "lineNumber": 117,
+            "text": "    title: '입출고 현황',"
+          },
+          {
+            "lineNumber": 118,
+            "text": "    description: '입고·생산·출고 흐름과 재고 기준일을 같은 맥락으로 확인합니다.',"
+          },
+          {
+            "lineNumber": 119,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 120,
+            "text": "  expense: {"
+          },
+          {
+            "lineNumber": 121,
+            "text": "    title: '지출표',"
+          },
+          {
+            "lineNumber": 122,
+            "text": "    description: '월별 지출 내역과 결제 상태, 비용 합계를 빠르게 정리합니다.',"
+          },
+          {
+            "lineNumber": 123,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 124,
+            "text": "  staffPayroll: {"
+          },
+          {
+            "lineNumber": 125,
+            "text": "    title: '직원·급여',"
+          },
+          {
+            "lineNumber": 126,
+            "text": "    description: '직원 정보와 월 지급액, 수정 잠금 상태를 함께 관리합니다.',"
+          },
+          {
+            "lineNumber": 127,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 128,
+            "text": "  greenBeanOrder: {"
+          },
+          {
+            "lineNumber": 129,
+            "text": "    title: '생두 주문',"
+          },
+          {
+            "lineNumber": 130,
+            "text": "    description: '생두 주문, 가격 비교, 재고 연동 정보를 한곳에서 확인합니다.',"
+          },
+          {
+            "lineNumber": 131,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 132,
+            "text": "  memo: {"
+          },
+          {
+            "lineNumber": 133,
+            "text": "    title: '메모',"
+          },
+          {
+            "lineNumber": 134,
+            "text": "    description: '업무 메모와 링크 메모를 한곳에서 관리합니다.',"
+          },
+          {
+            "lineNumber": 135,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 136,
+            "text": "  dailyMeeting: {"
+          },
+          {
+            "lineNumber": 137,
+            "text": "    title: '일일회의',"
+          },
+          {
+            "lineNumber": 138,
+            "text": "    description: '당일 메모와 회의 정리를 빠르게 남기고 이어서 확인합니다.',"
+          },
+          {
+            "lineNumber": 139,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 140,
+            "text": "  team: {"
+          },
+          {
+            "lineNumber": 141,
+            "text": "    title: '팀 관리',"
+          },
+          {
+            "lineNumber": 142,
+            "text": "    description: '회사 구성원 계정을 만들고 역할과 연락처를 관리합니다.',"
+          },
+          {
+            "lineNumber": 143,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 144,
+            "text": "}"
+          },
+          {
+            "lineNumber": 145
+          },
+          {
+            "lineNumber": 146,
+            "text": "/** &#96;#root … \u003e header&#96;(app-home-shell) 안 전체 너비 히어로 — 각 화면 본문의 hero-panel과 중복되지 않게 여기만 사용 */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 147,
+            "line": 145
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 100
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {}
+      },
+      "score": 0.33047839999198914
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4634
+          },
+          {
+            "lineNumber": 4635
+          },
+          {
+            "lineNumber": 4636,
+            "text": "      \u003csection className=\"panel preview-panel statements-preview-panel\"\u003e"
+          },
+          {
+            "lineNumber": 4637,
+            "text": "        \u003cdiv className=\"panel-header statement-sheet-panel-header\"\u003e"
+          },
+          {
+            "lineNumber": 4638,
+            "text": "          \u003ch2\u003e거래명세표\u003c/h2\u003e"
+          },
+          {
+            "lineNumber": 4639,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4640
+          },
+          {
+            "lineNumber": 4641,
+            "text": "        \u003cdiv className=\"preview-stack\"\u003e"
+          },
+          {
+            "lineNumber": 4642,
+            "text": "          \u003carticle className=\"excel-preview-card statement-print-root\"\u003e"
+          },
+          {
+            "lineNumber": 4643,
+            "text": "            \u003cdiv className=\"statement-sheet-toolbar-row no-print\"\u003e"
+          },
+          {
+            "lineNumber": 4644,
+            "text": "              \u003cbutton"
+          },
+          {
+            "lineNumber": 4645,
+            "text": "                type=\"button\""
+          },
+          {
+            "lineNumber": 4646,
+            "text": "                className=\"ghost-button statement-preview-toggle\""
+          },
+          {
+            "lineNumber": 4647,
+            "text": "                onClick={() =\u003e setIsStatementPreviewOpen((open) =\u003e !open)}"
+          },
+          {
+            "lineNumber": 4648,
+            "text": "                aria-expanded={isStatementPreviewOpen}"
+          },
+          {
+            "lineNumber": 4649,
+            "text": "              \u003e"
+          },
+          {
+            "lineNumber": 4650,
+            "text": "                [거래명세표 미리보기] {isStatementPreviewOpen ? '▾' : '▸'}"
+          },
+          {
+            "lineNumber": 4651,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4652,
+            "text": "              {statementSheetGroups.length \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4653,
+            "text": "                \u003cdiv className=\"sheet-toolbar sheet-toolbar--compact sheet-toolbar-inline\"\u003e"
+          },
+          {
+            "lineNumber": 4654,
+            "text": "                  \u003cselect"
+          },
+          {
+            "lineNumber": 4655,
+            "text": "                    className=\"sheet-select\""
+          },
+          {
+            "lineNumber": 4656,
+            "text": "                    value={selectedSheet?.key ?? ''}"
+          },
+          {
+            "lineNumber": 4657,
+            "text": "                    onChange={(event) =\u003e setSelectedSheetKey(event.target.value)}"
+          },
+          {
+            "lineNumber": 4658,
+            "text": "                  \u003e"
+          },
+          {
+            "lineNumber": 4659,
+            "text": "                    {statementSheetGroups.map((group) =\u003e ("
+          },
+          {
+            "lineNumber": 4660,
+            "text": "                      \u003coption key={group.key} value={group.key}\u003e"
+          },
+          {
+            "lineNumber": 4661,
+            "text": "                        {formatDateLabel(group.deliveryDate)} / {group.clientName} / {group.deliveryCount}회"
+          },
+          {
+            "lineNumber": 4662,
+            "text": "                      \u003c/option\u003e"
+          },
+          {
+            "lineNumber": 4663,
+            "text": "                    ))}"
+          },
+          {
+            "lineNumber": 4664,
+            "text": "                  \u003c/select\u003e"
+          },
+          {
+            "lineNumber": 4665,
+            "text": "                  \u003cbutton"
+          },
+          {
+            "lineNumber": 4666,
+            "text": "                    type=\"button\""
+          },
+          {
+            "lineNumber": 4667,
+            "text": "                    className=\"ghost-button\""
+          },
+          {
+            "lineNumber": 4668,
+            "text": "                    onClick={() =\u003e setIsStatementTemplateEditMode((current) =\u003e !current)}"
+          },
+          {
+            "lineNumber": 4669,
+            "text": "                  \u003e"
+          },
+          {
+            "lineNumber": 4670,
+            "text": "                    {isStatementTemplateEditMode ? '완료' : '수정'}"
+          },
+          {
+            "lineNumber": 4671,
+            "text": "                  \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4672,
+            "text": "                  {isStatementTemplateEditMode ? ("
+          },
+          {
+            "lineNumber": 4673,
+            "text": "                    \u003c\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3176250457763672
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4567
+          },
+          {
+            "lineNumber": 4568,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4569,
+            "text": "          ) : ("
+          },
+          {
+            "lineNumber": 4570,
+            "text": "            \u003cdiv className=\"table-wrapper statements-main-table-hscroll\" ref={statementMainTableScrollRef}\u003e"
+          },
+          {
+            "lineNumber": 4571,
+            "text": "              \u003ctable className=\"summary-table\"\u003e"
+          },
+          {
+            "lineNumber": 4572,
+            "text": "                \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 4573,
+            "text": "                  \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4574,
+            "text": "                    \u003cth rowSpan={2}\u003eNO\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4575,
+            "text": "                    \u003cth rowSpan={2}\u003e거래처명\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4576,
+            "text": "                    \u003cth rowSpan={2}\u003e합계(부가세포함)\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4577,
+            "text": "                    \u003cth rowSpan={2}\u003e점유율\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4578,
+            "text": "                    {MONTH_LABELS.map((label) =\u003e ("
+          },
+          {
+            "lineNumber": 4579,
+            "text": "                      \u003cth key={label} colSpan={3}\u003e"
+          },
+          {
+            "lineNumber": 4580,
+            "text": "                        {label}"
+          },
+          {
+            "lineNumber": 4581,
+            "text": "                      \u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4582,
+            "text": "                    ))}"
+          },
+          {
+            "lineNumber": 4583,
+            "text": "                  \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4584,
+            "text": "                  \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4585,
+            "text": "                    {MONTH_LABELS.flatMap((label) =\u003e ["
+          },
+          {
+            "lineNumber": 4586,
+            "text": "                      \u003cth key={&#96;${label}-amount&#96;}\u003e금액\u003c/th\u003e,"
+          },
+          {
+            "lineNumber": 4587,
+            "text": "                      \u003cth key={&#96;${label}-issue&#96;}\u003e발행일자\u003c/th\u003e,"
+          },
+          {
+            "lineNumber": 4588,
+            "text": "                      \u003cth key={&#96;${label}-payment&#96;}\u003e입금일자\u003c/th\u003e,"
+          },
+          {
+            "lineNumber": 4589,
+            "text": "                    ])}"
+          },
+          {
+            "lineNumber": 4590,
+            "text": "                  \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4591,
+            "text": "                \u003c/thead\u003e"
+          },
+          {
+            "lineNumber": 4592,
+            "text": "                \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 4593,
+            "text": "                  {"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3159286081790924
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 952,
+            "text": "function ExpensePage() {"
+          },
+          {
+            "lineNumber": 1757
+          },
+          {
+            "lineNumber": 1758,
+            "text": "  const footerSumSupply = sumValues("
+          },
+          {
+            "lineNumber": 1759,
+            "text": "    filteredRecords.map((r) =\u003e splitAmount(r.totalAmount, r.taxType).supplyAmount),"
+          },
+          {
+            "lineNumber": 1760,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 1761,
+            "text": "  const footerSumTax = sumValues(filteredRecords.map((r) =\u003e splitAmount(r.totalAmount, r.taxType).taxAmount))"
+          },
+          {
+            "lineNumber": 1762
+          },
+          {
+            "lineNumber": 1763,
+            "text": "  return ("
+          },
+          {
+            "lineNumber": 1764,
+            "text": "    \u003cdiv className=\"meeting-layout\"\u003e"
+          },
+          {
+            "lineNumber": 1765,
+            "text": "      \u003csection className=\"panel expense-work-section\"\u003e"
+          },
+          {
+            "lineNumber": 1766,
+            "text": "        \u003cdiv className=\"expense-page-snapshot-metrics no-print\" aria-label=\"이번 달 요약\"\u003e"
+          },
+          {
+            "lineNumber": 1767,
+            "text": "          \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 1768,
+            "text": "            \u003cspan\u003e{hasActiveFilters ? '표시 중 총액' : &#96;${formatMonthLabel(pageState.activeMonth)} 총 지출&#96;}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 1769,
+            "text": "            \u003cstrong\u003e{formatMoney(totalExpenses)}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 1770,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1771,
+            "text": "          \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 1772,
+            "text": "            \u003cspan\u003e{hasActiveFilters ? '표시 중 미지급' : '미지급 합계'}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 1773,
+            "text": "            \u003cstrong\u003e{formatMoney(unpaidTotal)}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 1774,
+            "text": "            {unpaidCount \u003e 0 ? \u003cem className=\"expense-unpaid-badge\"\u003e{unpaidCount}건\u003c/em\u003e : null}"
+          },
+          {
+            "lineNumber": 1775,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1776,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1777,
+            "text": "        \u003cdiv className=\"panel-header\"\u003e"
+          },
+          {
+            "lineNumber": 1778,
+            "text": "          \u003cdiv\u003e"
+          },
+          {
+            "lineNumber": 1779,
+            "text": "            \u003ch2\u003e사업 지출 입력\u003c/h2\u003e"
+          },
+          {
+            "lineNumber": 1780,
+            "text": "            \u003cp className=\"muted\"\u003e"
+          },
+          {
+            "lineNumber": 1781,
+            "text": "              지출 엑셀을 올리면 시트에 있는 열 순서·제목에 맞춰 아래 목록 칸이 바뀝니다. 「표 열 기본으로」로 전체"
+          },
+          {
+            "lineNumber": 1782,
+            "text": "              열을 다시 켤 수 있습니다. 엑셀 또는 아래 목록에서 「용도」에 기타경비·운영경비를 적거나, 카테고리를 해당"
+          },
+          {
+            "lineNumber": 1783,
+            "text": "              값으로 선택하면 해당 월의 월 마감 회의 「비용 현황」에도 나누어 자동 반영됩니다."
+          },
+          {
+            "lineNumber": 1784,
+            "text": "            \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 1785,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1786,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1787
+          },
+          {
+            "lineNumber": 1788,
+            "text": "        \u003cdiv className=\"inventory-actions\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 2134,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 2133
+          },
+          "startPosition": {
+            "line": 951
+          }
+        },
+        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 953
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 952
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3077071011066437
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2125,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4136
+          },
+          {
+            "lineNumber": 4137,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4138
+          },
+          {
+            "lineNumber": 4139,
+            "text": "          {!collapsedSections.summary ? ("
+          },
+          {
+            "lineNumber": 4140,
+            "text": "            \u003c\u003e"
+          },
+          {
+            "lineNumber": 4141,
+            "text": "              \u003cdiv className=\"meeting-grid meeting-grid-2\"\u003e"
+          },
+          {
+            "lineNumber": 4142,
+            "text": "            \u003cMeetingSummaryValueCard"
+          },
+          {
+            "lineNumber": 4143,
+            "text": "              tableId=\"summary-sales\""
+          },
+          {
+            "lineNumber": 4144,
+            "text": "              title=\"매출\""
+          },
+          {
+            "lineNumber": 4145,
+            "text": "              newRowButtonLabel=\"항목 추가\""
+          },
+          {
+            "lineNumber": 4146,
+            "text": "              rows={computedCurrentMonthSales}"
+          },
+          {
+            "lineNumber": 4147,
+            "text": "              showShareColumn"
+          },
+          {
+            "lineNumber": 4148,
+            "text": "              editMode={summaryEditMode}"
+          },
+          {
+            "lineNumber": 4149,
+            "text": "              indexKind=\"sales\""
+          },
+          {
+            "lineNumber": 4150,
+            "text": "              isAmountReadonly={isComputedSalesRow}"
+          },
+          {
+            "lineNumber": 4151,
+            "text": "              onAddRow={() =\u003e addMonthStateRow('currentMonthSales', '새 매출 항목')}"
+          },
+          {
+            "lineNumber": 4152,
+            "text": "              onLabelChange={(i, v) =\u003e updateMonthStateLabel('currentMonthSales', i, v)}"
+          },
+          {
+            "lineNumber": 4153,
+            "text": "              onValueChange={(i, v) =\u003e updateValueRow('currentMonthSales', i, v)}"
+          },
+          {
+            "lineNumber": 4154,
+            "text": "              onRemoveRow={(i) =\u003e removeMonthStateRow('currentMonthSales', i)}"
+          },
+          {
+            "lineNumber": 4155,
+            "text": "            /\u003e"
+          },
+          {
+            "lineNumber": 4156,
+            "text": "            \u003cMeetingSummaryValueCard"
+          },
+          {
+            "lineNumber": 4157,
+            "text": "              tableId=\"summary-costs\""
+          },
+          {
+            "lineNumber": 4158,
+            "text": "              title=\"비용 현황\""
+          },
+          {
+            "lineNumber": 4159,
+            "text": "              newRowButtonLabel=\"항목 추가\""
+          },
+          {
+            "lineNumber": 4160,
+            "text": "              rows={computedCurrentMonthCosts}"
+          },
+          {
+            "lineNumber": 4161,
+            "text": "              showShareColumn"
+          },
+          {
+            "lineNumber": 4162,
+            "text": "              editMode={summaryEditMode}"
+          },
+          {
+            "lineNumber": 4163,
+            "text": "              indexKind=\"costs\""
+          },
+          {
+            "lineNumber": 4164,
+            "text": "              isAmountReadonly={(row) =\u003e isCostGrandRow(row) || isExpenseSheetFedCostAmountRow(row)}"
+          },
+          {
+            "lineNumber": 4165,
+            "text": "              shouldShowRemoveRowButton={(row) =\u003e !isCostGrandRow(row)}"
+          },
+          {
+            "lineNumber": 4166,
+            "text": "              rowExpenseBreakdownModal={summaryCostsExpenseBreakdownModal}"
+          },
+          {
+            "lineNumber": 4167,
+            "text": "              amountInputTitle={summaryCostsAmountInputTitle}"
+          },
+          {
+            "lineNumber": 4168,
+            "text": "              onAddRow={() =\u003e addMonthStateRow('currentMonthCosts', '새 비용 항목')}"
+          },
+          {
+            "lineNumber": 4169,
+            "text": "              onLabelChange={(i, v) =\u003e updateMonthStateLabel('currentMonthCosts', i, v)}"
+          },
+          {
+            "lineNumber": 4170,
+            "text": "              onValueChange={(i, v) =\u003e updateValueRow('currentMonthCosts', i, v)}"
+          },
+          {
+            "lineNumber": 4171,
+            "text": "              onRemoveRow={(i) =\u003e removeMonthStateRow('currentMonthCosts', i)}"
+          },
+          {
+            "lineNumber": 4172,
+            "text": "            /\u003e"
+          },
+          {
+            "lineNumber": 4173,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4174
+          },
+          {
+            "lineNumber": 4175,
+            "text": "          \u003cdiv className=\"meeting-summary-cashflow\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5136,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5135
+          },
+          "startPosition": {
+            "line": 2124
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2126
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2125
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.29562926292419434
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 2,
+            "text": "import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'"
+          },
+          {
+            "lineNumber": 3,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 4,
+            "text": "  CartesianGrid,"
+          },
+          {
+            "lineNumber": 5,
+            "text": "  Cell,"
+          },
+          {
+            "lineNumber": 6,
+            "text": "  Line,"
+          },
+          {
+            "lineNumber": 7,
+            "text": "  LineChart,"
+          },
+          {
+            "lineNumber": 8,
+            "text": "  Pie,"
+          },
+          {
+            "lineNumber": 9,
+            "text": "  PieChart,"
+          },
+          {
+            "lineNumber": 10,
+            "text": "  ResponsiveContainer,"
+          },
+          {
+            "lineNumber": 11,
+            "text": "  Tooltip,"
+          },
+          {
+            "lineNumber": 12,
+            "text": "  XAxis,"
+          },
+          {
+            "lineNumber": 13,
+            "text": "  YAxis,"
+          },
+          {
+            "lineNumber": 14,
+            "text": "} from 'recharts'"
+          },
+          {
+            "lineNumber": 15,
+            "text": "import PageSaveStatus from './components/PageSaveStatus'"
+          },
+          {
+            "lineNumber": 16,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 17,
+            "text": "  EXPENSE_PAGE_SAVED_EVENT,"
+          },
+          {
+            "lineNumber": 18,
+            "text": "  EXPENSE_PAGE_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 19,
+            "text": "  normalizeExpensePageState,"
+          },
+          {
+            "lineNumber": 20,
+            "text": "  readExpensePageStateFromStorage,"
+          },
+          {
+            "lineNumber": 21,
+            "text": "  resolveExpenseCategoryForMeetingBucket,"
+          },
+          {
+            "lineNumber": 22,
+            "text": "  type ExpensePageState,"
+          },
+          {
+            "lineNumber": 23,
+            "text": "  type ExpenseRecord,"
+          },
+          {
+            "lineNumber": 24,
+            "text": "} from './ExpensePage'"
+          },
+          {
+            "lineNumber": 25,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 26,
+            "text": "  getGreenBeanOrderMonthAggregate,"
+          },
+          {
+            "lineNumber": 27,
+            "text": "  GREEN_BEAN_ORDER_SAVED_EVENT,"
+          },
+          {
+            "lineNumber": 28,
+            "text": "  GREEN_BEAN_ORDER_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 29,
+            "text": "} from './GreenBeanOrderPage'"
+          },
+          {
+            "lineNumber": 30,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 31,
+            "text": "  INVENTORY_STATUS_CACHE_EVENT,"
+          },
+          {
+            "lineNumber": 32,
+            "text": "  INVENTORY_STATUS_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 33,
+            "text": "  inventoryPageScopedKey,"
+          },
+          {
+            "lineNumber": 34,
+            "text": "} from './InventoryStatusPage'"
+          },
+          {
+            "lineNumber": 35,
+            "text": "import { BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT } from './beanStatementManualMappings'"
+          },
+          {
+            "lineNumber": 36,
+            "text": "import { BLEND_WON_OVERRIDES_SAVED_EVENT } from './beanBlendWonOverrides'"
+          },
+          {
+            "lineNumber": 37,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 38,
+            "text": "  computeBeanSalesMaterialCostForYm,"
+          },
+          {
+            "lineNumber": 39,
+            "text": "  filterStatementsByYmDelivery,"
+          },
+          {
+            "lineNumber": 40,
+            "text": "  type BeanSalesMaterialMeetingLine,"
+          },
+          {
+            "lineNumber": 41,
+            "text": "  type BeanSalesMaterialMeetingResult,"
+          },
+          {
+            "lineNumber": 42,
+            "text": "  type BeanStatementDeliveryRecord,"
+          },
+          {
+            "lineNumber": 43,
+            "text": "} from './beanSalesMeetingMaterialCost'"
+          },
+          {
+            "lineNumber": 44,
+            "text": "import { exportStyledMeetingMonthExcel, sanitizeExcelFileBaseName } from './monthlyMeetingExcelStyledExport'"
+          },
+          {
+            "lineNumber": 45,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 46,
+            "text": "  dayIndexForReferenceDate,"
+          },
+          {
+            "lineNumber": 47,
+            "text": "  normalizeInventoryStatusState,"
+          },
+          {
+            "lineNumber": 48,
+            "text": "  type InventoryStatusState,"
+          },
+          {
+            "lineNumber": 49,
+            "text": "} from './inventoryStatusUtils'"
+          },
+          {
+            "lineNumber": 50,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 51,
+            "text": "  monthlyMeetingData,"
+          },
+          {
+            "lineNumber": 52,
+            "text": "  type MeetingMonthlyRow,"
+          },
+          {
+            "lineNumber": 53,
+            "text": "  type MeetingProductionRow,"
+          },
+          {
+            "lineNumber": 54,
+            "text": "  type MeetingStoreSalesRow,"
+          },
+          {
+            "lineNumber": 55,
+            "text": "  type MeetingValueRow,"
+          },
+          {
+            "lineNumber": 56,
+            "text": "  type MonthlyMeetingData,"
+          },
+          {
+            "lineNumber": 57,
+            "text": "} from './monthlyMeetingData'"
+          },
+          {
+            "lineNumber": 58,
+            "text": "import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'"
+          },
+          {
+            "lineNumber": 59,
+            "text": "import { useDocumentSaveUi } from './lib/documentSaveUi'"
+          },
+          {
+            "lineNumber": 60,
+            "text": "import { useAppRuntime } from './providers/AppRuntimeProvider'"
+          },
+          {
+            "lineNumber": 61,
+            "text": "import { canonicalBlendDisplayName } from './inventoryBlendRecipes'"
+          },
+          {
+            "lineNumber": 62
+          },
+          {
+            "lineNumber": 63,
+            "text": "/** 출고 표에서 생두 열과 구분하기 위한 기본 수동 품목(더치·디저트 등) 헤더 */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 108,
+            "line": 62
+          },
+          "startPosition": {
+            "column": 50
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.29459434747695923
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 303,
+            "text": "export default function MemoPage({ mode = 'all' }: MemoPageProps) {"
+          },
+          {
+            "lineNumber": 1192
+          },
+          {
+            "lineNumber": 1193
+          },
+          {
+            "lineNumber": 1194,
+            "text": "  return ("
+          },
+          {
+            "lineNumber": 1195,
+            "text": "    \u003cdiv className=\"memo-page\"\u003e"
+          },
+          {
+            "lineNumber": 1196,
+            "text": "      \u003cheader className=\"memo-page-top\"\u003e"
+          },
+          {
+            "lineNumber": 1197,
+            "text": "        \u003cdiv className=\"memo-page-top-main\"\u003e"
+          },
+          {
+            "lineNumber": 1198,
+            "text": "          \u003ch2 className=\"memo-page-top-title\"\u003e"
+          },
+          {
+            "lineNumber": 1199,
+            "text": "            {forceDailyOnly ? '일일회의' : forceComfortOnly ? '편의 메모' : '편의 메모 · 일일회의'}"
+          },
+          {
+            "lineNumber": 1200,
+            "text": "          \u003c/h2\u003e"
+          },
+          {
+            "lineNumber": 1201,
+            "text": "          \u003cp className=\"memo-page-status\" role=\"status\"\u003e"
+          },
+          {
+            "lineNumber": 1202,
+            "text": "            {statusMessage}"
+          },
+          {
+            "lineNumber": 1203,
+            "text": "          \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 1204,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1205,
+            "text": "        \u003cPageSaveStatus"
+          },
+          {
+            "lineNumber": 1206,
+            "text": "          className=\"memo-page-savebox\""
+          },
+          {
+            "lineNumber": 1207,
+            "text": "          mode={runtimeMode}"
+          },
+          {
+            "lineNumber": 1208,
+            "text": "          saveState={saveState}"
+          },
+          {
+            "lineNumber": 1209,
+            "text": "          lastSavedAt={lastSavedAt}"
+          },
+          {
+            "lineNumber": 1210,
+            "text": "          onSaveNow={runtimeMode === 'cloud' ? () =\u003e void saveNow() : undefined}"
+          },
+          {
+            "lineNumber": 1211,
+            "text": "          disabled={saveState === 'saving'}"
+          },
+          {
+            "lineNumber": 1212,
+            "text": "        /\u003e"
+          },
+          {
+            "lineNumber": 1213,
+            "text": "      \u003c/header\u003e"
+          },
+          {
+            "lineNumber": 1214
+          },
+          {
+            "lineNumber": 1215,
+            "text": "      {showModeTabs ? ("
+          },
+          {
+            "lineNumber": 1216,
+            "text": "        \u003cdiv className=\"segmented memo-page-mode-tabs\" role=\"tablist\" aria-label=\"메모 구분\"\u003e"
+          },
+          {
+            "lineNumber": 1217,
+            "text": "          \u003cbutton"
+          },
+          {
+            "lineNumber": 1218,
+            "text": "            type=\"button\""
+          },
+          {
+            "lineNumber": 1219,
+            "text": "            role=\"tab\""
+          },
+          {
+            "lineNumber": 1220,
+            "text": "            aria-selected={memoTab === 'comfort'}"
+          },
+          {
+            "lineNumber": 1221,
+            "text": "            className={memoTab === 'comfort' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 1222,
+            "text": "            onClick={() =\u003e setMemoTab('comfort')}"
+          },
+          {
+            "lineNumber": 1223,
+            "text": "          \u003e"
+          },
+          {
+            "lineNumber": 1224,
+            "text": "            편의 메모"
+          },
+          {
+            "lineNumber": 1225,
+            "text": "          \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 1226,
+            "text": "          \u003cbutton"
+          },
+          {
+            "lineNumber": 1227,
+            "text": "            type=\"button\""
+          },
+          {
+            "lineNumber": 1228,
+            "text": "            role=\"tab\""
+          },
+          {
+            "lineNumber": 1229,
+            "text": "            aria-selected={memoTab === 'daily'}"
+          },
+          {
+            "lineNumber": 1230,
+            "text": "            className={memoTab === 'daily' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 1231,
+            "text": "            onClick={() =\u003e setMemoTab('daily')}"
+          },
+          {
+            "lineNumber": 1232,
+            "text": "          \u003e"
+          },
+          {
+            "lineNumber": 1233,
+            "text": "            일일회의"
+          },
+          {
+            "lineNumber": 1234,
+            "text": "          \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 1235,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1236,
+            "text": "      ) : null}"
+          },
+          {
+            "lineNumber": 1237
+          },
+          {
+            "lineNumber": 1238,
+            "text": "      {memoTab === 'daily' ? ("
+          },
+          {
+            "lineNumber": 1239,
+            "text": "        \u003cdiv className=\"memo-daily\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1810,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1809
+          },
+          "startPosition": {
+            "line": 302
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MemoPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 16,
+                "line": 303
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 303
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 304
+              },
+              "startPosition": {
+                "column": 16,
+                "line": 303
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.291745662689209
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1668,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3353,
+            "text": "const handleExportWorkbook = async "
+          },
+          {
+            "lineNumber": 3435,
+            "text": ","
+          },
+          {
+            "lineNumber": 3436,
+            "text": "    ]"
+          },
+          {
+            "lineNumber": 3437
+          },
+          {
+            "lineNumber": 3438,
+            "text": "    const beanNameWorksheet = XLSX.utils.aoa_to_sheet(["
+          },
+          {
+            "lineNumber": 3439,
+            "text": "      ['NO', '원두명'],"
+          },
+          {
+            "lineNumber": 3440,
+            "text": "      ...displayedBeanRows.map((bean) =\u003e [bean.no, bean.name]),"
+          },
+          {
+            "lineNumber": 3441,
+            "text": "    ])"
+          },
+          {
+            "lineNumber": 3442,
+            "text": "    beanNameWorksheet['!cols'] = [{ wch: 8 }, { wch: 24 }]"
+          },
+          {
+            "lineNumber": 3443
+          },
+          {
+            "lineNumber": 3444,
+            "text": "    XLSX.utils.book_append_sheet(workbook, beanWorksheet, '생두전체현황')"
+          },
+          {
+            "lineNumber": 3445,
+            "text": "    XLSX.utils.book_append_sheet(workbook, roastingWorksheet, '로스팅현황')"
+          },
+          {
+            "lineNumber": 3446,
+            "text": "    XLSX.utils.book_append_sheet(workbook, beanNameWorksheet, '원두명')"
+          },
+          {
+            "lineNumber": 3447
+          },
+          {
+            "lineNumber": 3448,
+            "text": "    XLSX.writeFile(workbook, exportFileName)"
+          },
+          {
+            "lineNumber": 3449,
+            "text": "    setStatusMessage('현재 페이지 수정 내용을 새 엑셀 파일로 저장했습니다.')"
+          },
+          {
+            "lineNumber": 3450,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 3451
+          },
+          {
+            "lineNumber": 3452,
+            "text": "  return ("
+          },
+          {
+            "lineNumber": 3453,
+            "text": "    \u003c\u003e"
+          },
+          {
+            "lineNumber": 3454,
+            "text": "      {isStorageReady ? ("
+          },
+          {
+            "lineNumber": 3455,
+            "text": "    \u003cdiv className=\"meeting-layout\"\u003e"
+          },
+          {
+            "lineNumber": 3456,
+            "text": "      \u003csection className=\"panel inventory-top-controls-panel\"\u003e"
+          },
+          {
+            "lineNumber": 3457,
+            "text": "        \u003cdiv className=\"inventory-page-snapshot-metrics no-print\" aria-label=\"현황 요약\"\u003e"
+          },
+          {
+            "lineNumber": 3458,
+            "text": "          \u003cdiv className=\"hero-metrics inventory-hero-metrics-inline\"\u003e"
+          },
+          {
+            "lineNumber": 3459,
+            "text": "            \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 3460,
+            "text": "              \u003cspan\u003e기준일\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3461,
+            "text": "              \u003cstrong\u003e{formatReferenceDate(inventoryState.referenceDate)}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3462,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3463,
+            "text": "            \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 3464,
+            "text": "              \u003cspan\u003e기준일 재고 합계\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3465,
+            "text": "              \u003cstrong\u003e{formatNumber(inventoryMetric.totalEndingStock)}kg\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3466,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3467,
+            "text": "            \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 3468,
+            "text": "              \u003cspan\u003e월 누적 생산(사용) 합\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3469,
+            "text": "              \u003cstrong\u003e{formatNumber(roastingMetrics.grandTotal)}kg\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3470,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3471,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3472,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3473,
+            "text": "        \u003cdiv className=\"meeting-config-row inventory-config-row inventory-config-row--single-line\"\u003e"
+          },
+          {
+            "lineNumber": 3474,
+            "text": "          \u003clabel className=\"meeting-inline-field\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 4423,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 4422
+          },
+          "startPosition": {
+            "line": 1667
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1669
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1668
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 3353
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 3353
+              }
+            },
+            {
+              "endPosition": {
+                "column": 38,
+                "line": 3353
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 3353
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2903684973716736
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 303,
+            "text": "export default function MemoPage({ mode = 'all' }: MemoPageProps) {"
+          },
+          {
+            "lineNumber": 304,
+            "text": "  const { mode: runtimeMode, activeCompanyId, user } = useAppRuntime()"
+          },
+          {
+            "lineNumber": 305,
+            "text": "  const forceComfortOnly = mode === 'comfortOnly'"
+          },
+          {
+            "lineNumber": 306,
+            "text": "  const forceDailyOnly = mode === 'dailyOnly'"
+          },
+          {
+            "lineNumber": 307,
+            "text": "  const showModeTabs = mode === 'all'"
+          },
+          {
+            "lineNumber": 308,
+            "text": "  const [items, setItems] = useState\u003cConvenienceMemo[]\u003e([])"
+          },
+          {
+            "lineNumber": 309,
+            "text": "  const [todos, setTodos] = useState\u003cMemoTodoItem[]\u003e([])"
+          },
+          {
+            "lineNumber": 310,
+            "text": "  const [dailyByDate, setDailyByDate] = useState\u003cRecord\u003cstring, DailyMeetingDay\u003e\u003e({})"
+          },
+          {
+            "lineNumber": 311,
+            "text": "  const [memoTab, setMemoTab] = useState\u003cMemoPageTab\u003e(forceDailyOnly ? 'daily' : 'comfort')"
+          },
+          {
+            "lineNumber": 312,
+            "text": "  const [dailyDate, setDailyDate] = useState(todayLocalIsoDate)"
+          },
+          {
+            "lineNumber": 313,
+            "text": "  const [dailySearch, setDailySearch] = useState('')"
+          },
+          {
+            "lineNumber": 314,
+            "text": "  const [draftDailyTodo, setDraftDailyTodo] = useState('')"
+          },
+          {
+            "lineNumber": 315,
+            "text": "  const [draftDailyTodoDueDate, setDraftDailyTodoDueDate] = useState('')"
+          },
+          {
+            "lineNumber": 316,
+            "text": "  const [draftDailyTodoPriority, setDraftDailyTodoPriority] = useState\u003cMemoTodoItem['priority']\u003e('normal')"
+          },
+          {
+            "lineNumber": 317,
+            "text": "  const [dailyMeetingSections, setDailyMeetingSections] = useState\u003cDailyMeetingSections\u003e({ ...EMPTY_DAILY_MEETING_SECTIONS })"
+          },
+          {
+            "lineNumber": 318,
+            "text": "  const [showDailyRawEditor, setShowDailyRawEditor] = useState(false)"
+          },
+          {
+            "lineNumber": 319,
+            "text": "  const dailyMeetingSectionEditingRef = useRef(false)"
+          },
+          {
+            "lineNumber": 320,
+            "text": "  const dailyNoteTextareaRef = useRef\u003cHTMLTextAreaElement | null\u003e(null)"
+          },
+          {
+            "lineNumber": 321,
+            "text": "  const dailyNoteHistoryRef = useRef\u003cstring[]\u003e([])"
+          },
+          {
+            "lineNumber": 322,
+            "text": "  const dailyNoteHistoryIndexRef = useRef(0)"
+          },
+          {
+            "lineNumber": 323,
+            "text": "  const dailyNoteGroupTimerRef = useRef\u003cnumber | null\u003e(null)"
+          },
+          {
+            "lineNumber": 324,
+            "text": "  const dailyNoteGroupOpenRef = useRef(false)"
+          },
+          {
+            "lineNumber": 325,
+            "text": "  const dailyNoteIsComposingRef = useRef(false)"
+          },
+          {
+            "lineNumber": 326,
+            "text": "  const dailyNoteApplyingHistoryRef = useRef(false)"
+          },
+          {
+            "lineNumber": 327,
+            "text": "  const dailyNoteForceBoundaryRef = useRef(false)"
+          },
+          {
+            "lineNumber": 328,
+            "text": "  const [linkedRows, setLinkedRows] = useState\u003cLinkedMemoRow[]\u003e(() =\u003e collectLinkedMemos())"
+          },
+          {
+            "lineNumber": 329,
+            "text": "  const [isStorageReady, setIsStorageReady] = useState(false)"
+          },
+          {
+            "lineNumber": 330,
+            "text": "  const [isCloudReady, setIsCloudReady] = useState(runtimeMode === 'local')"
+          },
+          {
+            "lineNumber": 331,
+            "text": "  const [statusMessage, setStatusMessage] = useState('자동 저장')"
+          },
+          {
+            "lineNumber": 332,
+            "text": "  const [saveState, setSaveState] = useState\u003c'saved' | 'dirty' | 'saving' | 'error'\u003e('saved')"
+          },
+          {
+            "lineNumber": 333,
+            "text": "  const [lastSavedAt, setLastSavedAt] = useState('')"
+          },
+          {
+            "lineNumber": 334,
+            "text": "  const saveTimerRef = useRef\u003cnumber | null\u003e(null)"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1810,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1809
+          },
+          "startPosition": {
+            "column": 99,
+            "line": 300
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MemoPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.28965890407562256
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4826
+          },
+          {
+            "lineNumber": 4827
+          },
+          {
+            "lineNumber": 4828,
+            "text": "              {selectedSheet ? ("
+          },
+          {
+            "lineNumber": 4829,
+            "text": "                \u003cdiv className=\"statement-sheet-pair statement-sheet-pair--single\"\u003e"
+          },
+          {
+            "lineNumber": 4830,
+            "text": "                  \u003cdiv className=\"statement-sheet\"\u003e"
+          },
+          {
+            "lineNumber": 4831,
+            "text": "                  \u003cdiv className=\"statement-copy-label\"\u003e{STATEMENT_PREVIEW_LABEL}\u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4832
+          },
+          {
+            "lineNumber": 4833,
+            "text": "                  \u003cdiv className=\"statement-sheet-header\"\u003e"
+          },
+          {
+            "lineNumber": 4834,
+            "text": "                    \u003cdiv className=\"statement-doc-date-line\"\u003e"
+          },
+          {
+            "lineNumber": 4835,
+            "text": "                      납품일 {formatDateLabel(selectedSheet.deliveryDate)}"
+          },
+          {
+            "lineNumber": 4836,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4837,
+            "text": "                    \u003ch3\u003e거래명세표\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 4838,
+            "text": "                    \u003cdiv className=\"statement-header-spacer\"\u003e\u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4839,
+            "text": "                  \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4840
+          },
+          {
+            "lineNumber": 4841,
+            "text": "                  \u003ctable className=\"statement-meta-table\"\u003e"
+          },
+          {
+            "lineNumber": 4842,
+            "text": "                    \u003ccolgroup\u003e"
+          },
+          {
+            "lineNumber": 4843,
+            "text": "                      \u003ccol style={{ width: '12%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4844,
+            "text": "                      \u003ccol style={{ width: '18%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4845,
+            "text": "                      \u003ccol style={{ width: '4%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4846,
+            "text": "                      \u003ccol style={{ width: '14%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4847,
+            "text": "                      \u003ccol style={{ width: '17.33%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4848,
+            "text": "                      \u003ccol style={{ width: '17.33%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4849,
+            "text": "                      \u003ccol style={{ width: '17.34%' }} /\u003e"
+          },
+          {
+            "lineNumber": 4850,
+            "text": "                    \u003c/colgroup\u003e"
+          },
+          {
+            "lineNumber": 4851,
+            "text": "                    \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 4852,
+            "text": "                      \u003ctr\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.28933480381965637
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2125,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4072
+          },
+          {
+            "lineNumber": 4073,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4074
+          },
+          {
+            "lineNumber": 4075,
+            "text": "          \u003cdiv className=\"meeting-actions\"\u003e"
+          },
+          {
+            "lineNumber": 4076,
+            "text": "            \u003cbutton type=\"button\" className=\"ghost-button\" onClick={handleExportMeetingExcel}\u003e"
+          },
+          {
+            "lineNumber": 4077,
+            "text": "              현재 월 엑셀 저장"
+          },
+          {
+            "lineNumber": 4078,
+            "text": "            \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4079,
+            "text": "            \u003cselect value={copyTargetMonth} onChange={(event) =\u003e setCopyTargetMonth(event.target.value)}\u003e"
+          },
+          {
+            "lineNumber": 4080,
+            "text": "              {data.months"
+          },
+          {
+            "lineNumber": 4081,
+            "text": "                .filter((month) =\u003e month !== activeMonth)"
+          },
+          {
+            "lineNumber": 4082,
+            "text": "                .map((month) =\u003e ("
+          },
+          {
+            "lineNumber": 4083,
+            "text": "                  \u003coption key={month} value={month}\u003e"
+          },
+          {
+            "lineNumber": 4084,
+            "text": "                    {month}로 복사"
+          },
+          {
+            "lineNumber": 4085,
+            "text": "                  \u003c/option\u003e"
+          },
+          {
+            "lineNumber": 4086,
+            "text": "                ))}"
+          },
+          {
+            "lineNumber": 4087,
+            "text": "            \u003c/select\u003e"
+          },
+          {
+            "lineNumber": 4088,
+            "text": "            \u003cbutton type=\"button\" className=\"ghost-button\" onClick={handleCopyMonth}\u003e"
+          },
+          {
+            "lineNumber": 4089,
+            "text": "              현재 월 복사"
+          },
+          {
+            "lineNumber": 4090,
+            "text": "            \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4091,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4092
+          },
+          {
+            "lineNumber": 4093,
+            "text": "          \u003cp className=\"meeting-excel-export-hint\"\u003e"
+          },
+          {
+            "lineNumber": 4094,
+            "text": "            「현재 월」탭에 보이는 내용만 엑셀 한 장으로 받습니다. 구역별로 색·테두리·머리글이 자동으로"
+          },
+          {
+            "lineNumber": 4095,
+            "text": "            들어갑니다."
+          },
+          {
+            "lineNumber": 4096,
+            "text": "          \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 4097
+          },
+          {
+            "lineNumber": 4098,
+            "text": "          \u003cdiv className=\"segmented meeting-month-tabs\"\u003e"
+          },
+          {
+            "lineNumber": 4099,
+            "text": "            {data.months.map((month) =\u003e ("
+          },
+          {
+            "lineNumber": 4100,
+            "text": "              \u003cbutton"
+          },
+          {
+            "lineNumber": 4101,
+            "text": "                key={month}"
+          },
+          {
+            "lineNumber": 4102,
+            "text": "                type=\"button\""
+          },
+          {
+            "lineNumber": 4103,
+            "text": "                className={activeMonth === month ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 4104,
+            "text": "                onClick={() =\u003e"
+          },
+          {
+            "lineNumber": 4105,
+            "text": "                  setPageState((current) =\u003e ({"
+          },
+          {
+            "lineNumber": 4106,
+            "text": "                    ...current,"
+          },
+          {
+            "lineNumber": 4107,
+            "text": "                    activeMonth: month,"
+          },
+          {
+            "lineNumber": 4108,
+            "text": "                  }))"
+          },
+          {
+            "lineNumber": 4109,
+            "text": "                }"
+          },
+          {
+            "lineNumber": 4110,
+            "text": "              \u003e"
+          },
+          {
+            "lineNumber": 4111,
+            "text": "                {month}"
+          },
+          {
+            "lineNumber": 4112,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4113,
+            "text": "            ))}"
+          },
+          {
+            "lineNumber": 4114,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4115,
+            "text": "        \u003c/section\u003e"
+          },
+          {
+            "lineNumber": 4116
+          },
+          {
+            "lineNumber": 4117,
+            "text": "        \u003csection className=\"panel\"\u003e"
+          },
+          {
+            "lineNumber": 4118,
+            "text": "          \u003cdiv className=\"panel-header\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5136,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5135
+          },
+          "startPosition": {
+            "line": 2124
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2126
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2125
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.282861590385437
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1668,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 4084
+          },
+          {
+            "lineNumber": 4085,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4086,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4087,
+            "text": "            {roastingViewMode === 'daily' ? ("
+          },
+          {
+            "lineNumber": 4088,
+            "text": "              \u003cDailyRoastingJournal"
+          },
+          {
+            "lineNumber": 4089,
+            "text": "                days={inventoryState.days}"
+          },
+          {
+            "lineNumber": 4090,
+            "text": "                columnIndices={visibleRoastingColumnIndices}"
+          },
+          {
+            "lineNumber": 4091,
+            "text": "                columnNames={inventoryState.roastingColumns}"
+          },
+          {
+            "lineNumber": 4092,
+            "text": "                columnDisplayNo={roastingColumnIndexToDisplayNo}"
+          },
+          {
+            "lineNumber": 4093,
+            "text": "                dailyRows={roastingDailyRows}"
+          },
+          {
+            "lineNumber": 4094,
+            "text": "                columnTotals={computedRoastingTotals}"
+          },
+          {
+            "lineNumber": 4095,
+            "text": "                grandTotal={roastingMetrics.grandTotal}"
+          },
+          {
+            "lineNumber": 4096,
+            "text": "                latestActiveDay={roastingMetrics.latestActiveDay}"
+          },
+          {
+            "lineNumber": 4097,
+            "text": "                peakDay={roastingMetrics.peakDay}"
+          },
+          {
+            "lineNumber": 4098,
+            "text": "                daysWithRoasting={roastingMetrics.daysWithRoasting}"
+          },
+          {
+            "lineNumber": 4099,
+            "text": "                referenceDate={inventoryState.referenceDate}"
+          },
+          {
+            "lineNumber": 4100,
+            "text": "                onChangeCell={updateRoastingValue}"
+          },
+          {
+            "lineNumber": 4101,
+            "text": "                blendingDarkCycles={inventoryState.blendingDarkCycles}"
+          },
+          {
+            "lineNumber": 4102,
+            "text": "                blendingDarkRecipe={inventoryState.blendingDarkRecipe}"
+          },
+          {
+            "lineNumber": 4103,
+            "text": "                blendingLightCycles={inventoryState.blendingLightCycles}"
+          },
+          {
+            "lineNumber": 4104,
+            "text": "                blendingLightRecipe={inventoryState.blendingLightRecipe}"
+          },
+          {
+            "lineNumber": 4105,
+            "text": "                blendingDecaffeineCycles={inventoryState.blendingDecaffeineCycles}"
+          },
+          {
+            "lineNumber": 4106,
+            "text": "                blendingDecaffeineRecipe={inventoryState.blendingDecaffeineRecipe}"
+          },
+          {
+            "lineNumber": 4107,
+            "text": "                beanNameOptions={inventoryState.beanRows.map((b) =\u003e b.name)}"
+          },
+          {
+            "lineNumber": 4108,
+            "text": "                onChangeBlendingCycles={updateBlendingCyclesForDay}"
+          },
+          {
+            "lineNumber": 4109,
+            "text": "                onChangeRecipeComponent={updateBlendingRecipeComponent}"
+          },
+          {
+            "lineNumber": 4110,
+            "text": "                onChangeRoastedPerCycle={updateBlendingRoastedPerCycle}"
+          },
+          {
+            "lineNumber": 4111,
+            "text": "                onAddRecipeComponent={addBlendingRecipeComponent}"
+          },
+          {
+            "lineNumber": 4112,
+            "text": "                onRemoveRecipeComponent={removeBlendingRecipeComponent}"
+          },
+          {
+            "lineNumber": 4113,
+            "text": "              /\u003e"
+          },
+          {
+            "lineNumber": 4114,
+            "text": "            ) : ("
+          },
+          {
+            "lineNumber": 4115,
+            "text": "              \u003cdiv className=\"table-wrapper\"\u003e"
+          },
+          {
+            "lineNumber": 4116,
+            "text": "                \u003ctable className=\"meeting-table inventory-table\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 4423,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 4422
+          },
+          "startPosition": {
+            "line": 1667
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1669
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1668
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2762853503227234
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2125,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4342
+          },
+          {
+            "lineNumber": 4343,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4344
+          },
+          {
+            "lineNumber": 4345,
+            "text": "          {!collapsedSections.roasting ? \u003cdiv className=\"meeting-grid\"\u003e"
+          },
+          {
+            "lineNumber": 4346,
+            "text": "            \u003carticle className=\"meeting-card\"\u003e"
+          },
+          {
+            "lineNumber": 4347,
+            "text": "              \u003cdiv className=\"meeting-card-header\"\u003e"
+          },
+          {
+            "lineNumber": 4348,
+            "text": "                \u003ch3\u003e거래처 매출·생두비용·순이익\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 4349,
+            "text": "                \u003cdiv className=\"meeting-roasting-header-actions\"\u003e"
+          },
+          {
+            "lineNumber": 4350,
+            "text": "                  \u003clabel className=\"meeting-inline-field meeting-roasting-month-field\"\u003e"
+          },
+          {
+            "lineNumber": 4351,
+            "text": "                    \u003cspan className=\"meeting-roasting-year-label\"\u003e거래명세 집계 월\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 4352,
+            "text": "                    \u003cinput"
+          },
+          {
+            "lineNumber": 4353,
+            "text": "                      type=\"month\""
+          },
+          {
+            "lineNumber": 4354,
+            "text": "                      className=\"meeting-roasting-month-input\""
+          },
+          {
+            "lineNumber": 4355,
+            "text": "                      value={roastingSalesReferenceYm}"
+          },
+          {
+            "lineNumber": 4356,
+            "text": "                      onChange={(event) =\u003e {"
+          },
+          {
+            "lineNumber": 4357,
+            "text": "                        const v = event.target.value"
+          },
+          {
+            "lineNumber": 4358,
+            "text": "                        if (v \u0026\u0026 parseYm(v)) {"
+          },
+          {
+            "lineNumber": 4359,
+            "text": "                          setRoastingSalesReferenceYm(v)"
+          },
+          {
+            "lineNumber": 4360,
+            "text": "                        }"
+          },
+          {
+            "lineNumber": 4361,
+            "text": "                      }}"
+          },
+          {
+            "lineNumber": 4362,
+            "text": "                    /\u003e"
+          },
+          {
+            "lineNumber": 4363,
+            "text": "                  \u003c/label\u003e"
+          },
+          {
+            "lineNumber": 4364,
+            "text": "                  \u003cbutton"
+          },
+          {
+            "lineNumber": 4365,
+            "text": "                    type=\"button\""
+          },
+          {
+            "lineNumber": 4366,
+            "text": "                    className=\"ghost-button meeting-mini-button\""
+          },
+          {
+            "lineNumber": 4367,
+            "text": "                    onClick={applyGreenBeanOrderToRoastingBeanCost}"
+          },
+          {
+            "lineNumber": 4368,
+            "text": "                  \u003e"
+          },
+          {
+            "lineNumber": 4369,
+            "text": "                    생두 주문 합계 반영"
+          },
+          {
+            "lineNumber": 4370,
+            "text": "                  \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4371,
+            "text": "                  {roastingEditMode ? ("
+          },
+          {
+            "lineNumber": 4372,
+            "text": "                    \u003cbutton"
+          },
+          {
+            "lineNumber": 4373,
+            "text": "                      type=\"button\""
+          },
+          {
+            "lineNumber": 4374,
+            "text": "                      className=\"ghost-button meeting-mini-button\""
+          },
+          {
+            "lineNumber": 4375,
+            "text": "                      onClick={addRoastingSalesRow}"
+          },
+          {
+            "lineNumber": 4376,
+            "text": "                    \u003e"
+          },
+          {
+            "lineNumber": 4377,
+            "text": "                      거래처 추가"
+          },
+          {
+            "lineNumber": 4378,
+            "text": "                    \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4379,
+            "text": "                  ) : null}"
+          },
+          {
+            "lineNumber": 4380,
+            "text": "                \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4381,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4382,
+            "text": "              {greenBeanOrderSyncHint ? ("
+          },
+          {
+            "lineNumber": 4383,
+            "text": "                \u003cp className=\"muted tiny meeting-roasting-statement-sync-msg\"\u003e{greenBeanOrderSyncHint}\u003c/p\u003e"
+          },
+          {
+            "lineNumber": 4384,
+            "text": "              ) : null}"
+          },
+          {
+            "lineNumber": 4385,
+            "text": "              \u003cdiv className=\"table-wrapper\"\u003e"
+          },
+          {
+            "lineNumber": 4386,
+            "text": "                \u003ctable className=\"meeting-table meeting-table-compact\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5136,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5135
+          },
+          "startPosition": {
+            "line": 2124
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2126
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2125
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.27500951290130615
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2125,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 2228,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 2252,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 2260,
+            "text": "('storage', onStorage)"
+          },
+          {
+            "lineNumber": 2261,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2262,
+            "text": "  }, [])"
+          },
+          {
+            "lineNumber": 2263
+          },
+          {
+            "lineNumber": 2264,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2265,
+            "text": "    const bump = () =\u003e setInventoryLinkTick((n) =\u003e n + 1)"
+          },
+          {
+            "lineNumber": 2266,
+            "text": "    const bumpBean = () =\u003e setBeanMeetingMaterialDepsRev((n) =\u003e n + 1)"
+          },
+          {
+            "lineNumber": 2267,
+            "text": "    window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, bump)"
+          },
+          {
+            "lineNumber": 2268,
+            "text": "    window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, bumpBean)"
+          },
+          {
+            "lineNumber": 2269,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 2270,
+            "text": "      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, bump)"
+          },
+          {
+            "lineNumber": 2271,
+            "text": "      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, bumpBean)"
+          },
+          {
+            "lineNumber": 2272,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2273,
+            "text": "  }, [])"
+          },
+          {
+            "lineNumber": 2274
+          },
+          {
+            "lineNumber": 2275,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2276,
+            "text": "    const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)"
+          },
+          {
+            "lineNumber": 2277,
+            "text": "    const onStorage = (event: StorageEvent) =\u003e {"
+          },
+          {
+            "lineNumber": 2278,
+            "text": "      if (event.key === key) {"
+          },
+          {
+            "lineNumber": 2279,
+            "text": "        setInventoryLinkTick((n) =\u003e n + 1)"
+          },
+          {
+            "lineNumber": 2280,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2281,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2282,
+            "text": "    window.addEventListener('storage', onStorage)"
+          },
+          {
+            "lineNumber": 2283,
+            "text": "    return () =\u003e window.removeEventListener('storage', onStorage)"
+          },
+          {
+            "lineNumber": 2284,
+            "text": "  }, [mode, activeCompanyId])"
+          },
+          {
+            "lineNumber": 2285
+          },
+          {
+            "lineNumber": 2286,
+            "text": "  /** 거래명세 납품일(집계 월) 기준으로 2번 표 거래처명 행의 매출 열을 자동 반영 */"
+          },
+          {
+            "lineNumber": 2287,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2288,
+            "text": "    if (!isStorageReady || sectionEditModes.roasting) {"
+          },
+          {
+            "lineNumber": 2289,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2290,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2291,
+            "text": "    const ref = parseYm(roastingSalesReferenceYm.trim())"
+          },
+          {
+            "lineNumber": 2292,
+            "text": "    if (!ref) {"
+          },
+          {
+            "lineNumber": 2293,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2294,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2295,
+            "text": "    const raw = window.localStorage.getItem(STATEMENT_RECORDS_STORAGE_KEY)"
+          },
+          {
+            "lineNumber": 2296,
+            "text": "    const records = raw ? parseStatementRecordsForRoasting(raw) : []"
+          },
+          {
+            "lineNumber": 2297,
+            "text": "    const aggregates = aggregateRoastingSalesForYm(records, ref.y, ref.m)"
+          },
+          {
+            "lineNumber": 2298,
+            "text": "    setPageState((current) =\u003e {"
+          },
+          {
+            "lineNumber": 2299,
+            "text": "      const merged = mergeRoastingSalesWithStatementAggregates(current.data.roastingSales, aggregates)"
+          },
+          {
+            "lineNumber": 2300,
+            "text": "      if ("
+          },
+          {
+            "lineNumber": 2301,
+            "text": "        roastingSalesStatementSyncSignature(current.data.roastingSales) ==="
+          },
+          {
+            "lineNumber": 2302,
+            "text": "        roastingSalesStatementSyncSignature(merged)"
+          },
+          {
+            "lineNumber": 2303,
+            "text": "      ) {"
+          },
+          {
+            "lineNumber": 2304,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2305,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2306,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 2307,
+            "text": "        ...current,"
+          },
+          {
+            "lineNumber": 2308,
+            "text": "        data: {"
+          },
+          {
+            "lineNumber": 2309,
+            "text": "          ...current.data,"
+          },
+          {
+            "lineNumber": 2310,
+            "text": "          roastingSales: merged,"
+          },
+          {
+            "lineNumber": 2311,
+            "text": "        },"
+          },
+          {
+            "lineNumber": 2312,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2313,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 2314,
+            "text": "  }, [isStorageReady, sectionEditModes.roasting, roastingSalesReferenceYm, statementRecordsStorageRev])"
+          },
+          {
+            "lineNumber": 2315
+          },
+          {
+            "lineNumber": 2316,
+            "text": "  useEffect"
+          },
+          {
+            "lineNumber": 2346
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5136,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5135
+          },
+          "startPosition": {
+            "line": 2124
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2126
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2125
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2720104455947876
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2125,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 2126,
+            "text": "  const { mode, activeCompanyId, user } = useAppRuntime()"
+          },
+          {
+            "lineNumber": 2127,
+            "text": "  /** 입출고 페이지와 동일한 localStorage 키 + 캐시 갱신 시 4번 출고·재고 표를 다시 읽음 */"
+          },
+          {
+            "lineNumber": 2128,
+            "text": "  const [inventoryLinkTick, setInventoryLinkTick] = useState(0)"
+          },
+          {
+            "lineNumber": 2129,
+            "text": "  const [pageState, setPageState] = useState\u003cMonthlyMeetingPageState\u003e(createDefaultState)"
+          },
+          {
+            "lineNumber": 2130,
+            "text": "  const pageStateRef = useRef(pageState)"
+          },
+          {
+            "lineNumber": 2131,
+            "text": "  pageStateRef.current = pageState"
+          },
+          {
+            "lineNumber": 2132,
+            "text": "  const monthlyMeetingCloudSaveTimerRef = useRef\u003cnumber | null\u003e(null)"
+          },
+          {
+            "lineNumber": 2133,
+            "text": "  const [sectionEditModes, setSectionEditModes] = useState\u003cRecord\u003cMeetingSectionEditKey, boolean\u003e\u003e("
+          },
+          {
+            "lineNumber": 2134,
+            "text": "    readStoredSectionEditModes,"
+          },
+          {
+            "lineNumber": 2135,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2136,
+            "text": "  const [isStorageReady, setIsStorageReady] = useState(false)"
+          },
+          {
+            "lineNumber": 2137,
+            "text": "  const [isCloudReady, setIsCloudReady] = useState(mode === 'local')"
+          },
+          {
+            "lineNumber": 2138,
+            "text": "  const lastCloudPollJsonRef = useRef('')"
+          },
+          {
+            "lineNumber": 2139,
+            "text": "  const {"
+          },
+          {
+            "lineNumber": 2140,
+            "text": "    lastSavedAt,"
+          },
+          {
+            "lineNumber": 2141,
+            "text": "    markDocumentDirty,"
+          },
+          {
+            "lineNumber": 2142,
+            "text": "    markDocumentError,"
+          },
+          {
+            "lineNumber": 2143,
+            "text": "    markDocumentSaved,"
+          },
+          {
+            "lineNumber": 2144,
+            "text": "    markDocumentSaving,"
+          },
+          {
+            "lineNumber": 2145,
+            "text": "    resetDocumentSaveUi,"
+          },
+          {
+            "lineNumber": 2146,
+            "text": "    saveState,"
+          },
+          {
+            "lineNumber": 2147,
+            "text": "    skipInitialDocumentSave,"
+          },
+          {
+            "lineNumber": 2148,
+            "text": "  } = useDocumentSaveUi(mode)"
+          },
+          {
+            "lineNumber": 2149,
+            "text": "  const saveStateRef = useRef(saveState)"
+          },
+          {
+            "lineNumber": 2150,
+            "text": "  saveStateRef.current = saveState"
+          },
+          {
+            "lineNumber": 2151,
+            "text": "  const [copyTargetMonth, setCopyTargetMonth] = useState('')"
+          },
+          {
+            "lineNumber": 2152,
+            "text": "  const [collapsedSections, setCollapsedSections] = useState\u003cRecord\u003cMeetingSectionKey, boolean\u003e\u003e("
+          },
+          {
+            "lineNumber": 2153,
+            "text": "    readStoredCollapsedSections,"
+          },
+          {
+            "lineNumber": 2154,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 2155,
+            "text": "  const [roastingSalesReferenceYm, setRoastingSalesReferenceYm] = useState(() =\u003e {"
+          },
+          {
+            "lineNumber": 2156,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 2157,
+            "text": "      const raw = window.localStorage.getItem(ROASTING_REF_YM_STORAGE_KEY)"
+          },
+          {
+            "lineNumber": 2158,
+            "text": "      if (raw \u0026\u0026 parseYm(raw)) {"
+          },
+          {
+            "lineNumber": 2159,
+            "text": "        return raw"
+          },
+          {
+            "lineNumber": 2160,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2161,
+            "text": "    } catch {"
+          },
+          {
+            "lineNumber": 2162,
+            "text": "      /* ignore */"
+          },
+          {
+            "lineNumber": 2163,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2164,
+            "text": "    return todayYm()"
+          },
+          {
+            "lineNumber": 2165,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 2166,
+            "text": "  const [greenBeanOrderSyncHint, setGreenBeanOrderSyncHint] = useState('')"
+          },
+          {
+            "lineNumber": 2167,
+            "text": "  const [greenBeanOrderStorageRev, setGreenBeanOrderStorageRev] = useState(0)"
+          },
+          {
+            "lineNumber": 2168,
+            "text": "  const [statementRecordsStorageRev, setStatementRecordsStorageRev] = useState(0)"
+          },
+          {
+            "lineNumber": 2169,
+            "text": "  const [expensePageStorageRev, setExpensePageStorageRev] = useState(0)"
+          },
+          {
+            "lineNumber": 2170,
+            "text": "  const [meetingCostDetailModal, setMeetingCostDetailModal] = useState\u003cMeetingCostDetailModalState\u003e(null)"
+          },
+          {
+            "lineNumber": 2171,
+            "text": "  const [expenseBreakdownSortKey, setExpenseBreakdownSortKey] ="
+          },
+          {
+            "lineNumber": 2172,
+            "text": "    "
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5136,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5135
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 2122
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.2700856924057007
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4392,
+            "text": " activeView === 'cards' ? ("
+          },
+          {
+            "lineNumber": 4393,
+            "text": "            \u003cdiv className=\"statements-cards-viewport\"\u003e"
+          },
+          {
+            "lineNumber": 4394,
+            "text": "              {clientCardStats.length === 0 ? ("
+          },
+          {
+            "lineNumber": 4395,
+            "text": "                \u003cp className=\"empty-state\"\u003e아직 저장된 거래처가 없습니다.\u003c/p\u003e"
+          },
+          {
+            "lineNumber": 4396,
+            "text": "              ) : ("
+          },
+          {
+            "lineNumber": 4397,
+            "text": "                \u003c\u003e"
+          },
+          {
+            "lineNumber": 4398,
+            "text": "                  {regularClientCards.length \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4399,
+            "text": "                    \u003csection className=\"statements-cards-section\"\u003e"
+          },
+          {
+            "lineNumber": 4400,
+            "text": "                      \u003ch4 className=\"statements-cards-section-title\"\u003e거래처 카드\u003c/h4\u003e"
+          },
+          {
+            "lineNumber": 4401,
+            "text": "                      \u003cdiv className=\"statements-cards-grid\"\u003e"
+          },
+          {
+            "lineNumber": 4402,
+            "text": "                        {regularClientCards.map((card) =\u003e ("
+          },
+          {
+            "lineNumber": 4403,
+            "text": "                          \u003cbutton"
+          },
+          {
+            "lineNumber": 4404,
+            "text": "                            key={card.clientName}"
+          },
+          {
+            "lineNumber": 4405,
+            "text": "                            type=\"button\""
+          },
+          {
+            "lineNumber": 4406,
+            "text": "                            className=\"statements-client-card\""
+          },
+          {
+            "lineNumber": 4407,
+            "text": "                            onClick={() =\u003e handleFilterByClient(card.clientName)}"
+          },
+          {
+            "lineNumber": 4408,
+            "text": "                            title=\"입력 목록에서 이 거래처만 필터링\""
+          },
+          {
+            "lineNumber": 4409,
+            "text": "                          \u003e"
+          },
+          {
+            "lineNumber": 4410,
+            "text": "                            \u003cdiv className=\"statements-client-card-head\"\u003e"
+          },
+          {
+            "lineNumber": 4411,
+            "text": "                              \u003cstrong\u003e{card.clientName}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 4412,
+            "text": "                              \u003cspan\u003e{card.count}건\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 4413,
+            "text": "                            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4414,
+            "text": "                            \u003cdiv className=\"statements-client-card-amount\"\u003e"
+          },
+          {
+            "lineNumber": 4415,
+            "text": "                              {formatCurrency(card.totalAmount)}원"
+          },
+          {
+            "lineNumber": 4416,
+            "text": "                            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4417,
+            "text": "                            \u003cdl className=\"statements-client-card-meta\"\u003e"
+          },
+          {
+            "lineNumber": 4418,
+            "text": "                              \u003cdiv\u003e"
+          },
+          {
+            "lineNumber": 4419,
+            "text": "                                \u003cdt\u003e이번달\u003c/dt\u003e"
+          },
+          {
+            "lineNumber": 4420,
+            "text": "                                \u003cdd\u003e{formatCurrency(card.monthAmount)}원\u003c/dd\u003e"
+          },
+          {
+            "lineNumber": 4421,
+            "text": "                              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4422,
+            "text": "                              \u003cdiv\u003e"
+          },
+          {
+            "lineNumber": 4423,
+            "text": "                                \u003cdt\u003e마지막 납품\u003c/dt\u003e"
+          },
+          {
+            "lineNumber": 4424,
+            "text": "                                \u003cdd\u003e"
+          },
+          {
+            "lineNumber": 4425,
+            "text": "                                  {card.lastDeliveryDate ? formatDateLabel(card.lastDeliveryDate) : '—'}"
+          },
+          {
+            "lineNumber": 4426,
+            "text": "                                \u003c/dd\u003e"
+          },
+          {
+            "lineNumber": 4427,
+            "text": "                              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4428,
+            "text": "                            \u003c/dl\u003e"
+          },
+          {
+            "lineNumber": 4429,
+            "text": "                          \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4430,
+            "text": "                        ))}"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2695279121398926
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4026
+          },
+          {
+            "lineNumber": 4027,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4028,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4029
+          },
+          {
+            "lineNumber": 4030,
+            "text": "            \u003cdiv className=\"toolbar statements-records-toolbar-actions\"\u003e"
+          },
+          {
+            "lineNumber": 4031,
+            "text": "              \u003cselect"
+          },
+          {
+            "lineNumber": 4032,
+            "text": "                className=\"statements-records-year-select\""
+          },
+          {
+            "lineNumber": 4033,
+            "text": "                value={selectedYear}"
+          },
+          {
+            "lineNumber": 4034,
+            "text": "                onChange={(event) =\u003e setSelectedYear(event.target.value)}"
+          },
+          {
+            "lineNumber": 4035,
+            "text": "              \u003e"
+          },
+          {
+            "lineNumber": 4036,
+            "text": "                {availableYears.map((year) =\u003e ("
+          },
+          {
+            "lineNumber": 4037,
+            "text": "                  \u003coption key={year} value={year}\u003e"
+          },
+          {
+            "lineNumber": 4038,
+            "text": "                    {year}년"
+          },
+          {
+            "lineNumber": 4039,
+            "text": "                  \u003c/option\u003e"
+          },
+          {
+            "lineNumber": 4040,
+            "text": "                ))}"
+          },
+          {
+            "lineNumber": 4041,
+            "text": "              \u003c/select\u003e"
+          },
+          {
+            "lineNumber": 4042,
+            "text": "              \u003cbutton"
+          },
+          {
+            "lineNumber": 4043,
+            "text": "                type=\"button\""
+          },
+          {
+            "lineNumber": 4044,
+            "text": "                className=\"ghost-button statements-records-excel-btn\""
+          },
+          {
+            "lineNumber": 4045,
+            "text": "                onClick={exportStatementsToExcel}"
+          },
+          {
+            "lineNumber": 4046,
+            "text": "              \u003e"
+          },
+          {
+            "lineNumber": 4047,
+            "text": "                입력목록 엑셀 저장"
+          },
+          {
+            "lineNumber": 4048,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4049,
+            "text": "              \u003cbutton"
+          },
+          {
+            "lineNumber": 4050,
+            "text": "                type=\"button\""
+          },
+          {
+            "lineNumber": 4051,
+            "text": "                className=\"ghost-button statements-records-excel-btn\""
+          },
+          {
+            "lineNumber": 4052,
+            "text": "                onClick={exportSummaryToExcel}"
+          },
+          {
+            "lineNumber": 4053,
+            "text": "              \u003e"
+          },
+          {
+            "lineNumber": 4054,
+            "text": "                월별현황 엑셀 저장"
+          },
+          {
+            "lineNumber": 4055,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4056,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4057,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4058
+          },
+          {
+            "lineNumber": 4059,
+            "text": "          {"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2694711685180664
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1668,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3861
+          },
+          {
+            "lineNumber": 3862,
+            "text": "              ) : ("
+          },
+          {
+            "lineNumber": 3863,
+            "text": "                \u003cdiv className=\"table-wrapper\"\u003e"
+          },
+          {
+            "lineNumber": 3864,
+            "text": "                  \u003ctable className=\"meeting-table inventory-table\"\u003e"
+          },
+          {
+            "lineNumber": 3865,
+            "text": "                    \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 3866,
+            "text": "                      \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 3867,
+            "text": "                        \u003cth className=\"inventory-sticky-column\"\u003e구분\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3868,
+            "text": "                        {BEAN_DETAIL_WEEK_RANGES.map((w) =\u003e ("
+          },
+          {
+            "lineNumber": 3869,
+            "text": "                          \u003cth key={w.key}\u003e{w.label}\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3870,
+            "text": "                        ))}"
+          },
+          {
+            "lineNumber": 3871,
+            "text": "                        \u003cth\u003e합계\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 3872,
+            "text": "                      \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 3873,
+            "text": "                    \u003c/thead\u003e"
+          },
+          {
+            "lineNumber": 3874,
+            "text": "                    \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 3875,
+            "text": "                      {beanWeeklyDetailRows.map((row) =\u003e ("
+          },
+          {
+            "lineNumber": 3876,
+            "text": "                        \u003ctr key={row.label}\u003e"
+          },
+          {
+            "lineNumber": 3877,
+            "text": "                          \u003ctd className=\"inventory-sticky-column inventory-text-left\"\u003e"
+          },
+          {
+            "lineNumber": 3878,
+            "text": "                            {row.label}"
+          },
+          {
+            "lineNumber": 3879,
+            "text": "                          \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 3880,
+            "text": "                          {row.values.map((value, wi) =\u003e ("
+          },
+          {
+            "lineNumber": 3881,
+            "text": "                            \u003ctd key={BEAN_DETAIL_WEEK_RANGES[wi].key}\u003e{formatTwoDecimals(value)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 3882,
+            "text": "                          ))}"
+          },
+          {
+            "lineNumber": 3883,
+            "text": "                          \u003ctd\u003e{formatTwoDecimals(sumValues(row.values))}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 3884,
+            "text": "                        \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 3885,
+            "text": "                      ))}"
+          },
+          {
+            "lineNumber": 3886,
+            "text": "                    \u003c/tbody\u003e"
+          },
+          {
+            "lineNumber": 3887,
+            "text": "                  \u003c/table\u003e"
+          },
+          {
+            "lineNumber": 3888,
+            "text": "                \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3889,
+            "text": "              )}"
+          },
+          {
+            "lineNumber": 3890,
+            "text": "              {beanDetailViewMode === 'weekly' ? ("
+          },
+          {
+            "lineNumber": 3891,
+            "text": "                \u003cp className=\"muted tiny inventory-bean-weekly-hint\"\u003e"
+          },
+          {
+            "lineNumber": 3892,
+            "text": "                  주간 보기는 집계 표시입니다. 입고·생산·출고는 해당 주 일자 합계, 재고는 그 주에 포함된 날짜 중"
+          },
+          {
+            "lineNumber": 3893,
+            "text": "                  가장 늦은 날의 재고입니다. 수정은「일별」에서 해 주세요."
+          },
+          {
+            "lineNumber": 3894,
+            "text": "                \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 3895,
+            "text": "              ) : null}"
+          },
+          {
+            "lineNumber": 3896,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3897,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3898,
+            "text": "          ) : null}"
+          },
+          {
+            "lineNumber": 3899
+          },
+          {
+            "lineNumber": 3900,
+            "text": "          \u003cdiv className=\"meeting-card\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 4423,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 4422
+          },
+          "startPosition": {
+            "line": 1667
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1669
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1668
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.26914793252944946
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **1** result in **1** directory</summary>
+
+Directory: **/Users/parkcg/The Symbol_Edit/app/src** (1 file)
+
+| File |
+|------|
+| `StatementInventoryLinkModal.tsx` |
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "월별 납품현황|거래명세|발생일자|입금일자|세금계산서"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "월별 납품현황|거래명세|발생일자|입금일자|세금계산서",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/beanSalesMeetingMaterialCost.ts"
+    },
+    {
+      "matchCount": 15,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "matchCount": 4,
+      "uri": "app/src/beanSalesAnalysisExcelExport.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/greenBeanOrderInventoryAliases.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MemoPage.tsx"
+    },
+    {
+      "matchCount": 42,
+      "uri": "app/src/App.tsx"
+    },
+    {
+      "matchCount": 5,
+      "uri": "app/src/statementExcelStyledExport.ts"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/beanNameResolve.ts"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "matchCount": 4,
+      "uri": "app/src/App.css"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ],
+  "totalFiles": 12,
+  "totalMatches": 88
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "type StatementRecord|issueDate|paymentDate|summaryRows|monthlyTotals|yearlyTotal|recordsByClient"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "type StatementRecord|issueDate|paymentDate|summaryRows|monthlyTotals|yearlyTotal|recordsByClient",
+  "topFiles": [
+    {
+      "matchCount": 49,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 49
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "clientCards|monthAmount|lastDeliveryDate|selectedClientName|cards"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "clientCards|monthAmount|lastDeliveryDate|selectedClientName|cards",
+  "topFiles": [
+    {
+      "matchCount": 28,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 28
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "normalizeLoadedRecords|localStorage.setItem\\(STORAGE_KEY|setRecords\\("
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "normalizeLoadedRecords|localStorage.setItem\\(STORAGE_KEY|setRecords\\(",
+  "topFiles": [
+    {
+      "matchCount": 13,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 13
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "normalizeStatementPageDocument|readStatementPageLocalState|StatementPageDocument"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "normalizeStatementPageDocument|readStatementPageLocalState|StatementPageDocument",
+  "topFiles": [
+    {
+      "matchCount": 10,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 10
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+이제 데이터 구조(저장/클라우드 동기화)와 월별 납품현황 표 UI를 같이 바꿔서, 월별 `발생일자/입금일자` 직접 입력 + 카드의 `세금계산서 발행일자` 표시까지 한 번에 연결하겠습니다.
+
+_**Agent (default)**_
+
+Failed to find context:
+  const cashClientCards = useMemo(
+    () => clientCardStats.filter((card) => card.isCashHandled),
+    [clientCardStats],
+  )
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "const cashClientCards = useMemo"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "const cashClientCards = useMemo",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-BYtSzd1H.css    161.71 kB │ gzip:  26.93 kB
+dist/assets/index-DkkicqU-.js   2,673.27 kB │ gzip: 759.29 kB
+
+✓ built in 426ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+반영 완료했습니다. 요청하신 흐름대로 동작합니다.
+
+- `거래명세 관리 > 월별 납품현황`에서 각 거래처·각 월의  
+  - `세금계산서 발행일자`  
+  - `입금일자`  
+  를 **직접 날짜 입력(`type="date"`)**할 수 있게 변경했습니다.
+- 월별 표 헤더도 `발행일자` → **`세금계산서 발행일자`**로 바꿨습니다.
+- 거래처 카드(일반/현금 카드) 메타에 **`세금계산서 발행일자`** 항목을 추가해서, 입력한 월별 발행일자가 보이게 했습니다.
+- 이 값은 별도 맵으로 저장되며 **로컬 저장 + 클라우드 문서 동기화**에 포함되도록 연결했습니다.
+- `월별 납품현황` 엑셀 내보내기 헤더도 동일하게 `세금계산서 발행일자`로 반영했습니다.
+
+추가로 원하시면 카드에서 “이번달” 기준 대신 선택한 연/월 기준으로 발행일자 보이게도 바꿔드릴게요.
+
+---
+
+_**User**_
+
+ui 좀 이쁘게 해줄래? 다른 ui 랑 통일이 안되잖아
+
+---
+
+_**Agent (default)**_
+
+좋아요. 방금 추가한 월별 날짜 입력칸 스타일을 기존 거래명세 UI 톤에 맞춰 통일감 있게 다듬겠습니다. 먼저 현재 표/입력 관련 스타일 기준을 보고 맞춰 적용할게요.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "summary-table|statements-client-card-meta|statement-summary-date-input|statements-"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "summary-table|statements-client-card-meta|statement-summary-date-input|statements-",
+  "topFiles": [
+    {
+      "matchCount": 100,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 100
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "statement-summary-date-input"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "statement-summary-date-input",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 2
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "\\.summary-table|summary-table td|summary-table th|statement-row|table-wrapper"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "\\.summary-table|summary-table td|summary-table th|statement-row|table-wrapper",
+  "topFiles": [
+    {
+      "matchCount": 31,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 31
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-COtqCCmu.css    162.27 kB │ gzip:  27.03 kB
+dist/assets/index-J3TOrn89.js   2,673.27 kB │ gzip: 759.29 kB
+
+✓ built in 434ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+맞아요, 방금 넣은 날짜 입력칸이 기본 브라우저 스타일이라 튀었습니다.  
+지금 기존 거래명세 UI 톤에 맞춰 정리해뒀어요.
+
+- `summary` 표 날짜 입력칸에 통일된 스타일 적용
+  - 둥근 모서리, 연한 배경, 기존 인풋 계열과 비슷한 테두리 톤
+  - hover/focus 시 강조 색상도 프로젝트 톤(인디고 계열)로 맞춤
+  - 폰트 크기/두께도 표 셀 밀도에 맞춰 컴팩트하게 조정
+- 셀 패딩도 함께 조정해서 날짜 인풋이 표 안에서 눌리거나 떠보이지 않게 맞춤
+
+수정 파일:
+- `app/src/App.css`
+
+빌드 확인도 했고(`npm run build` 통과), 화면에서 바로 체감될 거예요.  
+원하면 다음으로 카드 쪽(`세금계산서 발행일자`)도 강조 배지 스타일로 살짝 더 고급지게 맞춰드릴게요.
+
+---
+
+_**User**_
+
+해당 월이 기본으로 뜨게 만들어주고 전체 월 보기 버튼을 만들어줘 그냥
+
+---
+
+_**Agent (default)**_
+
+좋습니다. 월별 납품현황을 기본은 “해당 월만” 보이게 하고, 버튼으로 “전체 월 보기” 토글되도록 바로 붙이겠습니다. table 헤더/본문/합계 colSpan까지 같이 맞춰둘게요.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "key=\\{label\\}|\\$\\{label\\}-"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "key=\\{label\\}|\\$\\{label\\}-",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "const monthLabel ="
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "const monthLabel =",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-COtqCCmu.css    162.27 kB │ gzip:  27.03 kB
+dist/assets/index-CoF5B0_2.js   2,673.61 kB │ gzip: 759.35 kB
+
+✓ built in 415ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+적용했습니다.
+
+- `월별 납품현황`은 이제 기본이 **해당 월만 보기**입니다.
+- 우측 툴바에 **`전체 월 보기`** 버튼 추가했습니다.
+  - 누르면 12개월 전체 컬럼 표시
+  - 다시 누르면 **`해당 월만 보기`**로 돌아갑니다.
+- 표 헤더/본문/합계/빈 상태의 `colSpan`도 표시 월 수에 맞춰 동적으로 맞췄습니다.
+- 기존 월별 날짜 입력(세금계산서 발행일자/입금일자)도 해당 월 보기/전체 보기에서 그대로 동작합니다.
+
+수정 파일:
+- `app/src/App.tsx`
+
+원하면 “해당 월” 기준을 **오늘 기준 월**이 아니라, `selectedYear`와 함께 선택 가능한 별도 월 드롭다운으로도 바꿔드릴게요.
+
+---
+
+_**User**_
+
+한달만 보는 표에서 쓸데없이 커 좌우 드래그 없이 한번에 딱 보이게 해줘
+
+---
+
+_**Agent (default)**_
+
+좋아요, 한 달 보기일 때는 표 자체를 축소 레이아웃으로 바꿔서 가로 스크롤 없이 한 화면에 들어오게 조정하겠습니다. `summary` 전용 클래스 분기 + CSS 최소너비 규칙만 손보면 됩니다.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-BoUU46na.css    162.60 kB │ gzip:  27.08 kB
+dist/assets/index-D5f3tGcV.js   2,673.70 kB │ gzip: 759.39 kB
+
+✓ built in 421ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+반영했습니다.  
+**한 달 보기 모드일 때는 표를 컴팩트 레이아웃으로 바꿔서 좌우 드래그 없이 보이게** 했어요.
+
+변경 내용:
+- 한 달 보기일 때만 wrapper에 전용 클래스 추가
+- 한 달 보기일 때만 테이블 `min-width`를 크게 줄임 (`1800px` → `760px`)
+- 셀 패딩/날짜 입력칸 최소 너비도 같이 줄여 화면 밀도 맞춤
+- 한 달 보기에서만 가로 스크롤 숨김 처리
+
+수정 파일:
+- `app/src/App.tsx`
+- `app/src/App.css`
+
+빌드도 통과했습니다.  
+혹시 노트북 작은 해상도에서도 딱 맞추려면 `760px`을 `700px` 정도로 더 줄여줄 수도 있어요.
+
+---
+
+_**User**_
+
+칸별로 구분선좀 넣어주고 다 중앙정렬해줘
+
+---
+
+_**Agent (default)**_
+
+좋아요. 월별 납품현황 표 기준으로 칸 경계선을 더 또렷하게 넣고, 내용은 전부 중앙정렬로 맞추겠습니다. 바로 스타일만 정리할게요.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-CW5tDJ56.css    162.72 kB │ gzip:  27.11 kB
+dist/assets/index-DYJEyvx1.js   2,673.70 kB │ gzip: 759.39 kB
+
+✓ built in 428ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+적용했습니다.
+
+- 월별 납품현황 표에 **칸별 세로 구분선** 추가 (`border-right`)
+- 마지막 칸은 이중선 방지 위해 오른쪽 선 제거
+- 월별 납품현황(`summary-table`)은 **헤더/본문 전부 중앙정렬**
+- 날짜 입력칸 텍스트도 중앙정렬
+
+수정 파일:
+- `app/src/App.css`
+
+빌드도 통과했습니다.
+
+---
+
+_**User**_
+
+거래처카드도 세금계산서 발행일자 텍스트 들어가면서 두줄로 생기고 그런거 방지하기위해 가로 크기를 크게하던가 해줘
+
+---
+
+_**Agent (default)**_
+
+좋습니다. 거래처 카드에서 `세금계산서 발행일자`가 두 줄로 깨지지 않게 카드 가로폭/메타 영역을 넓히고 라벨 줄바꿈도 막아두겠습니다.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-DteC1emq.css    162.78 kB │ gzip:  27.11 kB
+dist/assets/index-Bh8MP269.js   2,673.70 kB │ gzip: 759.39 kB
+
+✓ built in 419ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+반영했습니다. 거래처 카드에서 `세금계산서 발행일자` 때문에 줄바꿈 나는 문제 잡아뒀어요.
+
+- 카드 그리드 최소 폭 확대: `220px → 280px`
+- 카드 하단 메타를 `flex`에서 `3열 grid`로 변경해서 항목(이번달/세금계산서 발행일자/마지막 납품)이 안정적으로 배치
+- 라벨(`dt`)·값(`dd`)에 `white-space: nowrap` 적용해서 두 줄 깨짐 방지
+
+수정 파일:
+- `app/src/App.css`
+
+빌드도 통과했습니다.
+
+---
+
+_**User**_
+
+세금계산서 발행일자 그냥 발행일자라고 텍스트 변경해줘
+
+---
+
+_**Agent (default)**_
+
+좋아요. 표시 텍스트만 `발행일자`로 일괄 바꿔둘게요(기능/데이터는 그대로).
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "세금계산서 발행일자"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "세금계산서 발행일자",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "세금계산서"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.tsx",
+  "pattern": "세금계산서",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+변경 완료했습니다.  
+`세금계산서 발행일자` 텍스트를 전부 `발행일자`로 바꿨습니다.
+
+적용 위치:
+- 월별현황 표 헤더
+- 거래처 카드 메타 라벨(일반/현금)
+- 월별현황 엑셀 내보내기 헤더
+
+기능/저장값은 그대로고, 표시 문구만 바뀌었습니다.
+
+---
+
+_**User**_
+
+지출표 요약에 건수가 0건인건 그냥 안뜨게해줘
+
+---
+
+_**Agent (default)**_
+
+지출표 요약 영역에서 `0건`이 표시되는 부분 찾아서, 0이면 렌더 자체를 숨기도록 바꿔둘게요.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+  "pattern": "0건|건|요약|badge|unpaidCount|count"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+  "pattern": "0건|건|요약|badge|unpaidCount|count",
+  "topFiles": [
+    {
+      "matchCount": 20,
+      "uri": "app/src/ExpensePage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 20
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+  "pattern": "categorySummaryRows|paymentMethodSummaryRows|summarizeExpenseByCategory"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+  "pattern": "categorySummaryRows|paymentMethodSummaryRows|summarizeExpenseByCategory",
+  "topFiles": [
+    {
+      "matchCount": 9,
+      "uri": "app/src/ExpensePage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 9
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.28 kB
+dist/assets/index-DteC1emq.css    162.78 kB │ gzip:  27.11 kB
+dist/assets/index-CHJFUTyH.js   2,673.66 kB │ gzip: 759.37 kB
+
+✓ built in 453ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+반영했습니다.
+
+지출표 요약의 **카테고리별 요약**에서 `건수 0건`인 행은 이제 표시되지 않습니다.  
+(`row.count > 0` 조건으로 필터링)
+
+수정 파일:
+- `app/src/ExpensePage.tsx`
+
+빌드도 통과했습니다.
+
+---
+
+_**User**_
+
+4월 요약에서 매출 파트에 순이익 부분은 잠시 주석처리해서 안보이게만 해줘 
+
+---
+
+_**Agent (default)**_
+
+요청대로 `4월`일 때만 매출 파트의 `순이익` 행이 렌더에서 빠지게(임시 주석 처리 성격) 처리하겠습니다.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "MeetingSummaryValueCard\\(|computedCurrentMonthSales|순이익|isSalesNetRow"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "MeetingSummaryValueCard\\(|computedCurrentMonthSales|순이익|isSalesNetRow",
+  "topFiles": [
+    {
+      "matchCount": 17,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 17
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.28 kB
+dist/assets/index-DteC1emq.css    162.78 kB │ gzip:  27.11 kB
+dist/assets/index-DFFC1UdV.js   2,673.72 kB │ gzip: 759.40 kB
+
+✓ built in 424ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+처리했습니다.
+
+- `월 마감회의 > 1. 요약 > 매출`에서
+  - **`activeMonth === '4월'`일 때만**
+  - `순이익` 행(`isSalesNetRow`)을 렌더 목록에서 제외하도록 했습니다.
+- 다른 월은 기존처럼 `순이익`이 그대로 보입니다.
+- 데이터 계산 자체를 지운 건 아니고, **표시만 숨긴 상태**입니다(요청하신 임시 주석 처리 성격).
+
+수정 파일:
+- `app/src/MonthlyMeetingPage.tsx`
+
+빌드 통과했습니다.
+
+---
+
+_**User**_
+
+월 마감회의에 로스팅실 생두비용이 결국에 월별로 재료비로 계산해서 하는거잖아 그래서 중복이 되는거니깐 로스팅실 생두비용이 중복으로 들어간 부분에 한해서는 없애주면 될거같아
+
+---
+
+_**Agent (default)**_
+
+말씀하신 중복 상황 맞춰서, 출금 계산에서 **재료비 쪽에 이미 생두비용이 잡힌 달은 로스팅실 생두비용 별도 가산을 빼는 방식**으로 정리하겠습니다. 핵심 계산 함수만 안전하게 수정할게요.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+Status: **loading**
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
 
 </details></tool-use>
