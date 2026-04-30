@@ -22,7 +22,8 @@ export const EXPENSE_PAGE_SAVED_EVENT = 'expense-page-saved'
 const currencyFormatter = new Intl.NumberFormat('ko-KR')
 const today = new Date().toISOString().slice(0, 10)
 const currentMonth = today.slice(0, 7)
-const DEFAULT_CATEGORY = '기타운영비'
+/** 신규 행 기본. 레거시 `기타운영비`는 데이터·월마감 연동에서 그대로 읽으며, 필요 시 「용도」로 나눕니다. */
+const DEFAULT_CATEGORY = '운영경비'
 const DEFAULT_PAYMENT_METHOD = '계좌이체'
 const DEFAULT_PAYMENT_STATUS = '지급완료'
 const TAX_TYPE_OPTIONS = ['과세', '면세'] as const
@@ -38,7 +39,8 @@ const EXPENSE_CATEGORY_OPTIONS = [
   '광고/마케팅',
   '수수료',
   '장비/수리비',
-  '기타운영비',
+  '기타경비',
+  '운영경비',
 ] as const
 
 type TaxType = (typeof TAX_TYPE_OPTIONS)[number]
@@ -51,6 +53,8 @@ export type ExpenseRecord = {
   dueDate: string
   vendorName: string
   category: string
+  /** 비용 「용도」 구분·엑셀 연동용(예: 기타경비/운영경비). 카테고리와 별개로 적을 수 있습니다. */
+  purpose: string
   detail: string
   totalAmount: number
   taxType: TaxType
@@ -86,6 +90,7 @@ type ParsedExpenseColumns = {
   dueDate: number
   vendorName: number
   category: number
+  purpose: number
   detail: number
   totalAmount: number
   supplyAmount: number
@@ -103,6 +108,7 @@ const EXPENSE_COLUMN_KEYS: ExpenseColumnKey[] = [
   'dueDate',
   'vendorName',
   'category',
+  'purpose',
   'detail',
   'taxType',
   'totalAmount',
@@ -122,6 +128,7 @@ const DEFAULT_EXPENSE_COLUMN_LABELS: Record<ExpenseColumnKey, string> = {
   dueDate: '지급예정일',
   vendorName: '거래처',
   category: '카테고리',
+  purpose: '용도',
   detail: '세부항목',
   taxType: '과세구분',
   totalAmount: '결제금액',
@@ -197,6 +204,7 @@ const expenseHeaderAliases = {
   dueDate: ['지급예정일', '지급일', '결제예정일', '예정일'],
   vendorName: ['거래처', '업체명', '거래처명', '가맹점명', '사용처'],
   category: ['카테고리', '분류', '비용분류'],
+  purpose: ['용도', '비용용도', '경비용도', '경비구분', '세부구분'],
   detail: ['세부항목', '항목', '내용', '적요'],
   totalAmount: ['금액', '합계금액', '총액', '결제금액', '사용금액'],
   supplyAmount: ['공급가액', '공급가', '공급금액'],
@@ -315,6 +323,69 @@ const parseBooleanCell = (value: unknown) => {
   return ['y', 'yes', 'true', '1', 'o', '고정', '있음', '예'].includes(text)
 }
 
+/** 엑셀 「용도」 또는 메모 성격의 값으로 기타경비/운영경비만 구분합니다. */
+const classifyPurposeExpenseBucket = (text: unknown): '기타경비' | '운영경비' | null => {
+  const raw = normalizeText(text)
+  const compact = raw.replace(/\s+/g, '')
+  if (!compact.length) {
+    return null
+  }
+  const hasStandaloneOther = /기타\s*경비/.test(raw) || /^기타경비$/u.test(compact) || /^기타비$/u.test(compact)
+  const hasStandaloneOps = /운영\s*경비/u.test(raw) || /운영경비$/u.test(compact) || /^운영비$/u.test(compact)
+  if (hasStandaloneOther && !hasStandaloneOps) {
+    return '기타경비'
+  }
+  if (hasStandaloneOps) {
+    return '운영경비'
+  }
+  const legacyLoose =
+    /^기타\s*운영(?:\s*비)?$/u.test(raw) ||
+    compact === '기타운영' ||
+    /기타운영비/u.test(compact)
+  return legacyLoose ? '운영경비' : null
+}
+
+const mergeImportedExpenseCategory = (categoryCell: string, purposeCell: string): string => {
+  const bucket = classifyPurposeExpenseBucket(purposeCell)
+  const cat = categoryCell.trim()
+  /** 카테고리가 기본 '운영경비' 등으로만 잡히고 「용도」에서만 나눈 경우 월 마감·엑셀 불러오기 결과를 맞춤 */
+  if (bucket === '기타경비' && cat === '운영경비') {
+    return '기타경비'
+  }
+  if (bucket === '운영경비' && cat === '기타경비') {
+    return '운영경비'
+  }
+  if (bucket && (!cat || cat === '기타운영비')) {
+    return bucket
+  }
+  if (!cat.length) {
+    return DEFAULT_CATEGORY
+  }
+  return cat
+}
+
+/** 월 마감 회의 비용 연동 등 — 화면의 카테고리·용도와 동일 규칙으로 실질 분류 */
+export function resolveExpenseCategoryForMeetingSync(record: Pick<ExpenseRecord, 'category' | 'purpose'>): string {
+  return mergeImportedExpenseCategory(String(record.category ?? '').trim(), String(record.purpose ?? ''))
+}
+
+/**
+ * 월 마감 「비용 현황」줄별 합산 전용.
+ * 카테고리·용도가 모두 분류 불가하면 `미분류`로 두어 **운영경비 줄에 합산되지 않게** 한다(그 외 비용 쪽만).
+ */
+export function resolveExpenseCategoryForMeetingBucket(record: Pick<ExpenseRecord, 'category' | 'purpose'>): string {
+  const trimmed = String(record.category ?? '').trim()
+  const purpose = String(record.purpose ?? '')
+  if (!trimmed.length) {
+    const pb = classifyPurposeExpenseBucket(purpose)
+    if (pb) {
+      return pb
+    }
+    return '미분류'
+  }
+  return mergeImportedExpenseCategory(trimmed, purpose)
+}
+
 const splitAmount = (totalAmount: number, taxType: TaxType) => {
   if (taxType === '면세') {
     return {
@@ -328,6 +399,114 @@ const splitAmount = (totalAmount: number, taxType: TaxType) => {
     supplyAmount,
     taxAmount: totalAmount - supplyAmount,
   }
+}
+
+/** 지급(체크) 열 전용 — `visibleExpenseColumns`에 없는 가상 id */
+const EXPENSE_LIST_SORT_PAYMENT_COLUMN_ID = '__expense_list_sort_payment__'
+
+type ExpenseListSortState = {
+  columnId: string
+  direction: 'asc' | 'desc'
+}
+
+const expenseDefaultRowTiebreak = (left: ExpenseRecord, right: ExpenseRecord): number =>
+  left.dueDate.localeCompare(right.dueDate) ||
+  left.expenseDate.localeCompare(right.expenseDate) ||
+  left.id.localeCompare(right.id)
+
+const compareExpenseSortPrimaries = (a: string | number, b: string | number, direction: 'asc' | 'desc'): number => {
+  const factor = direction === 'asc' ? 1 : -1
+  if (typeof a === 'number' && typeof b === 'number') {
+    const na = Number.isFinite(a) ? a : 0
+    const nb = Number.isFinite(b) ? b : 0
+    if (na !== nb) {
+      return (na - nb) * factor
+    }
+    return 0
+  }
+  const sa = String(a ?? '').trim()
+  const sb = String(b ?? '').trim()
+  const c = sa.localeCompare(sb, 'ko', { numeric: true, sensitivity: 'base' })
+  return c !== 0 ? c * factor : 0
+}
+
+const getExpenseColumnSortComparable = (record: ExpenseRecord, column: ExpenseTableColumn): string | number => {
+  if (column.kind === 'extra') {
+    return (record.extraValues?.[column.id] ?? '').trim().toLowerCase()
+  }
+  const mk = column.mappedKey
+  if (!mk) {
+    return ''
+  }
+  switch (mk) {
+    case 'expenseDate':
+    case 'dueDate':
+      return record[mk]
+    case 'vendorName':
+    case 'category':
+    case 'purpose':
+    case 'detail':
+    case 'taxType':
+    case 'paymentMethod':
+    case 'paymentStatus':
+    case 'hasReceipt':
+    case 'memo':
+      return String(record[mk] ?? '').trim().toLowerCase()
+    case 'totalAmount':
+      return record.totalAmount
+    case 'supplyAmount':
+      return splitAmount(record.totalAmount, record.taxType).supplyAmount
+    case 'taxAmount':
+      return splitAmount(record.totalAmount, record.taxType).taxAmount
+    case 'isRecurring':
+      return record.isRecurring ? 1 : 0
+    default:
+      return ''
+  }
+}
+
+const sortExpenseFilteredRecords = (
+  filtered: ExpenseRecord[],
+  visibleColumns: ExpenseTableColumn[],
+  sort: ExpenseListSortState | null,
+): ExpenseRecord[] => {
+  const list = [...filtered]
+  if (!sort) {
+    list.sort((a, b) => expenseDefaultRowTiebreak(a, b))
+    return list
+  }
+
+  const { columnId, direction } = sort
+
+  if (columnId === EXPENSE_LIST_SORT_PAYMENT_COLUMN_ID) {
+    list.sort((left, right) => {
+      const va = left.paymentStatus === '지급완료' ? 1 : 0
+      const vb = right.paymentStatus === '지급완료' ? 1 : 0
+      const p = compareExpenseSortPrimaries(va, vb, direction)
+      if (p !== 0) {
+        return p
+      }
+      return expenseDefaultRowTiebreak(left, right)
+    })
+    return list
+  }
+
+  const col = visibleColumns.find((c) => c.id === columnId)
+  if (!col) {
+    list.sort((a, b) => expenseDefaultRowTiebreak(a, b))
+    return list
+  }
+
+  list.sort((left, right) => {
+    const va = getExpenseColumnSortComparable(left, col)
+    const vb = getExpenseColumnSortComparable(right, col)
+    const p = compareExpenseSortPrimaries(va, vb, direction)
+    if (p !== 0) {
+      return p
+    }
+    return expenseDefaultRowTiebreak(left, right)
+  })
+  return list
 }
 
 type ExpenseCategorySummaryRow = {
@@ -392,6 +571,7 @@ const createRecordForMonth = (month: string): ExpenseRecord => {
     dueDate: defaultDate,
     vendorName: '',
     category: DEFAULT_CATEGORY,
+    purpose: '',
     detail: '',
     totalAmount: 0,
     taxType: '과세',
@@ -416,6 +596,7 @@ const buildExpenseExportRow = (record: ExpenseRecord, columns: ExpenseTableColum
     dueDate: record.dueDate,
     vendorName: record.vendorName,
     category: record.category,
+    purpose: record.purpose ?? '',
     detail: record.detail,
     taxType: record.taxType,
     totalAmount: record.totalAmount,
@@ -445,6 +626,7 @@ const normalizeRecord = (value: unknown): ExpenseRecord | null => {
   const dueDate = parseSpreadsheetDate(source.dueDate) || expenseDate
   const vendorName = normalizeText(source.vendorName)
   const category = normalizeText(source.category) || DEFAULT_CATEGORY
+  const purpose = normalizeText(source.purpose)
   const totalAmount = Number(source.totalAmount ?? 0)
 
   return {
@@ -453,6 +635,7 @@ const normalizeRecord = (value: unknown): ExpenseRecord | null => {
     dueDate: dueDate || expenseDate || today,
     vendorName,
     category,
+    purpose,
     detail: normalizeText(source.detail),
     totalAmount: Number.isFinite(totalAmount) ? totalAmount : 0,
     taxType: source.taxType === '면세' ? '면세' : '과세',
@@ -673,6 +856,7 @@ const parseExpenseWorkbook = (
     dueDate: findHeaderIndex(headers, expenseHeaderAliases.dueDate),
     vendorName: findHeaderIndex(headers, expenseHeaderAliases.vendorName),
     category: findHeaderIndex(headers, expenseHeaderAliases.category),
+    purpose: findHeaderIndex(headers, expenseHeaderAliases.purpose),
     detail: findHeaderIndex(headers, expenseHeaderAliases.detail),
     totalAmount: findHeaderIndex(headers, expenseHeaderAliases.totalAmount),
     supplyAmount: findHeaderIndex(headers, expenseHeaderAliases.supplyAmount),
@@ -710,8 +894,9 @@ const parseExpenseWorkbook = (
         columns.dueDate === -1 ? expenseDate : parseSpreadsheetDate(row[columns.dueDate]) || expenseDate
       const vendorName =
         columns.vendorName === -1 ? '' : normalizeText(row[columns.vendorName])
-      const category =
-        columns.category === -1 ? DEFAULT_CATEGORY : normalizeText(row[columns.category]) || DEFAULT_CATEGORY
+      const purposeRaw = columns.purpose === -1 ? '' : normalizeText(row[columns.purpose])
+      const categoryCell = columns.category === -1 ? '' : normalizeText(row[columns.category])
+      const category = mergeImportedExpenseCategory(categoryCell, purposeRaw)
       const detail = columns.detail === -1 ? '' : normalizeText(row[columns.detail])
       const supplyAmount = columns.supplyAmount === -1 ? 0 : parseNumber(row[columns.supplyAmount])
       const taxAmount = columns.taxAmount === -1 ? 0 : parseNumber(row[columns.taxAmount])
@@ -754,6 +939,7 @@ const parseExpenseWorkbook = (
           hasReceipt:
             columns.hasReceipt === -1 ? '' : normalizeText(row[columns.hasReceipt]),
           memo: columns.memo === -1 ? '' : normalizeText(row[columns.memo]),
+          purpose: purposeRaw,
           extraValues,
         },
       ]
@@ -770,6 +956,7 @@ function ExpensePage() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState('전체')
   const [vendorSearch, setVendorSearch] = useState('')
   const [showUnpaidOnly, setShowUnpaidOnly] = useState(false)
+  const [expenseListSort, setExpenseListSort] = useState<ExpenseListSortState | null>(null)
   const [pinnedRecordId, setPinnedRecordId] = useState('')
   const [statusMessage, setStatusMessage] = useState('브라우저에 자동 저장됩니다.')
   const [isStorageReady, setIsStorageReady] = useState(false)
@@ -1008,7 +1195,9 @@ function ExpensePage() {
       }
       if (
         normalizedSearch &&
-        !`${record.vendorName} ${record.detail} ${record.memo}`.toLowerCase().includes(normalizedSearch)
+        !`${record.vendorName} ${record.detail} ${record.memo} ${record.purpose ?? ''}`
+          .toLowerCase()
+          .includes(normalizedSearch)
       ) {
         return false
       }
@@ -1024,15 +1213,17 @@ function ExpensePage() {
   ])
 
   const sortedFilteredRecords = useMemo(
-    () =>
-      [...filteredRecords].sort(
-        (left, right) =>
-          left.dueDate.localeCompare(right.dueDate) ||
-          left.expenseDate.localeCompare(right.expenseDate) ||
-          left.id.localeCompare(right.id),
-      ),
-    [filteredRecords],
+    () => sortExpenseFilteredRecords(filteredRecords, visibleExpenseColumns, expenseListSort),
+    [filteredRecords, visibleExpenseColumns, expenseListSort],
   )
+
+  const toggleExpenseListSort = useCallback((columnId: string) => {
+    setExpenseListSort((prev) =>
+      prev?.columnId === columnId
+        ? { columnId, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+        : { columnId, direction: 'asc' },
+    )
+  }, [])
 
   const hasActiveFilters = useMemo(
     () =>
@@ -1471,6 +1662,15 @@ function ExpensePage() {
             ))}
           </select>
         )
+      case 'purpose':
+        return (
+          <input
+            className="expense-cell-input"
+            placeholder="예: 기타경비, 운영경비"
+            value={record.purpose ?? ''}
+            onChange={handleRowInputChange(record.id, 'purpose')}
+          />
+        )
       case 'detail':
         return <input className="expense-cell-input" value={record.detail} onChange={handleRowInputChange(record.id, 'detail')} />
       case 'taxType':
@@ -1579,7 +1779,8 @@ function ExpensePage() {
             <h2>사업 지출 입력</h2>
             <p className="muted">
               지출 엑셀을 올리면 시트에 있는 열 순서·제목에 맞춰 아래 목록 칸이 바뀝니다. 「표 열 기본으로」로 전체
-              열을 다시 켤 수 있습니다.
+              열을 다시 켤 수 있습니다. 엑셀 또는 아래 목록에서 「용도」에 기타경비·운영경비를 적거나, 카테고리를 해당
+              값으로 선택하면 해당 월의 월 마감 회의 「비용 현황」에도 나누어 자동 반영됩니다.
             </p>
           </div>
         </div>
@@ -1725,10 +1926,58 @@ function ExpensePage() {
             <table className="meeting-table expense-table" onKeyDown={handleExpenseGridKeyDown}>
               <thead>
                 <tr>
-                  {visibleExpenseColumns.map((column) => (
-                    <th key={column.id}>{column.label}</th>
-                  ))}
-                  <th>지급</th>
+                  {visibleExpenseColumns.map((column) => {
+                    const active = expenseListSort?.columnId === column.id
+                    const dir = active ? expenseListSort.direction : null
+                    return (
+                      <th key={column.id}>
+                        <button
+                          type="button"
+                          className={`expense-th-sort-btn${active ? ' expense-th-sort-btn--active' : ''}`}
+                          onClick={() => toggleExpenseListSort(column.id)}
+                          aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                          title={
+                            active
+                              ? dir === 'asc'
+                                ? '오름차순 — 클릭하면 내림차순'
+                                : '내림차순 — 클릭하면 오름차순'
+                              : '클릭하면 이 열 기준 오름차순 정렬'
+                          }
+                        >
+                          <span>{column.label}</span>
+                          <span className="expense-th-sort-indicator">
+                            {!active ? ' ⇅' : dir === 'asc' ? ' ▲' : ' ▼'}
+                          </span>
+                        </button>
+                      </th>
+                    )
+                  })}
+                  <th>
+                    <button
+                      type="button"
+                      className={`expense-th-sort-btn expense-th-sort-btn--narrow${
+                        expenseListSort?.columnId === EXPENSE_LIST_SORT_PAYMENT_COLUMN_ID ? ' expense-th-sort-btn--active' : ''
+                      }`}
+                      onClick={() => toggleExpenseListSort(EXPENSE_LIST_SORT_PAYMENT_COLUMN_ID)}
+                      aria-sort={
+                        expenseListSort?.columnId === EXPENSE_LIST_SORT_PAYMENT_COLUMN_ID
+                          ? expenseListSort.direction === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                      title="지급완료 여부 정렬 · 클릭 시 오름/내림 전환"
+                    >
+                      지급
+                      <span className="expense-th-sort-indicator">
+                        {expenseListSort?.columnId !== EXPENSE_LIST_SORT_PAYMENT_COLUMN_ID
+                          ? ' ⇅'
+                          : expenseListSort.direction === 'asc'
+                            ? ' ▲'
+                            : ' ▼'}
+                      </span>
+                    </button>
+                  </th>
                   <th>삭제</th>
                 </tr>
               </thead>

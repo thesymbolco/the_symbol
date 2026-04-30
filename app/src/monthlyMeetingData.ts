@@ -78,6 +78,9 @@ export const monthlyMeetingData: MonthlyMeetingData = {
   ],
   currentMonthCosts: [
     { label: '비용 합계', amount: null, share: null, role: 'costsGrand' },
+    { label: '기타경비', amount: null, share: null, expenseKey: '②기타경비' },
+    { label: '운영경비', amount: null, share: null, expenseKey: '②운영경비' },
+    { label: '그 외 비용', amount: null, share: null, expenseKey: '②기타' },
   ],
   roastingSales: [
     { label: '합계', november: null, december: null, january: null, share: null, roastRole: 'subtotal' },

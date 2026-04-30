@@ -17,6 +17,7 @@ import {
   EXPENSE_PAGE_SAVED_EVENT,
   EXPENSE_PAGE_STORAGE_KEY,
   readExpensePageStateFromStorage,
+  resolveExpenseCategoryForMeetingBucket,
   type ExpenseRecord,
 } from './ExpensePage'
 import {
@@ -423,6 +424,10 @@ const MeetingSummaryValueCard = (props: {
   editMode: boolean
   indexKind: 'sales' | 'costs'
   isAmountReadonly: (r: MeetingValueRow) => boolean
+  /** 생략 시 `-` 삭제 버튼은 금액이 편집 가능한 행만 표시 */
+  shouldShowRemoveRowButton?: (r: MeetingValueRow) => boolean
+  /** 금액 입력 툴팁(자동 집계 안내 등) */
+  amountInputTitle?: (r: MeetingValueRow) => string | undefined
   onAddRow: () => void
   onLabelChange: (rowIndex: number, value: string) => void
   onValueChange: (rowIndex: number, value: string) => void
@@ -437,11 +442,15 @@ const MeetingSummaryValueCard = (props: {
     editMode,
     indexKind,
     isAmountReadonly,
+    shouldShowRemoveRowButton,
+    amountInputTitle,
     onAddRow,
     onLabelChange,
     onValueChange,
     onRemoveRow,
   } = props
+  const rowCanRemove =
+    shouldShowRemoveRowButton ?? ((r: MeetingValueRow) => !isAmountReadonly(r))
   return (
     <article className="meeting-card">
       <div className="meeting-card-header">
@@ -476,7 +485,7 @@ const MeetingSummaryValueCard = (props: {
                       value={row.label}
                       onChange={(event) => onLabelChange(rowIndex, event.target.value)}
                     />
-                    {!isAmountReadonly(row) ? (
+                    {rowCanRemove(row) ? (
                       <button type="button" className="meeting-icon-button" onClick={() => onRemoveRow(rowIndex)}>
                         -
                       </button>
@@ -495,6 +504,7 @@ const MeetingSummaryValueCard = (props: {
                   inputMode="numeric"
                   value={formatAmountForInput(row.amount)}
                   readOnly={isAmountReadonly(row)}
+                  title={amountInputTitle?.(row)}
                   onChange={(event) => onValueChange(rowIndex, event.target.value)}
                 />
               </td>
@@ -856,6 +866,162 @@ const EXPENSE_CATEGORY_TO_MEETING_COST_LABEL_MAP = new Map<string, string>(
   ),
 )
 
+/** 지출 `category` → 비용 현황 expenseKey */
+const expenseCategoryToMeetingCostBucketKey = (cat: string): string => {
+  const c = cat.trim()
+  if (c === '미분류') {
+    return '②기타'
+  }
+  const mapped = EXPENSE_CATEGORY_TO_MEETING_COST_LABEL_MAP.get(c)
+  if (mapped) {
+    return mapped
+  }
+  if (c === '기타경비') {
+    return '②기타경비'
+  }
+  if (c === '운영경비' || c === '기타운영비') {
+    return '②운영경비'
+  }
+  return '②기타'
+}
+
+const MEETING_COST_BUCKET_LABEL_FALLBACK: Record<string, string> = {
+  '①재료비': '재료비',
+  '③임대료': '임대료',
+  '⑥전기세': '전기세',
+  '⑧인건비': '인건비',
+  '②기타경비': '기타경비',
+  '②운영경비': '운영경비',
+  '②기타': '그 외 비용',
+}
+
+const MEETING_COST_BUCKET_SORT_ORDER: readonly string[] = [
+  '①재료비',
+  '③임대료',
+  '⑥전기세',
+  '⑧인건비',
+  '②기타경비',
+  '②운영경비',
+  '②기타',
+]
+
+const compareMeetingExpenseBucketKeys = (a: string, b: string): number => {
+  const ia = MEETING_COST_BUCKET_SORT_ORDER.indexOf(a)
+  const ib = MEETING_COST_BUCKET_SORT_ORDER.indexOf(b)
+  if (ia >= 0 && ib >= 0) {
+    return ia - ib
+  }
+  if (ia >= 0) {
+    return -1
+  }
+  if (ib >= 0) {
+    return 1
+  }
+  return a.localeCompare(b, 'ko')
+}
+
+/**
+ * 지출표 자동연동 줄(삭제 가능). 없으면 복구해 두어 이름·금액을 수정할 수 있게 합니다.
+ * `costRowKey`가 아닌 항목명만 같은 경우 라벨에 맞춰 `expenseKey`만 채워 넣습니다.
+ */
+const USER_EDITABLE_STANDARD_EXPENSE_KEYS = ['②기타경비', '②운영경비', '②기타'] as const
+
+const editableStandardExpenseKeySet = new Set<string>(USER_EDITABLE_STANDARD_EXPENSE_KEYS)
+
+const resolvedStandardExpenseBucketKey = (row: MeetingValueRow): string | null => {
+  const ek = String(row.expenseKey ?? '').trim()
+  if (editableStandardExpenseKeySet.has(ek)) {
+    return ek
+  }
+  const plain = stripLeadingIndexFromLabel(String(row.label ?? '')).trim()
+  if (plain === '기타경비') {
+    return '②기타경비'
+  }
+  if (plain === '운영경비') {
+    return '②운영경비'
+  }
+  if (plain === '그 외 비용' || plain === '그외 비용' || plain === '그외비용') {
+    return '②기타'
+  }
+  return null
+}
+
+/** 지출표에서만 금액이 채워지는 줄 — 회의표에서 금액 수동 수정 불가 */
+const isExpenseSheetFedCostAmountRow = (r: MeetingValueRow): boolean => {
+  const k = resolvedStandardExpenseBucketKey(r)
+  return k === '②기타경비' || k === '②운영경비'
+}
+
+const expenseSyncedMeetingCostAmountHint = (row: MeetingValueRow): string | undefined => {
+  if (!isExpenseSheetFedCostAmountRow(row)) {
+    return undefined
+  }
+  const k = resolvedStandardExpenseBucketKey(row)
+  if (k === '②운영경비') {
+    return '이 금액은 지출표에서 카테고리 「운영경비」「기타운영비」로 분류된 금액만 합친 값입니다. 기타경비 분류 줄은 포함되지 않으며, 바꾸려면 지출표를 수정하세요.'
+  }
+  if (k === '②기타경비') {
+    return '이 금액은 지출표에서 카테고리 「기타경비」이거나 카테고리·「용도」 규칙상 기타로 나뉜 금액만 합친 값입니다. 수정은 지출표에서 하세요.'
+  }
+  return undefined
+}
+
+const hydrateStandardExpenseKeyOnRow = (row: MeetingValueRow): MeetingValueRow => {
+  if (String(row.expenseKey ?? '').trim().length > 0) {
+    return row
+  }
+  const rk = resolvedStandardExpenseBucketKey(row)
+  if (!rk) {
+    return row
+  }
+  return { ...row, expenseKey: rk }
+}
+
+const ensureStandardUserExpenseBucketRowsInBody = (body: MeetingValueRow[]): MeetingValueRow[] => {
+  const occupied = new Set<string>()
+  for (const r of body) {
+    const k = resolvedStandardExpenseBucketKey(r)
+    if (k) {
+      occupied.add(k)
+    }
+  }
+  const inserts: MeetingValueRow[] = []
+  for (const key of USER_EDITABLE_STANDARD_EXPENSE_KEYS) {
+    if (occupied.has(key)) {
+      continue
+    }
+    inserts.push({
+      label: MEETING_COST_BUCKET_LABEL_FALLBACK[key] ?? key.replace(/^②/, ''),
+      amount: null,
+      share: null,
+      expenseKey: key,
+    })
+    occupied.add(key)
+  }
+  if (inserts.length === 0) {
+    return body
+  }
+  inserts.sort((a, b) => compareMeetingExpenseBucketKeys(a.expenseKey!, b.expenseKey!))
+  return [...body, ...inserts]
+}
+
+const prepareExpenseLinkedCostBodyRows = (bodyWithoutGrand: MeetingValueRow[]): MeetingValueRow[] => {
+  const hydrated = bodyWithoutGrand.map(hydrateStandardExpenseKeyOnRow)
+  return ensureStandardUserExpenseBucketRowsInBody(hydrated)
+}
+
+const ensureEditableExpenseCostRowsShape = (costRows: MeetingValueRow[]): MeetingValueRow[] => {
+  const grandIdx = costRows.findIndex(isCostGrandRow)
+  const grandRow = grandIdx >= 0 ? costRows[grandIdx]! : null
+  const body = costRows.filter((row) => !isCostGrandRow(row))
+  const preparedBody = prepareExpenseLinkedCostBodyRows(body)
+  if (!grandRow) {
+    return preparedBody
+  }
+  const grandFirst = grandIdx === 0
+  return grandFirst ? [grandRow, ...preparedBody] : [...preparedBody, grandRow]
+}
+
 const inferCalendarYearForMeetingMonth = (monthNum: number, records: ExpenseRecord[]): number => {
   const counts = new Map<number, number>()
   for (const r of records) {
@@ -903,29 +1069,53 @@ const buildMeetingCostsFromExpenses = (records: ExpenseRecord[], ym: string, bas
     if (!ds.startsWith(ymPrefix)) {
       continue
     }
-    const cat = (r.category ?? '').trim() || '기타운영비'
+    const resolvedCat = resolveExpenseCategoryForMeetingBucket(r).trim()
+    const cat = resolvedCat.length > 0 ? resolvedCat : '미분류'
     const amt = typeof r.totalAmount === 'number' && Number.isFinite(r.totalAmount) ? r.totalAmount : 0
     if (amt === 0) {
       continue
     }
-    const meetingLabel = EXPENSE_CATEGORY_TO_MEETING_COST_LABEL_MAP.get(cat) ?? '②기타'
+    const meetingLabel = expenseCategoryToMeetingCostBucketKey(cat)
     map.set(meetingLabel, (map.get(meetingLabel) ?? 0) + amt)
   }
-  return base.map((row) => {
-    if (isCostGrandRow(row)) {
-      return row
+
+  const grandIdx = base.findIndex(isCostGrandRow)
+  const grandRow = grandIdx >= 0 ? base[grandIdx]! : null
+  const bodyRowsBase = prepareExpenseLinkedCostBodyRows(base.filter((row) => !isCostGrandRow(row)))
+
+  const existingBucketKeys = new Set(bodyRowsBase.map(costRowKey))
+  const inserts: MeetingValueRow[] = []
+  for (const bucketKey of [...map.keys()].sort(compareMeetingExpenseBucketKeys)) {
+    if (existingBucketKeys.has(bucketKey)) {
+      continue
     }
+    inserts.push({
+      label: MEETING_COST_BUCKET_LABEL_FALLBACK[bucketKey] ?? bucketKey.replace(/^②/, ''),
+      amount: null,
+      share: null,
+      expenseKey: bucketKey,
+    })
+    existingBucketKeys.add(bucketKey)
+  }
+
+  const bodyRows = [...bodyRowsBase, ...inserts]
+
+  const patchedBody = bodyRows.map((row) => {
     const key = costRowKey(row)
     if (!map.has(key)) {
-      // 매칭되는 지출 데이터가 없을 때는 사용자가 직접 입력한 값을 보존
       return row
     }
-    // 수동 입력이 이미 있는 칸은 자동 연동으로 덮어쓰지 않음
     if (typeof row.amount === 'number' && Number.isFinite(row.amount)) {
       return row
     }
     return { ...row, amount: Math.round(map.get(key) ?? 0) }
   })
+
+  if (grandRow) {
+    const firstIsGrand = grandIdx === 0
+    return firstIsGrand ? [grandRow, ...patchedBody] : [...patchedBody, grandRow]
+  }
+  return patchedBody
 }
 
 type MeetingSalesPatchKey = 'baemin' | 'coupang' | 'quick' | 'cash' | 'receipt' | 'transfer' | 'card'
@@ -1381,7 +1571,9 @@ const migrateMeetingTemplateData = (d: MonthlyMeetingData): MonthlyMeetingData =
   monthLabel: d.monthLabel,
   months: d.months,
   currentMonthSales: ensureRoastingTotalSalesRow(d.currentMonthSales.map((row) => migrateMeetingValueRow(row, 'sales'))),
-  currentMonthCosts: d.currentMonthCosts.map((row) => migrateMeetingValueRow(row, 'costs')),
+  currentMonthCosts: ensureEditableExpenseCostRowsShape(
+    d.currentMonthCosts.map((row) => migrateMeetingValueRow(row, 'costs')),
+  ),
   roastingSales: d.roastingSales.map(migrateRoastRow),
   storeSales: d.storeSales,
   productionColumns: d.productionColumns,
@@ -1392,7 +1584,9 @@ const migrateMeetingTemplateData = (d: MonthlyMeetingData): MonthlyMeetingData =
 
 const migrateMonthState = (s: MonthlyMeetingMonthState): MonthlyMeetingMonthState => ({
   currentMonthSales: ensureRoastingTotalSalesRow(s.currentMonthSales.map((row) => migrateMeetingValueRow(row, 'sales'))),
-  currentMonthCosts: s.currentMonthCosts.map((row) => migrateMeetingValueRow(row, 'costs')),
+  currentMonthCosts: ensureEditableExpenseCostRowsShape(
+    s.currentMonthCosts.map((row) => migrateMeetingValueRow(row, 'costs')),
+  ),
   storeSales: s.storeSales,
   productionRow: s.productionRow,
   inventoryRow: s.inventoryRow,
@@ -2514,6 +2708,8 @@ function MonthlyMeetingPage() {
       { label: `${activeMonth} 입출금 순손익`, value: cashflowPl.net, unit: 'won' as const },
       { label: `${activeMonth} 비용계`, value: costGrand, unit: 'won' as const },
       { label: `${activeMonth} 재료비`, value: pickCostLineAmount(costs, '①재료비'), unit: 'won' as const },
+      { label: `${activeMonth} 기타경비`, value: pickCostLineAmount(costs, '②기타경비'), unit: 'won' as const },
+      { label: `${activeMonth} 운영경비`, value: pickCostLineAmount(costs, '②운영경비'), unit: 'won' as const },
       { label: `${activeMonth} 인건비`, value: pickCostLineAmount(costs, '⑧인건비'), unit: 'won' as const },
       { label: `${activeMonth} 재고 합계`, value: inventoryTotalKg, unit: 'kg' as const },
     ]
@@ -2538,12 +2734,23 @@ function MonthlyMeetingPage() {
     rowIndex: number,
     value: string,
   ) => {
-    updateMonthState((current) => ({
-      ...current,
-      [section]: current[section].map((row, index) =>
-        index === rowIndex ? { ...row, amount: parseNullableNumber(value) } : row,
-      ),
-    }))
+    updateMonthState((current) => {
+      const rows = current[section]
+      const targetRow = rows[rowIndex]
+      if (
+        section === 'currentMonthCosts' &&
+        targetRow &&
+        isExpenseSheetFedCostAmountRow(targetRow)
+      ) {
+        return current
+      }
+      return {
+        ...current,
+        [section]: rows.map((row, index) =>
+          index === rowIndex ? { ...row, amount: parseNullableNumber(value) } : row,
+        ),
+      }
+    })
   }
 
   const updateRoastingSales = (
@@ -3307,7 +3514,9 @@ function MonthlyMeetingPage() {
               showShareColumn
               editMode={summaryEditMode}
               indexKind="costs"
-              isAmountReadonly={isCostGrandRow}
+              isAmountReadonly={(row) => isCostGrandRow(row) || isExpenseSheetFedCostAmountRow(row)}
+              shouldShowRemoveRowButton={(row) => !isCostGrandRow(row)}
+              amountInputTitle={expenseSyncedMeetingCostAmountHint}
               onAddRow={() => addMonthStateRow('currentMonthCosts', '새 비용 항목')}
               onLabelChange={(i, v) => updateMonthStateLabel('currentMonthCosts', i, v)}
               onValueChange={(i, v) => updateValueRow('currentMonthCosts', i, v)}

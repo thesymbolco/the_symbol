@@ -3918,6 +3918,56 @@ button.statement-bulk-custom-add {
   padding: 7px 9px;
 }
 
+.expense-table .expense-th-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  width: 100%;
+  padding: 3px 5px;
+  margin: -3px -5px;
+  font: inherit;
+  font-weight: 650;
+  color: inherit;
+  text-align: left;
+  vertical-align: middle;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.expense-table .expense-th-sort-btn:hover {
+  background: rgba(15, 23, 42, 0.07);
+}
+
+.expense-table .expense-th-sort-btn:focus-visible {
+  outline: 2px solid #166534;
+  outline-offset: 2px;
+}
+
+.expense-table .expense-th-sort-btn--active {
+  background: rgba(22, 101, 52, 0.1);
+  color: #14532d;
+}
+
+.expense-table .expense-th-sort-indicator {
+  opacity: 0.5;
+  font-size: 0.74em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.expense-table .expense-th-sort-btn--active .expense-th-sort-indicator {
+  opacity: 1;
+}
+
+.expense-table .expense-th-sort-btn--narrow {
+  justify-content: center;
+  width: auto;
+  min-width: 100%;
+}
+
 .expense-input,
 .expense-cell-input {
   width: 100%;
