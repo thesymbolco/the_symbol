@@ -78,6 +78,12 @@ export const monthlyMeetingData: MonthlyMeetingData = {
   ],
   currentMonthCosts: [
     { label: '비용 합계', amount: null, share: null, role: 'costsGrand' },
+    {
+      label: '재료비(매출·생두)',
+      amount: null,
+      share: null,
+      expenseKey: '①매출별생두재료',
+    },
     { label: '기타경비', amount: null, share: null, expenseKey: '②기타경비' },
     { label: '운영경비', amount: null, share: null, expenseKey: '②운영경비' },
     { label: '그 외 비용', amount: null, share: null, expenseKey: '②기타' },

@@ -32,8 +32,21 @@ import {
   INVENTORY_STATUS_STORAGE_KEY,
   inventoryPageScopedKey,
 } from './InventoryStatusPage'
+import { BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT } from './beanStatementManualMappings'
+import { BLEND_WON_OVERRIDES_SAVED_EVENT } from './beanBlendWonOverrides'
+import {
+  computeBeanSalesMaterialCostForYm,
+  filterStatementsByYmDelivery,
+  type BeanSalesMaterialMeetingLine,
+  type BeanSalesMaterialMeetingResult,
+  type BeanStatementDeliveryRecord,
+} from './beanSalesMeetingMaterialCost'
 import { exportStyledMeetingMonthExcel, sanitizeExcelFileBaseName } from './monthlyMeetingExcelStyledExport'
-import { dayIndexForReferenceDate } from './inventoryStatusUtils'
+import {
+  dayIndexForReferenceDate,
+  normalizeInventoryStatusState,
+  type InventoryStatusState,
+} from './inventoryStatusUtils'
 import {
   monthlyMeetingData,
   type MeetingMonthlyRow,
@@ -416,6 +429,47 @@ const meetingRoastDisplayIndexText = (
   return circledOrPlain(n)
 }
 
+/** 비용 현황 — 지출표와 직접 맞물리는 줄(내역 보기 제공) */
+type MeetingCostsExpenseBucketKey = '②기타' | '②기타경비' | '②운영경비'
+
+type MeetingCostDetailModalOpen =
+  | { kind: 'expense'; bucket: MeetingCostsExpenseBucketKey }
+  | { kind: 'beanMaterial' }
+
+type MeetingCostDetailModalState = MeetingCostDetailModalOpen | null
+
+const MEETING_COST_BREAKDOWN_MODAL_COPY: Record<
+  MeetingCostsExpenseBucketKey,
+  { caption: string; empty: string; hint: string }
+> = {
+  '②기타': {
+    caption:
+      '카테고리가 「기타경비」「운영경비」(및 운영 줄)로 잡히지 않은 거래가 「그 외 비용」(②기타)으로 집계된 내용입니다. 「원재료비」 등 월 마감에 따로 매핑되는 항목은 여기 없을 수 있습니다.',
+    empty:
+      '이 달에 「그 외 비용」으로 집계된 지출표 내역이 없습니다. 지출표에서 해당 월 거래·분류를 확인해 주세요.',
+    hint: '지출표 카테고리·용도가 비용 현황 줄과 같은 규칙으로 반영된 목록입니다.',
+  },
+  '②기타경비': {
+    caption: '카테고리 「기타경비」 또는 용도·규칙상 기타경비로 들어간 지출입니다.',
+    empty: '이 달에 「기타경비」 줄로 집계된 지출표 내역이 없습니다.',
+    hint: '이 줄 금액은 지출표에서 「기타경비」 등으로만 분류된 항목의 합과 맞춥니다.',
+  },
+  '②운영경비': {
+    caption:
+      '카테고리 「운영경비」「기타운영비」 또는 용도·규칙상 운영으로 들어간 지출입니다(기타경비 분류는 제외).',
+    empty: '이 달에 「운영경비」 줄로 집계된 지출표 내역이 없습니다.',
+    hint: '이 줄에는 운영·기타운영비로 분류된 지출만 포함됩니다.',
+  },
+}
+
+const MEETING_BEAN_MATERIAL_MODAL_COPY = {
+  caption:
+    '해당 월 거래명세 납품일이 속한 로스팅 거래를 입출고 생두와 맞춘 뒤, 생두 주문 일자별 기록의 최근 1kg당 단가(원두별 매출 분석과 동일)로 추정한 생두 원가입니다.',
+  empty:
+    '이 달 납품 건이 없거나, 입출고에 없는 품목만 있으면 여기에 잡히지 않을 수 있습니다. 거래명세·입출고·생두 주문을 확인해 주세요.',
+  hint: '단가가 없는 품목은 추정 원가 0으로 표시될 수 있습니다. 생두 주문 스냅샷·원/kg 직접 입력을 맞춰 주세요.',
+}
+
 /** 1. 요약 — 매출·비용·재료·기타 4칸(동일 UI, 집계 행·점유비 열 유무만 다름) */
 const MeetingSummaryValueCard = (props: {
   tableId: string
@@ -430,13 +484,10 @@ const MeetingSummaryValueCard = (props: {
   shouldShowRemoveRowButton?: (r: MeetingValueRow) => boolean
   /** 금액 입력 툴팁(자동 집계 안내 등) */
   amountInputTitle?: (r: MeetingValueRow) => string | undefined
-  /** 특정 행 클릭 펼치기 패널(예: 그 외 비용 지출 내역) · 보기 모드에서만 */
-  rowExpandablePopover?: {
-    expandedRowIndex: number | null
-    onExpandedChange: (index: number | null) => void
+  /** 지출 「내역 보기」(모달) — 보기 모드에서만 */
+  rowExpenseBreakdownModal?: {
     matchesRow: (row: MeetingValueRow, rowIndex: number) => boolean
-    renderPanel: (row: MeetingValueRow, rowIndex: number) => ReactNode
-    toggleLabels?: { expand: string; collapse: string }
+    onOpenModal: (row: MeetingValueRow, rowIndex: number) => void
   }
   onAddRow: () => void
   onLabelChange: (rowIndex: number, value: string) => void
@@ -454,7 +505,7 @@ const MeetingSummaryValueCard = (props: {
     isAmountReadonly,
     shouldShowRemoveRowButton,
     amountInputTitle,
-    rowExpandablePopover,
+    rowExpenseBreakdownModal,
     onAddRow,
     onLabelChange,
     onValueChange,
@@ -483,91 +534,68 @@ const MeetingSummaryValueCard = (props: {
         </thead>
         <tbody>
           {rows.map((row, rowIndex) => {
-            const expandable =
-              rowExpandablePopover && !editMode && rowExpandablePopover.matchesRow(row, rowIndex)
-            const fullColSpan = showShareColumn ? 4 : 3
-            const expandLabels = rowExpandablePopover?.toggleLabels ?? {
-              expand: '내역 보기',
-              collapse: '내역 닫기',
-            }
-            const isExpanded =
-              expandable && rowExpandablePopover!.expandedRowIndex === rowIndex
+            const breakdownBtn =
+              rowExpenseBreakdownModal && !editMode && rowExpenseBreakdownModal.matchesRow(row, rowIndex)
             return (
-              <Fragment key={`${tableId}-${rowIndex}`}>
-                <tr>
-                  <td className="meeting-col-idx" title="자동">
-                    {meetingValueRowIndexText(rows, rowIndex, indexKind)}
-                  </td>
-                  <td>
-                    {editMode ? (
-                      <div className="meeting-header-edit-row">
-                        <input
-                          className="meeting-header-input"
-                          type="text"
-                          value={row.label}
-                          onChange={(event) => onLabelChange(rowIndex, event.target.value)}
-                        />
-                        {rowCanRemove(row) ? (
-                          <button type="button" className="meeting-icon-button" onClick={() => onRemoveRow(rowIndex)}>
-                            -
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : expandable ? (
-                      <div className="meeting-summary-label-with-toggle">
-                        <span className="meeting-summary-label-text">{row.label}</span>
-                        <button
-                          type="button"
-                          className="meeting-breakdown-toggle"
-                          onClick={() =>
-                            rowExpandablePopover!.onExpandedChange(
-                              rowExpandablePopover.expandedRowIndex === rowIndex ? null : rowIndex,
-                            )
-                          }
-                          aria-expanded={Boolean(isExpanded)}
-                        >
-                          {isExpanded ? expandLabels.collapse : expandLabels.expand}
+              <tr key={`${tableId}-${rowIndex}`}>
+                <td className="meeting-col-idx" title="자동">
+                  {meetingValueRowIndexText(rows, rowIndex, indexKind)}
+                </td>
+                <td>
+                  {editMode ? (
+                    <div className="meeting-header-edit-row">
+                      <input
+                        className="meeting-header-input"
+                        type="text"
+                        value={row.label}
+                        onChange={(event) => onLabelChange(rowIndex, event.target.value)}
+                      />
+                      {rowCanRemove(row) ? (
+                        <button type="button" className="meeting-icon-button" onClick={() => onRemoveRow(rowIndex)}>
+                          -
                         </button>
-                      </div>
-                    ) : (
-                      row.label
-                    )}
-                  </td>
+                      ) : null}
+                    </div>
+                  ) : breakdownBtn ? (
+                    <div className="meeting-summary-label-with-toggle">
+                      <span className="meeting-summary-label-text">{row.label}</span>
+                      <button
+                        type="button"
+                        className="meeting-breakdown-toggle"
+                        onClick={() => rowExpenseBreakdownModal!.onOpenModal(row, rowIndex)}
+                      >
+                        내역 보기
+                      </button>
+                    </div>
+                  ) : (
+                    row.label
+                  )}
+                </td>
+                <td>
+                  <input
+                    className={
+                      isAmountReadonly(row) ? 'meeting-cell-input meeting-cell-input-readonly' : 'meeting-cell-input'
+                    }
+                    type="text"
+                    inputMode="numeric"
+                    value={formatAmountForInput(row.amount)}
+                    readOnly={isAmountReadonly(row)}
+                    title={amountInputTitle?.(row)}
+                    onChange={(event) => onValueChange(rowIndex, event.target.value)}
+                  />
+                </td>
+                {showShareColumn ? (
                   <td>
                     <input
-                      className={
-                        isAmountReadonly(row) ? 'meeting-cell-input meeting-cell-input-readonly' : 'meeting-cell-input'
-                      }
+                      className="meeting-cell-input meeting-cell-input-readonly"
                       type="text"
-                      inputMode="numeric"
-                      value={formatAmountForInput(row.amount)}
-                      readOnly={isAmountReadonly(row)}
-                      title={amountInputTitle?.(row)}
-                      onChange={(event) => onValueChange(rowIndex, event.target.value)}
+                      inputMode="decimal"
+                      value={formatSharePercent(row.share)}
+                      readOnly
                     />
                   </td>
-                  {showShareColumn ? (
-                    <td>
-                      <input
-                        className="meeting-cell-input meeting-cell-input-readonly"
-                        type="text"
-                        inputMode="decimal"
-                        value={formatSharePercent(row.share)}
-                        readOnly
-                      />
-                    </td>
-                  ) : null}
-                </tr>
-                {expandable && isExpanded ? (
-                  <tr className="meeting-summary-expand-row">
-                    <td className="meeting-summary-expand-cell" colSpan={fullColSpan}>
-                      <div className="meeting-breakdown-panel" role="region" aria-live="polite">
-                        {rowExpandablePopover!.renderPanel(row, rowIndex)}
-                      </div>
-                    </td>
-                  </tr>
                 ) : null}
-              </Fragment>
+              </tr>
             )
           })}
         </tbody>
@@ -936,19 +964,82 @@ const expenseCategoryToMeetingCostBucketKey = (cat: string): string => {
 
 const OTHER_COST_BUCKET_PANEL_MAX_ENTRIES = 30
 
+const formatExpenseDateForMeetingBreakdown = (isoDate: string) => {
+  const s = isoDate.trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return s.replaceAll('-', '.')
+  }
+  return s.length > 0 ? s : '—'
+}
+
 type OtherCostBucketExpenseEntry = {
+  /** 비교 정렬용 `YYYY-MM-DD` · 파싱 불가면 빈 문자열 */
+  sortDateKey: string
+  expenseDateLabel: string
   headline: string
   metaLabel: string
   amount: number
 }
 
+type MeetingExpenseBreakdownSortKey = 'date' | 'name' | 'amount'
+
+function parseExpenseMeetBreakdownIsoDate(ds: string): string {
+  const s = ds.trim().slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ''
+}
+
+function sortExpenseBreakdownEntries(
+  entries: OtherCostBucketExpenseEntry[],
+  key: MeetingExpenseBreakdownSortKey,
+  dir: 'asc' | 'desc',
+): OtherCostBucketExpenseEntry[] {
+  const signPrimary = dir === 'asc' ? 1 : -1
+  return [...entries].sort((a, b) => {
+    let cmp = 0
+    if (key === 'date') {
+      const ha = a.sortDateKey.length > 0
+      const hb = b.sortDateKey.length > 0
+      if (ha !== hb) {
+        return ha ? -1 : 1
+      }
+      if (ha && hb) {
+        cmp = a.sortDateKey.localeCompare(b.sortDateKey) * signPrimary
+      }
+    } else if (key === 'name') {
+      cmp = a.headline.localeCompare(b.headline, 'ko', { sensitivity: 'base' }) * signPrimary
+    } else {
+      cmp = Math.sign(a.amount - b.amount) * signPrimary
+    }
+
+    if (cmp !== 0) {
+      return cmp
+    }
+    const byDate = (() => {
+      const ua = a.sortDateKey.length > 0
+      const ub = b.sortDateKey.length > 0
+      if (ua !== ub) {
+        return ua ? -1 : 1
+      }
+      return ua ? a.sortDateKey.localeCompare(b.sortDateKey) : 0
+    })()
+    if (byDate !== 0) {
+      return byDate
+    }
+    const byHeadline = a.headline.localeCompare(b.headline, 'ko', { sensitivity: 'base' })
+    if (byHeadline !== 0) {
+      return byHeadline
+    }
+    return Math.sign(a.amount - b.amount)
+  })
+}
+
 /**
- * 「그 외 비용」(②기타) 줄에 들어간 지출 행 목록 · 월 마감 집계와 동일 규칙.
- * 카테고리가 「기타경비」「운영경비」 등으로 다른 비용 줄에 매핑되면 여기에서는 제외됩니다.
+ * 월 마감 비용 한 줄(②기타·②기타경비·②운영경비)에 들어간 지출표 행 · 집계와 동일 규칙.
  */
-function gatherOtherCostBucketExpenseEntries(
+function gatherExpenseMeetingBucketEntries(
   records: ExpenseRecord[],
   ym: string,
+  bucketKey: MeetingCostsExpenseBucketKey,
 ): OtherCostBucketExpenseEntry[] {
   const prefix = ym.trim()
   if (!/^\d{4}-\d{2}$/.test(prefix)) {
@@ -966,7 +1057,7 @@ function gatherOtherCostBucketExpenseEntries(
       continue
     }
     const resolved = resolveExpenseCategoryForMeetingBucket(r).trim() || '미분류'
-    if (expenseCategoryToMeetingCostBucketKey(resolved) !== '②기타') {
+    if (expenseCategoryToMeetingCostBucketKey(resolved) !== bucketKey) {
       continue
     }
     const vendor = (r.vendorName ?? '').trim()
@@ -986,14 +1077,53 @@ function gatherOtherCostBucketExpenseEntries(
       metaParts.push(`용도: ${purpose}`)
     }
     const metaLabel = metaParts.join(' · ')
+    const sortDateKey = parseExpenseMeetBreakdownIsoDate(ds)
     gathered.push({
+      sortDateKey,
+      expenseDateLabel: formatExpenseDateForMeetingBreakdown(ds),
       headline,
       metaLabel,
       amount: amt,
     })
   }
-  gathered.sort((a, b) => b.amount - a.amount)
   return gathered
+}
+
+function renderExpenseBucketLinesList(
+  entries: OtherCostBucketExpenseEntry[],
+  caption: ReactNode,
+  emptyMessage: string,
+  overflowExtraHint?: string,
+): ReactNode {
+  if (entries.length === 0) {
+    return <p className="meeting-breakdown-empty">{emptyMessage}</p>
+  }
+  const visible = entries.slice(0, OTHER_COST_BUCKET_PANEL_MAX_ENTRIES)
+  const overflow = entries.length - visible.length
+  return (
+    <>
+      <p className="meeting-breakdown-caption">{caption}</p>
+      <ul className="meeting-breakdown-list">
+        {visible.map((e, idx) => (
+          <li key={`${e.sortDateKey}-${e.headline}-${e.amount}-${idx}`} className="meeting-breakdown-item">
+            <div className="meeting-breakdown-item-row">
+              <div className="meeting-breakdown-item-text">
+                <span className="meeting-breakdown-date">{e.expenseDateLabel}</span>
+                <span className="meeting-breakdown-headline">{e.headline}</span>
+              </div>
+              <span className="meeting-breakdown-amount">{formatMoney(e.amount)}</span>
+            </div>
+            {e.metaLabel ? <div className="meeting-breakdown-meta">{e.metaLabel}</div> : null}
+          </li>
+        ))}
+      </ul>
+      {overflow > 0 ? (
+        <p className="meeting-breakdown-overflow">
+          외 {overflow}건 — {overflowExtraHint ?? '지출표에서 전체를 확인할 수 있습니다.'}
+        </p>
+      ) : null}
+    </>
+  )
 }
 
 /**
@@ -1017,8 +1147,12 @@ const pickExpenseRecordsForMeetingLink = (
   return lsRecords.length >= cloudRecords.length ? lsRecords : cloudRecords
 }
 
+/** 비용 현황 · 원두별 매출 분석과 같은 추정 생두 원가(거래명세 납품 월×kg×최근 원/kg) */
+const MEETING_BEAN_MATERIAL_BUCKET_KEY = '①매출별생두재료'
+
 const MEETING_COST_BUCKET_LABEL_FALLBACK: Record<string, string> = {
   '①재료비': '재료비',
+  [MEETING_BEAN_MATERIAL_BUCKET_KEY]: '재료비(매출·생두)',
   '③임대료': '임대료',
   '⑥전기세': '전기세',
   '⑧인건비': '인건비',
@@ -1029,6 +1163,7 @@ const MEETING_COST_BUCKET_LABEL_FALLBACK: Record<string, string> = {
 
 const MEETING_COST_BUCKET_SORT_ORDER: readonly string[] = [
   '①재료비',
+  MEETING_BEAN_MATERIAL_BUCKET_KEY,
   '③임대료',
   '⑥전기세',
   '⑧인건비',
@@ -1050,6 +1185,109 @@ const compareMeetingExpenseBucketKeys = (a: string, b: string): number => {
     return 1
   }
   return a.localeCompare(b, 'ko')
+}
+
+const beanMaterialMeetingLinesToBreakdownEntries = (lines: BeanSalesMaterialMeetingLine[]): OtherCostBucketExpenseEntry[] =>
+  lines.map((line) => {
+    const dk = line.greenOrderDateRef
+      ? /^\d{4}-\d{2}-\d{2}/.exec(String(line.greenOrderDateRef).trim())?.[0] ?? ''
+      : ''
+    const dateLabel = dk ? formatExpenseDateForMeetingBreakdown(dk) : '참고 단가일'
+    const metaBits: string[] = []
+    if (line.wonPerKg != null && Number.isFinite(line.wonPerKg)) {
+      metaBits.push(`${currencyFormatter.format(Math.round(line.wonPerKg))}원/kg`)
+    } else {
+      metaBits.push('생두 단가 미확보')
+    }
+    const qtyStr =
+      Number.isInteger(line.totalQuantityKg) || line.totalQuantityKg % 1 === 0
+        ? String(Math.round(line.totalQuantityKg))
+        : line.totalQuantityKg.toFixed(2)
+    metaBits.push(`판매량 ${qtyStr}kg · 매출 ${formatMoney(line.totalRevenueWon)}`)
+    if (line.greenOrderDateRef && line.greenOrderDateRef !== '직접') {
+      metaBits.push(`주문·단가 기준: ${line.greenOrderDateRef}`)
+    }
+    const cost = line.estimatedCostWon != null && line.estimatedCostWon > 0 ? Math.round(line.estimatedCostWon) : 0
+    return {
+      sortDateKey: parseExpenseMeetBreakdownIsoDate(dk),
+      expenseDateLabel: dateLabel,
+      headline: line.beanLabel,
+      metaLabel: metaBits.join(' · '),
+      amount: cost,
+    }
+  })
+
+const parseMeetingStatementDeliveryRecords = (): BeanStatementDeliveryRecord[] => {
+  try {
+    const raw = window.localStorage.getItem(STATEMENT_RECORDS_STORAGE_KEY)
+    if (!raw?.trim()) {
+      return []
+    }
+    const parsed = JSON.parse(raw) as unknown[]
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    const out: BeanStatementDeliveryRecord[] = []
+    for (const row of parsed) {
+      if (!row || typeof row !== 'object') {
+        continue
+      }
+      const r = row as Record<string, unknown>
+      const deliveryDate = typeof r.deliveryDate === 'string' ? r.deliveryDate : ''
+      const itemName = typeof r.itemName === 'string' ? r.itemName : ''
+      const clientName = typeof r.clientName === 'string' ? r.clientName : ''
+      const qty = typeof r.quantity === 'number' && Number.isFinite(r.quantity) ? r.quantity : 0
+      const totalAmount = typeof r.totalAmount === 'number' && Number.isFinite(r.totalAmount) ? r.totalAmount : 0
+      if (!deliveryDate || !itemName) {
+        continue
+      }
+      out.push({ deliveryDate, itemName, quantity: qty, totalAmount, clientName })
+    }
+    return out
+  } catch {
+    return []
+  }
+}
+
+const readMeetingInventoryForBeanMaterial = (mode: 'local' | 'cloud', companyId: string | null): InventoryStatusState | null => {
+  try {
+    const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, companyId)
+    let raw = window.localStorage.getItem(key)
+    if (!raw && key !== INVENTORY_STATUS_STORAGE_KEY) {
+      raw = window.localStorage.getItem(INVENTORY_STATUS_STORAGE_KEY)
+    }
+    if (!raw) {
+      return null
+    }
+    return normalizeInventoryStatusState(JSON.parse(raw))
+  } catch {
+    return null
+  }
+}
+
+const mergeBeanSalesMaterialCostIntoMeetingRows = (
+  rows: MeetingValueRow[],
+  ymPrefix: string | null,
+  result: BeanSalesMaterialMeetingResult | null,
+): MeetingValueRow[] => {
+  const keyBucket = MEETING_BEAN_MATERIAL_BUCKET_KEY
+  if (!ymPrefix || !result) {
+    return rows
+  }
+
+  const hasSalesKg = result.lines.some((l) => l.totalQuantityKg > 0 && l.totalRevenueWon > 0)
+  const nextAmt = hasSalesKg ? Math.max(0, Math.round(result.totalEstimatedCostWon)) : null
+
+  return rows.map((row) => {
+    if (costRowKey(row) !== keyBucket) {
+      return row
+    }
+    return {
+      ...row,
+      expenseKey: keyBucket,
+      amount: nextAmt,
+    }
+  })
 }
 
 /**
@@ -1080,11 +1318,17 @@ const resolvedStandardExpenseBucketKey = (row: MeetingValueRow): string | null =
 
 /** 지출표에서만 금액이 채워지는 줄 — 회의표에서 금액 수동 수정 불가 */
 const isExpenseSheetFedCostAmountRow = (r: MeetingValueRow): boolean => {
+  if (String(r.expenseKey ?? '').trim() === MEETING_BEAN_MATERIAL_BUCKET_KEY) {
+    return true
+  }
   const k = resolvedStandardExpenseBucketKey(r)
   return k === '②기타경비' || k === '②운영경비'
 }
 
 const expenseSyncedMeetingCostAmountHint = (row: MeetingValueRow): string | undefined => {
+  if (String(row.expenseKey ?? '').trim() === MEETING_BEAN_MATERIAL_BUCKET_KEY) {
+    return '이 금액은 해당 월 거래명세 납품·판매량(kg)과 생두 주문 일자별 기록의 원/kg으로 추정합니다. 원두별 매출 분석과 같은 규칙이며, 거래명세·입출고·생두 주문을 수정하면 바뀝니다.'
+  }
   if (!isExpenseSheetFedCostAmountRow(row)) {
     return undefined
   }
@@ -1102,11 +1346,51 @@ const hydrateStandardExpenseKeyOnRow = (row: MeetingValueRow): MeetingValueRow =
   if (String(row.expenseKey ?? '').trim().length > 0) {
     return row
   }
+  const beanFallbackLabel = MEETING_COST_BUCKET_LABEL_FALLBACK[MEETING_BEAN_MATERIAL_BUCKET_KEY]
+  const plain = stripLeadingIndexFromLabel(String(row.label ?? '')).trim()
+  if (plain === beanFallbackLabel) {
+    return { ...row, expenseKey: MEETING_BEAN_MATERIAL_BUCKET_KEY }
+  }
   const rk = resolvedStandardExpenseBucketKey(row)
   if (!rk) {
     return row
   }
   return { ...row, expenseKey: rk }
+}
+
+const resolveMonthlyMeetingCostBreakdownTarget = (
+  row: MeetingValueRow,
+): MeetingCostDetailModalOpen | null => {
+  if (String(row.expenseKey ?? '').trim() === MEETING_BEAN_MATERIAL_BUCKET_KEY) {
+    return { kind: 'beanMaterial' }
+  }
+  const bucket = resolvedStandardExpenseBucketKey(row)
+  if (bucket === '②기타' || bucket === '②기타경비' || bucket === '②운영경비') {
+    return { kind: 'expense', bucket }
+  }
+  return null
+}
+
+const ensureMeetingBeanMaterialCostRowPresent = (body: MeetingValueRow[]): MeetingValueRow[] => {
+  if (body.some((r) => String(r.expenseKey ?? '').trim() === MEETING_BEAN_MATERIAL_BUCKET_KEY)) {
+    return body
+  }
+  const label = MEETING_COST_BUCKET_LABEL_FALLBACK[MEETING_BEAN_MATERIAL_BUCKET_KEY]
+  const newRow: MeetingValueRow = {
+    label,
+    amount: null,
+    share: null,
+    expenseKey: MEETING_BEAN_MATERIAL_BUCKET_KEY,
+  }
+  const idxExpenseMaterial = body.findIndex((r) => costRowKey(r) === '①재료비')
+  if (idxExpenseMaterial >= 0) {
+    return [...body.slice(0, idxExpenseMaterial + 1), newRow, ...body.slice(idxExpenseMaterial + 1)]
+  }
+  const idxLease = body.findIndex((r) => costRowKey(r) === '③임대료')
+  if (idxLease >= 0) {
+    return [...body.slice(0, idxLease), newRow, ...body.slice(idxLease)]
+  }
+  return [newRow, ...body]
 }
 
 const ensureStandardUserExpenseBucketRowsInBody = (body: MeetingValueRow[]): MeetingValueRow[] => {
@@ -1139,7 +1423,7 @@ const ensureStandardUserExpenseBucketRowsInBody = (body: MeetingValueRow[]): Mee
 
 const prepareExpenseLinkedCostBodyRows = (bodyWithoutGrand: MeetingValueRow[]): MeetingValueRow[] => {
   const hydrated = bodyWithoutGrand.map(hydrateStandardExpenseKeyOnRow)
-  return ensureStandardUserExpenseBucketRowsInBody(hydrated)
+  return ensureMeetingBeanMaterialCostRowPresent(ensureStandardUserExpenseBucketRowsInBody(hydrated))
 }
 
 const ensureEditableExpenseCostRowsShape = (costRows: MeetingValueRow[]): MeetingValueRow[] => {
@@ -1873,11 +2157,14 @@ function MonthlyMeetingPage() {
   const [greenBeanOrderStorageRev, setGreenBeanOrderStorageRev] = useState(0)
   const [statementRecordsStorageRev, setStatementRecordsStorageRev] = useState(0)
   const [expensePageStorageRev, setExpensePageStorageRev] = useState(0)
-  const [otherCostExpenseBreakdownExpandedIndex, setOtherCostExpenseBreakdownExpandedIndex] = useState<
-    number | null
-  >(null)
+  const [meetingCostDetailModal, setMeetingCostDetailModal] = useState<MeetingCostDetailModalState>(null)
+  const [expenseBreakdownSortKey, setExpenseBreakdownSortKey] =
+    useState<MeetingExpenseBreakdownSortKey>('amount')
+  const [expenseBreakdownSortDir, setExpenseBreakdownSortDir] = useState<'asc' | 'desc'>('desc')
   /** 클라우드 전용: 회사 문서의 지출표(지출 탭을 안 열어도 월 마감에서 활용) */
   const [companyExpenseRecordsCached, setCompanyExpenseRecordsCached] = useState<ExpenseRecord[]>([])
+  /** 원두별 매출·생두 단가·매핑 변경 시 재료비(매출·생두) 줄 재계산 */
+  const [beanMeetingMaterialDepsRev, setBeanMeetingMaterialDepsRev] = useState(0)
   const [outboundShareChartOpen, setOutboundShareChartOpen] = useState(true)
   const [outboundPieHoveredSliceIndex, setOutboundPieHoveredSliceIndex] = useState<number | null>(null)
   /** 출고·재고 세부 표는 모달에서만 표시 */
@@ -1932,8 +2219,13 @@ function MonthlyMeetingPage() {
     const bumpGreenBean = () => setGreenBeanOrderStorageRev((n) => n + 1)
     const bumpStatements = () => setStatementRecordsStorageRev((n) => n + 1)
     const bumpExpense = () => setExpensePageStorageRev((n) => n + 1)
+    const bumpBeanMeetingMaterial = () => setBeanMeetingMaterialDepsRev((n) => n + 1)
     window.addEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, bumpGreenBean)
+    window.addEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, bumpBeanMeetingMaterial)
+    window.addEventListener(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, bumpBeanMeetingMaterial)
+    window.addEventListener(BLEND_WON_OVERRIDES_SAVED_EVENT, bumpBeanMeetingMaterial)
     window.addEventListener(STATEMENT_RECORDS_SAVED_EVENT, bumpStatements)
+    window.addEventListener(STATEMENT_RECORDS_SAVED_EVENT, bumpBeanMeetingMaterial)
     window.addEventListener(EXPENSE_PAGE_SAVED_EVENT, bumpExpense)
     const onStorage = (event: StorageEvent) => {
       if (event.key === GREEN_BEAN_ORDER_STORAGE_KEY) {
@@ -1949,7 +2241,11 @@ function MonthlyMeetingPage() {
     window.addEventListener('storage', onStorage)
     return () => {
       window.removeEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, bumpGreenBean)
+      window.removeEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, bumpBeanMeetingMaterial)
+      window.removeEventListener(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, bumpBeanMeetingMaterial)
+      window.removeEventListener(BLEND_WON_OVERRIDES_SAVED_EVENT, bumpBeanMeetingMaterial)
       window.removeEventListener(STATEMENT_RECORDS_SAVED_EVENT, bumpStatements)
+      window.removeEventListener(STATEMENT_RECORDS_SAVED_EVENT, bumpBeanMeetingMaterial)
       window.removeEventListener(EXPENSE_PAGE_SAVED_EVENT, bumpExpense)
       window.removeEventListener('storage', onStorage)
     }
@@ -1957,8 +2253,13 @@ function MonthlyMeetingPage() {
 
   useEffect(() => {
     const bump = () => setInventoryLinkTick((n) => n + 1)
+    const bumpBean = () => setBeanMeetingMaterialDepsRev((n) => n + 1)
     window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, bump)
-    return () => window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, bump)
+    window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, bumpBean)
+    return () => {
+      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, bump)
+      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, bumpBean)
+    }
   }, [])
 
   useEffect(() => {
@@ -2081,12 +2382,16 @@ function MonthlyMeetingPage() {
     [companyExpenseRecordsCached, lsExpenseRecordsForMeetingLink, mode],
   )
 
-  /** 지출표 → 재료비·기타 세부, 비용현황 ①②, 매출 채널(키워드) 자동 연동 */
+  /** 지출표 → 재료비·기타 세부, 비용현황 ①②, 매출 채널(키워드) 자동 연동 + 거래명세·입출고·생두단가 기반 재료비(매출·생두) */
   useEffect(() => {
     if (!isStorageReady || sectionEditModes.summary) {
       return
     }
     const records = expenseRecordsForMeetingLink
+    const stmtAll = parseMeetingStatementDeliveryRecords()
+    const inv = readMeetingInventoryForBeanMaterial(mode, activeCompanyId)
+    const mapOpts = { mode, companyId: activeCompanyId } as const
+
     setPageState((current) => {
       const fallbackStates = createMonthStates(current.data)
       let nextMonthStates = { ...current.monthStatesByMonth }
@@ -2097,7 +2402,10 @@ function MonthlyMeetingPage() {
           continue
         }
         const base = nextMonthStates[monthLabel] ?? fallbackStates[monthLabel]!
-        const nextCosts = computeCurrentMonthCosts(buildMeetingCostsFromExpenses(records, ym, base.currentMonthCosts))
+        const built = buildMeetingCostsFromExpenses(records, ym, base.currentMonthCosts)
+        const stmMonth = filterStatementsByYmDelivery(stmtAll, ym)
+        const beanResult = computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, mapOpts)
+        const nextCosts = computeCurrentMonthCosts(mergeBeanSalesMaterialCostIntoMeetingRows(built, ym, beanResult))
         const salesPatchMap = aggregateExpenseSalesPatches(records, ym)
         const nextSalesRaw = applySalesPatchesFromMap(base.currentMonthSales, salesPatchMap)
 
@@ -2124,7 +2432,16 @@ function MonthlyMeetingPage() {
       }
       return { ...current, monthStatesByMonth: nextMonthStates }
     })
-  }, [expenseRecordsForMeetingLink, isStorageReady, sectionEditModes.summary])
+  }, [
+    expenseRecordsForMeetingLink,
+    isStorageReady,
+    sectionEditModes.summary,
+    mode,
+    activeCompanyId,
+    statementRecordsStorageRev,
+    inventoryLinkTick,
+    beanMeetingMaterialDepsRev,
+  ])
 
   useEffect(() => {
     let cancelled = false
@@ -2406,12 +2723,13 @@ function MonthlyMeetingPage() {
   }, [sectionEditModes])
 
   useEffect(() => {
-    if (!piTableModal) {
+    if (!piTableModal && !meetingCostDetailModal) {
       return
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setPiTableModal(null)
+        setMeetingCostDetailModal(null)
       }
     }
     const prevOverflow = document.body.style.overflow
@@ -2421,7 +2739,7 @@ function MonthlyMeetingPage() {
       document.body.style.overflow = prevOverflow
       window.removeEventListener('keydown', onKey)
     }
-  }, [piTableModal])
+  }, [meetingCostDetailModal, piTableModal])
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -2690,67 +3008,115 @@ function MonthlyMeetingPage() {
     [activeMonthState.currentMonthCosts],
   )
 
-  const otherCostBucketExpenseEntriesForPanel = useMemo(() => {
+  const summaryCostBucketExpenseLines = useMemo(() => {
+    const emptyLists: Record<MeetingCostsExpenseBucketKey, OtherCostBucketExpenseEntry[]> = {
+      '②기타': [],
+      '②기타경비': [],
+      '②운영경비': [],
+    }
     if (!isStorageReady) {
-      return []
+      return emptyLists
     }
     const records = expenseRecordsForMeetingLink
     const ym = meetingMonthLabelToExpenseYm(activeMonth, records)
     if (!ym) {
-      return []
+      return emptyLists
     }
-    return gatherOtherCostBucketExpenseEntries(records, ym)
+    return {
+      '②기타': gatherExpenseMeetingBucketEntries(records, ym, '②기타'),
+      '②기타경비': gatherExpenseMeetingBucketEntries(records, ym, '②기타경비'),
+      '②운영경비': gatherExpenseMeetingBucketEntries(records, ym, '②운영경비'),
+    }
   }, [activeMonth, expenseRecordsForMeetingLink, isStorageReady])
 
-  useEffect(() => {
-    setOtherCostExpenseBreakdownExpandedIndex(null)
-  }, [activeMonth])
+  const beanMaterialMeetingResultForActiveMonth = useMemo(() => {
+    if (!isStorageReady) {
+      return null
+    }
+    const records = expenseRecordsForMeetingLink
+    const ym = meetingMonthLabelToExpenseYm(activeMonth, records)
+    if (!ym) {
+      return null
+    }
+    const stmtAll = parseMeetingStatementDeliveryRecords()
+    const stmMonth = filterStatementsByYmDelivery(stmtAll, ym)
+    const inv = readMeetingInventoryForBeanMaterial(mode, activeCompanyId)
+    return computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, { mode, companyId: activeCompanyId })
+  }, [
+    activeMonth,
+    expenseRecordsForMeetingLink,
+    isStorageReady,
+    mode,
+    activeCompanyId,
+    statementRecordsStorageRev,
+    inventoryLinkTick,
+    beanMeetingMaterialDepsRev,
+  ])
 
-  const renderSummaryCostsOtherPanel = useCallback((): ReactNode => {
-    const entries = otherCostBucketExpenseEntriesForPanel
-    if (entries.length === 0) {
-      return (
-        <p className="meeting-breakdown-empty">
-          이 달에 「그 외 비용」(②기타)으로 집계된 지출표 내역이 없습니다. 지출표에서 해당 월 거래와 분류를 확인해
-          주세요.
-        </p>
+  const meetingCostDetailModalSortedEntries = useMemo(() => {
+    if (!meetingCostDetailModal) {
+      return []
+    }
+    if (meetingCostDetailModal.kind === 'expense') {
+      return sortExpenseBreakdownEntries(
+        summaryCostBucketExpenseLines[meetingCostDetailModal.bucket],
+        expenseBreakdownSortKey,
+        expenseBreakdownSortDir,
       )
     }
-    const visible = entries.slice(0, OTHER_COST_BUCKET_PANEL_MAX_ENTRIES)
-    const overflow = entries.length - visible.length
-    return (
-      <>
-        <p className="meeting-breakdown-caption">
-          지출표에서 카테고리가 「기타경비」「운영경비」(및 운영 줄)로 잡히지 않은 거래가 「그 외 비용」(②기타)으로 집계된
-          내용입니다. 「원재료비」 등 월 마감에 따로 매핑되는 항목은 여기 없을 수 있습니다. 금액 큰 순입니다.
-        </p>
-        <ul className="meeting-breakdown-list">
-          {visible.map((e, idx) => (
-            <li key={`${e.headline}-${idx}`} className="meeting-breakdown-item">
-              <div className="meeting-breakdown-item-row">
-                <span className="meeting-breakdown-headline">{e.headline}</span>
-                <span className="meeting-breakdown-amount">{formatMoney(e.amount)}</span>
-              </div>
-              {e.metaLabel ? <div className="meeting-breakdown-meta">{e.metaLabel}</div> : null}
-            </li>
-          ))}
-        </ul>
-        {overflow > 0 ? (
-          <p className="meeting-breakdown-overflow">외 {overflow}건 — 지출표에서 전체를 확인할 수 있습니다.</p>
-        ) : null}
-      </>
+    const lines = beanMaterialMeetingResultForActiveMonth?.lines ?? []
+    return sortExpenseBreakdownEntries(
+      beanMaterialMeetingLinesToBreakdownEntries(lines),
+      expenseBreakdownSortKey,
+      expenseBreakdownSortDir,
     )
-  }, [otherCostBucketExpenseEntriesForPanel])
+  }, [
+    beanMaterialMeetingResultForActiveMonth,
+    expenseBreakdownSortDir,
+    expenseBreakdownSortKey,
+    meetingCostDetailModal,
+    summaryCostBucketExpenseLines,
+  ])
 
-  const summaryCostsExpandablePopover = useMemo(
+  useEffect(() => {
+    setExpenseBreakdownSortKey('amount')
+    setExpenseBreakdownSortDir('desc')
+  }, [meetingCostDetailModal])
+
+  useEffect(() => {
+    setMeetingCostDetailModal(null)
+  }, [activeMonth])
+
+  const expenseBreakdownSortDirHintLine = useMemo(() => {
+    if (expenseBreakdownSortKey === 'date') {
+      return expenseBreakdownSortDir === 'asc' ? '오래된 지출부터 (과거 → 최근)' : '가까운 지출부터 (최근 → 과거)'
+    }
+    if (expenseBreakdownSortKey === 'name') {
+      return expenseBreakdownSortDir === 'asc' ? '이름 순 (ㄱㄴㄷ…)' : '이름 역순'
+    }
+    return expenseBreakdownSortDir === 'desc' ? '금액 큰 순' : '금액 작은 순'
+  }, [expenseBreakdownSortDir, expenseBreakdownSortKey])
+
+  const handleExpenseBreakdownSortPick = (key: MeetingExpenseBreakdownSortKey) => {
+    if (key === expenseBreakdownSortKey) {
+      setExpenseBreakdownSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setExpenseBreakdownSortKey(key)
+    setExpenseBreakdownSortDir(key === 'amount' ? 'desc' : 'asc')
+  }
+
+  const summaryCostsExpenseBreakdownModal = useMemo(
     () => ({
-      expandedRowIndex: otherCostExpenseBreakdownExpandedIndex,
-      onExpandedChange: setOtherCostExpenseBreakdownExpandedIndex,
-      matchesRow: (row: MeetingValueRow) => resolvedStandardExpenseBucketKey(row) === '②기타',
-      toggleLabels: { expand: '내역 보기', collapse: '내역 닫기' } as const,
-      renderPanel: (_row: MeetingValueRow, _rowIndex: number) => renderSummaryCostsOtherPanel(),
+      matchesRow: (row: MeetingValueRow, _rowIndex: number) => resolveMonthlyMeetingCostBreakdownTarget(row) != null,
+      onOpenModal: (row: MeetingValueRow, _rowIndex: number) => {
+        const target = resolveMonthlyMeetingCostBreakdownTarget(row)
+        if (target) {
+          setMeetingCostDetailModal(target)
+        }
+      },
     }),
-    [otherCostExpenseBreakdownExpandedIndex, renderSummaryCostsOtherPanel],
+    [],
   )
 
   const summaryCostsAmountInputTitle = useCallback((row: MeetingValueRow): string | undefined => {
@@ -2959,6 +3325,11 @@ function MonthlyMeetingPage() {
       { label: `${activeMonth} 입출금 순손익`, value: cashflowPl.net, unit: 'won' as const },
       { label: `${activeMonth} 비용계`, value: costGrand, unit: 'won' as const },
       { label: `${activeMonth} 재료비`, value: pickCostLineAmount(costs, '①재료비'), unit: 'won' as const },
+      {
+        label: `${activeMonth} 재료비(매출·생두)`,
+        value: pickCostLineAmount(costs, MEETING_BEAN_MATERIAL_BUCKET_KEY),
+        unit: 'won' as const,
+      },
       { label: `${activeMonth} 기타경비`, value: pickCostLineAmount(costs, '②기타경비'), unit: 'won' as const },
       { label: `${activeMonth} 운영경비`, value: pickCostLineAmount(costs, '②운영경비'), unit: 'won' as const },
       { label: `${activeMonth} 인건비`, value: pickCostLineAmount(costs, '⑧인건비'), unit: 'won' as const },
@@ -3390,6 +3761,7 @@ function MonthlyMeetingPage() {
   )
 
   const closePiTableModal = () => setPiTableModal(null)
+  const closeMeetingCostDetailModal = () => setMeetingCostDetailModal(null)
 
   const renderOutboundDataTable = () => (
     <>
@@ -3767,7 +4139,7 @@ function MonthlyMeetingPage() {
               indexKind="costs"
               isAmountReadonly={(row) => isCostGrandRow(row) || isExpenseSheetFedCostAmountRow(row)}
               shouldShowRemoveRowButton={(row) => !isCostGrandRow(row)}
-              rowExpandablePopover={summaryCostsExpandablePopover}
+              rowExpenseBreakdownModal={summaryCostsExpenseBreakdownModal}
               amountInputTitle={summaryCostsAmountInputTitle}
               onAddRow={() => addMonthStateRow('currentMonthCosts', '새 비용 항목')}
               onLabelChange={(i, v) => updateMonthStateLabel('currentMonthCosts', i, v)}
@@ -4629,6 +5001,101 @@ function MonthlyMeetingPage() {
                 <div className="meeting-pi-table-modal-body">{renderInventoryDataTable()}</div>
               </>
             )}
+          </div>
+        </div>
+      ) : null}
+
+      {meetingCostDetailModal ? (
+        <div
+          className="meeting-pi-table-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="meeting-cost-breakdown-modal-title"
+          onClick={closeMeetingCostDetailModal}
+        >
+          <div
+            className="meeting-pi-table-modal meeting-cost-breakdown-modal"
+            onClick={(event) => {
+              event.stopPropagation()
+            }}
+          >
+            <div className="meeting-pi-table-modal-top">
+              <h2 className="meeting-pi-table-modal-title" id="meeting-cost-breakdown-modal-title">
+                {activeMonth}{' '}
+                {meetingCostDetailModal.kind === 'expense'
+                  ? MEETING_COST_BUCKET_LABEL_FALLBACK[meetingCostDetailModal.bucket]
+                  : MEETING_COST_BUCKET_LABEL_FALLBACK[MEETING_BEAN_MATERIAL_BUCKET_KEY]}{' '}
+                · 포함 내역
+              </h2>
+              <div className="meeting-pi-table-modal-actions">
+                <button
+                  type="button"
+                  className="meeting-pi-table-modal-close"
+                  onClick={closeMeetingCostDetailModal}
+                  aria-label="닫기"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+            <p className="muted tiny meeting-pi-table-modal-hint">
+              {meetingCostDetailModal.kind === 'expense'
+                ? MEETING_COST_BREAKDOWN_MODAL_COPY[meetingCostDetailModal.bucket].hint
+                : MEETING_BEAN_MATERIAL_MODAL_COPY.hint}
+            </p>
+            <div className="meeting-breakdown-sort-bar" role="toolbar" aria-label="내역 정렬">
+              <span className="meeting-breakdown-sort-bar-label">정렬 기준</span>
+              <div className="segmented meeting-breakdown-sort-segmented">
+                <button
+                  type="button"
+                  className={expenseBreakdownSortKey === 'date' ? 'active' : ''}
+                  aria-pressed={expenseBreakdownSortKey === 'date'}
+                  aria-label="날짜 순으로 정렬. 다시 누르면 오름차순·내림차순을 바꿉니다."
+                  onClick={() => handleExpenseBreakdownSortPick('date')}
+                >
+                  날짜
+                </button>
+                <button
+                  type="button"
+                  className={expenseBreakdownSortKey === 'name' ? 'active' : ''}
+                  aria-pressed={expenseBreakdownSortKey === 'name'}
+                  aria-label={meetingCostDetailModal.kind === 'expense' ? '거래처·내역 이름 순 정렬' : '원두(입출고명) 순 정렬'}
+                  onClick={() => handleExpenseBreakdownSortPick('name')}
+                >
+                  이름
+                </button>
+                <button
+                  type="button"
+                  className={expenseBreakdownSortKey === 'amount' ? 'active' : ''}
+                  aria-pressed={expenseBreakdownSortKey === 'amount'}
+                  aria-label={
+                    meetingCostDetailModal.kind === 'expense' ? '지출 금액 순 정렬' : '추정 금액 순 정렬'
+                  }
+                  onClick={() => handleExpenseBreakdownSortPick('amount')}
+                >
+                  금액
+                </button>
+              </div>
+              <span className="muted tiny meeting-breakdown-sort-bar-hint" aria-live="polite">
+                현재 순서: <strong>{expenseBreakdownSortDirHintLine}</strong>
+              </span>
+            </div>
+            <div className="meeting-pi-table-modal-body">
+              <div className="meeting-breakdown-panel meeting-breakdown-panel--in-modal-body">
+                {meetingCostDetailModal.kind === 'expense'
+                  ? renderExpenseBucketLinesList(
+                      meetingCostDetailModalSortedEntries,
+                      MEETING_COST_BREAKDOWN_MODAL_COPY[meetingCostDetailModal.bucket].caption,
+                      MEETING_COST_BREAKDOWN_MODAL_COPY[meetingCostDetailModal.bucket].empty,
+                    )
+                  : renderExpenseBucketLinesList(
+                      meetingCostDetailModalSortedEntries,
+                      MEETING_BEAN_MATERIAL_MODAL_COPY.caption,
+                      MEETING_BEAN_MATERIAL_MODAL_COPY.empty,
+                      '원두별 매출 분석에서 동일 규칙으로 품목별 금액을 확인할 수 있습니다.',
+                    )}
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

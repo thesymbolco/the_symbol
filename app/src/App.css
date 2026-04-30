@@ -2752,6 +2752,22 @@ button.statement-bulk-custom-add {
   gap: 10px;
 }
 
+.meeting-breakdown-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.meeting-breakdown-date {
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
 .meeting-breakdown-headline {
   font-size: 13px;
   font-weight: 600;
@@ -3083,6 +3099,46 @@ button.statement-bulk-custom-add {
   padding: 20px 14px;
   background: rgba(15, 23, 42, 0.48);
   box-sizing: border-box;
+}
+
+.meeting-cost-breakdown-modal {
+  max-width: min(92vw, 520px);
+}
+
+.meeting-breakdown-panel--in-modal-body {
+  margin: 0;
+  box-shadow: none;
+}
+
+.meeting-breakdown-sort-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  row-gap: 8px;
+  margin: 0 0 10px;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+
+.meeting-breakdown-sort-bar-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.meeting-breakdown-sort-segmented.segmented button {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 0;
+}
+
+.meeting-breakdown-sort-bar-hint {
+  flex: 1;
+  font-size: 11px;
+  line-height: 1.35;
+  min-width: 10rem;
 }
 
 .meeting-pi-table-modal {
