@@ -51076,3 +51076,6075 @@ Status: **completed**
 <summary>Tool use: **ripgrep_raw_search**</summary>
 
 </details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need a deeper understanding of the topic.
+
+- The text appears to be incomplete or fragmented.
+- It begins with "I need deeper understanding:" followed by a number 1, suggesting there may be a list or sequence of points to explore.
+- There is no additional content provided to summarize beyond this initial statement. `beanSalesAnalysis` calculates `estimatedCostAmount` by multiplying `wonPerKg` and `totalQuantity` for each bean label, aggregating the cost per bean from sales quantity and green order unit price.
+
+Monthly meetings use `` from expense sheet categories [''], mapped via `expenseCategoryToMeetingCostBucketKey` and processed through `buildMeetingCostsFromExpenses`.
+
+Currently,  in   only includes data from . Users want to add a row for green bean usage material costs derived from Bean Sales Analysis.
+
+Options:
+- Merge into existing  row (combine expense + bean analysis estimated cost)</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesGreenOrderUnitPrice.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/monthlyMeetingData.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I see the architecture now:
+
+- 1. The system maps expense categories to bucket keys, with `` representing . Manual amounts can block updates. The default monthly costs include , , and   , but not . A new row for "  " should be addedeither as a separate bucket or combined under . The system should add a new expense row for "( )" with the key ``, separate from existing "" to avoid mixing cost types. This aligns with user request to add a " " and matches the existing pattern of using `MeetingValueRow.expenseKey` for similar entries. The breakdown will show two sections in the modal:   and bean estimated cost.
+
+- Option A: Create new `expenseKey: ''` with label `( )`
+- Option B: Combine both costs under single `` row, which is less clear
+- User requested adding " " as a separate line
+- Use ` The system will add a new key **``** with label **`()`** or **`  `**, placed between **** and **** in the sort order. This requires adjusting the `MEETING_COST_BUCKET_SORT_ORDER` to reflect the new position.
+
+- Implement a new module `beanSalesMeetingMaterialCost.ts` that exports `computeBeanSalesEstimatedMaterialCostsForYm(...)`, returning an object with `lines` and `total`.
+- Inputs for the function will be defined in the next step.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "costRowKey|function costRowKey"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "costRowKey|function costRowKey",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The resolvedStandardExpenseBucketKey does not include . - `resolvedStandardExpenseBucketKey` now recognizes `` expenseKey and label heuristic.
+- `isExpenseSheetFedCostAmountRow` includes this key, making amounts read-only.
+- A message `expenseSyncedMeetingCostAmountHint` is sent for this row.
+- `hydrateStandardExpenseKeyOnRow` maps plain labels.
+- `ensureStandardUserExpenseBucketRowsInBody` currently only inserts * keys but should also insert  and possibly .
+- When  exists,  creates . Bean row should always appear for UX. A new function `ensureBeanSalesMaterialBucketRow(body)` is created to insert the row if missing, using the label '()', expenseKey '', and null values for amount and share. This function is called within the `prepareExpenseLinkedCostBodyRows` pipeline.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "STATEMENT_RECORDS"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "STATEMENT_RECORDS",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to extend the sync effect or add a second effect that patches `` when inventory/statement/green bean changes.
+
+- Add a new effect that triggers on inventory/statement/green bean changes
+- Patch the `` data structure
+- Ensure synchronization with related data points I need to add a new effect called `statementRecordsMeetingTick` that reuses `statementRecordsStorageRev` and depends on `statementRecords`, inventory state, green bean snapshots, and mapOptions. I'll create `beanSalesMeetingMaterialCost.ts` and ensure it uses the same storage keys as BeanSalesAnalysis. The inventory effect `inventoryLinkTick` already exists, and for green bean changes, I'll use the `GREEN_BEAN_ORDER_SAVED_EVENT` listener to bump the new state `beanOrderMeetingTick`. - Refactor imports to pass raw values from caller instead of duplicating imports like InventoryBeanRow, normalizeInventoryStatusState, inventoryPageScopedKey, INVENTORY_STATUS_STORAGE_KEY, STATEMENT_RECORDS_KEY.
+- Update API to accept raw inputs directly for better reuse and clarity:
+  - computeBeanSalesMaterialCostForYm now takes ym, statementRecordsRaw, inventoryStateNormalized, and mapOpts directly
+  - BeanSalesMaterialCostLine includes beanLabel, sortKey, totalQuantityKg, and wonPerKg fields The implementation copies the inner loop from BeanSalesAnalysisPage, simplified to parse the year-month (ym) into year and month number, then filters records based on delivery date. It uses `new Date(record.deliveryDate).getFullYear() === selectedYear` for yearly filtering and expects yyyy-mm format for monthly matching. The deliveryDate format is likely ISO or similar.
+
+- Filter records by delivery date using `new Date(record.deliveryDate).getFullYear() === selectedYear`
+- For monthly filtering, match against yyyy-mm format
+- Use ISO or similar date format for deliveryDate field
+- Implement `recordDeliveredInYm` function to check if a record's delivery date matches the given year-month The function checks if a records delivery date matches the given year-month by comparing the first seven characters of the trimmed date string with ym.
+
+- Build inventoryBeanRows from state
+- Blend recipe snapshot
+- Latest green map
+- Accumulate salesMap similar to Bean page filtered records
+- Return lines where estimatedCostWon is not null, sorted appropriately
+
+Total = sum of rounded line.estimatedCostWon or sum floats then round once
+
+Meeting row amount: Math.round(total)
+
+Detail modal entries: headline = beanLabel, meta = /kg, kg, , sortDate omitted or use - 
+
+Use **NEW modal type OR extend expense breakdown** The current modal supports only `MeetingCostsExpenseBucketKey =  trio`. Ill extend it to include:
+
+- `` as a new modal kind
+- Use a discriminated union for modal state:
+  - `null`
+  - `{ kind: 'expense', bucket: MeetingCostsExpenseBucketKey }`
+  - `{ kind: 'beanMaterial' }`
+
+Refactor existing usages to support the new structure. Add a new modal state type with `beanMaterial` mode that renders bean content when open. Use `useMemo` to generate summary lines keyed by activeMonth ym. Set modal state to `{ mode: 'beanMaterial' }` when opening from row button. Preserve existing expense mode behavior. Sort UI for bean modal can reuse a simplified list component without the expense sort toolbar. The existing `renderExpenseBucketLinesList` function can be adapted by passing empty `sortDateKey` and setting `expenseDateLabel` to ''. Alternatively, create a new generic renderer like `renderGenericBreakdownList(lines: GenericLine[])` to handle bean-specific lines.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "ensureEditableExpenseCostRowsShape|normalizeMonthlyMeeting"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "ensureEditableExpenseCostRowsShape|normalizeMonthlyMeeting",
+  "topFiles": [
+    {
+      "matchCount": 7,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 7
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+`prepareExpenseLinkedCostBodyRows` is used exclusively by `buildMeetingCostsFromExpenses` for body extraction. Bean rows will be added in `ensureEditableExpenseCostRowsShape` after `prepareExpenseLinkedCostBodyRows` by invoking the extended prepare method. `ensureMeetingBeanMaterialCostRowPresent` is implemented to insert a row with correct sorting within the body using `MEETING_COST_BUCKET_SORT_ORDER`. Sort body rows by expenseKey/compareMeetingExpenseBucketKeys, acknowledging potential mixing of custom rows. Insert bean row after hydration at position sorted after , unless already present. - Use `body.push` for simplicity but accept potential ordering issues.
+- Prefer deterministic reordering for known keys only.
+- In `buildMeetingCostsFromExpenses`, append inserts at the end before combining with base rows.
+- Final `bodyRows` order is `[...bodyRowsBase, ...inserts]`, with inserts sorted by `compareMeetingExpenseBucketKeys`. Our new row is inserted alongside expense inserts during `ensureEditable` when months reset. We push the new row to the body and sort the entire body only by `compareExpenseBodyRows`, which prioritizes recognized expenseKey buckets first, followed by unknown keys.
+
+This is a significant change.
+
+For minimal impact: find the index of the  row and insert after it; if not found, insert at the start of the body (after hypothetical order).
+
+- Find index of  row, insert after it.
+- If not found, find first  or insert at start of body. findIndex((r) => costRowKey(r) === '')  
+If the index of the lease row is found, insert the new row after it; otherwise, insert at the start of the body.
+
+`buildMeetingCostsFromExpenses` patch:
+
+Apply bean material patch after expense mapping in the useEffect loop.  
+- Compute current month costs from `buildMeetingCostsFromExpenses`.  
+- Merge bean sales material costs into the costs.  
+- Use `mergeBeanSalesMaterialCostsIntoCosts` with `monthLabel`, `afterExpense`, `statementRecordsParsed`, and `inventoryParsed`. `mergeBeanSalesMaterialCostsIntoCosts` processes costs by mapping over them to update the bean material bucket row with computed values. It uses `meetingMonthLabelToExpenseYm` to determine the correct year-month, passing `expenseRecords` for consistency. The function computes material costs for that period and updates the total estimated won value in the bean material row. This ensures accurate cost tracking aligned with expense records. 
+
+- Uses `meetingMonthLabelToExpenseYm` with `expenseRecords` for consistent year-month calculation.
+- Computes bean sales material cost using `computeBeanSalesMaterialCostForYm`.
+- Updates the bean material row with rounded total estimated won.
+- Maps over costs to find and update the matching row by key.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to:
+- Extend `isExpenseSheetFedCostAmountRow` to include bean row
+- UpdateValueRow blocks edits
+- Ensure the changes prevent unauthorized modifications Add `pickCostLineAmount` for   in overview optional  
+- Set `expenseSyncedMeetingCostAmountHint` for  row description  
+
+Ensure `migrateMeetingValueRow` preserves `expenseKey`  
+- Update **monthlyMeetingData** default array to add row after    
+  - Place ** ** after ****  
+  - Default order: ****, **()**, then others  
+
+Default data structure:  
+- `{ label: ' ', grand }`  
+- `{ label: '()', expenseKey }`  
+- Other items follow in sequence</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "GREEN_BEAN"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "GREEN_BEAN",
+  "topFiles": [
+    {
+      "matchCount": 5,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 5
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+`bumpGreenBean` only updates the green bean order sync for the roasting bean cost section. I can also bump inventory or reuse it, so I'll add `statementRecordsStorageRev` for statements. I already have that. For bean material merge reuse dependencies, the following are required:  
+- expenseRecordsForMeetingLink  
+- isStorageReady  
+- sectionEditModes.summary  
+- statementRecordsStorageRev  
+- inventoryLinkTick  
+- greenBeanOrderStorageRev  
+
+Modal state refactor:  
+- Replace `MeetingCostsExpenseBucketKey` union with two modal discriminants or widen the type  
+- Current state: `meetingCostBreakdownModalBucket` with type `MeetingCostsExpenseBucketKey | null`  
+- New type definition: `MeetingCostBreakdownExpenseModalBucket` and `MeetingCostDetailModalOpen` - The `meetingCostDetailModal` state manages the modal's open/closed status with type `MeetingCostDetailModalOpen`.
+- A `useEffect` hook resets the modal when `activeMonth` changes.
+- Modal opening logic includes resetting on bucket sort changes for expense sources.
+- An escape handler is needed for modal closing.
+- The summary cost breakdown modal opens the expense modal.
+- Bean row handling may require separate opener logic or extended matching logic. Actually, the same prop should accept both optionseither add a second optional `rowExpenseBreakdownModal` prop or allow `resolvedStandardExpenseBucketKey` to return a union type including the bean key.
+
+A cleaner approach unifies `resolvedStandardExpenseBucketKey` to return `MeetingBreakdownEligibleKey | null`, where `MeetingBreakdownEligibleKey` includes `MeetingCostsExpenseBucketKey` and `MEETING_BEAN_BUCKET`.
+
+This allows a single `matchesRow` or `onOpenModal` function to set the modal state discriminator:
+
+- `onOpenModal(row)` calls `resolvedCostBreakdownExpenseKey(row)` (a new helper function)
+- `resolvedCostBreakdownExpenseKey` extends or replaces `resolvedStandard` logic `getCostBreakdownModalKey` returns `ExpenseBucketSummaryKey | null`.
+
+The function `getExpenseOrBeanBreakdownKey` now handles both expense keys and bean material keys, returning `MeetingCostBreakdownModalKey | null`. It checks if the expense key matches `MEETING_BEAN_MATERIAL_BUCKET_KEY` and returns it directly; otherwise, it uses `resolvedStandardExpenseBucketKey` for standard expenses.
+
+A new helper `resolvedExpenseBreakdownEligibleKey` is introduced to resolve eligible keys for breakdowns, which includes both standard expense buckets and bean-related keys.
+
+Key changes:
+- Extend `resolvedStandardExpenseBucketKey` to include bean keys
+- Update `getExpenseOrBeanBreakdownKey` to use the new resolution logic
+- Ensure consistent handling of bean and expense breakdown keys across components
+
+The unified approach allows a single `matchesRow` or `onOpenModal` function to manage modal state based on the resolved key type.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesStatementMapping.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/inventoryStatusUtils.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+normalizeInventoryStatusState from inventoryStatusUtils - Bean imports from '.'</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "meetingCostBreakdownModalBucket|MeetingCostsExpenseBucketKey|sortedExpenseBreakdownModalEntries|closeMeetingCostBreakdownModal|renderExpenseBucketLinesList"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "meetingCostBreakdownModalBucket|MeetingCostsExpenseBucketKey|sortedExpenseBreakdownModalEntries|closeMeetingCostBreakdownModal|renderExpenseBucketLinesList",
+  "topFiles": [
+    {
+      "matchCount": 24,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 24
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll implement beanSalesMeetingMaterialCost. I'll implement beanSalesMeetingMaterialCost.
+
+- MEETING_BEAN_MATERIAL_BUCKET_KEY = ''
+- MEETING_COST_BUCKET_LABEL_FALLBACK[new key] = '()'
+- Insert MEETING_COST_BUCKET_SORT_ORDER after ''
+- EnsureMeetingBeanMaterialRowPresent in prepareExpenseLinkedCostBodyRows
+- MergeBeanMaterialIntoMonthCosts helper called from expense sync effect
+- Extend isExpenseSheetFedCostAmountRow
+- ExpenseSyncedMeetingCostAmountHint
+- ResolvedStandardExpenseBucketKey - extend to read expenseKey MEETING_BEAN...
+- HydrateStandardExpenseKeyOnRow plain label Modal state uses a discriminated union pattern.
+
+- summaryCostsExpenseBreakdownModal is now unified and opens properly
+- Modal entries are sorted and mapped to OtherCostBucketExpenseEntry
+- useEffect dependencies include greenBeanOrderStorageRev
+- activeOverview shows optional line for ()
+
+The pickCostLineAmount function works with expenseKey using:
+costs.find((row) => costRowKey(row) === key)?.amount ?? 0
+
+Bean lines are converted to OtherCostBucketExpenseEntry with:
+- sortDateKey parsed from line.latestGreenOrderDate (or empty string)
+- expenseDateLabel using latestGreenOrderDate formatted or ' ' beanLabel   , metaLabel     .  
+ estimatedCostAmount null   , 0     " "  .  
+ null  0 , " "  .  
+
+Bean  totalQuantity > 0 && totalRevenue > 0    .  
+ beanName  ,   cost metaLabel . The total is calculated as `Math.round(sum)` where sum includes only non-null costs or defaults to 0. For meeting rows, amounts are replaced with rounded values or null if the year-month is invalid. When all line prices are null, totals default to 0. During merge patching, rows with MEETING_BEAN_KEY have their amounts updated accordingly.
+
+Lines are processed to compute total as `Math.round(lines.reduce(...))`, defaulting to 0 if empty. The migration updates `prepareExpense` to pass `applyBeanMaterial` after mapping `buildMeetingCostsFromExpenses`. 
+
+- Total calculation uses `Math.round(sum)` for non-null costs
+- Null prices result in 0 for totals
+- Meeting rows get replaced with rounded amounts or null if invalid
+- Empty lines default to 0 total
+- `prepareExpense` migrates to apply `applyBeanMaterial` after mapping costs The `computeCurrentMonthCosts` function must run after patching amounts in the body, including grand totals. The current code structure places `computeCurrentMonthCosts` before merging bean sales material costs, which needs to be reordered.
+
+The `buildMeetingCostsFromExpenses` function is too heavy to embed directly, so it should remain separate.
+
+- Reorder execution to run `computeCurrentMonthCosts` after merging bean sales material costs
+- Keep `buildMeetingCostsFromExpenses` as a separate function
+- Maintain existing logic flow for cost computation and amount patching The function `applyBeanSalesMaterialCostsToCostsRows` is implemented as a pure function in its own file, taking costs, year-month, and results to return updated costs.
+
+MonthlyMeeting.tsx is becoming large and needs refactoring.</details></think>
+
+_**Agent (default)**_
+
+새 유틸 `beanSalesMeetingMaterialCost.ts`를 추가하고 월 마감 비용 연동·내역 모달을 확장합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Fix the record parsing so that BeanStatementDeliveryRecord uses totalAmount only, removing the supplyAmount optional field.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add export helper to map BeanSalesMaterialMeetingLine[] to UI entries in MonthlyMeeting or in same file.
+
+- Create helper function to transform data
+- Map BeanSalesMaterialMeetingLine[] to UI format
+- Export helper for use in MonthlyMeeting or same file</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "normalizeInventoryStatusState"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "normalizeInventoryStatusState",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Import the `normalizeInventoryStatusState` function from the `inventoryStatusUtils` module. Add a local function `parseStatementRecordsForBeanMeeting`.
+
+Implement `ensureMeetingBeanMaterialRowPresent`.
+
+Extend `prepareExpenseLinkedCostBodyRows` to:
+- Map over `bodyWithoutGrand` to hydrate standard expense keys on each row
+- Ensure standard user expense bucket rows are present in the body
+- Ensure meeting bean material cost rows are present in the body
+
+Implement `ensureMeetingBeanMaterialCostRowPresent` function that takes a body of MeetingValueRows and returns a modified array with meeting bean material cost rows ensured. If the body already contains a row with the meeting material expense key, return it unchanged. Otherwise, create a new row with the appropriate label and expense key. Insert this new row after the "" row if present, or after the "" row if not. If neither exists, append the new row at the end of the body. The function `hydrateStandardExpenseKeyOnRow` now includes logic to handle cases where the expense key is missing but the label matches "()". In such cases, it adds the appropriate expense key to the row.
+
+If no  row is found, the new row should be inserted after the first body row (excluding grand), or at the end if no such row exists.
+
+The `prepareExpenseLinkedCostBodyRows` function now processes only the body excluding the grand row, ensuring proper handling of expense keys and row insertion logic. Extend `resolvedStandardExpenseBucketKey` or create `resolvedCostBreakdownModalKey` to resolve to a type that includes `MEETING_BEAN_MATERIAL_BUCKET_KEY` as a string union. Use a type alias for `ExtraBreakdownKind` and update the function signature to return `MeetingCostsExpenseBucketKey | typeof MEETING_BEAN_MATERIAL_BUCKET_KEY | null`. - Define `MeetingCostsBreakdownExpenseKind` as a type that includes both `MeetingCostsExpenseBucketKey` and `MEETING_BEAN_MATERIAL_BUCKET_KEY`.
+- Implement `resolvedCostBreakdownModalTarget` to return the expense key if it matches `MEETING_BEAN_MATERIAL_BUCKET_KEY`, otherwise delegate to `resolvedStandardExpenseBucketKey`.
+- Maintain separation of concerns for `resolvedStandardExpenseBucketKey` to avoid unintended side effects. If the expense key equals `MEETING_BEAN_MATERIAL_BUCKET_KEY`, return it directly. Otherwise, resolve the standard expense bucket key and return it if it matches specific criteria like '' or similar; otherwise return null.
+
+For the costs breakdown modal, match rows based on whether `resolvedCostBreakdownModalTarget` returns a valid target. When opening the modal, check if the target matches `MEETING_BEAN_MATERIAL_BUCKET_KEY` to determine the modal kindeither 'beanSalesMaterial' or 'expenseBucket' with the corresponding bucket.
+
+Determine if a row is an expense sheet fed cost amount row by checking if `resolvedCostBreakdownModalTarget` returns `MEETING_BEAN_MATERIAL_BUCKET_KEY`. Actually      `expenseKey`   `MEETING_BEAN_MATERIAL_BUCKET_KEY`  .
+
+`expenseSyncedMeetingCostAmountHint`     : "   :  (kg)  /kg.     ."
+
+`Effect merge bean material`   `nextCostsExpense`  `invRaw` , `normalizeInventoryStatusState` .
+
+    `mapOpts`  . Let inventoryNorm be initialized as null. Attempt to parse and normalize inventory data from localStorage using the inventory page scoped key. If parsing fails, set inventoryNorm to null.
+
+Parse statements for meeting by filtering and mapping over delivery records, extracting relevant fields and validating the resulting array.
+
+Set page state using closure over statements, inventoryNorm, and mapOpts records.
+
+Inside a loop, filter statements by year-month delivery to get stmMonth. The `mergeBeanMaterialCosts` function updates meeting cost rows with bean sales material costs, but only if the row matches the expected bucket key and both `ym` and `result` are provided. If either is missing, the original costs array is returned unchanged. For matching rows, the amount is updated to the rounded total estimated cost from the result or defaults to zero if the result is invalid.
+
+If all lines have zero sales volume, the amount should be set to null instead of zero. If no statement lines exist for the month, set total amount to null. If all lines have zero or negative quantities, set the amount to null. Otherwise, calculate the rounded total estimated cost, defaulting to zero if the cost is invalid or negative. For bean modal lines, compute amounts based on line items, ensuring proper handling of missing or invalid data. If no lines exist, return null; otherwise, round and validate the total cost. Use useMemo to memoize computed bean modal lines for performance optimization. Reused `beanMaterialComputationForActiveMonth` with `useMemo` to compute sorted entries from beanMaterialComputation lines, mapping them to `OtherCostBucketExpenseEntry`.
+
+Sorted entries by `sortDateKey` from `greenOrderDateRef` for bean modal, taking first 10 if ISO format.
+
+Added `BEAN_BUCKET_MODAL_COPY` constant for consistency with expense copy behavior.
+
+Toolbar sorting for bean modal uses same logic as other entries.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/monthlyMeetingData.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Now I will edit the MonthlyMeetingPage in chunks. 1. Added imports for `normalizeInventoryStatusState` from `inventoryStatusUtils`, `InventoryStatusState` type, `BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT` from `beanStatementManualMappings`, and `BLEND_WON_OVERRIDES_SAVED_EVENT` from `beanBlendWonOverrides`. Also imported bean helpers from `beanSalesMeetingMaterialCost`.
+
+2. Exported `MEETING_BEAN_MATERIAL_BUCKET_KEY` constant after `STATEMENT_*` exports; defined it near `MEETING_COST_BUCKET_LABEL_FALLBACK`.
+
+3. Added `MEETING_COST_BUCKET_LABEL_FALLBACK` key.
+
+4. (No further content provided) Added `MEETING_COST_BUCKET_SORT_ORDER` with '' and '' at the start of the array, ensuring they are inserted before other keys.
+
+Hydrated `hydrateStandardExpenseKeyOnRow` to include label matching for the new ' label'.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Replace the import of `dayIndexForReferenceDate` with an import that also normalizes `inventoryStatusState`
+- Update the line to include normalization of `inventoryStatusState` alongside `dayIndexForReferenceDate` - Add BLEND and BEAN STATEMENT imports
+- Add beanSalesMeetingMaterialCost import
+- In inventoryStatusUtils, add normalizeInventoryStatusState and type InventoryStatusState
+- Import BLEND_WON_OVERRIDES_SAVED_EVENT from beanBlendWonOverrides
+- Import BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT from beanStatementManualMappings - Update imports to include `filterStatementsByYmDelivery`, `computeBeanSalesMaterialCostForYm`, `BeanSalesMaterialMeetingLine`, and `BeanSalesMaterialMeetingResult` from `./beanSalesMeetingMaterialCost`
+- Add `BeanStatementDeliveryRecord` type import from `./beanSalesMeetingMaterialCost`
+- Implement `mergeBeanSalesMaterialCostIntoCosts` function in MonthlyMeeting file
+- Create `parseStatementDeliveryRecords` function that parses raw string into `BeanStatementDeliveryRecord[]`</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add MEETING_BEAN_MATERIAL_BUCKET_KEY after STATEMENT events.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "contextAfter": 15,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "MEETING_COST_BUCKET_SORT_ORDER"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "MEETING_COST_BUCKET_SORT_ORDER",
+  "topFiles": [
+    {
+      "matchCount": 29,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "contextAfter": 12,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "MEETING_COST_BUCKET_LABEL_FALLBACK"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "MEETING_COST_BUCKET_LABEL_FALLBACK",
+  "topFiles": [
+    {
+      "matchCount": 52,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+MEETING_BEAN_MATERIAL_BUCKET_KEY must be defined before MEETING_COST_BUCKET_LABEL_FALLBACK references it; verify grep order.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add resolvedCostBreakdownModalTarget after resolvedStandardExpenseBucketKey. Extend `hydrateStandardExpenseKeyOnRow` to also check if `ek === MEETING_BEAN_BUCKET` or if the label matches the fallback label for (). This involves adding a condition to detect these cases and returning an updated row with `expenseKey` set to `MEETING_BEAN_MATERIAL_BUCKET_KEY`.
+
+- Check if `ek === MEETING_BEAN_BUCKET` or if the label matches the fallback label for ()
+- Return an updated row with `expenseKey` set to `MEETING_BEAN_MATERIAL_BUCKET_KEY` when the conditions are met</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add type alias after MeetingCostsExpenseBucketKey: - Define `MEETING_BEAN_MATERIAL_BUCKET_KEY` before line 419 to maintain proper order.
+- Alternatively, use the literal `''` directly in the type definition.
+- Update `MeetingCostBreakdownModalKind` to use the literal string instead of the constant.
+- Adjust `MeetingCostDetailModalState` to include the `beanMaterial` kind properly. The `resolveMonthlyMeetingCostBreakdownOpenTarget` function now returns a simplified type `CostBreakdownRowTarget` that includes either an expense bucket or a bean material type.
+
+- The new type uses a union of objects with `type` and `bucket` properties for expenses, and a dedicated `beanMaterial` type.
+- The implementation assigns the appropriate bucket key to `ek` based on the row's type and category.
+- The return value is structured as `{ type: 'expense', bucket: ek }` for expenses or `{ type: 'beanMaterial' }` for bean materials. Place `resolveMonthlyMeetingCostBreakdownTarget` right after `hydrateStandardExpenseKeyOnRow` block. Ensure `MEETING_BEAN_MATERIAL_BUCKET_KEY` is defined before this function. Use the constant `MEETING_BEAN_MATERIAL_BUCKET_KEY` for comparison, not a literal string. The function returns either `{ kind: 'beanMaterial' }` or a structured object with expense bucket data.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- hydrateStandardExpenseKeyOnRow returns early when expenseKey is set
+- Need to resolve BEFORE resolvedStandard check - When `plainBean` matches the fallback label for bean materials, the row is updated with `expenseKey` set to `MEETING_BEAN_MATERIAL_BUCKET_KEY`.
+- The function `isExpenseSheetFedCostAmountRow` checks if `expenseKey` equals `MEETING_BEAN_MATERIAL_BUCKET_KEY` to determine if the row is fed.
+- The `expenseSynced` hint begins by checking the bean-related conditions first. - `ensureMeetingBeanMaterialCostRowPresent` checks `expenseKey` to ensure bean material cost rows are present.
+- `ensureStandard` considers bean buckets, but the `occupied` hint only checks `resolvedStandardExpenseBucketKey`, ignoring bean-related logic.
+- The `expenseSynced` hint evaluates bean-related conditions first.
+- `trim() === MEETING_BEAN_MATERIAL_BUCKET_KEY` triggers a `LONG` hint.
+- User deletion prevention logic should still apply even when `expenseKey` is occupied.
+- Duplicate insertion risks exist; `ensureStandard` inserts before other operations.
+- Bean rows may be handled differently during `ensureStandard` operations. The `mergeBean` function processes sales material cost data by mapping over cost rows and updating amounts based on total estimated cost. It skips updates when all line quantities are zero or less. The function ensures that rows are only updated when there are valid sales lines with positive quantities. 
+
+- The `mergeBeanSalesMaterialCostIntoCostRows` function maps over cost rows and updates amounts based on total estimated cost.
+- If all line quantities are zero or less, the amount is set to null.
+- Otherwise, the amount is calculated as the maximum of zero and the rounded total estimated cost.
+- Rows are only updated when sales lines exist with positive quantities. When filtering lines results in an empty array, or when totalEstimated is 0, the amount is set to null to indicate no delivery for that month. The `parseMeetingStatementDeliveryRecords` function parses stored statement records and maps them into structured delivery record objects.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add beanMaterialLinesToBreakdownEntries after renderExpenseBucketLinesList (before pickExpense). Add `beanMaterialLinesToBreakdownEntries` after `renderExpenseBucketLinesList` (before `pickExpense`).  
+Update overflow footer text for bean vs expense: add optional `footerOverflowNote` prop to `renderExpenseBucketLinesList`.  
+Change default footer note to generic  N  ... message.  
+Allow customization via optional `overflowTail` parameter in `renderExpenseBucketLinesList`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add beanMaterialMeetingLinesToEntries after the renderExpense function ends, before the pickExpense function.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+When the result is non-null but the ym branch is invalid, the mergeBean third argument still processes the result. If ym is null, the operation is skipped. When result is null due to invalid ym, the function returns rows unchanged instead of wiping them. The merge operation should not clear bean rows when ym is invalid.
+
+- Return rows unchanged when ym is invalid
+- Remove unnecessary map wiping logic
+- Preserve bean row data during merge operations When ymPrefix is falsy or result is null, return rows unchanged.  
+- Place `resolveMonthlyMeetingCostBreakdownTarget` after `hydrateStandardExpenseKeyOnRow`  
+- Hydrate bean label before rk resolution  
+- Fix `isExpenseSheetFed` logic</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "contextAfter": 35,
+  "contextBefore": 0,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "mergeBeanSalesMaterialCostIntoMeetingRows"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "mergeBeanSalesMaterialCostIntoMeetingRows",
+  "topFiles": [
+    {
+      "matchCount": 36,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Fix the mergeBean function when ymPrefix is falsy or missing. The mergeBean function should return rows unchanged without wiping data. The merge block was incorrectly placed before USER_EDITABLE, but it references MEETING_BEAN_MATERIAL_BUCKET_KEY which is defined later. The order needs correction: **resolvedStandardExpenseBucketKey** must be declared before ensureStandard, so the current file order is incorrect after editing. The corrected order should place mergeBean before USER_EDITABLE and resolvedStandard... before ensureStandard.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Order is acceptable  USER_EDITABLE and resolvedStandard are resolved before hydrate uses them. Fix merge wipe by ensuring ymPrefix and result exist before proceeding.  
+- Update expense sync effect to merge bean edits.  
+- Use resolveMonthlyMeetingCostBreakdownTarget in summaryCostsExpenseBreakdownModal.  
+- Replace modal state throughout the file.  
+- updateValueRow already blocks fed rows including bean.  
+- Expense hint cyclic check: verifies bean before isExpenseSheetFed.  
+
+Effect block:
+- Parse meeting statement delivery records.  
+- Read meeting inventory for bean material. When ym is invalid, computeBeanSalesMaterialCostForYm returns null, so beanResult is null.  
+- Ensure ymPrefix and result exist before proceeding with merge.  
+- Block fed rows including bean in updateValueRow.  
+- Use resolveMonthlyMeetingCostBreakdownTarget in summaryCostsExpenseBreakdownModal.  
+- Replace modal state throughout the file.  
+- Update expense sync effect to merge bean edits.  
+- Parse meeting statement delivery records.  
+- Read meeting inventory for bean material. When `ym` is invalid, `computeBeanSalesMaterialCostForYm` returns null, otherwise it returns an object with `lines` and `total`. The `merge` function processes `beanComputed` only if `ym` is valid. 
+
+- `computeBeanSalesMaterialCostForYm` returns `BeanSalesMaterialMeetingResult | null`.
+- `beanResult` is null when `ym` is invalid.
+- `merge` operates on `beanComputed` only when `ym` is valid. When beanComputed is non-null, merge returns rows only if ym is valid.  
+**Costs signature change**  add dependencies `beanMeetingMaterialDepsRev`, `inventoryLinkTick`, `statementRecordsStorageRev`, `mode`, and `activeCompanyId` to the effect.  
+- `inventoryLinkTick` and `beanMeetingMaterialDepsRev` were missing from expense effect deps  now added.  
+- Dependencies include: `expenseRecordsForMeetingLink`, `isStorageReady`, `sectionEditModes.summary`, `statementRecordsStorageRev`, `inventoryLinkTick`, `beanMeetingMaterialDepsRev`, `mode`, `activeCompanyId`. useAppRuntime mode and companyId are used in MonthlyMeeting.
+
+To optimize performance, hoist parsing of stmts and inventory outside the setPageState callback to avoid duplicate computations per loop iteration.
+
+- Parse meeting statement delivery records and read meeting inventory for bean material outside setPageState.
+- Access mode and companyId within the effect using closure or extracted variables.
+- Compute stmtsAll and inventoryNorm once per effect run rather than during each state update. setPageState updates use stmtsAll, inv, and mapOpts.
+
+State bump listener for bean:
+- Track changes with `beanMeetingMaterialDepsRev` state.
+- Increment on events: `GREEN_BEAN_ORDER_SAVED_EVENT`, `BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT`, `BLEND_WON_OVERRIDES_SAVED_EVENT`.
+- Remove event listeners on unmount.
+
+Reorder checks for `isExpenseFed`.
+
+Rename meeting cost modal state variable. Replace `meetingCostBreakdownModalBucket` with `meetingCostDetailModal`.
+
+Use `meetingCostDetailModal.bucket` to key `summaryCost` entries for sorting.
+
+Sort `expenseBreakdownModalEntries` using `summaryCost` entries keyed by bucket.
+
+Sort `beanMaterialBreakdownDetailEntriesForModal` by `activeYm`.
+
+Sort `expenseBreakdownModalEntries` using `summaryCost` entries keyed by bucket.
+
+Sort `beanMaterialBreakdownDetailEntriesForModal` by `activeYm`. - `activeYmExpenseLink` is derived from `activeMonth` and `expenseRecordsForMeetingLink`.
+- `beanMaterialDetailResultForActiveMonth` uses `useMemo` to compute bean sales material cost for the active month.
+- It filters statements by `activeYm` and reads inventory for bean material.
+- Returns null if `activeYm` is not available.
+- Depends on `activeMonth`, `expenseRecordsForMeetingLink`, and `activeYmExpenseLink`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "BEAN_STATEMENT|BLEND_WON"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "BEAN_STATEMENT|BLEND_WON",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "mergeBeanSalesMaterialCostIntoMeetingRows|expenseRecordsForMeetingLink"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "mergeBeanSalesMaterialCostIntoMeetingRows|expenseRecordsForMeetingLink",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "meetingCostBreakdownModal|MeetingCostDetail"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "meetingCostBreakdownModal|MeetingCostDetail",
+  "topFiles": [
+    {
+      "matchCount": 15,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 15
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "statementRecordsStorageRev|beanMaterialMeeting|MEETING_BEAN_MATERIAL|MapStatementItemToInventoryOptions|renderExpenseBucketLinesList"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "statementRecordsStorageRev|beanMaterialMeeting|MEETING_BEAN_MATERIAL|MapStatementItemToInventoryOptions|renderExpenseBucketLinesList",
+  "topFiles": [
+    {
+      "matchCount": 18,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 18
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "MapStatementItemToInventoryOptions"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "MapStatementItemToInventoryOptions",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/beanSalesGreenOrderUnitPrice.ts"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/beanSalesMeetingMaterialCost.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/beanNamePublic.ts"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/beanSalesStatementMapping.ts"
+    },
+    {
+      "matchCount": 4,
+      "uri": "app/src/beanBlendWonOverrides.ts"
+    }
+  ],
+  "totalFiles": 6,
+  "totalMatches": 13
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+
+Parameters:
+
+```json
+{
+  "explanation": "",
+  "includePattern": "/Users/parkcg/The Symbol_Edit/app/src",
+  "query": "Where is MapStatementItemToInventoryOptions constructed for bean sales analysis?",
+  "topK": 10
+}
+```
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 149,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 438
+          },
+          {
+            "lineNumber": 439
+          },
+          {
+            "lineNumber": 440,
+            "text": "  const latestGreenWonByLabel = useMemo("
+          },
+          {
+            "lineNumber": 441,
+            "text": "    () =\u003e getLatestGreenOrderWonPerKgByInventoryLabel(inventoryBeanRows, mapOptions, blendRecipeSnapshot),"
+          },
+          {
+            "lineNumber": 442,
+            "text": "    [inventoryBeanRows, greenOrderReadTick, greenOrderCloudSyncTick, mapOptions, manualMappingTick, blendRecipeSnapshot],"
+          },
+          {
+            "lineNumber": 443,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 444
+          },
+          {
+            "lineNumber": 445,
+            "text": "  /** 입출고 생두 표에 없는 품목(키워드만 맞는 영문·더치·미매칭 원문)은 집계에서 제외 */"
+          },
+          {
+            "lineNumber": 446,
+            "text": "  const allowedInventoryLabels = useMemo("
+          },
+          {
+            "lineNumber": 447,
+            "text": "    () =\u003e new Set(inventoryBeanRows.map((b) =\u003e formatBeanRowLabel(b))),"
+          },
+          {
+            "lineNumber": 448,
+            "text": "    [inventoryBeanRows],"
+          },
+          {
+            "lineNumber": 449,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 450
+          },
+          {
+            "lineNumber": 451,
+            "text": "  const { beanSalesAnalysis, notInInventoryByStatement, excludedRevenueNotInInventory } = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 452,
+            "text": "    const salesMap = new Map\u003cstring, BeanSalesData\u003e()"
+          },
+          {
+            "lineNumber": 453,
+            "text": "    const notIn = new Map\u003cstring, NotInInventorySummary\u003e()"
+          },
+          {
+            "lineNumber": 454
+          },
+          {
+            "lineNumber": 455,
+            "text": "    statementRecords.forEach((record) =\u003e {"
+          },
+          {
+            "lineNumber": 456,
+            "text": "      const { label, sortKey } = mapStatementItemToInventoryLabel("
+          },
+          {
+            "lineNumber": 457,
+            "text": "        record.itemName,"
+          },
+          {
+            "lineNumber": 458,
+            "text": "        inventoryBeanRows,"
+          },
+          {
+            "lineNumber": 459,
+            "text": "        mapOptions,"
+          },
+          {
+            "lineNumber": 460,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 461,
+            "text": "      if (inventoryBeanRows.length \u003e 0 \u0026\u0026 !allowedInventoryLabels.has(label)) {"
+          },
+          {
+            "lineNumber": 462,
+            "text": "        if (hasAnyStatementManualForItem(record.itemName, mapOptions.mode, mapOptions.companyId)) {"
+          },
+          {
+            "lineNumber": 463,
+            "text": "          return"
+          },
+          {
+            "lineNumber": 464,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 465,
+            "text": "        const key = record.itemName"
+          },
+          {
+            "lineNumber": 466,
+            "text": "        const ex ="
+          },
+          {
+            "lineNumber": 467,
+            "text": "          notIn.get(key) ??"
+          },
+          {
+            "lineNumber": 468,
+            "text": "          ({"
+          },
+          {
+            "lineNumber": 469,
+            "text": "            itemName: key,"
+          },
+          {
+            "lineNumber": 470,
+            "text": "            mappedLabel: label,"
+          },
+          {
+            "lineNumber": 471,
+            "text": "            totalRevenue: 0,"
+          },
+          {
+            "lineNumber": 472,
+            "text": "            totalQuantity: 0,"
+          },
+          {
+            "lineNumber": 473,
+            "text": "            transactionCount: 0,"
+          },
+          {
+            "lineNumber": 474,
+            "text": "          } satisfies NotInInventorySummary)"
+          },
+          {
+            "lineNumber": 475,
+            "text": "        ex.mappedLabel = label"
+          },
+          {
+            "lineNumber": 476,
+            "text": "        ex.totalRevenue += record.totalAmount"
+          },
+          {
+            "lineNumber": 477,
+            "text": "        ex.totalQuantity += record.quantity"
+          },
+          {
+            "lineNumber": 478,
+            "text": "        ex.transactionCount += 1"
+          },
+          {
+            "lineNumber": 479,
+            "text": "        notIn.set(key, ex)"
+          },
+          {
+            "lineNumber": 480,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 481,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 482,
+            "text": "      const beanName = label"
+          },
+          {
+            "lineNumber": 483
+          },
+          {
+            "lineNumber": 484,
+            "text": "      if (!salesMap.has(beanName)) {"
+          },
+          {
+            "lineNumber": 485,
+            "text": "        salesMap.set"
+          },
+          {
+            "lineNumber": 498
+          },
+          {
+            "lineNumber": 518,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 563,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1520,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1519
+          },
+          "startPosition": {
+            "line": 148
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 150
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 149
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4158320128917694
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 2,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 3,
+            "text": "  coreFromName,"
+          },
+          {
+            "lineNumber": 4,
+            "text": "  findByExactName,"
+          },
+          {
+            "lineNumber": 5,
+            "text": "  findLongestSubstringRow,"
+          },
+          {
+            "lineNumber": 6,
+            "text": "  normCompact,"
+          },
+          {
+            "lineNumber": 7,
+            "text": "  resolveAliasedTarget,"
+          },
+          {
+            "lineNumber": 8,
+            "text": "} from './beanNameResolve'"
+          },
+          {
+            "lineNumber": 9,
+            "text": "import { getEffectiveGreenBeanOrderAliases } from './beanNameAliasStore'"
+          },
+          {
+            "lineNumber": 10,
+            "text": "import { canonicalBlendDisplayName } from './inventoryBlendRecipes'"
+          },
+          {
+            "lineNumber": 11,
+            "text": "import type { InventoryBeanRow } from './inventoryStatusUtils'"
+          },
+          {
+            "lineNumber": 12
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 13,
+            "text": "export type MapStatementItemToInventoryOptions = {"
+          },
+          {
+            "lineNumber": 14,
+            "text": "  mode?: 'local' | 'cloud'"
+          },
+          {
+            "lineNumber": 15,
+            "text": "  companyId?: string | null"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 16,
+            "text": "}"
+          },
+          {
+            "lineNumber": 17
+          },
+          {
+            "lineNumber": 18,
+            "text": "const normSpaced = (s: string) =\u003e s.trim().toLowerCase().replace(/\\s+/g, ' ')"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 77,
+            "line": 17
+          },
+          "startPosition": {
+            "column": 79
+          }
+        },
+        "relativeWorkspacePath": "./app/src/beanSalesStatementMapping.ts",
+        "signatures": {}
+      },
+      "score": 0.4141038656234741
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 149,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 150,
+            "text": "  const { mode, activeCompanyId } = useAppRuntime()"
+          },
+          {
+            "lineNumber": 151,
+            "text": "  const [inventoryReadTick, setInventoryReadTick] = useState(0)"
+          },
+          {
+            "lineNumber": 152,
+            "text": "  const [greenOrderReadTick, setGreenOrderReadTick] = useState(0)"
+          },
+          {
+            "lineNumber": 153,
+            "text": "  const [manualMappingTick, setManualMappingTick] = useState(0)"
+          },
+          {
+            "lineNumber": 154,
+            "text": "  const mapOptions = useMemo("
+          },
+          {
+            "lineNumber": 155,
+            "text": "    () =\u003e ({ mode, companyId: activeCompanyId } as const),"
+          },
+          {
+            "lineNumber": 156,
+            "text": "    [mode, activeCompanyId],"
+          },
+          {
+            "lineNumber": 157,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 158,
+            "text": "  const [selectedYear, setSelectedYear] = useState(() =\u003e new Date().getFullYear())"
+          },
+          {
+            "lineNumber": 159,
+            "text": "  const [viewMode, setViewMode] = useState\u003c'revenue' | 'detailed'\u003e('revenue')"
+          },
+          {
+            "lineNumber": 160,
+            "text": "  const [sortBy, setSortBy] = useState\u003c'inventory' | 'revenue' | 'quantity'\u003e('inventory')"
+          },
+          {
+            "lineNumber": 161,
+            "text": "  const [linkModalOpen, setLinkModalOpen] = useState(false)"
+          },
+          {
+            "lineNumber": 162,
+            "text": "  const [linkModalPreferredToLabel, setLinkModalPreferredToLabel] = useState\u003cstring | null\u003e(null)"
+          },
+          {
+            "lineNumber": 163,
+            "text": "  const [statementRecordsTick, setStatementRecordsTick] = useState(0)"
+          },
+          {
+            "lineNumber": 164,
+            "text": "  const [greenOrderCloudSyncTick, setGreenOrderCloudSyncTick] = useState(0)"
+          },
+          {
+            "lineNumber": 165,
+            "text": "  const [statementRecordsRaw, setStatementRecordsRaw] = useState\u003cStatementRecord[]\u003e([])"
+          },
+          {
+            "lineNumber": 166,
+            "text": "  const [inventoryStateRaw, setInventoryStateRaw] = useState\u003cunknown\u003e(null)"
+          },
+          {
+            "lineNumber": 167
+          },
+          {
+            "lineNumber": 168,
+            "text": "  const revenuePiePlot = useBeanSalesPlotWidth(360)"
+          },
+          {
+            "lineNumber": 169,
+            "text": "  const revenueBarPlot = useBeanSalesPlotWidth(360)"
+          },
+          {
+            "lineNumber": 170,
+            "text": "  const profitPiePlot = useBeanSalesPlotWidth(360)"
+          },
+          {
+            "lineNumber": 171,
+            "text": "  const profitBarPlot = useBeanSalesPlotWidth(360)"
+          },
+          {
+            "lineNumber": 172
+          },
+          {
+            "lineNumber": 173,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 174,
+            "text": "    const onInv = () =\u003e setInventoryReadTick((n) =\u003e n + 1)"
+          },
+          {
+            "lineNumber": 191,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1520,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1519
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 146
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.3925010859966278
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1,
+            "text": " from 'react'"
+          },
+          {
+            "lineNumber": 2,
+            "text": "import { PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'"
+          },
+          {
+            "lineNumber": 3,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 4,
+            "text": "  INVENTORY_STATUS_CACHE_EVENT,"
+          },
+          {
+            "lineNumber": 5,
+            "text": "  INVENTORY_STATUS_STORAGE_KEY,"
+          },
+          {
+            "lineNumber": 6,
+            "text": "  inventoryPageScopedKey,"
+          },
+          {
+            "lineNumber": 7,
+            "text": "} from './InventoryStatusPage'"
+          },
+          {
+            "lineNumber": 8,
+            "text": "import { BLEND_WON_OVERRIDES_SAVED_EVENT } from './beanBlendWonOverrides'"
+          },
+          {
+            "lineNumber": 9,
+            "text": "import { getLatestGreenOrderWonPerKgByInventoryLabel } from './beanSalesGreenOrderUnitPrice'"
+          },
+          {
+            "lineNumber": 10,
+            "text": "import { GREEN_BEAN_ORDER_SAVED_EVENT, GREEN_BEAN_ORDER_STORAGE_KEY } from './GreenBeanOrderPage'"
+          },
+          {
+            "lineNumber": 11,
+            "text": "import {"
+          },
+          {
+            "lineNumber": 12,
+            "text": "  BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT,"
+          },
+          {
+            "lineNumber": 13,
+            "text": "  hasAnyStatementManualForItem,"
+          },
+          {
+            "lineNumber": 14,
+            "text": "  type StatementInventoryManualEntry,"
+          },
+          {
+            "lineNumber": 15,
+            "text": "  writeStatementInventoryManuals,"
+          },
+          {
+            "lineNumber": 16,
+            "text": "  syncStatementInventoryManualsFromCloud,"
+          },
+          {
+            "lineNumber": 17,
+            "text": "} from './beanStatementManualMappings'"
+          },
+          {
+            "lineNumber": 18,
+            "text": "import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'"
+          },
+          {
+            "lineNumber": 19,
+            "text": "import { normalizeInventoryStatusState, withReferenceDateToday } from './inventoryStatusUtils'"
+          },
+          {
+            "lineNumber": 20,
+            "text": "import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'"
+          },
+          {
+            "lineNumber": 21,
+            "text": "import { roastedBeanCost1KgFromGreenWonPerKg, roastedBeanCost200gFrom1KgCost } from './beanSalesRoastedCost'"
+          },
+          {
+            "lineNumber": 22,
+            "text": "import { STATEMENT_RECORDS_SAVED_EVENT } from './MonthlyMeetingPage'"
+          },
+          {
+            "lineNumber": 23,
+            "text": "import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument } from './lib/companyDocuments'"
+          },
+          {
+            "lineNumber": 24,
+            "text": "import { useAppRuntime } from './providers/AppRuntimeProvider'"
+          },
+          {
+            "lineNumber": 25,
+            "text": "import StatementInventoryLinkModal from './StatementInventoryLinkModal'"
+          },
+          {
+            "lineNumber": 26
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 27,
+            "text": "type StatementRecord = {"
+          },
+          {
+            "lineNumber": 28,
+            "text": "  id: string"
+          },
+          {
+            "lineNumber": 29,
+            "text": "  deliveryDate: string"
+          },
+          {
+            "lineNumber": 30,
+            "text": "  itemName: string"
+          },
+          {
+            "lineNumber": 31,
+            "text": "  quantity: number"
+          },
+          {
+            "lineNumber": 32,
+            "text": "  unitPrice: number"
+          },
+          {
+            "lineNumber": 33,
+            "text": "  supplyAmount: number"
+          },
+          {
+            "lineNumber": 34,
+            "text": "  taxAmount: number"
+          },
+          {
+            "lineNumber": 35,
+            "text": "  totalAmount: number"
+          },
+          {
+            "lineNumber": 36,
+            "text": "  clientName: string"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 37,
+            "text": "}"
+          },
+          {
+            "lineNumber": 38
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 39,
+            "text": "type StatementPageDocumentLike = {"
+          },
+          {
+            "lineNumber": 40,
+            "text": "  records?: StatementRecord[]"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 41,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 40
+          },
+          "startPosition": {
+            "column": 77
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.38772010803222656
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 206,
+            "text": "export function mapStatementItemToInventoryLabel("
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 207,
+            "text": "  itemName: string,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 208,
+            "text": "  beanRows: readonly InventoryBeanRow[],"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 209,
+            "text": "  options?: MapStatementItemToInventoryOptions,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 210,
+            "text": "): { label: string; sortKey: number; matched: boolean } {"
+          },
+          {
+            "lineNumber": 308
+          },
+          {
+            "lineNumber": 309
+          },
+          {
+            "lineNumber": 310,
+            "text": "  // 1) 자주 쓰는 풀문구 (앱 품목 옵션 등) — '브라질 세하도' 등은 입고에 있는 브라질 행으로 연결(고정 Mogiana 없음)"
+          },
+          {
+            "lineNumber": 311,
+            "text": "  const fromPhrase = findByPhraseMap(forMatch)"
+          },
+          {
+            "lineNumber": 312,
+            "text": "  if (fromPhrase === PHRASE_PICKS_INVENTORY_BRAZIL) {"
+          },
+          {
+            "lineNumber": 313,
+            "text": "    const brazil = findInventoryBrazilRowGuess(beanRows)"
+          },
+          {
+            "lineNumber": 314,
+            "text": "    if (brazil) {"
+          },
+          {
+            "lineNumber": 315,
+            "text": "      return { label: formatBeanRowLabel(brazil), sortKey: brazil.no ?? 0, matched: true }"
+          },
+          {
+            "lineNumber": 316,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 317,
+            "text": "  } else if (fromPhrase) {"
+          },
+          {
+            "lineNumber": 318,
+            "text": "    const row = findByExactName(fromPhrase, beanRows) ?? resolveAliasedTarget(fromPhrase, beanRows)"
+          },
+          {
+            "lineNumber": 319,
+            "text": "    if (row) {"
+          },
+          {
+            "lineNumber": 320,
+            "text": "      return { label: formatBeanRowLabel(row), sortKey: row.no ?? 0, matched: true }"
+          },
+          {
+            "lineNumber": 321,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 322,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 323
+          },
+          {
+            "lineNumber": 324,
+            "text": "  // 2) 키워드 → inventory bean name(입출고에 해당 &#96;bean.name&#96; 행이 있을 때만 채택)"
+          },
+          {
+            "lineNumber": 325,
+            "text": "  for (const { re, target } of KEYWORD_TO_BEAN_NAME) {"
+          },
+          {
+            "lineNumber": 326,
+            "text": "    if (re.test(forMatchSpaced) || re.test(raw)) {"
+          },
+          {
+            "lineNumber": 327,
+            "text": "      const row = findByExactName(target, beanRows)"
+          },
+          {
+            "lineNumber": 328,
+            "text": "      if (row) {"
+          },
+          {
+            "lineNumber": 329,
+            "text": "        return { label: formatBeanRowLabel(row), sortKey: row.no ?? 0, matched: true }"
+          },
+          {
+            "lineNumber": 330,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 331,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 332,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 333,
+            "text": "  // 3) 생두주문-재고 별칭(괄호·매장명 제거 뒤 문자열만 — forMatch)"
+          },
+          {
+            "lineNumber": 334,
+            "text": "  for (const [from, to] of aliases) {"
+          },
+          {
+            "lineNumber": 335,
+            "text": "    if"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 368,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 367
+          },
+          "startPosition": {
+            "line": 205
+          }
+        },
+        "relativeWorkspacePath": "./app/src/beanSalesStatementMapping.ts",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 8,
+                "line": 206
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 206
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 211
+              },
+              "startPosition": {
+                "column": 8,
+                "line": 206
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36082136631011963
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 149,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 385
+          },
+          {
+            "lineNumber": 386
+          },
+          {
+            "lineNumber": 387,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 388,
+            "text": "    let cancelled = false"
+          },
+          {
+            "lineNumber": 389,
+            "text": "    const syncGreenOrderForAnalysis = async () =\u003e {"
+          },
+          {
+            "lineNumber": 390,
+            "text": "      if (mode !== 'cloud' || !activeCompanyId) {"
+          },
+          {
+            "lineNumber": 391,
+            "text": "        setGreenOrderCloudSyncTick((n) =\u003e n + 1)"
+          },
+          {
+            "lineNumber": 392,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 393,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 394,
+            "text": "      try {"
+          },
+          {
+            "lineNumber": 395,
+            "text": "        const remote = await loadCompanyDocument\u003cunknown\u003e("
+          },
+          {
+            "lineNumber": 396,
+            "text": "          activeCompanyId,"
+          },
+          {
+            "lineNumber": 397,
+            "text": "          COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,"
+          },
+          {
+            "lineNumber": 398,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 399,
+            "text": "        if (cancelled) {"
+          },
+          {
+            "lineNumber": 400,
+            "text": "          return"
+          },
+          {
+            "lineNumber": 401,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 402,
+            "text": "        if (remote) {"
+          },
+          {
+            "lineNumber": 403,
+            "text": "          window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(remote))"
+          },
+          {
+            "lineNumber": 404,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 405,
+            "text": "      } catch (error) {"
+          },
+          {
+            "lineNumber": 406,
+            "text": "        console.error('원두별 매출 분석: 생두 주문 클라우드 문서를 읽지 못했습니다.', error)"
+          },
+          {
+            "lineNumber": 407,
+            "text": "      } finally {"
+          },
+          {
+            "lineNumber": 408,
+            "text": "        if (!cancelled) {"
+          },
+          {
+            "lineNumber": 409,
+            "text": "          setGreenOrderCloudSyncTick((n) =\u003e n + 1)"
+          },
+          {
+            "lineNumber": 410,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 411,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 412,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 413,
+            "text": "    void syncGreenOrderForAnalysis()"
+          },
+          {
+            "lineNumber": 414,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 415,
+            "text": "      cancelled = true"
+          },
+          {
+            "lineNumber": 416,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 417,
+            "text": "  }, [mode, activeCompanyId, greenOrderReadTick])"
+          },
+          {
+            "lineNumber": 418
+          },
+          {
+            "lineNumber": 419,
+            "text": "  const statementRecords = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 420,
+            "text": "    return statementRecordsRaw.filter((record) =\u003e new Date(record.deliveryDate).getFullYear() === selectedYear)"
+          },
+          {
+            "lineNumber": 421,
+            "text": "  }, [selectedYear, statementRecordsRaw])"
+          },
+          {
+            "lineNumber": 422
+          },
+          {
+            "lineNumber": 423,
+            "text": "  const inventoryBeanRows = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 424,
+            "text": "    const normalized = normalizeInventoryStatusState(inventoryStateRaw)"
+          },
+          {
+            "lineNumber": 425,
+            "text": "    return Array.isArray(normalized?.beanRows) ? normalized.beanRows : []"
+          },
+          {
+            "lineNumber": 426,
+            "text": "  }, [inventoryStateRaw])"
+          },
+          {
+            "lineNumber": 427
+          },
+          {
+            "lineNumber": 428,
+            "text": "  const blendRecipeSnapshot = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 429,
+            "text": "    const st = normalizeInventoryStatusState(inventoryStateRaw)"
+          },
+          {
+            "lineNumber": 430,
+            "text": "    if (!st) {"
+          },
+          {
+            "lineNumber": 431,
+            "text": "      return { dark: null, light: null, decaf: null }"
+          },
+          {
+            "lineNumber": 432,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 433,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 434,
+            "text": "      dark: st.blendingDarkRecipe ?? null,"
+          },
+          {
+            "lineNumber": 435,
+            "text": "      light: st.blendingLightRecipe ?? null,"
+          },
+          {
+            "lineNumber": 436,
+            "text": "      decaf: st.blendingDecaffeineRecipe ?? null,"
+          },
+          {
+            "lineNumber": 437,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 438,
+            "text": "  }, [inventoryStateRaw])"
+          },
+          {
+            "lineNumber": 439
+          },
+          {
+            "lineNumber": 440,
+            "text": "  const latestGreenWonByLabel = useMemo"
+          },
+          {
+            "lineNumber": 443
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1520,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1519
+          },
+          "startPosition": {
+            "line": 148
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 150
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 149
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.345859169960022
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 206,
+            "text": "export function mapStatementItemToInventoryLabel("
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 207,
+            "text": "  itemName: string,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 208,
+            "text": "  beanRows: readonly InventoryBeanRow[],"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 209,
+            "text": "  options?: MapStatementItemToInventoryOptions,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 210,
+            "text": "): { label: string; sortKey: number; matched: boolean } {"
+          },
+          {
+            "lineNumber": 252,
+            "text": "const tokenOnly ="
+          },
+          {
+            "lineNumber": 253,
+            "text": " forMatch : ''"
+          },
+          {
+            "lineNumber": 254,
+            "text": "  if (tokenOnly) {"
+          },
+          {
+            "lineNumber": 255,
+            "text": "    if (tokenOnly === '브라질' \u0026\u0026 beanRows.length === 0) {"
+          },
+          {
+            "lineNumber": 256,
+            "text": "      return { label: '브라질', sortKey: 900_000, matched: true }"
+          },
+          {
+            "lineNumber": 257,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 258,
+            "text": "    const singleTokenToBeanName: ReadonlyArray\u003creadonly [string, string]\u003e = ["
+          },
+          {
+            "lineNumber": 259,
+            "text": "      ['디카페인', '15. DECAFFEINE BLEND'],"
+          },
+          {
+            "lineNumber": 260,
+            "text": "      ['나리노', 'Narino'],"
+          },
+          {
+            "lineNumber": 261,
+            "text": "      ['나리뇨', 'Narino'],"
+          },
+          {
+            "lineNumber": 262,
+            "text": "      ['유로', 'Euro'],"
+          },
+          {
+            "lineNumber": 263,
+            "text": "      ['케냐', 'Ihider'],"
+          },
+          {
+            "lineNumber": 264,
+            "text": "    ]"
+          },
+          {
+            "lineNumber": 265,
+            "text": "    for (const [tok, beanName] of singleTokenToBeanName) {"
+          },
+          {
+            "lineNumber": 266,
+            "text": "      if (tokenOnly !== tok) {"
+          },
+          {
+            "lineNumber": 267,
+            "text": "        continue"
+          },
+          {
+            "lineNumber": 268,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 269,
+            "text": "      if (beanRows.length === 0) {"
+          },
+          {
+            "lineNumber": 270,
+            "text": "        return { label: beanName, sortKey: 900_000, matched: true }"
+          },
+          {
+            "lineNumber": 271,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 272,
+            "text": "      const row = findByExactName(beanName, beanRows)"
+          },
+          {
+            "lineNumber": 273,
+            "text": "      if (row) {"
+          },
+          {
+            "lineNumber": 274,
+            "text": "        return { label: formatBeanRowLabel(row), sortKey: row.no ?? 0, matched: true }"
+          },
+          {
+            "lineNumber": 275,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 276,
+            "text": "      // 입출고에 그 영문 품목 행이 없으면(예: Ihider 미사용) 키워드로 붙이지 않고 아래 단계·원문으로"
+          },
+          {
+            "lineNumber": 277,
+            "text": "      break"
+          },
+          {
+            "lineNumber": 278,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 279,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 280
+          },
+          {
+            "lineNumber": 281,
+            "text": "  if (beanRows.length === 0) {"
+          },
+          {
+            "lineNumber": 282,
+            "text": "    const fromPhrase = findByPhraseMap(forMatch)"
+          },
+          {
+            "lineNumber": 283,
+            "text": "    if (fromPhrase) {"
+          },
+          {
+            "lineNumber": 284,
+            "text": "      if (fromPhrase === PHRASE_PICKS_INVENTORY_BRAZIL) {"
+          },
+          {
+            "lineNumber": 285,
+            "text": "        return { label: '브라질 세하도', sortKey: 900_000, matched: true }"
+          },
+          {
+            "lineNumber": 286,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 287,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 288,
+            "text": "        label: keywordTargetForDisplay([fromPhrase]) ?? fromPhrase,"
+          },
+          {
+            "lineNumber": 289,
+            "text": "        sortKey: 900_000,"
+          },
+          {
+            "lineNumber": 290,
+            "text": "        matched: true,"
+          },
+          {
+            "lineNumber": 291,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 292,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 293,
+            "text": "    for (const { re, target } of KEYWORD_TO_BEAN_NAME) {"
+          },
+          {
+            "lineNumber": 294,
+            "text": "      if (re.test(forMatchSpaced) || re.test(raw)) {"
+          },
+          {
+            "lineNumber": 295,
+            "text": "        return { label: target, sortKey: 900_000, matched: true }"
+          },
+          {
+            "lineNumber": 296,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 297,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 298,
+            "text": "    for (const [from, to] of aliases) {"
+          },
+          {
+            "lineNumber": 299,
+            "text": "      if (forMatchCompact.includes(normCompact(from)) || normCompact(from) === forMatchCompact) {"
+          },
+          {
+            "lineNumber": 300,
+            "text": "        return {"
+          },
+          {
+            "lineNumber": 301,
+            "text": "          label: keywordTargetForDisplay([to, forMatch, raw]) ?? to,"
+          },
+          {
+            "lineNumber": 302,
+            "text": "          sortKey: 900_000,"
+          },
+          {
+            "lineNumber": 303,
+            "text": "          matched: true,"
+          },
+          {
+            "lineNumber": 304,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 305,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 306,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 307,
+            "text": "    return { label: raw, sortKey: 900_000, matched: false }"
+          },
+          {
+            "lineNumber": 308,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 309
+          },
+          {
+            "lineNumber": 310,
+            "text": "  // 1) 자주 쓰는 풀문구 (앱 품목 옵션 등) — '브라질 세하도' 등은 입고에 있는 브라질 행으로 연결(고정 Mogiana 없음)"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 368,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 367
+          },
+          "startPosition": {
+            "line": 205
+          }
+        },
+        "relativeWorkspacePath": "./app/src/beanSalesStatementMapping.ts",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 8,
+                "line": 206
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 206
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 211
+              },
+              "startPosition": {
+                "column": 8,
+                "line": 206
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.344631552696228
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 203,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 204,
+            "text": " * 거래명세 &#96;itemName&#96; → 입출고와 같은 「N. 품목명」 표시, 및 정렬용 &#96;sortKey&#96; (no 없으면 큰 수)"
+          },
+          {
+            "lineNumber": 205,
+            "text": " */"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 206,
+            "text": "export function mapStatementItemToInventoryLabel("
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 207,
+            "text": "  itemName: string,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 208,
+            "text": "  beanRows: readonly InventoryBeanRow[],"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 209,
+            "text": "  options?: MapStatementItemToInventoryOptions,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 210,
+            "text": "): { label: string; sortKey: number; matched: boolean } {"
+          },
+          {
+            "lineNumber": 211,
+            "text": "  if (!itemName?.trim()) {"
+          },
+          {
+            "lineNumber": 212,
+            "text": "    return { label: '—', sortKey: 999_999, matched: false }"
+          },
+          {
+            "lineNumber": 213,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 214
+          },
+          {
+            "lineNumber": 215,
+            "text": "  const raw = itemName.trim()"
+          },
+          {
+            "lineNumber": 216,
+            "text": "  const fromManual = resolveStatementInventoryManual("
+          },
+          {
+            "lineNumber": 217,
+            "text": "    raw,"
+          },
+          {
+            "lineNumber": 218,
+            "text": "    beanRows,"
+          },
+          {
+            "lineNumber": 219,
+            "text": "    options?.mode ?? 'local',"
+          },
+          {
+            "lineNumber": 220,
+            "text": "    options?.companyId ?? null,"
+          },
+          {
+            "lineNumber": 221,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 222,
+            "text": "  if (fromManual) {"
+          },
+          {
+            "lineNumber": 223,
+            "text": "    return fromManual"
+          },
+          {
+            "lineNumber": 224,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 225,
+            "text": "  const blended = canonicalBlendDisplayName(raw)"
+          },
+          {
+            "lineNumber": 226,
+            "text": "  const forMatch = stripParensForMatch(blended)"
+          },
+          {
+            "lineNumber": 227,
+            "text": "  const forMatchSpaced = normSpaced(forMatch)"
+          },
+          {
+            "lineNumber": 228,
+            "text": "  const forMatchCompact = normCompact(forMatch)"
+          },
+          {
+            "lineNumber": 229,
+            "text": "  const aliases = getEffectiveGreenBeanOrderAliases()"
+          },
+          {
+            "lineNumber": 230
+          },
+          {
+            "lineNumber": 231,
+            "text": "  /** 더치는 입출고 생두 행이 아닐 수 있어 별도 표기 */"
+          },
+          {
+            "lineNumber": 232,
+            "text": "  if (/디카페인.*더치|더치.*디카/i.test(raw) || /디카.*더치|더치.*디카/i.test(forMatch)) {"
+          },
+          {
+            "lineNumber": 233,
+            "text": "    return { label: '더치(디카페인) 음료', sortKey: 950_000, matched: true }"
+          },
+          {
+            "lineNumber": 234,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 235
+          },
+          {
+            "lineNumber": 236,
+            "text": "  /** &#96;브라질(라미랑드)&#96; 등 → strip만 하면 '브라질' = 산지, 입고 &#96;10. Brazil&#96; 코어 &#96;Brazil&#96;와 1:1(매장명 괄호 무시) */"
+          },
+          {
+            "lineNumber": 237,
+            "text": "  if (beanRows.length \u003e 0) {"
+          },
+          {
+            "lineNumber": 238,
+            "text": "    if (forMatchSpaced === '브라질') {"
+          },
+          {
+            "lineNumber": 239,
+            "text": "      const exact = findByExactName('Brazil', beanRows)"
+          },
+          {
+            "lineNumber": 240,
+            "text": "      if (exact) {"
+          },
+          {
+            "lineNumber": 241,
+            "text": "        return { label: formatBeanRowLabel(exact), sortKey: exact.no ?? 0, matched: true }"
+          },
+          {
+            "lineNumber": 242,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 243,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 244,
+            "text": "    if (isStatementLeadingBrazil(forMatch)) {"
+          },
+          {
+            "lineNumber": 245,
+            "text": "      const brazil = findInventoryBrazilRowGuess(beanRows)"
+          },
+          {
+            "lineNumber": 246,
+            "text": "      if (brazil) {"
+          },
+          {
+            "lineNumber": 247,
+            "text": "        return { label: formatBeanRowLabel(brazil), sortKey: brazil.no ?? 0, matched: true }"
+          },
+          {
+            "lineNumber": 248,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 249,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 250,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 251
+          },
+          {
+            "lineNumber": 252,
+            "text": "  const tokenOnly ="
+          },
+          {
+            "lineNumber": 253,
+            "text": "    forMatch.length \u003e 0 \u0026\u0026 !/[\\s,，]/.test(forMatch) ? forMatch : ''"
+          },
+          {
+            "lineNumber": 254,
+            "text": "  if (tokenOnly) {"
+          },
+          {
+            "lineNumber": 255,
+            "text": "    if ("
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 368,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 367
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 200
+          }
+        },
+        "relativeWorkspacePath": "./app/src/beanSalesStatementMapping.ts",
+        "signatures": {}
+      },
+      "score": 0.33570313453674316
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 149,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 451,
+            "text": "const { beanSalesAnalysis, notInInventoryByStatement, excludedRevenueNotInInventory } = () =\u003e {"
+          },
+          {
+            "lineNumber": 455,
+            "text": "(record) =\u003e {"
+          },
+          {
+            "lineNumber": 482
+          },
+          {
+            "lineNumber": 483
+          },
+          {
+            "lineNumber": 484,
+            "text": "      if (!salesMap.has(beanName)) {"
+          },
+          {
+            "lineNumber": 485,
+            "text": "        salesMap.set(beanName, {"
+          },
+          {
+            "lineNumber": 486,
+            "text": "          beanName,"
+          },
+          {
+            "lineNumber": 487,
+            "text": "          sortKey,"
+          },
+          {
+            "lineNumber": 488,
+            "text": "          totalQuantity: 0,"
+          },
+          {
+            "lineNumber": 489,
+            "text": "          totalRevenue: 0,"
+          },
+          {
+            "lineNumber": 490,
+            "text": "          avgUnitPrice: 0,"
+          },
+          {
+            "lineNumber": 491,
+            "text": "          clientCount: 0,"
+          },
+          {
+            "lineNumber": 492,
+            "text": "          transactionCount: 0,"
+          },
+          {
+            "lineNumber": 493,
+            "text": "          clients: [],"
+          },
+          {
+            "lineNumber": 494,
+            "text": "          latestGreenWonPerKg: null,"
+          },
+          {
+            "lineNumber": 495,
+            "text": "          latestGreenOrderDate: null,"
+          },
+          {
+            "lineNumber": 496,
+            "text": "          estimatedCostAmount: null,"
+          },
+          {
+            "lineNumber": 497,
+            "text": "          estimatedProfitAmount: null,"
+          },
+          {
+            "lineNumber": 498,
+            "text": "        })"
+          },
+          {
+            "lineNumber": 499,
+            "text": "      } else {"
+          },
+          {
+            "lineNumber": 500,
+            "text": "        const prev = salesMap.get(beanName)!"
+          },
+          {
+            "lineNumber": 501,
+            "text": "        if (sortKey \u003c prev.sortKey) {"
+          },
+          {
+            "lineNumber": 502,
+            "text": "          prev.sortKey = sortKey"
+          },
+          {
+            "lineNumber": 503,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 504,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 505
+          },
+          {
+            "lineNumber": 506,
+            "text": "      const data = salesMap.get(beanName)!"
+          },
+          {
+            "lineNumber": 507,
+            "text": "      data.totalQuantity += record.quantity"
+          },
+          {
+            "lineNumber": 508,
+            "text": "      data.totalRevenue += record.totalAmount"
+          },
+          {
+            "lineNumber": 509,
+            "text": "      data.transactionCount += 1"
+          },
+          {
+            "lineNumber": 510
+          },
+          {
+            "lineNumber": 511,
+            "text": "      let clientData = data.clients.find((c) =\u003e c.name === record.clientName)"
+          },
+          {
+            "lineNumber": 512,
+            "text": "      if (!clientData) {"
+          },
+          {
+            "lineNumber": 513,
+            "text": "        clientData = { name: record.clientName, quantity: 0, revenue: 0 }"
+          },
+          {
+            "lineNumber": 514,
+            "text": "        data.clients.push(clientData)"
+          },
+          {
+            "lineNumber": 515,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 516,
+            "text": "      clientData.quantity += record.quantity"
+          },
+          {
+            "lineNumber": 517,
+            "text": "      clientData.revenue += record.totalAmount"
+          },
+          {
+            "lineNumber": 518,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 519
+          },
+          {
+            "lineNumber": 520,
+            "text": "    Array.from(salesMap.values()).forEach((data) =\u003e {"
+          },
+          {
+            "lineNumber": 521,
+            "text": "      data.avgUnitPrice = data.totalQuantity \u003e 0 ? data.totalRevenue / data.totalQuantity : 0"
+          },
+          {
+            "lineNumber": 522,
+            "text": "      data.clientCount = data.clients.length"
+          },
+          {
+            "lineNumber": 523,
+            "text": "      data.clients.sort((a, b) =\u003e b.revenue - a.revenue)"
+          },
+          {
+            "lineNumber": 524,
+            "text": "      const g = latestGreenWonByLabel.get(data.beanName)"
+          },
+          {
+            "lineNumber": 525,
+            "text": "      if (g) {"
+          },
+          {
+            "lineNumber": 526,
+            "text": "        data.latestGreenWonPerKg = g.wonPerKg"
+          },
+          {
+            "lineNumber": 527,
+            "text": "        data.latestGreenOrderDate = g.orderDate"
+          },
+          {
+            "lineNumber": 528,
+            "text": "        data.estimatedCostAmount = g.wonPerKg * data.totalQuantity"
+          },
+          {
+            "lineNumber": 529,
+            "text": "        data.estimatedProfitAmount = data.totalRevenue - data.estimatedCostAmount"
+          },
+          {
+            "lineNumber": 530,
+            "text": "      } else {"
+          },
+          {
+            "lineNumber": 531,
+            "text": "        data.latestGreenWonPerKg = null"
+          },
+          {
+            "lineNumber": 532,
+            "text": "        data.latestGreenOrderDate = null"
+          },
+          {
+            "lineNumber": 533,
+            "text": "        data.estimatedCostAmount = null"
+          },
+          {
+            "lineNumber": 534,
+            "text": "        data.estimatedProfitAmount = null"
+          },
+          {
+            "lineNumber": 535,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 536,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 537
+          },
+          {
+            "lineNumber": 538,
+            "text": "    const rows = Array.from(salesMap.values())"
+          },
+          {
+            "lineNumber": 539,
+            "text": "    const byInventory = [...rows].sort((a, b) =\u003e {"
+          },
+          {
+            "lineNumber": 540,
+            "text": "      if"
+          },
+          {
+            "lineNumber": 544,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 563,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1520,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1519
+          },
+          "startPosition": {
+            "line": 148
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 150
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 149
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 451
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 451
+              }
+            },
+            {
+              "endPosition": {
+                "column": 91,
+                "line": 451
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 451
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 452
+              },
+              "startPosition": {
+                "column": 99,
+                "line": 451
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 455
+              },
+              "startPosition": {
+                "column": 5,
+                "line": 455
+              }
+            },
+            {
+              "endPosition": {
+                "column": 7,
+                "line": 456
+              },
+              "startPosition": {
+                "column": 30,
+                "line": 455
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.33235955238342285
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 5924
+          },
+          {
+            "lineNumber": 5925,
+            "text": "            \u003cdiv className=\"inventory-reset-dialog-actions\"\u003e"
+          },
+          {
+            "lineNumber": 5926,
+            "text": "              \u003cbutton type=\"button\" className=\"ghost-button\" onClick={closeAdminUnlockDialog}\u003e"
+          },
+          {
+            "lineNumber": 5927,
+            "text": "                취소"
+          },
+          {
+            "lineNumber": 5928,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 5929,
+            "text": "              \u003cbutton type=\"button\" className=\"primary-button\" onClick={handleAdminUnlockConfirm}\u003e"
+          },
+          {
+            "lineNumber": 5930,
+            "text": "                확인"
+          },
+          {
+            "lineNumber": 5931,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 5932,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5933,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5934,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5935,
+            "text": "      ) : null}"
+          },
+          {
+            "lineNumber": 5936,
+            "text": "        \u003c/\u003e"
+          },
+          {
+            "lineNumber": 5937,
+            "text": "      ) : activePage === 'beanSalesAnalysis' ? ("
+          },
+          {
+            "lineNumber": 5938,
+            "text": "        \u003cBeanSalesAnalysisPage /\u003e"
+          },
+          {
+            "lineNumber": 5939,
+            "text": "      ) : activePage === 'meeting' ? ("
+          },
+          {
+            "lineNumber": 5940,
+            "text": "        \u003cMonthlyMeetingPage /\u003e"
+          },
+          {
+            "lineNumber": 5941,
+            "text": "      ) : activePage === 'expense' ? ("
+          },
+          {
+            "lineNumber": 5942,
+            "text": "        \u003cExpensePage /\u003e"
+          },
+          {
+            "lineNumber": 5943,
+            "text": "      ) : activePage === 'staffPayroll' ? ("
+          },
+          {
+            "lineNumber": 5944,
+            "text": "        \u003cStaffPayrollPage /\u003e"
+          },
+          {
+            "lineNumber": 5945,
+            "text": "      ) : activePage === 'greenBeanOrder' ? ("
+          },
+          {
+            "lineNumber": 5946,
+            "text": "        \u003cGreenBeanOrderPage /\u003e"
+          },
+          {
+            "lineNumber": 5947,
+            "text": "      ) : activePage === 'dailyMeeting' ? ("
+          },
+          {
+            "lineNumber": 5948,
+            "text": "        \u003cMemoPage mode=\"dailyOnly\" /\u003e"
+          },
+          {
+            "lineNumber": 5949,
+            "text": "      ) : activePage === 'team' ? ("
+          },
+          {
+            "lineNumber": 5950,
+            "text": "        \u003cTeamManagementPage /\u003e"
+          },
+          {
+            "lineNumber": 5951,
+            "text": "      ) : ("
+          },
+          {
+            "lineNumber": 5952,
+            "text": "        \u003cInventoryStatusPage /\u003e"
+          },
+          {
+            "lineNumber": 5953,
+            "text": "      )}"
+          },
+          {
+            "lineNumber": 5954,
+            "text": "      {activePage === 'statements' ? ("
+          },
+          {
+            "lineNumber": 5955,
+            "text": "        \u003cdiv"
+          },
+          {
+            "lineNumber": 5956,
+            "text": "          ref={statementStickyHScrollRef}"
+          },
+          {
+            "lineNumber": 5957,
+            "text": "          className={&#96;statements-sticky-hscroll${statementStickyHScrollVisible ? ' is-visible' : ''}&#96;}"
+          },
+          {
+            "lineNumber": 5958,
+            "text": "          aria-hidden={!statementStickyHScrollVisible}"
+          },
+          {
+            "lineNumber": 5959,
+            "text": "        \u003e"
+          },
+          {
+            "lineNumber": 5960,
+            "text": "          \u003cdiv ref={statementStickyHScrollInnerRef} className=\"statements-sticky-hscroll-inner\" /\u003e"
+          },
+          {
+            "lineNumber": 5961,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5962,
+            "text": "      ) : null}"
+          },
+          {
+            "lineNumber": 5963
+          },
+          {
+            "lineNumber": 5964,
+            "text": "      {lowGreenBeanWarningItems.length \u003e 0 \u0026\u0026 !isLowGreenBeanPanelDismissed ?"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.32720229029655457
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 24,
+            "text": "export {"
+          },
+          {
+            "lineNumber": 25,
+            "text": "  mapStatementItemToInventoryLabel,"
+          },
+          {
+            "lineNumber": 26,
+            "text": "  formatBeanRowLabel,"
+          },
+          {
+            "lineNumber": 27,
+            "text": "  stripParensForMatch,"
+          },
+          {
+            "lineNumber": 28,
+            "text": "  type MapStatementItemToInventoryOptions,"
+          },
+          {
+            "lineNumber": 29,
+            "text": "} from './beanSalesStatementMapping'"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 36,
+            "line": 28
+          },
+          "startPosition": {
+            "column": 26,
+            "line": 22
+          }
+        },
+        "relativeWorkspacePath": "./app/src/beanNamePublic.ts",
+        "signatures": {}
+      },
+      "score": 0.31971728801727295
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 149,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 451,
+            "text": "const { beanSalesAnalysis, notInInventoryByStatement, excludedRevenueNotInInventory } = () =\u003e {"
+          },
+          {
+            "lineNumber": 538
+          },
+          {
+            "lineNumber": 539,
+            "text": "    const byInventory = [...rows].sort((a, b) =\u003e {"
+          },
+          {
+            "lineNumber": 540,
+            "text": "      if (a.sortKey !== b.sortKey) {"
+          },
+          {
+            "lineNumber": 541,
+            "text": "        return a.sortKey - b.sortKey"
+          },
+          {
+            "lineNumber": 542,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 543,
+            "text": "      return a.beanName.localeCompare(b.beanName, 'ko')"
+          },
+          {
+            "lineNumber": 544,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 545,
+            "text": "    const byRevenue = [...rows].sort((a, b) =\u003e b.totalRevenue - a.totalRevenue)"
+          },
+          {
+            "lineNumber": 546,
+            "text": "    const byQuantity = [...rows].sort((a, b) =\u003e b.totalQuantity - a.totalQuantity)"
+          },
+          {
+            "lineNumber": 547
+          },
+          {
+            "lineNumber": 548,
+            "text": "    let sorted: BeanSalesData[]"
+          },
+          {
+            "lineNumber": 549,
+            "text": "    switch (sortBy) {"
+          },
+          {
+            "lineNumber": 550,
+            "text": "      case 'inventory':"
+          },
+          {
+            "lineNumber": 551,
+            "text": "        sorted = byInventory"
+          },
+          {
+            "lineNumber": 552,
+            "text": "        break"
+          },
+          {
+            "lineNumber": 553,
+            "text": "      case 'revenue':"
+          },
+          {
+            "lineNumber": 554,
+            "text": "        sorted = byRevenue"
+          },
+          {
+            "lineNumber": 555,
+            "text": "        break"
+          },
+          {
+            "lineNumber": 556,
+            "text": "      case 'quantity':"
+          },
+          {
+            "lineNumber": 557,
+            "text": "        sorted = byQuantity"
+          },
+          {
+            "lineNumber": 558,
+            "text": "        break"
+          },
+          {
+            "lineNumber": 559,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 560,
+            "text": "    const notInList = Array.from(notIn.values()).sort((a, b) =\u003e b.totalRevenue - a.totalRevenue)"
+          },
+          {
+            "lineNumber": 561,
+            "text": "    const excludedSum = notInList.reduce((s, r) =\u003e s + r.totalRevenue, 0)"
+          },
+          {
+            "lineNumber": 562,
+            "text": "    return { beanSalesAnalysis: sorted, notInInventoryByStatement: notInList, excludedRevenueNotInInventory: excludedSum }"
+          },
+          {
+            "lineNumber": 563,
+            "text": "  }, [statementRecords, sortBy, inventoryBeanRows, latestGreenWonByLabel, allowedInventoryLabels, mapOptions, manualMappingTick])"
+          },
+          {
+            "lineNumber": 564
+          },
+          {
+            "lineNumber": 565,
+            "text": "  /** 매출 요약 표·차트·엑셀(요약 시트)과 동일: 매출액 0인 품목 제외 */"
+          },
+          {
+            "lineNumber": 566,
+            "text": "  const rowsWithRevenue = useMemo("
+          },
+          {
+            "lineNumber": 567,
+            "text": "    () =\u003e beanSalesAnalysis.filter((d) =\u003e d.totalRevenue \u003e 0),"
+          },
+          {
+            "lineNumber": 568,
+            "text": "    [beanSalesAnalysis],"
+          },
+          {
+            "lineNumber": 569,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 570
+          },
+          {
+            "lineNumber": 571,
+            "text": "  const revenueChartData = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 572,
+            "text": "    return [...rowsWithRevenue]"
+          },
+          {
+            "lineNumber": 573,
+            "text": "      .sort((a, b) =\u003e b.totalRevenue - a.totalRevenue)"
+          },
+          {
+            "lineNumber": 574,
+            "text": "      .slice(0, BEAN_SALES_CHART_TOP)"
+          },
+          {
+            "lineNumber": 575,
+            "text": "      .map((data, index) =\u003e ({"
+          },
+          {
+            "lineNumber": 576,
+            "text": "        ...data,"
+          },
+          {
+            "lineNumber": 577,
+            "text": "        fill: BEAN_SALES_CHART_COLORS[index % BEAN_SALES_CHART_COLORS.length],"
+          },
+          {
+            "lineNumber": 578,
+            "text": "      }))"
+          },
+          {
+            "lineNumber": 579,
+            "text": "  }, [rowsWithRevenue])"
+          },
+          {
+            "lineNumber": 580
+          },
+          {
+            "lineNumber": 581,
+            "text": "  /** 생두 주문이 있어 이익(추정)이 잡힌 행만 */"
+          },
+          {
+            "lineNumber": 582,
+            "text": "  const rowsWithKnownProfit = useMemo("
+          },
+          {
+            "lineNumber": 583,
+            "text": "    () =\u003e rowsWithRevenue.filter((d) =\u003e d.estimatedProfitAmount != null),"
+          },
+          {
+            "lineNumber": 584,
+            "text": "    [rowsWithRevenue],"
+          },
+          {
+            "lineNumber": 585,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 586
+          },
+          {
+            "lineNumber": 587,
+            "text": "  const totalEstimatedProfit = useMemo("
+          },
+          {
+            "lineNumber": 588,
+            "text": "    () =\u003e rowsWithKnownProfit.reduce((s, d) =\u003e s + (d.estimatedProfitAmount ?? 0), 0),"
+          },
+          {
+            "lineNumber": 589,
+            "text": "    [rowsWithKnownProfit],"
+          },
+          {
+            "lineNumber": 590,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 591
+          },
+          {
+            "lineNumber": 592,
+            "text": "  const totalPositiveProfit = useMemo("
+          },
+          {
+            "lineNumber": 593,
+            "text": "    () =\u003e rowsWithKnownProfit.reduce"
+          },
+          {
+            "lineNumber": 595
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1520,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1519
+          },
+          "startPosition": {
+            "line": 148
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 150
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 149
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 451
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 451
+              }
+            },
+            {
+              "endPosition": {
+                "column": 91,
+                "line": 451
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 451
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 452
+              },
+              "startPosition": {
+                "column": 99,
+                "line": 451
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.316763699054718
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 149,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 338
+          },
+          {
+            "lineNumber": 339
+          },
+          {
+            "lineNumber": 340,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 341,
+            "text": "    let cancelled = false"
+          },
+          {
+            "lineNumber": 342,
+            "text": "    const readInventoryFromLocal = () =\u003e {"
+          },
+          {
+            "lineNumber": 343,
+            "text": "      const readState = (key: string) =\u003e {"
+          },
+          {
+            "lineNumber": 344,
+            "text": "        try {"
+          },
+          {
+            "lineNumber": 345,
+            "text": "          const raw = window.localStorage.getItem(key)"
+          },
+          {
+            "lineNumber": 346,
+            "text": "          if (!raw) {"
+          },
+          {
+            "lineNumber": 347,
+            "text": "            return null"
+          },
+          {
+            "lineNumber": 348,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 349,
+            "text": "          const parsed = JSON.parse(raw)"
+          },
+          {
+            "lineNumber": 350,
+            "text": "          const normalized = normalizeInventoryStatusState(parsed)"
+          },
+          {
+            "lineNumber": 351,
+            "text": "          return normalized ?? null"
+          },
+          {
+            "lineNumber": 352,
+            "text": "        } catch {"
+          },
+          {
+            "lineNumber": 353,
+            "text": "          return null"
+          },
+          {
+            "lineNumber": 354,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 355,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 356,
+            "text": "      const primaryKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)"
+          },
+          {
+            "lineNumber": 357,
+            "text": "      return readState(primaryKey) ?? (primaryKey !== INVENTORY_STATUS_STORAGE_KEY ? readState(INVENTORY_STATUS_STORAGE_KEY) : null)"
+          },
+          {
+            "lineNumber": 358,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 359,
+            "text": "    const loadInventoryState = async () =\u003e {"
+          },
+          {
+            "lineNumber": 360,
+            "text": "      if (mode === 'cloud' \u0026\u0026 activeCompanyId) {"
+          },
+          {
+            "lineNumber": 361,
+            "text": "        try {"
+          },
+          {
+            "lineNumber": 362,
+            "text": "          const remote = await loadCompanyDocument\u003cInventoryPageDocumentLike\u003e("
+          },
+          {
+            "lineNumber": 363,
+            "text": "            activeCompanyId,"
+          },
+          {
+            "lineNumber": 364,
+            "text": "            COMPANY_DOCUMENT_KEYS.inventoryPage,"
+          },
+          {
+            "lineNumber": 365,
+            "text": "          )"
+          },
+          {
+            "lineNumber": 366,
+            "text": "          if (cancelled) {"
+          },
+          {
+            "lineNumber": 367,
+            "text": "            return"
+          },
+          {
+            "lineNumber": 368,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 369,
+            "text": "          const candidate = remote?.inventoryState ?? remote"
+          },
+          {
+            "lineNumber": 370,
+            "text": "          const normalized = normalizeInventoryStatusState(candidate)"
+          },
+          {
+            "lineNumber": 371,
+            "text": "          if (normalized) {"
+          },
+          {
+            "lineNumber": 372,
+            "text": "            setInventoryStateRaw(withReferenceDateToday(normalized))"
+          },
+          {
+            "lineNumber": 373,
+            "text": "            return"
+          },
+          {
+            "lineNumber": 374,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 375,
+            "text": "        } catch (error) {"
+          },
+          {
+            "lineNumber": 376,
+            "text": "          console.error('원두별 매출 분석: 입출고 클라우드 문서를 읽지 못했습니다.', error)"
+          },
+          {
+            "lineNumber": 377,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 378,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 379,
+            "text": "      setInventoryStateRaw(readInventoryFromLocal())"
+          },
+          {
+            "lineNumber": 380,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 381,
+            "text": "    void loadInventoryState()"
+          },
+          {
+            "lineNumber": 382,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 383,
+            "text": "      cancelled = true"
+          },
+          {
+            "lineNumber": 384,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 385,
+            "text": "  }, [mode, activeCompanyId, inventoryReadTick])"
+          },
+          {
+            "lineNumber": 386
+          },
+          {
+            "lineNumber": 387,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 388,
+            "text": "    let cancelled = false"
+          },
+          {
+            "lineNumber": 417,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1520,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1519
+          },
+          "startPosition": {
+            "line": 148
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 150
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 149
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3074876070022583
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 149,
+            "text": "function BeanSalesAnalysisPage() {"
+          },
+          {
+            "lineNumber": 201,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 216,
+            "text": "const poll = async "
+          },
+          {
+            "lineNumber": 244
+          },
+          {
+            "lineNumber": 245,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 246,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 247
+          },
+          {
+            "lineNumber": 248,
+            "text": "        // 2) 거래명세"
+          },
+          {
+            "lineNumber": 249,
+            "text": "        if (statementDoc \u0026\u0026 Array.isArray(statementDoc.records)) {"
+          },
+          {
+            "lineNumber": 250,
+            "text": "          const nextJson = JSON.stringify(statementDoc.records)"
+          },
+          {
+            "lineNumber": 251,
+            "text": "          if (nextJson !== lastStatementRecords) {"
+          },
+          {
+            "lineNumber": 252,
+            "text": "            lastStatementRecords = nextJson"
+          },
+          {
+            "lineNumber": 253,
+            "text": "            window.localStorage.setItem(STATEMENT_RECORDS_KEY, JSON.stringify(statementDoc.records))"
+          },
+          {
+            "lineNumber": 254,
+            "text": "            window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))"
+          },
+          {
+            "lineNumber": 255,
+            "text": "            setStatementRecordsRaw(statementDoc.records)"
+          },
+          {
+            "lineNumber": 256,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 257,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 258
+          },
+          {
+            "lineNumber": 259,
+            "text": "        // 3) 입출고"
+          },
+          {
+            "lineNumber": 260,
+            "text": "        if (inventoryDoc) {"
+          },
+          {
+            "lineNumber": 261,
+            "text": "          const candidate = (inventoryDoc as any)?.inventoryState ?? inventoryDoc"
+          },
+          {
+            "lineNumber": 262,
+            "text": "          const normalized = normalizeInventoryStatusState(candidate)"
+          },
+          {
+            "lineNumber": 263,
+            "text": "          if (normalized) {"
+          },
+          {
+            "lineNumber": 264,
+            "text": "            const forUi = withReferenceDateToday(normalized)"
+          },
+          {
+            "lineNumber": 265,
+            "text": "            const nextJson = JSON.stringify(forUi)"
+          },
+          {
+            "lineNumber": 266,
+            "text": "            if (nextJson !== lastInventoryDoc) {"
+          },
+          {
+            "lineNumber": 267,
+            "text": "              lastInventoryDoc = nextJson"
+          },
+          {
+            "lineNumber": 268,
+            "text": "              const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, 'cloud', activeCompanyId)"
+          },
+          {
+            "lineNumber": 269,
+            "text": "              window.localStorage.setItem(key, JSON.stringify(forUi))"
+          },
+          {
+            "lineNumber": 270,
+            "text": "              window.dispatchEvent(new Event(INVENTORY_STATUS_CACHE_EVENT))"
+          },
+          {
+            "lineNumber": 271,
+            "text": "              setInventoryStateRaw(forUi)"
+          },
+          {
+            "lineNumber": 272,
+            "text": "            }"
+          },
+          {
+            "lineNumber": 273,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 274,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 275
+          },
+          {
+            "lineNumber": 276,
+            "text": "        // 4) 생두 주문(최근 주문가 계산용)"
+          },
+          {
+            "lineNumber": 277,
+            "text": "        if (greenOrderDoc) {"
+          },
+          {
+            "lineNumber": 278,
+            "text": "          const nextJson = JSON.stringify(greenOrderDoc)"
+          },
+          {
+            "lineNumber": 279,
+            "text": "          if (nextJson !== lastGreenOrderDoc) {"
+          },
+          {
+            "lineNumber": 280,
+            "text": "            lastGreenOrderDoc = nextJson"
+          },
+          {
+            "lineNumber": 281,
+            "text": "            window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(greenOrderDoc))"
+          },
+          {
+            "lineNumber": 282,
+            "text": "            setGreenOrderCloudSyncTick((n) =\u003e n + 1)"
+          },
+          {
+            "lineNumber": 283,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 284,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 285,
+            "text": "      } catch {"
+          },
+          {
+            "lineNumber": 286,
+            "text": "        // ignore: 폴링 중 실패는 다음 주기에 재시도"
+          },
+          {
+            "lineNumber": 287,
+            "text": "      } finally {"
+          },
+          {
+            "lineNumber": 288,
+            "text": "        inFlight = false"
+          },
+          {
+            "lineNumber": 289,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 290,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 291
+          },
+          {
+            "lineNumber": 292,
+            "text": "    // 초기 1회 즉시 + 이후 폴링(배포 환경 부하·네트워트 완화: 간격 늘림, 탭 비활성 시 생략)"
+          },
+          {
+            "lineNumber": 293,
+            "text": "    void poll()"
+          },
+          {
+            "lineNumber": 294,
+            "text": "    const id = window.setInterval(() =\u003e void poll(), CLOUD_SYNC_INTERVAL_MS)"
+          },
+          {
+            "lineNumber": 295
+          },
+          {
+            "lineNumber": 296,
+            "text": "    return () =\u003e {"
+          },
+          {
+            "lineNumber": 297,
+            "text": "      cancelled = true"
+          },
+          {
+            "lineNumber": 298,
+            "text": "      window.clearInterval(id)"
+          },
+          {
+            "lineNumber": 299,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 300,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 1520,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 1519
+          },
+          "startPosition": {
+            "line": 148
+          }
+        },
+        "relativeWorkspacePath": "./app/src/BeanSalesAnalysisPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 150
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 149
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 201
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 201
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 202
+              },
+              "startPosition": {
+                "column": 13,
+                "line": 201
+              }
+            },
+            {
+              "endPosition": {
+                "column": 11,
+                "line": 216
+              },
+              "startPosition": {
+                "column": 5,
+                "line": 216
+              }
+            },
+            {
+              "endPosition": {
+                "column": 24,
+                "line": 216
+              },
+              "startPosition": {
+                "column": 11,
+                "line": 216
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.30501261353492737
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 206,
+            "text": "export function mapStatementItemToInventoryLabel("
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 207,
+            "text": "  itemName: string,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 208,
+            "text": "  beanRows: readonly InventoryBeanRow[],"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 209,
+            "text": "  options?: MapStatementItemToInventoryOptions,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 210,
+            "text": "): { label: string; sortKey: number; matched: boolean } {"
+          },
+          {
+            "lineNumber": 332
+          },
+          {
+            "lineNumber": 333,
+            "text": "  // 3) 생두주문-재고 별칭(괄호·매장명 제거 뒤 문자열만 — forMatch)"
+          },
+          {
+            "lineNumber": 334,
+            "text": "  for (const [from, to] of aliases) {"
+          },
+          {
+            "lineNumber": 335,
+            "text": "    if (forMatchCompact.includes(normCompact(from)) || normCompact(from) === forMatchCompact) {"
+          },
+          {
+            "lineNumber": 336,
+            "text": "      // 알마 등에서 \"브라질 세라도 NY2FC\" 가 한 가지 품목명이면, 입고에 &#96;Decaf 세라도 NY2FC&#96; 가 따로 있을 때(블렌딩·단가) Brazil 별칭이면"
+          },
+          {
+            "lineNumber": 337,
+            "text": "      // 주문가가 &#96;10. Brazil&#96;에만 쌓이고 레시피의 디카 행 키와 달라진다. 디카 입고 행이 있으면 그 라벨로 먼저 잡는다."
+          },
+          {
+            "lineNumber": 338,
+            "text": "      if ("
+          },
+          {
+            "lineNumber": 339,
+            "text": "        to === 'Brazil' \u0026\u0026"
+          },
+          {
+            "lineNumber": 340,
+            "text": "        (from === '브라질 세라도 NY2FC' || from === '브라질 세라도 NY2 FC')"
+          },
+          {
+            "lineNumber": 341,
+            "text": "      ) {"
+          },
+          {
+            "lineNumber": 342,
+            "text": "        const decafSerrado = findByExactName('Decaf 세라도 NY2FC', beanRows)"
+          },
+          {
+            "lineNumber": 343,
+            "text": "        if (decafSerrado) {"
+          },
+          {
+            "lineNumber": 344,
+            "text": "          return { label: formatBeanRowLabel(decafSerrado), sortKey: decafSerrado.no ?? 0, matched: true }"
+          },
+          {
+            "lineNumber": 345,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 346,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 347,
+            "text": "      const row = resolveAliasedTarget(to, beanRows) ?? findByExactName(to, beanRows)"
+          },
+          {
+            "lineNumber": 348,
+            "text": "      if (row) {"
+          },
+          {
+            "lineNumber": 349,
+            "text": "        return { label: formatBeanRowLabel(row), sortKey: row.no ?? 0, matched: true }"
+          },
+          {
+            "lineNumber": 350,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 351,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 352,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 353
+          },
+          {
+            "lineNumber": 354,
+            "text": "  // 4) 품목명이 입고명과 직접 일치(괄호 제거 후)"
+          },
+          {
+            "lineNumber": 355,
+            "text": "  const direct = findByExactName(forMatch, beanRows)"
+          },
+          {
+            "lineNumber": 356,
+            "text": "  if (direct) {"
+          },
+          {
+            "lineNumber": 357,
+            "text": "    return { label: formatBeanRowLabel(direct), sortKey: direct.no ?? 0, matched: true }"
+          },
+          {
+            "lineNumber": 358,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 359
+          },
+          {
+            "lineNumber": 360,
+            "text": "  // 5) 가장 긴 부분일치(영문/한글 혼용, 괄호는 strip된 본문만)"
+          },
+          {
+            "lineNumber": 361,
+            "text": "  const sub = findLongestSubstringRow(forMatchCompact, beanRows)"
+          },
+          {
+            "lineNumber": 362,
+            "text": "  if (sub) {"
+          },
+          {
+            "lineNumber": 363,
+            "text": "    return { label: formatBeanRowLabel(sub), sortKey: sub.no ?? 0, matched: true }"
+          },
+          {
+            "lineNumber": 364,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 365
+          },
+          {
+            "lineNumber": 366,
+            "text": "  // 6) 그대로(미매칭) — 위에서 입출고 행을 정하지 못한 경우(다른 품목·잘못된 키워드) 원문"
+          },
+          {
+            "lineNumber": 367,
+            "text": "  return { label: raw, sortKey: 900_000, matched: false }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 368,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 367
+          },
+          "startPosition": {
+            "line": 205
+          }
+        },
+        "relativeWorkspacePath": "./app/src/beanSalesStatementMapping.ts",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 8,
+                "line": 206
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 206
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 211
+              },
+              "startPosition": {
+                "column": 8,
+                "line": 206
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.2969101667404175
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The `mapOptions` object is configured with `mode` and `companyId` set to `activeCompanyId`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "statement.*cloud|STATEMENT_RECORDS|statementRecords"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "statement.*cloud|STATEMENT_RECORDS|statementRecords",
+  "topFiles": [
+    {
+      "matchCount": 11,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 11
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Roasting sync uses LS only, keeping bean material LS-synced during roasting.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "function computeCurrentMonthCosts|const computeCurrentMonthCosts"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "function computeCurrentMonthCosts|const computeCurrentMonthCosts",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+So the flow should be:
+- Built = buildMeetingCostsFromExpenses(...)
+- [Missing second step] - Built = buildMeetingCostsFromExpenses(...)
+- MergedBean = mergeBeanSalesMaterialCostIntoMeetingRows(Built, ym, beanResult)
+- nextCosts = computeCurrentMonthCosts(MergedBean)
+
+For signature comparison, we compare nextCosts vs base including bean line - good.
+
+Optimization: compute stmtAll, inv, mapOpts once outside setPageState - but setPageState is sync and we're inside functional update - actually we can read LS inside the loop but better read once before the setPageState callback:
+
+```javascript
+useEffect(() => {
+  ...
+  const stmtAll = parseMeetingStatementDeliveryRecords()
+``` The code reads meeting inventory and map options, then updates the page state by building costs from expenses, filtering statements by year-month, computing bean sales material costs, and finally calculating current month costs.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "activeOverview|pickCostLineAmount"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "activeOverview|pickCostLineAmount",
+  "topFiles": [
+    {
+      "matchCount": 7,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 7
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "meetingCostBreakdownModalBucket|closeMeetingCostBreakdownModal"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "meetingCostBreakdownModalBucket|closeMeetingCostBreakdownModal",
+  "topFiles": [
+    {
+      "matchCount": 15,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 15
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Implement:
+- Replace state with meetingCostDetailModal
+- (Note: The second item appears incomplete or missing in the provided input.) When `meetingCostDetailModal` is open, compute `modalBreakdownEntries` using `useMemo` based on the modal's kind:
+- For `kind === 'expense'`, sort expense breakdown entries from `summaryCostBucketExpenseLines`
+- For other kinds, sort bean material lines from `beanMaterialMeetingResult` - Compute `modalBreakdownEntries` using `useMemo` based on `meetingCostDetailModal`'s kind:
+  - For `kind === 'expense'`, sort expense breakdown entries from `summaryCostBucketExpenseLines`
+  - For other kinds, sort bean material lines from `beanMaterialMeetingResult`
+- Render modal title, hint, caption, and empty state based on the modals kind
+- Pass overflow hint    when rendering expense bucket lines for beans
+- Close modal by setting `meetingCostDetailModal` to null
+- Implement `summaryCostsExpenseBreakdownModal` logic</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "sortExpenseBreakdownEntries|MeetingExpenseBreakdownSortKey"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "sortExpenseBreakdownEntries|MeetingExpenseBreakdownSortKey",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+For bean entries without a date (dk), the sortDateKey is set to an empty string ('') because parseExpenseMeetBreakdownIsoDate('') returns an empty string. Note that beanMaterialMeetingLinesToBreakdownEntries calls parseExpenseMeetBreakdownIsoDate(dk) where dk could be an empty string. Good.
+
+- Apply patches in logical order: expense sync effect, replace state and references, useMemos, modal JSX, activeOverview, and rename closeMeetingCostBreakdownModal to closeMeetingCostDetailModal.
+- Optional aria-label updates for amount sort are minor and skipped.
+- Bean overflow hint: '        .' The `beanMaterialMeetingResult` useMemo is placed after `summaryCostBucketExpenseLines` and depends on `expenseRecordsForMeetingLink` and `activeMonth`. However, since the sync effect computes data per month in a loop, the useMemo is only used for modal display related to `activeMonth`.
+
+- Replace `sortedExpenseBreakdownModalEntries` with a unified `meetingCostDetailModalEntries` variable.
+- Copy relevant variables for clarity and consistency.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "meetingMonthLabelToExpenseYm"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "meetingMonthLabelToExpenseYm",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+비용 연동 `useEffect`에 생두 재료비 병합을 넣고, 모달 상태를 `meetingCostDetailModal`로 통합하며, 활성 월 생두 내역 `useMemo`와 요약 칩을 추가합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The `activeOverview` function references `MEETING_BEAN_MATERIAL_BUCKET_KEY`, a constant defined later in the file, which could cause issues during execution due to forward reference problems.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "closeMeetingCost"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "closeMeetingCost",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "BreakdownModalBucket|meetingCostBreakdown"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "BreakdownModalBucket|meetingCostBreakdown",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+src/beanSalesMeetingMaterialCost.ts(99,57): error TS2345: Argument of type '"local" | "cloud" | undefined' is not assignable to parameter of type '"local" | "cloud"'.
+  Type 'undefined' is not assignable to type '"local" | "cloud"'.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "hasAnyStatementManualForItem"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "hasAnyStatementManualForItem",
+  "topFiles": [
+    {
+      "matchCount": 2,
+      "uri": "app/src/beanSalesMeetingMaterialCost.ts"
+    },
+    {
+      "matchCount": 3,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/beanStatementManualMappings.ts"
+    }
+  ],
+  "totalFiles": 4,
+  "totalMatches": 8
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanStatementManualMappings.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Fix: use `mapOptions.mode ?? 'local'` in beanSalesMeetingMaterialCost.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesGreenOrderUnitPrice.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-BYtSzd1H.css    161.71 kB │ gzip:  26.93 kB
+dist/assets/index-Caeai7QG.js   2,670.34 kB │ gzip: 758.64 kB
+
+✓ built in 425ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+    "/Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+.
+
+  : activeOverview  MEETING_BEAN_MATERIAL_BUCKET_KEY - MonthlyMeetingPage useMemo   -     - .</details></think>
+
+_**Agent (default)**_
+
+작업 반영했습니다. 요약만 정리합니다.
+
+### 비용 현황 자동 반영
+- 지출표 연동 `useEffect`에서 월마다 `buildMeetingCostsFromExpenses` 직후, 거래명세(`납품일`이 해당 `YYYY-MM`)·입출고·생두 단가로 **`computeBeanSalesMaterialCostForYm`** → **`mergeBeanSalesMaterialCostIntoMeetingRows`**를 거쳐 **`재료비(매출·생두)`** 금액을 채우도록 했습니다.
+- 갱신 조건: `statementRecordsStorageRev`, `inventoryLinkTick`, `beanMeetingMaterialDepsRev`, `mode` / `activeCompanyId`를 의존성에 넣었고, 생두·명세·블렌드 오버라이드·입출고 캐시 이벤트는 기존에 추가해 둔 `beanMeetingMaterialDepsRev`로 묶입니다.
+
+### 내역 보기
+- 모달 상태를 **`meetingCostDetailModal`** (`expense` 버킷 | `beanMaterial`)로 통합했습니다.
+- **`resolveMonthlyMeetingCostBreakdownTarget`**으로 `②*` 지출 줄과 생두 재료 줄 모두에서 **내역 보기**가 열립니다.
+- 생두 쪽은 **`beanMaterialMeetingLinesToBreakdownEntries`**로 원두명·원/kg·판매량·매출·추정 금액이 리스트에 나가고, 정렬 UI는 그대로 씁니다.
+
+### 요약 지표
+- 상단 요약에 **`{월} 재료비(매출·생두)`** 칩을 추가했습니다.
+
+### 타입 수정
+- `beanSalesMeetingMaterialCost.ts`에서 `mapOptions.mode`가 optional이라 **`hasAnyStatementManualForItem`**에 넘기기 전에 `scopedMode = mapOptions.mode ?? 'local'`로 맞췄습니다.
+
+`npm run build`는 통과했습니다.
+
+---
+
+_**User**_
+
+입출금 손익요약에 순손익율? 그것도 반영해볼래 어떻게 계산해야할지는 모르겠네
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to add net profit margin to the cash flow/P&L summary section.</details></think>
+
+_**Agent (default)**_
+
+입출금 손익요약 UI와 사용 중인 지표를 찾아 순손익율 계산을 정의합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+Status: **loading**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+Status: **loading**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+Status: **loading**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>

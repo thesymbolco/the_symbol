@@ -1797,11 +1797,16 @@ const getMeetingOutboundCashflow = (
   return { roastingBeanCost, extraCostLines, totalOut }
 }
 
-const getMeetingCashflowPl = (extendedTotalIn: number, extendedTotalOut: number) => ({
-  totalIn: extendedTotalIn,
-  totalOut: extendedTotalOut,
-  net: extendedTotalIn - extendedTotalOut,
-})
+const getMeetingCashflowPl = (extendedTotalIn: number, extendedTotalOut: number) => {
+  const totalIn =
+    typeof extendedTotalIn === 'number' && Number.isFinite(extendedTotalIn) ? extendedTotalIn : 0
+  const totalOut =
+    typeof extendedTotalOut === 'number' && Number.isFinite(extendedTotalOut) ? extendedTotalOut : 0
+  const net = totalIn - totalOut
+  /** 입금 합계 대비 현금 순이익 비율(−∞~∞). 입금이 0이면 산출 불가 */
+  const netCashMarginRatio = totalIn > 0 ? net / totalIn : null
+  return { totalIn, totalOut, net, netCashMarginRatio }
+}
 
 type MeetingInboundCashflowParts = ReturnType<typeof buildMeetingInboundCashflowParts>
 type MeetingOutboundCashflowParts = ReturnType<typeof getMeetingOutboundCashflow>
@@ -3323,6 +3328,11 @@ function MonthlyMeetingPage() {
     return [
       { label: `${activeMonth} 입금 합계`, value: inboundCashflow.totalIn, unit: 'won' as const },
       { label: `${activeMonth} 입출금 순손익`, value: cashflowPl.net, unit: 'won' as const },
+      {
+        label: `${activeMonth} 입출금 순손익율`,
+        value: cashflowPl.netCashMarginRatio,
+        unit: 'ratio' as const,
+      },
       { label: `${activeMonth} 비용계`, value: costGrand, unit: 'won' as const },
       { label: `${activeMonth} 재료비`, value: pickCostLineAmount(costs, '①재료비'), unit: 'won' as const },
       {
@@ -3338,6 +3348,7 @@ function MonthlyMeetingPage() {
   }, [
     activeMonth,
     cashflowPl.net,
+    cashflowPl.netCashMarginRatio,
     computedCurrentMonthCosts,
     computedInventoryRow,
     inboundCashflow.totalIn,
@@ -3624,6 +3635,12 @@ function MonthlyMeetingPage() {
         ['입금 합계', excelCellAmount(plCf.totalIn), '', ''],
         ['출금 합계', excelCellAmount(plCf.totalOut), '', ''],
         ['입출금 순손익 (입금 합계 − 출금 합계)', excelCellAmount(plCf.net), '', ''],
+        [
+          '입출금 순손익율 (순손익 ÷ 입금 합계)',
+          plCf.netCashMarginRatio == null ? '' : excelCellShare(plCf.netCashMarginRatio),
+          '',
+          '',
+        ],
         [],
         ['2. 로스팅실 매출 및 생두비용현황', '', '', ''],
         ['번호', '거래처명', roastingSalesMonthHeaderLabel, '점유비'],
@@ -3997,7 +4014,9 @@ function MonthlyMeetingPage() {
                     ? '-'
                     : metric.unit === 'kg'
                       ? `${meetingAmountDisplayFormatter.format(metric.value)} kg`
-                      : formatMoney(metric.value)}
+                      : metric.unit === 'ratio'
+                        ? formatSharePercent(metric.value)
+                        : formatMoney(metric.value)}
                 </strong>
               </div>
             ))}
@@ -4279,6 +4298,14 @@ function MonthlyMeetingPage() {
                       <tr className="meeting-cashflow-total-row">
                         <th scope="row">입출금 순손익 (입금 합계 − 출금 합계)</th>
                         <td>{formatMoney(cashflowPl.net)}</td>
+                      </tr>
+                      <tr>
+                        <th scope="row">입출금 순손익율 (순손익 ÷ 입금 합계)</th>
+                        <td>
+                          {cashflowPl.netCashMarginRatio == null
+                            ? '—'
+                            : formatSharePercent(cashflowPl.netCashMarginRatio)}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
