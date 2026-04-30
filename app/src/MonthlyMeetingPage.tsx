@@ -699,7 +699,12 @@ const mergeRoastingSalesWithStatementAggregates = (
     }
     const agg = aggregates.get(norm(row.label))
     if (!agg) {
-      return row
+      // 거래명세에 해당 집계 월·거래처가 없으면(줄 삭제·금액 삭제 등) 이전 자동 반영액이 입금 합계에 남지 않게 집계 열을 비웁니다.
+      return {
+        ...row,
+        share: null,
+        january: null,
+      }
     }
     return {
       ...row,

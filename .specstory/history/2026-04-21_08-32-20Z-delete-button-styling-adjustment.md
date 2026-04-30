@@ -57052,7 +57052,4207 @@ _**Agent (default)**_
 <details>
 <summary>Tool use: **semantic_search_full**</summary>
 
-Status: **loading**
+
+Parameters:
+
+```json
+{
+  "explanation": "",
+  "includePattern": "/Users/parkcg/The Symbol_Edit/app/src",
+  "query": "Where is 입출금 손익요약 or cashflow summary rendered?",
+  "topK": 10
+}
+```
+Result:
+
+```json
+{
+  "codeResults": [
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2115,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4263
+          },
+          {
+            "lineNumber": 4264
+          },
+          {
+            "lineNumber": 4265,
+            "text": "                \u003carticle className=\"meeting-card meeting-cashflow-card meeting-cashflow-pl-card\"\u003e"
+          },
+          {
+            "lineNumber": 4266,
+            "text": "                  \u003cdiv className=\"meeting-card-header\"\u003e"
+          },
+          {
+            "lineNumber": 4267,
+            "text": "                    \u003ch3\u003e입출금·손익 요약\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 4268,
+            "text": "                  \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4269,
+            "text": "                  \u003ctable className=\"meeting-table meeting-table-compact meeting-cashflow-pl-table\"\u003e"
+          },
+          {
+            "lineNumber": 4270,
+            "text": "                    \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 4271,
+            "text": "                      \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4272,
+            "text": "                        \u003cth scope=\"row\"\u003e입금 합계\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4273,
+            "text": "                        \u003ctd\u003e{formatMoney(cashflowPl.totalIn)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4274,
+            "text": "                      \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4275,
+            "text": "                      \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4276,
+            "text": "                        \u003cth scope=\"row\"\u003e출금 합계\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4277,
+            "text": "                        \u003ctd\u003e{formatMoney(cashflowPl.totalOut)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4278,
+            "text": "                      \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4279,
+            "text": "                      \u003ctr className=\"meeting-cashflow-total-row\"\u003e"
+          },
+          {
+            "lineNumber": 4280,
+            "text": "                        \u003cth scope=\"row\"\u003e입출금 순손익 (입금 합계 − 출금 합계)\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4281,
+            "text": "                        \u003ctd\u003e{formatMoney(cashflowPl.net)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4282,
+            "text": "                      \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4283,
+            "text": "                    \u003c/tbody\u003e"
+          },
+          {
+            "lineNumber": 4284,
+            "text": "                  \u003c/table\u003e"
+          },
+          {
+            "lineNumber": 4285,
+            "text": "                \u003c/article\u003e"
+          },
+          {
+            "lineNumber": 4286,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4287,
+            "text": "            \u003c/\u003e"
+          },
+          {
+            "lineNumber": 4288,
+            "text": "          ) : null}"
+          },
+          {
+            "lineNumber": 4289,
+            "text": "        \u003c/section\u003e"
+          },
+          {
+            "lineNumber": 4290
+          },
+          {
+            "lineNumber": 4291,
+            "text": "        \u003csection className=\"panel\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5104,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5103
+          },
+          "startPosition": {
+            "line": 2114
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2116
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2115
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.49577105045318604
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2115,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4222
+          },
+          {
+            "lineNumber": 4223
+          },
+          {
+            "lineNumber": 4224,
+            "text": "                  \u003carticle className=\"meeting-card meeting-cashflow-card\"\u003e"
+          },
+          {
+            "lineNumber": 4225,
+            "text": "                    \u003cdiv className=\"meeting-card-header\"\u003e"
+          },
+          {
+            "lineNumber": 4226,
+            "text": "                      \u003ch3\u003e출금액 요약\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 4227,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4228,
+            "text": "                    \u003ctable className=\"meeting-table meeting-table-compact\"\u003e"
+          },
+          {
+            "lineNumber": 4229,
+            "text": "                      \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 4230,
+            "text": "                        \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4231,
+            "text": "                          \u003cth\u003e항목\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4232,
+            "text": "                          \u003cth\u003e금액\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4233,
+            "text": "                        \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4234,
+            "text": "                      \u003c/thead\u003e"
+          },
+          {
+            "lineNumber": 4235,
+            "text": "                      \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 4236,
+            "text": "                        {outboundCashflow.roastingBeanCost ? ("
+          },
+          {
+            "lineNumber": 4237,
+            "text": "                          \u003c\u003e"
+          },
+          {
+            "lineNumber": 4238,
+            "text": "                            \u003ctr className=\"meeting-cashflow-section-row\"\u003e"
+          },
+          {
+            "lineNumber": 4239,
+            "text": "                              \u003ctd colSpan={2}\u003e로스팅실 생두비용\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4240,
+            "text": "                            \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4241,
+            "text": "                            \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4242,
+            "text": "                              \u003ctd\u003e{outboundCashflow.roastingBeanCost.label}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4243,
+            "text": "                              \u003ctd\u003e{formatMoney(outboundCashflow.roastingBeanCost.amount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4244,
+            "text": "                            \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4245,
+            "text": "                          \u003c/\u003e"
+          },
+          {
+            "lineNumber": 4246,
+            "text": "                        ) : null}"
+          },
+          {
+            "lineNumber": 4247,
+            "text": "                        \u003ctr className=\"meeting-cashflow-section-row\"\u003e"
+          },
+          {
+            "lineNumber": 4248,
+            "text": "                          \u003ctd colSpan={2}\u003e비용 현황 (⑨ 비용 합계 제외)\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4249,
+            "text": "                        \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4250,
+            "text": "                        {outboundCashflow.extraCostLines.map((row, idx) =\u003e ("
+          },
+          {
+            "lineNumber": 4251,
+            "text": "                          \u003ctr key={&#96;out-c-${idx}-${row.label}&#96;}\u003e"
+          },
+          {
+            "lineNumber": 4252,
+            "text": "                            \u003ctd\u003e{row.label}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4253,
+            "text": "                            \u003ctd\u003e{formatMoney(row.amount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4254,
+            "text": "                          \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4255,
+            "text": "                        ))}"
+          },
+          {
+            "lineNumber": 4256,
+            "text": "                        \u003ctr className=\"meeting-cashflow-total-row\"\u003e"
+          },
+          {
+            "lineNumber": 4257,
+            "text": "                          \u003ctd\u003e출금 합계\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4258,
+            "text": "                          \u003ctd\u003e{formatMoney(outboundCashflow.totalOut)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4259,
+            "text": "                        \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4260,
+            "text": "                      \u003c/tbody\u003e"
+          },
+          {
+            "lineNumber": 4261,
+            "text": "                    \u003c/table\u003e"
+          },
+          {
+            "lineNumber": 4262,
+            "text": "                  \u003c/article\u003e"
+          },
+          {
+            "lineNumber": 4263,
+            "text": "                \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4264
+          },
+          {
+            "lineNumber": 4265,
+            "text": "                \u003carticle className=\"meeting-card meeting-cashflow-card meeting-cashflow-pl-card"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5104,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5103
+          },
+          "startPosition": {
+            "line": 2114
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2116
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2115
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.41790926456451416
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2115,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4158,
+            "text": "\u003c/p\u003e"
+          },
+          {
+            "lineNumber": 4159,
+            "text": "                \u003cdiv className=\"meeting-cashflow-columns\"\u003e"
+          },
+          {
+            "lineNumber": 4160,
+            "text": "                  \u003carticle className=\"meeting-card meeting-cashflow-card\"\u003e"
+          },
+          {
+            "lineNumber": 4161,
+            "text": "                    \u003cdiv className=\"meeting-card-header\"\u003e"
+          },
+          {
+            "lineNumber": 4162,
+            "text": "                      \u003ch3\u003e입금액 요약\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 4163,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4164,
+            "text": "                    \u003ctable className=\"meeting-table meeting-table-compact\"\u003e"
+          },
+          {
+            "lineNumber": 4165,
+            "text": "                      \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 4166,
+            "text": "                        \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4167,
+            "text": "                          \u003cth\u003e항목\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4168,
+            "text": "                          \u003cth\u003e금액\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4169,
+            "text": "                          \u003cth\u003e점유비\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 4170,
+            "text": "                        \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4171,
+            "text": "                      \u003c/thead\u003e"
+          },
+          {
+            "lineNumber": 4172,
+            "text": "                      \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 4173,
+            "text": "                        {inboundCashflow.channelPart.length \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4174,
+            "text": "                          \u003c\u003e"
+          },
+          {
+            "lineNumber": 4175,
+            "text": "                            \u003ctr className=\"meeting-cashflow-section-row\"\u003e"
+          },
+          {
+            "lineNumber": 4176,
+            "text": "                              \u003ctd colSpan={3}\u003e당월 매출 (결제)\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4177,
+            "text": "                            \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4178,
+            "text": "                            {inboundCashflow.channelPart.map((row, idx) =\u003e ("
+          },
+          {
+            "lineNumber": 4179,
+            "text": "                              \u003ctr key={&#96;inbound-ch-${idx}-${row.label}&#96;}\u003e"
+          },
+          {
+            "lineNumber": 4180,
+            "text": "                                \u003ctd\u003e{row.label}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4181,
+            "text": "                                \u003ctd\u003e{formatMoney(row.amount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4182,
+            "text": "                                \u003ctd\u003e{formatSharePercent(row.share)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4183,
+            "text": "                              \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4184,
+            "text": "                            ))}"
+          },
+          {
+            "lineNumber": 4185,
+            "text": "                          \u003c/\u003e"
+          },
+          {
+            "lineNumber": 4186,
+            "text": "                        ) : null}"
+          },
+          {
+            "lineNumber": 4187,
+            "text": "                        {inboundCashflow.roastingLines.length \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4188,
+            "text": "                          \u003c\u003e"
+          },
+          {
+            "lineNumber": 4189,
+            "text": "                            \u003ctr className=\"meeting-cashflow-section-row\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5104,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5103
+          },
+          "startPosition": {
+            "line": 2114
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2116
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2115
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4095534682273865
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2115,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4147
+          },
+          {
+            "lineNumber": 4148,
+            "text": "            /\u003e"
+          },
+          {
+            "lineNumber": 4149,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4150
+          },
+          {
+            "lineNumber": 4151,
+            "text": "          \u003cdiv className=\"meeting-summary-cashflow\"\u003e"
+          },
+          {
+            "lineNumber": 4152,
+            "text": "                \u003cp className=\"meeting-cashflow-hint\"\u003e"
+          },
+          {
+            "lineNumber": 4153,
+            "text": "                  당월 매출(결제), 로스팅실 집계 월 거래처 매출, 매장 전체 판매(홀·배달·간편배달)을 합산한 입금"
+          },
+          {
+            "lineNumber": 4154,
+            "text": "                  합계입니다. 점유비는 각 구간 안에서만 나눈 비율입니다(당월 결제끼리, 로스팅 거래처끼리, 매장 채널끼리 합이"
+          },
+          {
+            "lineNumber": 4155,
+            "text": "                  100%). 출금은 위 「비용 현황」표의 ⑨(비용 합계)를 제외한 각 항목 금액, 로스팅실 생두비용(별도 반영"
+          },
+          {
+            "lineNumber": 4156,
+            "text": "                  시)을 더한 값이며, 맨 아래 출금 합계에 표시됩니다(생두비용이 비용 표 ⑨에 이미 포함되면 이중 합산되지"
+          },
+          {
+            "lineNumber": 4157,
+            "text": "                  않도록 한 줄을 생략합니다)."
+          },
+          {
+            "lineNumber": 4158,
+            "text": "                \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 4159,
+            "text": "                \u003cdiv className=\"meeting-cashflow-columns\"\u003e"
+          },
+          {
+            "lineNumber": 4160,
+            "text": "                  \u003carticle className=\"meeting-card meeting-cashflow-card\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5104,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5103
+          },
+          "startPosition": {
+            "line": 2114
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2116
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2115
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4010159969329834
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 952,
+            "text": "function ExpensePage() {"
+          },
+          {
+            "lineNumber": 1757
+          },
+          {
+            "lineNumber": 1758,
+            "text": "  const footerSumSupply = sumValues("
+          },
+          {
+            "lineNumber": 1759,
+            "text": "    filteredRecords.map((r) =\u003e splitAmount(r.totalAmount, r.taxType).supplyAmount),"
+          },
+          {
+            "lineNumber": 1760,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 1761,
+            "text": "  const footerSumTax = sumValues(filteredRecords.map((r) =\u003e splitAmount(r.totalAmount, r.taxType).taxAmount))"
+          },
+          {
+            "lineNumber": 1762
+          },
+          {
+            "lineNumber": 1763,
+            "text": "  return ("
+          },
+          {
+            "lineNumber": 1764,
+            "text": "    \u003cdiv className=\"meeting-layout\"\u003e"
+          },
+          {
+            "lineNumber": 1765,
+            "text": "      \u003csection className=\"panel expense-work-section\"\u003e"
+          },
+          {
+            "lineNumber": 1766,
+            "text": "        \u003cdiv className=\"expense-page-snapshot-metrics no-print\" aria-label=\"이번 달 요약\"\u003e"
+          },
+          {
+            "lineNumber": 1767,
+            "text": "          \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 1768,
+            "text": "            \u003cspan\u003e{hasActiveFilters ? '표시 중 총액' : &#96;${formatMonthLabel(pageState.activeMonth)} 총 지출&#96;}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 1769,
+            "text": "            \u003cstrong\u003e{formatMoney(totalExpenses)}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 1770,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1771,
+            "text": "          \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 1772,
+            "text": "            \u003cspan\u003e{hasActiveFilters ? '표시 중 미지급' : '미지급 합계'}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 1773,
+            "text": "            \u003cstrong\u003e{formatMoney(unpaidTotal)}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 1774,
+            "text": "            {unpaidCount \u003e 0 ? \u003cem className=\"expense-unpaid-badge\"\u003e{unpaidCount}건\u003c/em\u003e : null}"
+          },
+          {
+            "lineNumber": 1775,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1776,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1777,
+            "text": "        \u003cdiv className=\"panel-header\"\u003e"
+          },
+          {
+            "lineNumber": 1778,
+            "text": "          \u003cdiv\u003e"
+          },
+          {
+            "lineNumber": 1779,
+            "text": "            \u003ch2\u003e사업 지출 입력\u003c/h2\u003e"
+          },
+          {
+            "lineNumber": 1780,
+            "text": "            \u003cp className=\"muted\"\u003e"
+          },
+          {
+            "lineNumber": 1781,
+            "text": "              지출 엑셀을 올리면 시트에 있는 열 순서·제목에 맞춰 아래 목록 칸이 바뀝니다. 「표 열 기본으로」로 전체"
+          },
+          {
+            "lineNumber": 1782,
+            "text": "              열을 다시 켤 수 있습니다. 엑셀 또는 아래 목록에서 「용도」에 기타경비·운영경비를 적거나, 카테고리를 해당"
+          },
+          {
+            "lineNumber": 1783,
+            "text": "              값으로 선택하면 해당 월의 월 마감 회의 「비용 현황」에도 나누어 자동 반영됩니다."
+          },
+          {
+            "lineNumber": 1784,
+            "text": "            \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 1785,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1786,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 1787
+          },
+          {
+            "lineNumber": 1788,
+            "text": "        \u003cdiv className=\"inventory-actions\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 2134,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 2133
+          },
+          "startPosition": {
+            "line": 951
+          }
+        },
+        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 953
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 952
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.392108291387558
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4591
+          },
+          {
+            "lineNumber": 4592,
+            "text": "                \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 4593,
+            "text": "                  {summaryRows.length === 0 ? ("
+          },
+          {
+            "lineNumber": 4594,
+            "text": "                    \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4595,
+            "text": "                      \u003ctd colSpan={40} className=\"empty-state\"\u003e"
+          },
+          {
+            "lineNumber": 4596,
+            "text": "                        {selectedYear}년에 해당하는 데이터가 없습니다."
+          },
+          {
+            "lineNumber": 4597,
+            "text": "                      \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4598,
+            "text": "                    \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4599,
+            "text": "                  ) : ("
+          },
+          {
+            "lineNumber": 4600,
+            "text": "                    summaryRows.map((row, index) =\u003e ("
+          },
+          {
+            "lineNumber": 4601,
+            "text": "                      \u003ctr key={row.clientName}\u003e"
+          },
+          {
+            "lineNumber": 4602,
+            "text": "                        \u003ctd\u003e{index + 1}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4603,
+            "text": "                        \u003ctd\u003e{row.clientName}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4604,
+            "text": "                        \u003ctd\u003e{formatCurrency(row.totalAmount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4605,
+            "text": "                        \u003ctd\u003e{row.share.toFixed(1)}%\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4606,
+            "text": "                        {row.months.flatMap((month, monthIndex) =\u003e ["
+          },
+          {
+            "lineNumber": 4607,
+            "text": "                          \u003ctd key={&#96;${row.clientName}-${monthIndex}-amount&#96;}\u003e"
+          },
+          {
+            "lineNumber": 4608,
+            "text": "                            {month.amount ? formatCurrency(month.amount) : ''}"
+          },
+          {
+            "lineNumber": 4609,
+            "text": "                          \u003c/td\u003e,"
+          },
+          {
+            "lineNumber": 4610,
+            "text": "                          \u003ctd key={&#96;${row.clientName}-${monthIndex}-issue&#96;}\u003e"
+          },
+          {
+            "lineNumber": 4611,
+            "text": "                            {month.issueDate ? formatDateLabel(month.issueDate) : ''}"
+          },
+          {
+            "lineNumber": 4612,
+            "text": "                          \u003c/td\u003e,"
+          },
+          {
+            "lineNumber": 4613,
+            "text": "                          \u003ctd key={&#96;${row.clientName}-${monthIndex}-payment&#96;}\u003e"
+          },
+          {
+            "lineNumber": 4614,
+            "text": "                            {month.paymentDate ? formatDateLabel(month.paymentDate) : ''}"
+          },
+          {
+            "lineNumber": 4615,
+            "text": "                          \u003c/td\u003e,"
+          },
+          {
+            "lineNumber": 4616,
+            "text": "                        ])}"
+          },
+          {
+            "lineNumber": 4617,
+            "text": "                      \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4618,
+            "text": "                    ))"
+          },
+          {
+            "lineNumber": 4619,
+            "text": "                  )}"
+          },
+          {
+            "lineNumber": 4620,
+            "text": "                \u003c/tbody\u003e"
+          },
+          {
+            "lineNumber": 4621,
+            "text": "                \u003ctfoot\u003e"
+          },
+          {
+            "lineNumber": 4622,
+            "text": "                  \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 4623,
+            "text": "                    \u003ctd colSpan={2}\u003e합계\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4624,
+            "text": "                    \u003ctd\u003e{formatCurrency(filteredRecords.reduce((sum, row) =\u003e sum + row.totalAmount, 0))}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4625,
+            "text": "                    \u003ctd\u003e100%\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4626,
+            "text": "                    \u003ctd colSpan={36}\u003e\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4627,
+            "text": "                  \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4628,
+            "text": "                \u003c/tfoot\u003e"
+          },
+          {
+            "lineNumber": 4629,
+            "text": "              \u003c/table\u003e"
+          },
+          {
+            "lineNumber": 4630,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4631,
+            "text": "          )}"
+          },
+          {
+            "lineNumber": 4632,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4633,
+            "text": "        \u003c/section\u003e"
+          },
+          {
+            "lineNumber": 4634,
+            "text": "      \u003c/main\u003e"
+          },
+          {
+            "lineNumber": 4635
+          },
+          {
+            "lineNumber": 4636,
+            "text": "      \u003csection className=\"panel preview-panel statements-preview-panel\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.37914395332336426
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2115,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4112
+          },
+          {
+            "lineNumber": 4113,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4114
+          },
+          {
+            "lineNumber": 4115,
+            "text": "          {!collapsedSections.summary ? ("
+          },
+          {
+            "lineNumber": 4116,
+            "text": "            \u003c\u003e"
+          },
+          {
+            "lineNumber": 4117,
+            "text": "              \u003cdiv className=\"meeting-grid meeting-grid-2\"\u003e"
+          },
+          {
+            "lineNumber": 4118,
+            "text": "            \u003cMeetingSummaryValueCard"
+          },
+          {
+            "lineNumber": 4119,
+            "text": "              tableId=\"summary-sales\""
+          },
+          {
+            "lineNumber": 4120,
+            "text": "              title=\"매출\""
+          },
+          {
+            "lineNumber": 4121,
+            "text": "              newRowButtonLabel=\"항목 추가\""
+          },
+          {
+            "lineNumber": 4122,
+            "text": "              rows={computedCurrentMonthSales}"
+          },
+          {
+            "lineNumber": 4123,
+            "text": "              showShareColumn"
+          },
+          {
+            "lineNumber": 4124,
+            "text": "              editMode={summaryEditMode}"
+          },
+          {
+            "lineNumber": 4125,
+            "text": "              indexKind=\"sales\""
+          },
+          {
+            "lineNumber": 4126,
+            "text": "              isAmountReadonly={isComputedSalesRow}"
+          },
+          {
+            "lineNumber": 4127,
+            "text": "              onAddRow={() =\u003e addMonthStateRow('currentMonthSales', '새 매출 항목')}"
+          },
+          {
+            "lineNumber": 4128,
+            "text": "              onLabelChange={(i, v) =\u003e updateMonthStateLabel('currentMonthSales', i, v)}"
+          },
+          {
+            "lineNumber": 4129,
+            "text": "              onValueChange={(i, v) =\u003e updateValueRow('currentMonthSales', i, v)}"
+          },
+          {
+            "lineNumber": 4130,
+            "text": "              onRemoveRow={(i) =\u003e removeMonthStateRow('currentMonthSales', i)}"
+          },
+          {
+            "lineNumber": 4131,
+            "text": "            /\u003e"
+          },
+          {
+            "lineNumber": 4132,
+            "text": "            \u003cMeetingSummaryValueCard"
+          },
+          {
+            "lineNumber": 4133,
+            "text": "              tableId=\"summary-costs\""
+          },
+          {
+            "lineNumber": 4134,
+            "text": "              title=\"비용 현황\""
+          },
+          {
+            "lineNumber": 4135,
+            "text": "              newRowButtonLabel=\"항목 추가\""
+          },
+          {
+            "lineNumber": 4136,
+            "text": "              rows={computedCurrentMonthCosts}"
+          },
+          {
+            "lineNumber": 4137,
+            "text": "              showShareColumn"
+          },
+          {
+            "lineNumber": 4138,
+            "text": "              editMode={summaryEditMode}"
+          },
+          {
+            "lineNumber": 4139,
+            "text": "              indexKind=\"costs\""
+          },
+          {
+            "lineNumber": 4140,
+            "text": "              isAmountReadonly={(row) =\u003e isCostGrandRow(row) || isExpenseSheetFedCostAmountRow(row)}"
+          },
+          {
+            "lineNumber": 4141,
+            "text": "              shouldShowRemoveRowButton={(row) =\u003e !isCostGrandRow(row)}"
+          },
+          {
+            "lineNumber": 4142,
+            "text": "              rowExpenseBreakdownModal={summaryCostsExpenseBreakdownModal}"
+          },
+          {
+            "lineNumber": 4143,
+            "text": "              amountInputTitle={summaryCostsAmountInputTitle}"
+          },
+          {
+            "lineNumber": 4144,
+            "text": "              onAddRow={() =\u003e addMonthStateRow('currentMonthCosts', '새 비용 항목')}"
+          },
+          {
+            "lineNumber": 4145,
+            "text": "              onLabelChange={(i, v) =\u003e updateMonthStateLabel('currentMonthCosts', i, v)}"
+          },
+          {
+            "lineNumber": 4146,
+            "text": "              onValueChange={(i, v) =\u003e updateValueRow('currentMonthCosts', i, v)}"
+          },
+          {
+            "lineNumber": 4147,
+            "text": "              onRemoveRow={(i) =\u003e removeMonthStateRow('currentMonthCosts', i)}"
+          },
+          {
+            "lineNumber": 4148,
+            "text": "            /\u003e"
+          },
+          {
+            "lineNumber": 4149,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4150
+          },
+          {
+            "lineNumber": 4151,
+            "text": "          \u003cdiv className=\"meeting-summary-cashflow\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5104,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5103
+          },
+          "startPosition": {
+            "line": 2114
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2116
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2115
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3722684979438782
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2115,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3136,
+            "text": "const computedStoreSales = "
+          },
+          {
+            "lineNumber": 3137
+          },
+          {
+            "lineNumber": 3138,
+            "text": "    [activeMonthState.storeSales],"
+          },
+          {
+            "lineNumber": 3139,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3140
+          },
+          {
+            "lineNumber": 3141,
+            "text": "  const inboundCashflow = useMemo("
+          },
+          {
+            "lineNumber": 3142,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 3143,
+            "text": "      buildMeetingInboundCashflowParts("
+          },
+          {
+            "lineNumber": 3144,
+            "text": "        computedCurrentMonthSales,"
+          },
+          {
+            "lineNumber": 3145,
+            "text": "        computedRoastingSales,"
+          },
+          {
+            "lineNumber": 3146,
+            "text": "        computedStoreSales,"
+          },
+          {
+            "lineNumber": 3147,
+            "text": "      ),"
+          },
+          {
+            "lineNumber": 3148,
+            "text": "    [computedCurrentMonthSales, computedRoastingSales, computedStoreSales],"
+          },
+          {
+            "lineNumber": 3149,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3150
+          },
+          {
+            "lineNumber": 3151,
+            "text": "  const outboundCashflow = useMemo("
+          },
+          {
+            "lineNumber": 3152,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 3153,
+            "text": "      getMeetingOutboundCashflow(computedCurrentMonthCosts, computedRoastingSales),"
+          },
+          {
+            "lineNumber": 3154,
+            "text": "    [computedCurrentMonthCosts, computedRoastingSales],"
+          },
+          {
+            "lineNumber": 3155,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3156
+          },
+          {
+            "lineNumber": 3157,
+            "text": "  const cashflowPl = useMemo("
+          },
+          {
+            "lineNumber": 3158,
+            "text": "    () =\u003e getMeetingCashflowPl(inboundCashflow.totalIn, outboundCashflow.totalOut),"
+          },
+          {
+            "lineNumber": 3159,
+            "text": "    [inboundCashflow.totalIn, outboundCashflow.totalOut],"
+          },
+          {
+            "lineNumber": 3160,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3161
+          },
+          {
+            "lineNumber": 3162,
+            "text": "  const computedInventoryRow = useMemo("
+          },
+          {
+            "lineNumber": 3163,
+            "text": "    () =\u003e computeInventoryRow(activeMonthState.inventoryRow),"
+          },
+          {
+            "lineNumber": 3164,
+            "text": "    [activeMonthState.inventoryRow],"
+          },
+          {
+            "lineNumber": 3165,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3166
+          },
+          {
+            "lineNumber": 3167,
+            "text": "  const outboundAggregateColumnIndex = useMemo("
+          },
+          {
+            "lineNumber": 3168,
+            "text": "    () =\u003e findOutboundAggregateColumnIndex(data.productionColumns),"
+          },
+          {
+            "lineNumber": 3169,
+            "text": "    [data.productionColumns],"
+          },
+          {
+            "lineNumber": 3170,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3171
+          },
+          {
+            "lineNumber": 3172,
+            "text": "  const productionReadRows = useMemo("
+          },
+          {
+            "lineNumber": 3173,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 3174,
+            "text": "      buildMeetingKgReadRows(data.productionColumns, activeMonthState.productionRow.values, {"
+          },
+          {
+            "lineNumber": 3175,
+            "text": "        hideZero: true,"
+          },
+          {
+            "lineNumber": 3176,
+            "text": "        aggregateColumnIndex: outboundAggregateColumnIndex,"
+          },
+          {
+            "lineNumber": 3177,
+            "text": "      }),"
+          },
+          {
+            "lineNumber": 3178,
+            "text": "    [data.productionColumns, activeMonthState.productionRow.values, outboundAggregateColumnIndex],"
+          },
+          {
+            "lineNumber": 3179,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3180
+          },
+          {
+            "lineNumber": 3181,
+            "text": "  const inventoryReadRows = useMemo("
+          },
+          {
+            "lineNumber": 3182,
+            "text": "    () =\u003e"
+          },
+          {
+            "lineNumber": 3183,
+            "text": "      buildMeetingKgReadRows(data.inventoryColumns, computedInventoryRow.values, {"
+          },
+          {
+            "lineNumber": 3184,
+            "text": "        hideZero: true,"
+          },
+          {
+            "lineNumber": 3185,
+            "text": "        aggregateColumnIndex: -1,"
+          },
+          {
+            "lineNumber": 3186,
+            "text": "      }),"
+          },
+          {
+            "lineNumber": 3187,
+            "text": "    [data.inventoryColumns, computedInventoryRow.values],"
+          },
+          {
+            "lineNumber": 3188,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3189
+          },
+          {
+            "lineNumber": 3190,
+            "text": "  const outboundSummaryKg = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 3191,
+            "text": "    if (outboundAggregateColumnIndex \u003e= 0) {"
+          },
+          {
+            "lineNumber": 3192,
+            "text": "      const v = activeMonthState.productionRow.values[outboundAggregateColumnIndex]"
+          },
+          {
+            "lineNumber": 3193,
+            "text": "      return typeof v === 'number' \u0026\u0026 Number.isFinite(v) ? v : 0"
+          },
+          {
+            "lineNumber": 3194,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3195,
+            "text": "    return sumValues(activeMonthState.productionRow.values)"
+          },
+          {
+            "lineNumber": 3196,
+            "text": "  }, [activeMonthState.productionRow.values, outboundAggregateColumnIndex])"
+          },
+          {
+            "lineNumber": 3197
+          },
+          {
+            "lineNumber": 3198,
+            "text": "  const inventoryTotalKg = useMemo("
+          },
+          {
+            "lineNumber": 3199,
+            "text": "    () =\u003e sumValues"
+          },
+          {
+            "lineNumber": 3201
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5104,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5103
+          },
+          "startPosition": {
+            "line": 2114
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2116
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2115
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3697173595428467
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 5314,
+            "text": " null}"
+          },
+          {
+            "lineNumber": 5315
+          },
+          {
+            "lineNumber": 5316,
+            "text": "          \u003cform id=\"statement-entry-form\" className=\"statement-form\" onSubmit={handleSubmit}\u003e"
+          },
+          {
+            "lineNumber": 5317,
+            "text": "            {editingRecordId ? ("
+          },
+          {
+            "lineNumber": 5318,
+            "text": "              \u003cp className=\"statement-edit-hint\"\u003e"
+          },
+          {
+            "lineNumber": 5319,
+            "text": "                입력 목록에서 선택한 건을 수정 중입니다. 반영하려면 위의 「저장」, 취소하려면 「수정 취소」를"
+          },
+          {
+            "lineNumber": 5320,
+            "text": "                눌러주세요."
+          },
+          {
+            "lineNumber": 5321,
+            "text": "              \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 5322,
+            "text": "            ) : null}"
+          },
+          {
+            "lineNumber": 5323
+          },
+          {
+            "lineNumber": 5324,
+            "text": "            {clientMonthSnapshot \u0026\u0026 clientMonthSnapshot.count \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 5325,
+            "text": "              \u003cdiv className=\"statement-client-snapshot\" role=\"status\"\u003e"
+          },
+          {
+            "lineNumber": 5326,
+            "text": "                \u003cspan className=\"statement-client-snapshot-title\"\u003e"
+          },
+          {
+            "lineNumber": 5327,
+            "text": "                  {form.clientName} · {clientMonthSnapshot.currentMonth.replace('-', '.')} 월 요약"
+          },
+          {
+            "lineNumber": 5328,
+            "text": "                \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5329,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e{clientMonthSnapshot.count}건\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5330,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e"
+          },
+          {
+            "lineNumber": 5331,
+            "text": "                  {formatCurrency(clientMonthSnapshot.totalAmount)}원"
+          },
+          {
+            "lineNumber": 5332,
+            "text": "                \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5333,
+            "text": "                \u003cspan className=\"statement-client-snapshot-pill\"\u003e누적 {clientMonthSnapshot.quantity}개\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5334,
+            "text": "                {clientMonthSnapshot.lastDeliveryDate ? ("
+          },
+          {
+            "lineNumber": 5335,
+            "text": "                  \u003cspan className=\"statement-client-snapshot-pill\"\u003e"
+          },
+          {
+            "lineNumber": 5336,
+            "text": "                    마지막 납품 {formatDateLabel(clientMonthSnapshot.lastDeliveryDate)}"
+          },
+          {
+            "lineNumber": 5337,
+            "text": "                  \u003c/span\u003e"
+          },
+          {
+            "lineNumber": 5338,
+            "text": "                ) : null}"
+          },
+          {
+            "lineNumber": 5339,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5340,
+            "text": "            ) : null}"
+          },
+          {
+            "lineNumber": 5341
+          },
+          {
+            "lineNumber": 5342,
+            "text": "            {recentRecordsForClient.length \u003e 0 \u0026\u0026 !editingRecordId ?"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36652565002441406
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2115,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 4185
+          },
+          {
+            "lineNumber": 4186,
+            "text": "                        ) : null}"
+          },
+          {
+            "lineNumber": 4187,
+            "text": "                        {inboundCashflow.roastingLines.length \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4188,
+            "text": "                          \u003c\u003e"
+          },
+          {
+            "lineNumber": 4189,
+            "text": "                            \u003ctr className=\"meeting-cashflow-section-row\"\u003e"
+          },
+          {
+            "lineNumber": 4190,
+            "text": "                              \u003ctd colSpan={3}\u003e로스팅실 매출 ({roastingSalesMonthHeaderLabel})\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4191,
+            "text": "                            \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4192,
+            "text": "                            {inboundCashflow.roastingLines.map((row, idx) =\u003e ("
+          },
+          {
+            "lineNumber": 4193,
+            "text": "                              \u003ctr key={&#96;inbound-rs-${idx}-${row.label}&#96;}\u003e"
+          },
+          {
+            "lineNumber": 4194,
+            "text": "                                \u003ctd\u003e{row.label}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4195,
+            "text": "                                \u003ctd\u003e{formatMoney(row.amount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4196,
+            "text": "                                \u003ctd\u003e{formatSharePercent(row.share)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4197,
+            "text": "                              \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4198,
+            "text": "                            ))}"
+          },
+          {
+            "lineNumber": 4199,
+            "text": "                          \u003c/\u003e"
+          },
+          {
+            "lineNumber": 4200,
+            "text": "                        ) : null}"
+          },
+          {
+            "lineNumber": 4201,
+            "text": "                        {inboundCashflow.storeLines.length \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4202,
+            "text": "                          \u003c\u003e"
+          },
+          {
+            "lineNumber": 4203,
+            "text": "                            \u003ctr className=\"meeting-cashflow-section-row\"\u003e"
+          },
+          {
+            "lineNumber": 4204,
+            "text": "                              \u003ctd colSpan={3}\u003e매장 전체 판매 ({activeMonth})\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4205,
+            "text": "                            \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4206,
+            "text": "                            {inboundCashflow.storeLines.map((row, idx) =\u003e ("
+          },
+          {
+            "lineNumber": 4207,
+            "text": "                              \u003ctr key={&#96;inbound-st-${idx}-${row.label}&#96;}\u003e"
+          },
+          {
+            "lineNumber": 4208,
+            "text": "                                \u003ctd\u003e{row.label}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4209,
+            "text": "                                \u003ctd\u003e{formatMoney(row.amount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4210,
+            "text": "                                \u003ctd\u003e{formatSharePercent(row.share)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4211,
+            "text": "                              \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4212,
+            "text": "                            ))}"
+          },
+          {
+            "lineNumber": 4213,
+            "text": "                          \u003c/\u003e"
+          },
+          {
+            "lineNumber": 4214,
+            "text": "                        ) : null}"
+          },
+          {
+            "lineNumber": 4215,
+            "text": "                        \u003ctr className=\"meeting-cashflow-total-row\"\u003e"
+          },
+          {
+            "lineNumber": 4216,
+            "text": "                          \u003ctd\u003e입금 합계\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4217,
+            "text": "                          \u003ctd\u003e{formatMoney(inboundCashflow.totalIn)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4218,
+            "text": "                          \u003ctd\u003e—\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 4219,
+            "text": "                        \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 4220,
+            "text": "                      \u003c/tbody\u003e"
+          },
+          {
+            "lineNumber": 4221,
+            "text": "                    \u003c/table\u003e"
+          },
+          {
+            "lineNumber": 4222,
+            "text": "                  \u003c/article\u003e"
+          },
+          {
+            "lineNumber": 4223
+          },
+          {
+            "lineNumber": 4224,
+            "text": "                  \u003carticle className=\"meeting-card meeting-cashflow-card\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5104,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5103
+          },
+          "startPosition": {
+            "line": 2114
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2116
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2115
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36495450139045715
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 952,
+            "text": "function ExpensePage() {"
+          },
+          {
+            "lineNumber": 2099
+          },
+          {
+            "lineNumber": 2100
+          },
+          {
+            "lineNumber": 2101,
+            "text": "          \u003cdiv className=\"meeting-card\"\u003e"
+          },
+          {
+            "lineNumber": 2102,
+            "text": "            \u003ch3\u003e지급수단별 요약\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 2103,
+            "text": "            \u003cdiv className=\"table-wrapper\"\u003e"
+          },
+          {
+            "lineNumber": 2104,
+            "text": "              \u003ctable className=\"meeting-table meeting-table-compact\"\u003e"
+          },
+          {
+            "lineNumber": 2105,
+            "text": "                \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 2106,
+            "text": "                  \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 2107,
+            "text": "                    \u003cth\u003e지급수단\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 2108,
+            "text": "                    \u003cth\u003e총액\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 2109,
+            "text": "                  \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 2110,
+            "text": "                \u003c/thead\u003e"
+          },
+          {
+            "lineNumber": 2111,
+            "text": "                \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 2112,
+            "text": "                  {paymentMethodSummaryRows.map((row) =\u003e ("
+          },
+          {
+            "lineNumber": 2113,
+            "text": "                    \u003ctr key={row.paymentMethod}\u003e"
+          },
+          {
+            "lineNumber": 2114,
+            "text": "                      \u003ctd\u003e{row.paymentMethod}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 2115,
+            "text": "                      \u003ctd\u003e{formatMoney(row.totalAmount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 2116,
+            "text": "                    \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 2117,
+            "text": "                  ))}"
+          },
+          {
+            "lineNumber": 2118,
+            "text": "                  {paymentMethodSummaryRows.length === 0 ? ("
+          },
+          {
+            "lineNumber": 2119,
+            "text": "                    \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 2120,
+            "text": "                      \u003ctd colSpan={2} className=\"inventory-empty-cell\"\u003e"
+          },
+          {
+            "lineNumber": 2121,
+            "text": "                        {summaryTablesEmptyMessage}"
+          },
+          {
+            "lineNumber": 2122,
+            "text": "                      \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 2123,
+            "text": "                    \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 2124,
+            "text": "                  ) : null}"
+          },
+          {
+            "lineNumber": 2125,
+            "text": "                \u003c/tbody\u003e"
+          },
+          {
+            "lineNumber": 2126,
+            "text": "              \u003c/table\u003e"
+          },
+          {
+            "lineNumber": 2127,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 2128,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 2129,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 2130,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 2131,
+            "text": "      \u003c/section\u003e"
+          },
+          {
+            "lineNumber": 2132,
+            "text": "    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 2133,
+            "text": "  )"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 2134,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2135
+          },
+          {
+            "lineNumber": 2136,
+            "text": "export default ExpensePage"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 26,
+            "line": 2135
+          },
+          "startPosition": {
+            "line": 951
+          }
+        },
+        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 953
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 952
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3630828857421875
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 952,
+            "text": "function ExpensePage() {"
+          },
+          {
+            "lineNumber": 2066
+          },
+          {
+            "lineNumber": 2067,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 2068
+          },
+          {
+            "lineNumber": 2069,
+            "text": "        \u003cdiv className=\"meeting-grid meeting-grid-2 expense-summary-grid\"\u003e"
+          },
+          {
+            "lineNumber": 2070,
+            "text": "          \u003cdiv className=\"meeting-card\"\u003e"
+          },
+          {
+            "lineNumber": 2071,
+            "text": "            \u003ch3\u003e카테고리별 요약\u003c/h3\u003e"
+          },
+          {
+            "lineNumber": 2072,
+            "text": "            \u003cdiv className=\"table-wrapper\"\u003e"
+          },
+          {
+            "lineNumber": 2073,
+            "text": "              \u003ctable className=\"meeting-table meeting-table-compact\"\u003e"
+          },
+          {
+            "lineNumber": 2074,
+            "text": "                \u003cthead\u003e"
+          },
+          {
+            "lineNumber": 2075,
+            "text": "                  \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 2076,
+            "text": "                    \u003cth\u003e카테고리\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 2077,
+            "text": "                    \u003cth\u003e건수\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 2078,
+            "text": "                    \u003cth\u003e총액\u003c/th\u003e"
+          },
+          {
+            "lineNumber": 2079,
+            "text": "                  \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 2080,
+            "text": "                \u003c/thead\u003e"
+          },
+          {
+            "lineNumber": 2081,
+            "text": "                \u003ctbody\u003e"
+          },
+          {
+            "lineNumber": 2082,
+            "text": "                  {categorySummaryRows.map((row) =\u003e ("
+          },
+          {
+            "lineNumber": 2083,
+            "text": "                    \u003ctr key={row.category}\u003e"
+          },
+          {
+            "lineNumber": 2084,
+            "text": "                      \u003ctd\u003e{row.category}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 2085,
+            "text": "                      \u003ctd\u003e{row.count}건\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 2086,
+            "text": "                      \u003ctd\u003e{formatMoney(row.totalAmount)}\u003c/td\u003e"
+          },
+          {
+            "lineNumber": 2087,
+            "text": "                    \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 2088,
+            "text": "                  ))}"
+          },
+          {
+            "lineNumber": 2089,
+            "text": "                  {categorySummaryRows.length === 0 ? ("
+          },
+          {
+            "lineNumber": 2090,
+            "text": "                    \u003ctr\u003e"
+          },
+          {
+            "lineNumber": 2091,
+            "text": "                      \u003ctd colSpan={3} className=\"inventory-empty-cell\"\u003e"
+          },
+          {
+            "lineNumber": 2092,
+            "text": "                        {summaryTablesEmptyMessage}"
+          },
+          {
+            "lineNumber": 2093,
+            "text": "                      \u003c/td\u003e"
+          },
+          {
+            "lineNumber": 2094,
+            "text": "                    \u003c/tr\u003e"
+          },
+          {
+            "lineNumber": 2095,
+            "text": "                  ) : null}"
+          },
+          {
+            "lineNumber": 2096,
+            "text": "                \u003c/tbody\u003e"
+          },
+          {
+            "lineNumber": 2097,
+            "text": "              \u003c/table\u003e"
+          },
+          {
+            "lineNumber": 2098,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 2099,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 2100
+          },
+          {
+            "lineNumber": 2101,
+            "text": "          \u003cdiv className=\"meeting-card\"\u003e"
+          },
+          {
+            "lineNumber": 2102,
+            "text": "            \u003ch3\u003e지급수단별 요약\u003c/h3\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 2134,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 2133
+          },
+          "startPosition": {
+            "line": 951
+          }
+        },
+        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 953
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 952
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.34945228695869446
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2115,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 3968
+          },
+          {
+            "lineNumber": 3969
+          },
+          {
+            "lineNumber": 3970,
+            "text": "  return ("
+          },
+          {
+            "lineNumber": 3971,
+            "text": "    \u003c\u003e"
+          },
+          {
+            "lineNumber": 3972,
+            "text": "      \u003cmain"
+          },
+          {
+            "lineNumber": 3973,
+            "text": "        className=\"meeting-layout\""
+          },
+          {
+            "lineNumber": 3974,
+            "text": "        onBlurCapture={(event: FocusEvent\u003cHTMLElement\u003e) =\u003e {"
+          },
+          {
+            "lineNumber": 3975,
+            "text": "          const target = event.target"
+          },
+          {
+            "lineNumber": 3976,
+            "text": "          const isEditable ="
+          },
+          {
+            "lineNumber": 3977,
+            "text": "            target instanceof HTMLInputElement ||"
+          },
+          {
+            "lineNumber": 3978,
+            "text": "            target instanceof HTMLTextAreaElement ||"
+          },
+          {
+            "lineNumber": 3979,
+            "text": "            target instanceof HTMLSelectElement"
+          },
+          {
+            "lineNumber": 3980,
+            "text": "          if (!isEditable) {"
+          },
+          {
+            "lineNumber": 3981,
+            "text": "            return"
+          },
+          {
+            "lineNumber": 3982,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 3983,
+            "text": "          if (mode !== 'cloud' || !activeCompanyId || !isStorageReady || !isCloudReady) {"
+          },
+          {
+            "lineNumber": 3984,
+            "text": "            return"
+          },
+          {
+            "lineNumber": 3985,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 3986,
+            "text": "          flushMonthlyMeetingCloudSaveOnEditableBlur()"
+          },
+          {
+            "lineNumber": 3987,
+            "text": "        }}"
+          },
+          {
+            "lineNumber": 3988,
+            "text": "      \u003e"
+          },
+          {
+            "lineNumber": 3989,
+            "text": "        \u003cdiv className=\"meeting-page-hero-rehome no-print\" aria-label=\"회의 요약\"\u003e"
+          },
+          {
+            "lineNumber": 3990,
+            "text": "          \u003ch2 className=\"meeting-page-hero-rehome-heading\"\u003e{data.title}\u003c/h2\u003e"
+          },
+          {
+            "lineNumber": 3991,
+            "text": "          \u003cdiv className=\"hero-metrics meeting-hero-metrics\"\u003e"
+          },
+          {
+            "lineNumber": 3992,
+            "text": "            {activeOverview.map((metric) =\u003e ("
+          },
+          {
+            "lineNumber": 3993,
+            "text": "              \u003cdiv key={metric.label} className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 3994,
+            "text": "                \u003cspan\u003e{metric.label}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3995,
+            "text": "                \u003cstrong\u003e"
+          },
+          {
+            "lineNumber": 3996,
+            "text": "                  {metric.value === null"
+          },
+          {
+            "lineNumber": 3997,
+            "text": "                    ? '-'"
+          },
+          {
+            "lineNumber": 3998,
+            "text": "                    : metric.unit === 'kg'"
+          },
+          {
+            "lineNumber": 3999,
+            "text": "                      ? &#96;${meetingAmountDisplayFormatter.format(metric.value)} kg&#96;"
+          },
+          {
+            "lineNumber": 4000,
+            "text": "                      : formatMoney(metric.value)}"
+          },
+          {
+            "lineNumber": 4001,
+            "text": "                \u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 4002,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4003,
+            "text": "            ))}"
+          },
+          {
+            "lineNumber": 4004,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4005,
+            "text": "          \u003cdiv className=\"hero-meta-row\"\u003e"
+          },
+          {
+            "lineNumber": 4006,
+            "text": "            \u003cspan className=\"page-hero-pill\"\u003e{mode === 'cloud' ? '회사 공용 회의 문서' : '이 브라우저 회의 문서'}\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 4007,
+            "text": "            \u003cPageSaveStatus mode={mode} saveState={saveState} lastSavedAt={lastSavedAt} /\u003e"
+          },
+          {
+            "lineNumber": 4008,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4009,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4010,
+            "text": "        \u003csection className=\"panel\"\u003e"
+          },
+          {
+            "lineNumber": 4011,
+            "text": "          \u003cdiv className=\"panel-header\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5104,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5103
+          },
+          "startPosition": {
+            "line": 2114
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2116
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2115
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3449968993663788
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 2737,
+            "text": "  display: grid;"
+          },
+          {
+            "lineNumber": 2738,
+            "text": "  gap: 8px;"
+          },
+          {
+            "lineNumber": 2739,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2740
+          },
+          {
+            "lineNumber": 2741,
+            "text": ".meeting-breakdown-item {"
+          },
+          {
+            "lineNumber": 2742,
+            "text": "  padding: 8px 10px;"
+          },
+          {
+            "lineNumber": 2743,
+            "text": "  background: #f8fafc;"
+          },
+          {
+            "lineNumber": 2744,
+            "text": "  border: 1px solid #e2e8f0;"
+          },
+          {
+            "lineNumber": 2745,
+            "text": "  border-radius: 8px;"
+          },
+          {
+            "lineNumber": 2746,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2747
+          },
+          {
+            "lineNumber": 2748,
+            "text": ".meeting-breakdown-item-row {"
+          },
+          {
+            "lineNumber": 2749,
+            "text": "  display: flex;"
+          },
+          {
+            "lineNumber": 2750,
+            "text": "  align-items: flex-start;"
+          },
+          {
+            "lineNumber": 2751,
+            "text": "  justify-content: space-between;"
+          },
+          {
+            "lineNumber": 2752,
+            "text": "  gap: 10px;"
+          },
+          {
+            "lineNumber": 2753,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2754
+          },
+          {
+            "lineNumber": 2755,
+            "text": ".meeting-breakdown-item-text {"
+          },
+          {
+            "lineNumber": 2756,
+            "text": "  display: flex;"
+          },
+          {
+            "lineNumber": 2757,
+            "text": "  flex-direction: column;"
+          },
+          {
+            "lineNumber": 2758,
+            "text": "  gap: 2px;"
+          },
+          {
+            "lineNumber": 2759,
+            "text": "  min-width: 0;"
+          },
+          {
+            "lineNumber": 2760,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2761
+          },
+          {
+            "lineNumber": 2762,
+            "text": ".meeting-breakdown-date {"
+          },
+          {
+            "lineNumber": 2763,
+            "text": "  font-size: 10.5px;"
+          },
+          {
+            "lineNumber": 2764,
+            "text": "  font-weight: 600;"
+          },
+          {
+            "lineNumber": 2765,
+            "text": "  font-variant-numeric: tabular-nums;"
+          },
+          {
+            "lineNumber": 2766,
+            "text": "  color: #64748b;"
+          },
+          {
+            "lineNumber": 2767,
+            "text": "  letter-spacing: 0.02em;"
+          },
+          {
+            "lineNumber": 2768,
+            "text": "  white-space: nowrap;"
+          },
+          {
+            "lineNumber": 2769,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2770
+          },
+          {
+            "lineNumber": 2771,
+            "text": ".meeting-breakdown-headline {"
+          },
+          {
+            "lineNumber": 2772,
+            "text": "  font-size: 13px;"
+          },
+          {
+            "lineNumber": 2773,
+            "text": "  font-weight: 600;"
+          },
+          {
+            "lineNumber": 2774,
+            "text": "  color: #0f172a;"
+          },
+          {
+            "lineNumber": 2775,
+            "text": "  line-height: 1.4;"
+          },
+          {
+            "lineNumber": 2776,
+            "text": "  min-width: 0;"
+          },
+          {
+            "lineNumber": 2777,
+            "text": "  word-break: break-word;"
+          },
+          {
+            "lineNumber": 2778,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2779
+          },
+          {
+            "lineNumber": 2780,
+            "text": ".meeting-breakdown-amount {"
+          },
+          {
+            "lineNumber": 2781,
+            "text": "  flex-shrink: 0;"
+          },
+          {
+            "lineNumber": 2782,
+            "text": "  font-size: 13px;"
+          },
+          {
+            "lineNumber": 2783,
+            "text": "  font-weight: 700;"
+          },
+          {
+            "lineNumber": 2784,
+            "text": "  font-variant-numeric: tabular-nums;"
+          },
+          {
+            "lineNumber": 2785,
+            "text": "  color: #0f172a;"
+          },
+          {
+            "lineNumber": 2786,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2787
+          },
+          {
+            "lineNumber": 2788,
+            "text": ".meeting-breakdown-meta {"
+          },
+          {
+            "lineNumber": 2789,
+            "text": "  margin-top: 4px;"
+          },
+          {
+            "lineNumber": 2790,
+            "text": "  font-size: 11px;"
+          },
+          {
+            "lineNumber": 2791,
+            "text": "  line-height: 1.45;"
+          },
+          {
+            "lineNumber": 2792,
+            "text": "  color: #64748b;"
+          },
+          {
+            "lineNumber": 2793,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2794
+          },
+          {
+            "lineNumber": 2795,
+            "text": ".meeting-breakdown-overflow {"
+          },
+          {
+            "lineNumber": 2796,
+            "text": "  margin: 10px 0 0;"
+          },
+          {
+            "lineNumber": 2797,
+            "text": "  font-size: 12px;"
+          },
+          {
+            "lineNumber": 2798,
+            "text": "  color: #64748b;"
+          },
+          {
+            "lineNumber": 2799,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2800
+          },
+          {
+            "lineNumber": 2801,
+            "text": ".inventory-roasting-summary-actions {"
+          },
+          {
+            "lineNumber": 2802,
+            "text": "  display: inline-flex;"
+          },
+          {
+            "lineNumber": 2803,
+            "text": "  align-items: center;"
+          },
+          {
+            "lineNumber": 2804,
+            "text": "  gap: 8px;"
+          },
+          {
+            "lineNumber": 2805,
+            "text": "  flex-wrap: wrap;"
+          },
+          {
+            "lineNumber": 2806,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2807
+          },
+          {
+            "lineNumber": 2808,
+            "text": ".meeting-summary-cashflow {"
+          },
+          {
+            "lineNumber": 2809,
+            "text": "  margin-top: 12px;"
+          },
+          {
+            "lineNumber": 2810,
+            "text": "  display: grid;"
+          },
+          {
+            "lineNumber": 2811,
+            "text": "  gap: 14px;"
+          },
+          {
+            "lineNumber": 2812,
+            "text": "  padding: 16px;"
+          },
+          {
+            "lineNumber": 2813,
+            "text": "  background: #eef4fb;"
+          },
+          {
+            "lineNumber": 2814,
+            "text": "  border: 1px solid #cbd5e1;"
+          },
+          {
+            "lineNumber": 2815,
+            "text": "  border-radius: 18px;"
+          },
+          {
+            "lineNumber": 2816,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2817
+          },
+          {
+            "lineNumber": 2818,
+            "text": ".meeting-cashflow-hint {"
+          },
+          {
+            "lineNumber": 2819,
+            "text": "  margin: 0;"
+          },
+          {
+            "lineNumber": 2820,
+            "text": "  font-size: 13px;"
+          },
+          {
+            "lineNumber": 2821,
+            "text": "  line-height: 1.5;"
+          },
+          {
+            "lineNumber": 2822,
+            "text": "  color: #475569;"
+          },
+          {
+            "lineNumber": 2823,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2824
+          },
+          {
+            "lineNumber": 2825,
+            "text": ".meeting-cashflow-columns {"
+          },
+          {
+            "lineNumber": 2826,
+            "text": "  display: grid;"
+          },
+          {
+            "lineNumber": 2827,
+            "text": "  gap: 10px;"
+          },
+          {
+            "lineNumber": 2828,
+            "text": "  grid-template-columns: repeat(2, minmax(0, 1fr));"
+          },
+          {
+            "lineNumber": 2829,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2830
+          },
+          {
+            "lineNumber": 2831,
+            "text": ".meeting-cashflow-card.meeting-card {"
+          },
+          {
+            "lineNumber": 2832,
+            "text": "  background: #ffffff;"
+          },
+          {
+            "lineNumber": 2833,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2834
+          },
+          {
+            "lineNumber": 2835,
+            "text": ".meeting-cashflow-section-row td {"
+          },
+          {
+            "lineNumber": 2836,
+            "text": "  padding: 7px 8px;"
+          },
+          {
+            "lineNumber": 2837,
+            "text": "  font-size: 12px;"
+          },
+          {
+            "lineNumber": 2838,
+            "text": "  font-weight: 700;"
+          },
+          {
+            "lineNumber": 2839,
+            "text": "  color: #475569;"
+          },
+          {
+            "lineNumber": 2840,
+            "text": "  background: #e2e8f0;"
+          },
+          {
+            "lineNumber": 2841,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2842
+          },
+          {
+            "lineNumber": 2843,
+            "text": ".meeting-cashflow-total-row td,"
+          },
+          {
+            "lineNumber": 2844,
+            "text": ".meeting-cashflow-total-row th {"
+          },
+          {
+            "lineNumber": 2845,
+            "text": "  padding: 9px 8px;"
+          },
+          {
+            "lineNumber": 2846,
+            "text": "  font-weight: 700;"
+          },
+          {
+            "lineNumber": 2847,
+            "text": "  color: #0f172a;"
+          },
+          {
+            "lineNumber": 2848,
+            "text": "  background: #dbeafe;"
+          },
+          {
+            "lineNumber": 2849,
+            "text": "  border-top: 1px solid #bfdbfe;"
+          },
+          {
+            "lineNumber": 2850,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2851
+          },
+          {
+            "lineNumber": 2852,
+            "text": ".meeting-cashflow-pl-card {"
+          },
+          {
+            "lineNumber": 2853,
+            "text": "  max-width: 28rem;"
+          },
+          {
+            "lineNumber": 2854,
+            "text": "}"
+          },
+          {
+            "lineNumber": 2855
+          },
+          {
+            "lineNumber": 2856,
+            "text": ".meeting-cashflow-pl-table th[scope='row'] {"
+          },
+          {
+            "lineNumber": 2857,
+            "text": "  width: 58%;"
+          },
+          {
+            "lineNumber": 2858,
+            "text": "  text-align: left;"
+          },
+          {
+            "lineNumber": 2859,
+            "text": "  font-weight: 600;"
+          },
+          {
+            "lineNumber": 2860,
+            "text": "  color: #334155;"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 2860
+          },
+          "startPosition": {
+            "line": 2736
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.css",
+        "signatures": {}
+      },
+      "score": 0.3445996046066284
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 5924
+          },
+          {
+            "lineNumber": 5925,
+            "text": "            \u003cdiv className=\"inventory-reset-dialog-actions\"\u003e"
+          },
+          {
+            "lineNumber": 5926,
+            "text": "              \u003cbutton type=\"button\" className=\"ghost-button\" onClick={closeAdminUnlockDialog}\u003e"
+          },
+          {
+            "lineNumber": 5927,
+            "text": "                취소"
+          },
+          {
+            "lineNumber": 5928,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 5929,
+            "text": "              \u003cbutton type=\"button\" className=\"primary-button\" onClick={handleAdminUnlockConfirm}\u003e"
+          },
+          {
+            "lineNumber": 5930,
+            "text": "                확인"
+          },
+          {
+            "lineNumber": 5931,
+            "text": "              \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 5932,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5933,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5934,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5935,
+            "text": "      ) : null}"
+          },
+          {
+            "lineNumber": 5936,
+            "text": "        \u003c/\u003e"
+          },
+          {
+            "lineNumber": 5937,
+            "text": "      ) : activePage === 'beanSalesAnalysis' ? ("
+          },
+          {
+            "lineNumber": 5938,
+            "text": "        \u003cBeanSalesAnalysisPage /\u003e"
+          },
+          {
+            "lineNumber": 5939,
+            "text": "      ) : activePage === 'meeting' ? ("
+          },
+          {
+            "lineNumber": 5940,
+            "text": "        \u003cMonthlyMeetingPage /\u003e"
+          },
+          {
+            "lineNumber": 5941,
+            "text": "      ) : activePage === 'expense' ? ("
+          },
+          {
+            "lineNumber": 5942,
+            "text": "        \u003cExpensePage /\u003e"
+          },
+          {
+            "lineNumber": 5943,
+            "text": "      ) : activePage === 'staffPayroll' ? ("
+          },
+          {
+            "lineNumber": 5944,
+            "text": "        \u003cStaffPayrollPage /\u003e"
+          },
+          {
+            "lineNumber": 5945,
+            "text": "      ) : activePage === 'greenBeanOrder' ? ("
+          },
+          {
+            "lineNumber": 5946,
+            "text": "        \u003cGreenBeanOrderPage /\u003e"
+          },
+          {
+            "lineNumber": 5947,
+            "text": "      ) : activePage === 'dailyMeeting' ? ("
+          },
+          {
+            "lineNumber": 5948,
+            "text": "        \u003cMemoPage mode=\"dailyOnly\" /\u003e"
+          },
+          {
+            "lineNumber": 5949,
+            "text": "      ) : activePage === 'team' ? ("
+          },
+          {
+            "lineNumber": 5950,
+            "text": "        \u003cTeamManagementPage /\u003e"
+          },
+          {
+            "lineNumber": 5951,
+            "text": "      ) : ("
+          },
+          {
+            "lineNumber": 5952,
+            "text": "        \u003cInventoryStatusPage /\u003e"
+          },
+          {
+            "lineNumber": 5953,
+            "text": "      )}"
+          },
+          {
+            "lineNumber": 5954,
+            "text": "      {activePage === 'statements' ? ("
+          },
+          {
+            "lineNumber": 5955,
+            "text": "        \u003cdiv"
+          },
+          {
+            "lineNumber": 5956,
+            "text": "          ref={statementStickyHScrollRef}"
+          },
+          {
+            "lineNumber": 5957,
+            "text": "          className={&#96;statements-sticky-hscroll${statementStickyHScrollVisible ? ' is-visible' : ''}&#96;}"
+          },
+          {
+            "lineNumber": 5958,
+            "text": "          aria-hidden={!statementStickyHScrollVisible}"
+          },
+          {
+            "lineNumber": 5959,
+            "text": "        \u003e"
+          },
+          {
+            "lineNumber": 5960,
+            "text": "          \u003cdiv ref={statementStickyHScrollInnerRef} className=\"statements-sticky-hscroll-inner\" /\u003e"
+          },
+          {
+            "lineNumber": 5961,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 5962,
+            "text": "      ) : null}"
+          },
+          {
+            "lineNumber": 5963
+          },
+          {
+            "lineNumber": 5964,
+            "text": "      {lowGreenBeanWarningItems.length \u003e 0 \u0026\u0026 !isLowGreenBeanPanelDismissed ?"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3413403034210205
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 441,
+            "text": "const MEETING_COST_BREAKDOWN_MODAL_COPY: Record\u003c"
+          },
+          {
+            "lineNumber": 442,
+            "text": "  MeetingCostsExpenseBucketKey,"
+          },
+          {
+            "lineNumber": 443,
+            "text": "  { caption: string; empty: string; hint: string }"
+          },
+          {
+            "lineNumber": 444,
+            "text": "\u003e = {"
+          },
+          {
+            "lineNumber": 461,
+            "text": "',"
+          },
+          {
+            "lineNumber": 462,
+            "text": "  },"
+          },
+          {
+            "lineNumber": 463,
+            "text": "}"
+          },
+          {
+            "lineNumber": 464
+          },
+          {
+            "lineNumber": 465,
+            "text": "const MEETING_BEAN_MATERIAL_MODAL_COPY = {"
+          },
+          {
+            "lineNumber": 466,
+            "text": "  caption:"
+          },
+          {
+            "lineNumber": 467,
+            "text": "    '해당 월 거래명세 납품일이 속한 로스팅 거래를 입출고 생두와 맞춘 뒤, 생두 주문 일자별 기록의 최근 1kg당 단가(원두별 매출 분석과 동일)로 추정한 생두 원가입니다.',"
+          },
+          {
+            "lineNumber": 468,
+            "text": "  empty:"
+          },
+          {
+            "lineNumber": 469,
+            "text": "    '이 달 납품 건이 없거나, 입출고에 없는 품목만 있으면 여기에 잡히지 않을 수 있습니다. 거래명세·입출고·생두 주문을 확인해 주세요.',"
+          },
+          {
+            "lineNumber": 470,
+            "text": "  hint: '단가가 없는 품목은 추정 원가 0으로 표시될 수 있습니다. 생두 주문 스냅샷·원/kg 직접 입력을 맞춰 주세요.',"
+          },
+          {
+            "lineNumber": 471,
+            "text": "}"
+          },
+          {
+            "lineNumber": 472
+          },
+          {
+            "lineNumber": 473,
+            "text": "/** 1. 요약 — 매출·비용·재료·기타 4칸(동일 UI, 집계 행·점유비 열 유무만 다름) */"
+          },
+          {
+            "lineNumber": 474,
+            "text": "const MeetingSummaryValueCard = (props: {"
+          },
+          {
+            "lineNumber": 475,
+            "text": "  tableId: string"
+          },
+          {
+            "lineNumber": 476,
+            "text": "  title: string"
+          },
+          {
+            "lineNumber": 477,
+            "text": "  newRowButtonLabel: string"
+          },
+          {
+            "lineNumber": 478,
+            "text": "  rows: MeetingValueRow[]"
+          },
+          {
+            "lineNumber": 479,
+            "text": "  showShareColumn: boolean"
+          },
+          {
+            "lineNumber": 480,
+            "text": "  editMode: boolean"
+          },
+          {
+            "lineNumber": 481,
+            "text": "  indexKind: 'sales' | 'costs'"
+          },
+          {
+            "lineNumber": 482,
+            "text": "  isAmountReadonly: (r: MeetingValueRow) =\u003e boolean"
+          },
+          {
+            "lineNumber": 483,
+            "text": "  /** 생략 시 &#96;-&#96; 삭제 버튼은 금액이 편집 가능한 행만 표시 */"
+          },
+          {
+            "lineNumber": 484,
+            "text": "  shouldShowRemoveRowButton?: (r: MeetingValueRow) =\u003e boolean"
+          },
+          {
+            "lineNumber": 485,
+            "text": "  /** 금액 입력 툴팁(자동 집계 안내 등) */"
+          },
+          {
+            "lineNumber": 486,
+            "text": "  amountInputTitle?: (r: MeetingValueRow) =\u003e string | undefined"
+          },
+          {
+            "lineNumber": 487,
+            "text": "  /** 지출 「내역 보기」(모달) — 보기 모드에서만 */"
+          },
+          {
+            "lineNumber": 488,
+            "text": "  rowExpenseBreakdownModal?: {"
+          },
+          {
+            "lineNumber": 489,
+            "text": "    matchesRow: (row: MeetingValueRow, rowIndex: number) =\u003e boolean"
+          },
+          {
+            "lineNumber": 490,
+            "text": "    onOpenModal: (row: MeetingValueRow, rowIndex: number) =\u003e void"
+          },
+          {
+            "lineNumber": 491,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 492,
+            "text": "  onAddRow: () =\u003e void"
+          },
+          {
+            "lineNumber": 493,
+            "text": "  onLabelChange: (rowIndex: number, value: string) =\u003e void"
+          },
+          {
+            "lineNumber": 494,
+            "text": "  onValueChange: (rowIndex: number, value: string) =\u003e void"
+          },
+          {
+            "lineNumber": 495,
+            "text": "  onRemoveRow: (rowIndex: number) =\u003e void"
+          },
+          {
+            "lineNumber": 496,
+            "text": "}) =\u003e {"
+          },
+          {
+            "lineNumber": 497,
+            "text": "  const {"
+          },
+          {
+            "lineNumber": 498,
+            "text": "    tableId,"
+          },
+          {
+            "lineNumber": 499,
+            "text": "    title,"
+          },
+          {
+            "lineNumber": 500,
+            "text": "    newRowButtonLabel,"
+          },
+          {
+            "lineNumber": 501,
+            "text": "    rows,"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 604
+          },
+          "startPosition": {
+            "line": 440
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.3350825905799866
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3943
+          },
+          {
+            "lineNumber": 3944,
+            "text": "              \u003cdiv className=\"hero-metrics\"\u003e"
+          },
+          {
+            "lineNumber": 3945,
+            "text": "                {activePage === 'statements' ? ("
+          },
+          {
+            "lineNumber": 3946,
+            "text": "                  \u003c\u003e"
+          },
+          {
+            "lineNumber": 3947,
+            "text": "                    \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 3948,
+            "text": "                      \u003cspan\u003e저장 건수\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3949,
+            "text": "                      \u003cstrong\u003e{records.length}건\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3950,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3951,
+            "text": "                    \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 3952,
+            "text": "                      \u003cspan\u003e전체 총액\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3953,
+            "text": "                      \u003cstrong\u003e{formatCurrency(grandTotal)}원\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3954,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3955,
+            "text": "                    \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 3956,
+            "text": "                      \u003cspan\u003e{selectedYear} 집계 거래처\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3957,
+            "text": "                      \u003cstrong\u003e{summaryRows.length}곳\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3958,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3959,
+            "text": "                  \u003c/\u003e"
+          },
+          {
+            "lineNumber": 3960,
+            "text": "                ) : ("
+          },
+          {
+            "lineNumber": 3961,
+            "text": "                  \u003c\u003e"
+          },
+          {
+            "lineNumber": 3962,
+            "text": "                    \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 3963,
+            "text": "                      \u003cspan\u003e업무 구역\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3964,
+            "text": "                      \u003cstrong\u003e{activeCategoryLabel}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3965,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3966,
+            "text": "                    \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 3967,
+            "text": "                      \u003cspan\u003e이 화면\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3968,
+            "text": "                      \u003cstrong\u003e{activePageMeta.title}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3969,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3970,
+            "text": "                    \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 3971,
+            "text": "                      \u003cspan\u003e저장·연동\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 3972,
+            "text": "                      \u003cstrong\u003e{mode === 'cloud' ? '클라우드' : '로컬'}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 3973,
+            "text": "                    \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3974,
+            "text": "                  \u003c/\u003e"
+          },
+          {
+            "lineNumber": 3975,
+            "text": "                )}"
+          },
+          {
+            "lineNumber": 3976,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3977,
+            "text": "            \u003c/header\u003e"
+          },
+          {
+            "lineNumber": 3978,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 3979
+          },
+          {
+            "lineNumber": 3980,
+            "text": "        \u003c/section\u003e"
+          },
+          {
+            "lineNumber": 3981,
+            "text": "      \u003c/header\u003e"
+          },
+          {
+            "lineNumber": 3982
+          },
+          {
+            "lineNumber": 3983,
+            "text": "      {activePage === 'statements' ?"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3294762969017029
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 216,
+            "text": "function StaffPayrollPage() {"
+          },
+          {
+            "lineNumber": 549
+          },
+          {
+            "lineNumber": 550
+          },
+          {
+            "lineNumber": 551,
+            "text": "  return ("
+          },
+          {
+            "lineNumber": 552,
+            "text": "    \u003cdiv className=\"meeting-layout staff-payroll-page\"\u003e"
+          },
+          {
+            "lineNumber": 553,
+            "text": "      \u003csection className=\"panel expense-work-section\"\u003e"
+          },
+          {
+            "lineNumber": 554,
+            "text": "        \u003cdiv className=\"staff-payroll-snapshot-metrics no-print\" aria-label=\"급여 요약\"\u003e"
+          },
+          {
+            "lineNumber": 555,
+            "text": "          \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 556,
+            "text": "            \u003cspan\u003e재직 인원\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 557,
+            "text": "            \u003cstrong\u003e{activeRecords.length}명\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 558,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 559,
+            "text": "          \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 560,
+            "text": "            \u003cspan\u003e재직 반영 월급 합계\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 561,
+            "text": "            \u003cstrong\u003e{formatMoney(monthlyAdjustedTotalActive)}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 562,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 563,
+            "text": "          \u003cdiv className=\"metric-card\"\u003e"
+          },
+          {
+            "lineNumber": 564,
+            "text": "            \u003cspan\u003e입력 월급 합계(참고)\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 565,
+            "text": "            \u003cstrong\u003e{formatMoney(monthlyInputTotalActive)}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 566,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 567,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 568,
+            "text": "        \u003cdiv className=\"panel-header\"\u003e"
+          },
+          {
+            "lineNumber": 569,
+            "text": "          \u003cdiv\u003e"
+          },
+          {
+            "lineNumber": 570,
+            "text": "            \u003ch2\u003e직원 목록\u003c/h2\u003e"
+          },
+          {
+            "lineNumber": 571,
+            "text": "            \u003cp className=\"muted\"\u003e"
+          },
+          {
+            "lineNumber": 572,
+            "text": "              「3.3% 제외」「4대보험 제외」에 체크하면 해당 차감을 하지 않습니다. 미체크 시 월급여에 3.3% 원천징수,"
+          },
+          {
+            "lineNumber": 573,
+            "text": "              이어서 약 9.1% 4대 본인부담(추정)을 곱해 반영 월급을 계산합니다."
+          },
+          {
+            "lineNumber": 574,
+            "text": "            \u003c/p\u003e"
+          },
+          {
+            "lineNumber": 575,
+            "text": "          \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 576,
+            "text": "        \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 577
+          },
+          {
+            "lineNumber": 578,
+            "text": "        \u003cdiv className=\"inventory-actions\"\u003e"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 865,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 864
+          },
+          "startPosition": {
+            "line": 215
+          }
+        },
+        "relativeWorkspacePath": "./app/src/StaffPayrollPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 217
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 216
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.32817554473876953
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 4402,
+            "text": "(card) =\u003e ("
+          },
+          {
+            "lineNumber": 4427
+          },
+          {
+            "lineNumber": 4428,
+            "text": "                            \u003c/dl\u003e"
+          },
+          {
+            "lineNumber": 4429,
+            "text": "                          \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4430,
+            "text": "                        ))}"
+          },
+          {
+            "lineNumber": 4431,
+            "text": "                      \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4432,
+            "text": "                    \u003c/section\u003e"
+          },
+          {
+            "lineNumber": 4433,
+            "text": "                  ) : null}"
+          },
+          {
+            "lineNumber": 4434,
+            "text": "                  {cashClientCards.length \u003e 0 ? ("
+          },
+          {
+            "lineNumber": 4435,
+            "text": "                    \u003csection className=\"statements-cards-section statements-cards-section-cash\"\u003e"
+          },
+          {
+            "lineNumber": 4436,
+            "text": "                      \u003ch4 className=\"statements-cards-section-title\"\u003e현금 카드\u003c/h4\u003e"
+          },
+          {
+            "lineNumber": 4437,
+            "text": "                      \u003cdiv className=\"statements-cards-grid\"\u003e"
+          },
+          {
+            "lineNumber": 4438,
+            "text": "                        {cashClientCards.map((card) =\u003e ("
+          },
+          {
+            "lineNumber": 4439,
+            "text": "                          \u003cbutton"
+          },
+          {
+            "lineNumber": 4440,
+            "text": "                            key={card.clientName}"
+          },
+          {
+            "lineNumber": 4441,
+            "text": "                            type=\"button\""
+          },
+          {
+            "lineNumber": 4442,
+            "text": "                            className=\"statements-client-card statements-client-card-cash\""
+          },
+          {
+            "lineNumber": 4443,
+            "text": "                            onClick={() =\u003e handleFilterByClient(card.clientName)}"
+          },
+          {
+            "lineNumber": 4444,
+            "text": "                            title=\"입력 목록에서 이 현금 거래처만 필터링\""
+          },
+          {
+            "lineNumber": 4445,
+            "text": "                          \u003e"
+          },
+          {
+            "lineNumber": 4446,
+            "text": "                            \u003cdiv className=\"statements-client-card-head\"\u003e"
+          },
+          {
+            "lineNumber": 4447,
+            "text": "                              \u003cstrong\u003e{card.clientName}\u003c/strong\u003e"
+          },
+          {
+            "lineNumber": 4448,
+            "text": "                              \u003cspan\u003e{card.count}건\u003c/span\u003e"
+          },
+          {
+            "lineNumber": 4449,
+            "text": "                            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4450,
+            "text": "                            \u003cdiv className=\"statements-client-card-amount\"\u003e"
+          },
+          {
+            "lineNumber": 4451,
+            "text": "                              {formatCurrency(card.totalAmount)}원"
+          },
+          {
+            "lineNumber": 4452,
+            "text": "                            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4453,
+            "text": "                            \u003cdl className=\"statements-client-card-meta\"\u003e"
+          },
+          {
+            "lineNumber": 4454,
+            "text": "                              \u003cdiv\u003e"
+          },
+          {
+            "lineNumber": 4455,
+            "text": "                                \u003cdt\u003e이번달\u003c/dt\u003e"
+          },
+          {
+            "lineNumber": 4456,
+            "text": "                                \u003cdd\u003e{formatCurrency(card.monthAmount)}원\u003c/dd\u003e"
+          },
+          {
+            "lineNumber": 4457,
+            "text": "                              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4458,
+            "text": "                              \u003cdiv\u003e"
+          },
+          {
+            "lineNumber": 4459,
+            "text": "                                \u003cdt\u003e마지막 납품\u003c/dt\u003e"
+          },
+          {
+            "lineNumber": 4460,
+            "text": "                                \u003cdd\u003e"
+          },
+          {
+            "lineNumber": 4461,
+            "text": "                                  {card.lastDeliveryDate ? formatDateLabel(card.lastDeliveryDate) : '—'}"
+          },
+          {
+            "lineNumber": 4462,
+            "text": "                                \u003c/dd\u003e"
+          },
+          {
+            "lineNumber": 4463,
+            "text": "                              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4464,
+            "text": "                            \u003c/dl\u003e"
+          },
+          {
+            "lineNumber": 4465,
+            "text": "                          \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4466,
+            "text": "                        ))}"
+          },
+          {
+            "lineNumber": 4467,
+            "text": "                      \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4468,
+            "text": "                    \u003c/section\u003e"
+          },
+          {
+            "lineNumber": 4469,
+            "text": "                  )"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            },
+            {
+              "endPosition": {
+                "column": 26,
+                "line": 4402
+              },
+              "startPosition": {
+                "column": 26,
+                "line": 4402
+              }
+            },
+            {
+              "endPosition": {
+                "column": 27,
+                "line": 4403
+              },
+              "startPosition": {
+                "column": 49,
+                "line": 4402
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3271965980529785
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 1285,
+            "text": "function App() {"
+          },
+          {
+            "lineNumber": 3980
+          },
+          {
+            "lineNumber": 3981,
+            "text": "      \u003c/header\u003e"
+          },
+          {
+            "lineNumber": 3982
+          },
+          {
+            "lineNumber": 3983,
+            "text": "      {activePage === 'statements' ? ("
+          },
+          {
+            "lineNumber": 3984,
+            "text": "        \u003c\u003e"
+          },
+          {
+            "lineNumber": 3985,
+            "text": "      \u003cdiv className=\"statements-page\"\u003e"
+          },
+          {
+            "lineNumber": 3986,
+            "text": "      \u003cmain className=\"statements-main\"\u003e"
+          },
+          {
+            "lineNumber": 3987,
+            "text": "        \u003csection className=\"panel statements-records-panel\"\u003e"
+          },
+          {
+            "lineNumber": 3988,
+            "text": "          \u003cdiv className=\"panel-header controls statements-records-panel-toolbar\"\u003e"
+          },
+          {
+            "lineNumber": 3989,
+            "text": "            \u003cdiv className=\"statements-records-toolbar-left no-print\"\u003e"
+          },
+          {
+            "lineNumber": 3990,
+            "text": "              \u003cdiv className=\"segmented statements-records-view-toggle\"\u003e"
+          },
+          {
+            "lineNumber": 3991,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 3992,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 3993,
+            "text": "                  className={activeView === 'cards' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 3994,
+            "text": "                  onClick={() =\u003e setActiveView('cards')}"
+          },
+          {
+            "lineNumber": 3995,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 3996,
+            "text": "                  거래처 카드"
+          },
+          {
+            "lineNumber": 3997,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 3998,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 3999,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 4000,
+            "text": "                  className={activeView === 'records' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 4001,
+            "text": "                  onClick={() =\u003e {"
+          },
+          {
+            "lineNumber": 4002,
+            "text": "                    setRecordsRangeFilter('month')"
+          },
+          {
+            "lineNumber": 4003,
+            "text": "                    setActiveView('records')"
+          },
+          {
+            "lineNumber": 4004,
+            "text": "                  }}"
+          },
+          {
+            "lineNumber": 4005,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 4006,
+            "text": "                  입력 목록"
+          },
+          {
+            "lineNumber": 4007,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4008,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 4009,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 4010,
+            "text": "                  className={activeView === 'calendar' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 4011,
+            "text": "                  onClick={() =\u003e setActiveView('calendar')}"
+          },
+          {
+            "lineNumber": 4012,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 4013,
+            "text": "                  캘린더"
+          },
+          {
+            "lineNumber": 4014,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4015,
+            "text": "                \u003cbutton"
+          },
+          {
+            "lineNumber": 4016,
+            "text": "                  type=\"button\""
+          },
+          {
+            "lineNumber": 4017,
+            "text": "                  className={activeView === 'summary' ? 'active' : ''}"
+          },
+          {
+            "lineNumber": 4018,
+            "text": "                  onClick={() =\u003e setActiveView('summary')}"
+          },
+          {
+            "lineNumber": 4019,
+            "text": "                \u003e"
+          },
+          {
+            "lineNumber": 4020,
+            "text": "                  월별 납품현황"
+          },
+          {
+            "lineNumber": 4021,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4022,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4023,
+            "text": "              \u003cdiv className=\"segmented statements-records-launch\"\u003e"
+          },
+          {
+            "lineNumber": 4024,
+            "text": "                \u003cbutton type=\"button\" onClick={() =\u003e setStatementEntryModalOpen(true)}\u003e"
+          },
+          {
+            "lineNumber": 4025,
+            "text": "                  거래명세서 입력"
+          },
+          {
+            "lineNumber": 4026,
+            "text": "                \u003c/button\u003e"
+          },
+          {
+            "lineNumber": 4027,
+            "text": "              \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4028,
+            "text": "            \u003c/div\u003e"
+          },
+          {
+            "lineNumber": 4029
+          },
+          {
+            "lineNumber": 4030,
+            "text": "            \u003cdiv"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 6004,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 6003
+          },
+          "startPosition": {
+            "line": 1284
+          }
+        },
+        "relativeWorkspacePath": "./app/src/App.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 1286
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1285
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.32148489356040955
+    }
+  ]
+}
+```
+Status: **completed**
 
 
 </details>
@@ -57065,11 +61265,44 @@ Status: **loading**
 
 _**Agent (default)**_
 
+<think><details><summary>Thought Process</summary>
+I found the table and need to understand how `cashflowPl` is computed using totalIn, totalOut, and net values.</details></think>
+
+_**Agent (default)**_
+
 <tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
 <details>
 <summary>Tool use: **ripgrep_raw_search**</summary>
 
-Status: **loading**
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "cashflowPl"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "cashflowPl",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
 
 
 </details>
@@ -57083,7 +61316,7 @@ Status: **loading**
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
 
 </details>
 </tool-use>
@@ -57096,7 +61329,7 @@ _**Agent (default)**_
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
 
 </details>
 </tool-use>
@@ -57112,7 +61345,35 @@ _**Agent (default)**_
 <details>
 <summary>Tool use: **ripgrep_raw_search**</summary>
 
-Status: **loading**
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "getMeetingCashflowPl"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "getMeetingCashflowPl",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
 
 
 </details>
@@ -57126,7 +61387,7 @@ Status: **loading**
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
 
 </details>
 </tool-use>
@@ -57139,12 +61400,447 @@ _**Agent (default)**_
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
 
 </details>
 </tool-use>
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
 <summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll extend `getMeetingCashflowPl` to also compute `netMarginRate` (). 100  ,   0 null  "" .    ,   " "   .   `netMarginRate` . Return the net margin rate as part of the cashflow object. Display percentages with 1-2 decimal places, using either 'percent' unit or formatting the ratio (0-1) appropriately. For active overview metrics, support 'percent' unit where value represents the ratio (0-1), and handle null values properly.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+formatSharePercent works for any ratio, including negative values.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "입출금 순손익|getMeetingCashflowPl|순손익"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "입출금 순손익|getMeetingCashflowPl|순손익",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.tsx"
+    }
+  ],
+  "totalFiles": 2,
+  "totalMatches": 7
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Implementation plan:
+
+- Change `getMeetingCashflowPl` to: - Update `getMeetingCashflowPl` to calculate net cash margin ratio, handling edge cases where totalIn is zero or invalid.
+- In the UI table, add a new row for " " (net cash margin ratio), displaying the calculated value or null if invalid.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/monthlyMeetingExcelStyledExport.ts",
+  "pattern": "순손익|cashflow|입출금"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/monthlyMeetingExcelStyledExport.ts",
+  "pattern": "순손익|cashflow|입출금",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+No styled export available  good.</details></think>
+
+_**Agent (default)**_
+
+입출금 순손익율은 현금 관점에서 **순손익 ÷ 입금 합계**가 자연합니다(입금이 0이면 정의 불가로 ‘—’ 표시).
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The TypeScript error occurs because `metric.value` is typed as `number | null` in the ratio branch, but `formatSharePercent` requires a `number` type. This mismatch happens specifically when handling ratio rows where the value could be null. To resolve this, we need to ensure that null values are handled appropriately before passing them to `formatSharePercent`, or update the type definition to reflect that null values are not expected in this context.
+
+- The issue arises in the ratio branch where `metric.value` can be null
+- `formatSharePercent` function expects a number type
+- Need to either handle null values before calling `formatSharePercent` or adjust type definitions
+- Null checks should be added to prevent runtime errors when formatting percentages</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-BYtSzd1H.css    161.71 kB │ gzip:  26.93 kB
+dist/assets/index-_0zxNWs4.js   2,670.93 kB │ gzip: 758.78 kB
+
+✓ built in 451ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+### 계산식 (입출금·손익 요약에 맞춤)
+
+여기 숫자는 **현금 입출금 기준**이므로, 순손익율도 아래처럼 잡는 게 맞습니다.
+
+- **입출금 순손익율** = **입출금 순손익 ÷ 입금 합계**  
+  = \((\text{입금 합계} - \text{출금 합계}) \div \text{입금 합계}\)
+
+의미는 “들어온 현금 한 원당, 얼마가 순으로 남았는지(또는 얼마가 더 나갔는지)”입니다. 순손익이 마이너스면 비율도 마이너스로 나옵니다.
+
+- **입금 합계가 0이면** 비율을 정의할 수 없어 **—**로 표시했습니다.
+
+(참고: 회계에서 말하는 **매출 순이익률**(순이익÷**총매출**)은 **당월 매출 표** 기준이라, 입출금표와 숫자가 다를 수 있습니다.)
+
+### 적용한 위치
+
+1. **`입출금·손익 요약` 표**에 `입출금 순손익율 (순손익 ÷ 입금 합계)` 한 줄 추가  
+2. **상단 회의 요약 메트릭**에 `{월} 입출금 순손익율` 추가  
+3. **월 엑셀 내보내기**의 `1-4. 입출금·손익 요약`에도 동일 항목 한 줄 추가  
+
+표시는 기존 점유비와 같이 소수 둘째 자리까지 **%**로 보이게 했습니다.
+
+---
+
+_**User**_
+
+입출금 손익 요약에 입금합계가 거래명세서 입력한 값에 합계잖아 근데 입력하고 지운 값이 마이너스가 안되는데?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user inquires about the "  " section.</details></think>
+
+_**Agent (default)**_
+
+입금 합계가 거래명세와 어떻게 연결되는지, 삭제·빈 값 처리 방식을 추적합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "buildMeetingInboundCashflowParts|aggregateExpenseSalesPatches|매출.*명세"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "buildMeetingInboundCashflowParts|aggregateExpenseSalesPatches|매출.*명세",
+  "topFiles": [
+    {
+      "matchCount": 11,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 11
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full">
+<details>
+<summary>Tool use: **semantic_search_full**</summary>
+
+
+Parameters:
+
+```json
+{
+  "explanation": "Reading...",
+  "includePattern": "/Users/parkcg/The Symbol_Edit/app/src",
+  "query": "Where does monthly meeting inbound cashflow or channel sales aggregate from statements?",
+  "topK": 10
+}
+```
+Status: **loading**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="semantic_search_full"><details>
+<summary>Tool use: **semantic_search_full**</summary>
 
 </details></tool-use>
