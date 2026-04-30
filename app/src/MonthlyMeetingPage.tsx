@@ -16,8 +16,10 @@ import PageSaveStatus from './components/PageSaveStatus'
 import {
   EXPENSE_PAGE_SAVED_EVENT,
   EXPENSE_PAGE_STORAGE_KEY,
+  normalizeExpensePageState,
   readExpensePageStateFromStorage,
   resolveExpenseCategoryForMeetingBucket,
+  type ExpensePageState,
   type ExpenseRecord,
 } from './ExpensePage'
 import {
@@ -940,7 +942,10 @@ type OtherCostBucketExpenseEntry = {
   amount: number
 }
 
-/** 「그 외 비용」(②기타)에 집계된 지출표 행 목록 · 패널·정렬 재사용 */
+/**
+ * 「그 외 비용」(②기타) 줄에 들어간 지출 행 목록 · 월 마감 집계와 동일 규칙.
+ * 카테고리가 「기타경비」「운영경비」 등으로 다른 비용 줄에 매핑되면 여기에서는 제외됩니다.
+ */
 function gatherOtherCostBucketExpenseEntries(
   records: ExpenseRecord[],
   ym: string,
@@ -989,6 +994,27 @@ function gatherOtherCostBucketExpenseEntries(
   }
   gathered.sort((a, b) => b.amount - a.amount)
   return gathered
+}
+
+/**
+ * 클라우드에서 월 마감만 열어도 지출 연동·내역 패널이 동작하게 회사 문서 지출표를 합친다.
+ * 브라우저에 채워진 로컬 지출표는 건수가 같거나 많을 때 그대로 둠(저장 분·미저장 수정 반영 우선).
+ */
+const pickExpenseRecordsForMeetingLink = (
+  cloudMode: boolean,
+  lsRecords: ExpenseRecord[],
+  cloudRecords: ExpenseRecord[],
+): ExpenseRecord[] => {
+  if (!cloudMode) {
+    return lsRecords
+  }
+  if (!cloudRecords.length) {
+    return lsRecords
+  }
+  if (!lsRecords.length) {
+    return cloudRecords
+  }
+  return lsRecords.length >= cloudRecords.length ? lsRecords : cloudRecords
 }
 
 const MEETING_COST_BUCKET_LABEL_FALLBACK: Record<string, string> = {
@@ -1850,6 +1876,8 @@ function MonthlyMeetingPage() {
   const [otherCostExpenseBreakdownExpandedIndex, setOtherCostExpenseBreakdownExpandedIndex] = useState<
     number | null
   >(null)
+  /** 클라우드 전용: 회사 문서의 지출표(지출 탭을 안 열어도 월 마감에서 활용) */
+  const [companyExpenseRecordsCached, setCompanyExpenseRecordsCached] = useState<ExpenseRecord[]>([])
   const [outboundShareChartOpen, setOutboundShareChartOpen] = useState(true)
   const [outboundPieHoveredSliceIndex, setOutboundPieHoveredSliceIndex] = useState<number | null>(null)
   /** 출고·재고 세부 표는 모달에서만 표시 */
@@ -2006,12 +2034,59 @@ function MonthlyMeetingPage() {
     })
   }, [isStorageReady, sectionEditModes.roasting, roastingSalesReferenceYm, greenBeanOrderStorageRev])
 
+  useEffect(() => {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      setCompanyExpenseRecordsCached([])
+      return
+    }
+
+    let cancelled = false
+
+    const pullExpenseFromCloud = async () => {
+      try {
+        const remote = await loadCompanyDocument<ExpensePageState>(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.expensePage,
+        )
+        if (cancelled) {
+          return
+        }
+        const records = remote ? normalizeExpensePageState(remote).records : []
+        setCompanyExpenseRecordsCached(records)
+      } catch (error) {
+        console.error('월 마감회의: 회사 클라우드 지출표를 읽지 못했습니다.', error)
+      }
+    }
+
+    void pullExpenseFromCloud()
+    const id = window.setInterval(() => void pullExpenseFromCloud(), 8_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [activeCompanyId, mode])
+
+  const lsExpenseRecordsForMeetingLink = useMemo(
+    () => readExpensePageStateFromStorage().records,
+    [expensePageStorageRev],
+  )
+
+  const expenseRecordsForMeetingLink = useMemo(
+    () =>
+      pickExpenseRecordsForMeetingLink(
+        mode === 'cloud',
+        lsExpenseRecordsForMeetingLink,
+        companyExpenseRecordsCached,
+      ),
+    [companyExpenseRecordsCached, lsExpenseRecordsForMeetingLink, mode],
+  )
+
   /** 지출표 → 재료비·기타 세부, 비용현황 ①②, 매출 채널(키워드) 자동 연동 */
   useEffect(() => {
     if (!isStorageReady || sectionEditModes.summary) {
       return
     }
-    const { records } = readExpensePageStateFromStorage()
+    const records = expenseRecordsForMeetingLink
     setPageState((current) => {
       const fallbackStates = createMonthStates(current.data)
       let nextMonthStates = { ...current.monthStatesByMonth }
@@ -2049,7 +2124,7 @@ function MonthlyMeetingPage() {
       }
       return { ...current, monthStatesByMonth: nextMonthStates }
     })
-  }, [isStorageReady, sectionEditModes.summary, expensePageStorageRev])
+  }, [expenseRecordsForMeetingLink, isStorageReady, sectionEditModes.summary])
 
   useEffect(() => {
     let cancelled = false
@@ -2619,13 +2694,13 @@ function MonthlyMeetingPage() {
     if (!isStorageReady) {
       return []
     }
-    const { records } = readExpensePageStateFromStorage()
+    const records = expenseRecordsForMeetingLink
     const ym = meetingMonthLabelToExpenseYm(activeMonth, records)
     if (!ym) {
       return []
     }
     return gatherOtherCostBucketExpenseEntries(records, ym)
-  }, [activeMonth, expensePageStorageRev, isStorageReady])
+  }, [activeMonth, expenseRecordsForMeetingLink, isStorageReady])
 
   useEffect(() => {
     setOtherCostExpenseBreakdownExpandedIndex(null)
@@ -2646,8 +2721,8 @@ function MonthlyMeetingPage() {
     return (
       <>
         <p className="meeting-breakdown-caption">
-          지출표에서 카테고리가 「미분류」이거나 다른 분류 줄에 매핑되지 않아 「그 외 비용」(②기타)으로 들어간 항목입니다.
-          금액 큰 순입니다.
+          지출표에서 카테고리가 「기타경비」「운영경비」(및 운영 줄)로 잡히지 않은 거래가 「그 외 비용」(②기타)으로 집계된
+          내용입니다. 「원재료비」 등 월 마감에 따로 매핑되는 항목은 여기 없을 수 있습니다. 금액 큰 순입니다.
         </p>
         <ul className="meeting-breakdown-list">
           {visible.map((e, idx) => (

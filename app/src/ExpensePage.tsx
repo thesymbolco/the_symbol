@@ -662,7 +662,7 @@ const normalizeRecord = (value: unknown): ExpenseRecord | null => {
   }
 }
 
-const normalizePageState = (value: unknown): ExpensePageState => {
+export function normalizeExpensePageState(value: unknown): ExpensePageState {
   if (!value || typeof value !== 'object') {
     return createDefaultState()
   }
@@ -707,7 +707,7 @@ export function readExpensePageStateFromStorage(): ExpensePageState {
     if (!raw) {
       return createDefaultState()
     }
-    return normalizePageState(JSON.parse(raw))
+    return normalizeExpensePageState(JSON.parse(raw))
   } catch {
     return createDefaultState()
   }
@@ -992,7 +992,7 @@ function ExpensePage() {
       if (cancelled) {
         return
       }
-      const normalized = normalizePageState(localState)
+      const normalized = normalizeExpensePageState(localState)
       if (markAsCloudSynced) {
         syncLastCloudRefFromState(normalized)
       }
@@ -1018,13 +1018,13 @@ function ExpensePage() {
           return
         }
         if (remoteState) {
-          const normalized = normalizePageState(remoteState)
+          const normalized = normalizeExpensePageState(remoteState)
           syncLastCloudRefFromState(normalized)
           setPageState(normalized)
           setStatusMessage('클라우드에서 지출표를 불러왔습니다.')
         } else {
           const localState = readExpensePageStateFromStorage()
-          const normalized = normalizePageState(localState)
+          const normalized = normalizeExpensePageState(localState)
           setPageState(normalized)
           setStatusMessage(
             localState.records.length > 0
@@ -1122,7 +1122,7 @@ function ExpensePage() {
         if (cancelled || !remote) {
           return
         }
-        const normalized = normalizePageState(remote)
+        const normalized = normalizeExpensePageState(remote)
         const nextJson = JSON.stringify(normalized)
         if (nextJson === lastJson) {
           return
