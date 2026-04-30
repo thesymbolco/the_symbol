@@ -35523,7 +35523,25 @@ Parameters:
   "pattern": "expense-table|expense-"
 }
 ```
-Status: **loading**
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "expense-table|expense-",
+  "topFiles": [
+    {
+      "matchCount": 40,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 42
+}
+```
+Status: **completed**
 
 
 </details>
@@ -35533,3 +35551,2106 @@ Status: **loading**
 <summary>Tool use: **ripgrep_raw_search**</summary>
 
 </details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add helpers before the ExpensePage component or inside the file after the splitAmount/useMemo section. expenseRecordsDefaultSecondarySort and getExpenseColumnSortComparable are placed outside the component as pure functions that depend on splitAmount from the same file.
+
+- comparePrimaries function handles sorting of primary values
+- It compares string or number values with proper handling of finite numbers
+- The function uses a factor based on sort direction (asc/desc)
+- It ensures finite numbers are properly compared while treating non-finite values as zero
+- The comparison logic accounts for both numeric and string types
+- Non-finite numbers are treated as zero during comparison
+- The function returns appropriate comparison results based on direction and value types The `comparePrimaries` function handles sorting of primary values by comparing string or number values with proper finite number handling. It uses a factor based on sort direction (asc/desc) and ensures finite numbers are properly compared while treating non-finite values as zero. The function returns appropriate comparison results based on direction and value types.
+
+The `secondaryExpenseRowOrder` function sorts expense records by due date, then expense date, then ID.
+
+The `getExpenseColumnSortComparable` function retrieves comparable values for sorting expense table columns. When the kind is 'extra', the function returns the trimmed lowercase version of the extra value or an empty string. For other kinds, it maps column IDs to their corresponding record values, handling various data types appropriately. Numeric values like totalAmount are returned directly, while string fields are converted to lowercase with trimming. The splitAmount function is used for supplyAmount calculations. The `sortedExpenseFilteredRecords` function sorts filtered expense records based on sort state and visible columns. It first applies secondary sorting if no sort state exists, otherwise it finds the relevant column and proceeds with sorting.
+
+- If no sort state exists, it sorts by secondary row order (due date, expense date, ID)
+- If sort state exists, it identifies the sorting column and applies the appropriate sorting logic
+- The function handles cases where the column may not exist in visible columns
+- Sorting uses the column's comparable value function for accurate comparison
+- The sorting process maintains the original array by creating a copy before sorting
+
+The `getExpenseColumnSortComparable` function retrieves comparable values for sorting expense table columns. When the kind is 'extra', it returns the trimmed lowercase version of the extra value or an empty string. For other kinds, it maps column IDs to their corresponding record values, handling various data types appropriately. Numeric values like totalAmount are returned directly, while string fields are converted to The `sortedExpenseFilteredRecords` function sorts filtered expense records based on sort state and visible columns. If no sort state exists, it sorts by secondary row order (due date, expense date, ID). If sort state exists, it identifies the sorting column and applies the appropriate sorting logic, using the column's comparable value function for accurate comparison. The sorting process maintains the original array by creating a copy before sorting.
+
+- If no sort state exists, it sorts by secondary row order (due date, expense date, ID)
+- If sort state exists, it identifies the sorting column and applies the appropriate sorting logic
+- Sorting uses the column's comparable value function for accurate comparison
+- The sorting process maintains the original array by creating a copy before sorting
+
+Use in useMemo with deps `[filteredRecords, expenseListSort, visibleExpenseColumns]`</details></think>
+
+_**Agent (default)**_
+
+정렬 헬퍼와 상태를 추가하고, 헤더에 클릭 가능한 정렬 버튼을 넣습니다. `지급` 열에도 정렬을 넣습니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add the new types and helpers after the `splitAmount` function, around line 402. I'll add the new types and helpers after the `splitAmount` function, around line 402.
+
+- `EXPENSE_LIST_SORT_PAYMENT_COLUMN_ID` is defined as a constant for sorting expense list headers
+- `ExpenseListSortState` type defines the structure for sort state with column ID and direction
+- `expenseDefaultRowTiebreak` function compares expense records by due date, expense date, and ID
+- `compareExpenseSortPrimaries` function compares values based on sort direction The code compares two values, handling both numbers and strings. For numbers, it converts non-finite values to zero and returns their difference multiplied by a factor. For strings, it uses locale comparison with Korean locale settings, prioritizing numeric sorting and base sensitivity. The function then returns either the numeric difference or the locale comparison result, depending on whether the values are equal. 
+
+The `getExpenseColumnSortComparable` function extracts a comparable value from an expense record based on a given column.
+
+- It handles numeric and string comparisons differently
+- Uses locale-aware string comparison for proper sorting
+- Returns appropriate values for sorting operations Need forward reference ExpenseTableColumn - already defined above splitAmount insertion point - GOOD.
+
+Actually I'm inserting AFTER splitAmount which is AFTER ExpenseRecord - ExpenseTableColumn is before ExpenseRecord in file order - wait ExpenseTableColumn is at line 72, before ExpensePageState. OK.
+
+Implement `sortExpenseFilteredRecords` function.
+
+- `sortExpenseFilteredRecords` function sorts filtered expense records based on visible columns and sort state
+- Function creates a copy of filtered records and applies tiebreaking logic
+- Handles sorting by multiple criteria including primary and secondary sorting
+- Uses existing helper functions for comparison and value extraction The function sorts expense records using either default tiebreak logic or column-specific sorting. When no sort is defined, it applies tiebreak logic and returns the list. For payment status sorting, it prioritizes completed payments and falls back to default tiebreak for ties. For other columns, it finds the matching column and proceeds with sorting. The `sortExpenseFilteredRecords` function applies sorting to filtered expense records based on visible columns and sort state, using tiebreaking logic for consistent ordering. It handles both primary sorting and fallback tiebreak behavior.
+
+The function uses `useMemo` to memoize the sorted results, ensuring efficient updates when dependencies change.
+
+State management for expense list sorting is implemented with appropriate TypeScript types and constants.</details></think>
+
+_**Agent (default)**_
+
+`splitAmount` 직후에 정렬 유틸을 추가하고, 컴포넌트에 상태·`useMemo`·헤더 버튼을 연결합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Add state after pinnedRecordId or showUnpaidOnly:</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+  "pattern": "visibleExpenseColumns"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx",
+  "pattern": "visibleExpenseColumns",
+  "topFiles": [
+    {
+      "matchCount": 11,
+      "uri": "app/src/ExpensePage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 11
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Order is correct.
+
+- Consider resetting sort when month changes When the month changes, the sort order will reset to default ( ) to avoid confusion. This ensures consistent sorting behavior across months.
+
+However, frequent month switching might frustrate users who have manually sorted their expenses, so this behavior should be carefully considered. I'll skip unless product wants it - user didn't ask.
+
+CSS additions for App.css after .expense-table th, td:
+
+- Add .expense-table .expense-th-sort-btn styles with display, alignment, gap, padding, margin, font, color, text alignment, vertical alignment, background, border, border radius, and cursor properties
+- Add hover effect with rgba background color
+- Continue with additional CSS rules for expense table sorting functionality</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The\ Symbol_Edit/app" && npm run build 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The\ Symbol_Edit/app" && npm run build 2>&1
+```
+
+```
+(eval):cd:1: no such file or directory: /Users/parkcg/The\ Symbol_Edit/app
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 652 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-CVkcJ2sN.css    159.00 kB │ gzip:  26.54 kB
+dist/assets/index-D70DgSQk.js   2,656.29 kB │ gzip: 754.55 kB
+
+✓ built in 419ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+### 구현 요약
+
+**지출 목록** 표 헤더 각 열을 **버튼**으로 바꿨습니다.
+
+- **첫 클릭**: 해당 열 기준 **오름차순**
+- **같은 열 다시 클릭**: **내림차순** ↔ **오름차순** 전환
+- **다른 열 클릭**: 그 열 기준 **오름차순**으로 다시 시작  
+- 정렬이 **없을 때**는 예전과 같이 **지급예정일 → 지출일 → id** 순으로 맞춥니다(동일 값은 이 순서로 안정 정렬).
+
+**지급** 열도 정렬 가능하게 했습니다(지급완료=1, 미지급=0으로 비교).
+
+**삭제** 열은 정렬 대상이 아닙니다.
+
+**표시**: 활성 열은 초록 톤 배경 + **▲/▼**, 나머지는 **⇅** 힌트. `title`·`aria-sort`로 스크린 리더·호버 안내.
+
+**정렬 대상 값**  
+매핑된 열은 필드 그대로, **공급가·부가세** 열은 `splitAmount`(과세 계산 결과), **커스텀 열**은 `extraValues` 텍스트입니다.
+
+변경 파일: `ExpensePage.tsx`, `App.css` (`.expense-th-sort-btn` 등).
+
+---
+
+_**User**_
+
+월별현황에 월 요약에서 비용현황에 그 외 비용에 마우스 올렸을때 항목 뜨게 만들어줄래? 그 외 비용에 대한 항목은 따로 보기 귀찮으니깐
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user requests a tooltip or hover preview for the "  " (other costs) row in the " " (cost status) section on the monthly meeting page. When hovering over the "  " row, users should see a tooltip showing the specific expense items that contribute to that total. To implement this:
+
+- Identify how the " bucket" is populated from expenses in MonthlyMeetingPage
+- Either calculate which expense line items map to  for the current month, or retrieve them from expense records
+- Display a tooltip (using title attribute or custom tooltip) on the row's amount cell or label
+
+The meeting page uses `readExpensePageStateFromStorage()` for expense synchronization. The "  " bucket is mapped using `expenseCategoryToMeetingCostBucketKey`, which assigns categories not classified as , , , , , or  to ``.  
+
+To implement the tooltip:
+- Filter expense records by the meeting months ym
+- Apply `resolveExpenseCategoryForMeetingBucket` and `expenseCategoryToMeetingCostBucketKey` to identify records belonging to the `` bucket
+- For each matching record, compile a tooltip string listing vendorName, detail, category, and amount</details></think>
+
+_**Agent (default)**_
+
+월 마감 비용 현황의 ‘그 외 비용’(②기타) 줄에 호버 시 지출표에서 해당 버킷으로 집계된 항목 목록을 표시합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "amountInputTitle|computedCurrentMonthCosts|②기타|expensePageStorageRev"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "amountInputTitle|computedCurrentMonthCosts|②기타|expensePageStorageRev",
+  "topFiles": [
+    {
+      "matchCount": 27,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 27
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to export or duplicate the bucket key function `expenseCategoryToMeetingCostBucketKey` from MonthlyMeetingPage. I need to export or duplicate the bucket key function `expenseCategoryToMeetingCostBucketKey` from MonthlyMeetingPage.
+
+- Add a function `buildOtherCostExpenseTooltip(records: ExpenseRecord[], ym: string): string` that:
+  - Filters by ym prefix on expenseDate
+  - For each record, resolves category using `resolveExpenseCategoryForMeetingBucket`, then gets bucket key
+  - Adds to list if bucket is '' and amount > 0
+- Format each line as: `[]     123,456` - Join with newline, noting that the `title` attribute may not handle newlines consistently across browsers; in HTML titles, `\n` sometimes works in Chrome.
+- Truncate list: if more than 20 items, display first 18 followed by "\n  N ( )"
+- Use `useMemo` in `MonthlyMeetingPage` component to compute `otherExpenseCostBreakdownTitle`:
+  - If storage is not ready, return empty string
+  - Retrieve records from storage and determine `ym` using `meetingMonthLabelToExpenseYm`
+  - If `ym` is invalid, return empty string - Return empty string if no matching records are found.
+- Otherwise, format the list of records with amounts and titles.
+- Truncate list to 20 items maximum, showing first 18 followed by "N ( )".
+- Use `useMemo` to compute `otherExpenseCostBreakdownTitle` based on storage readiness and active month.
+- Merge with existing `expenseSyncedMeetingCostAmountHint` function.
+- The `activeMonthState` corresponds to `pageState.activeMonth`. If the key is '' and `otherExpenseCostBreakdownTitle` exists, append it to the base string with a newline separator. Otherwise, return the base string unchanged.
+
+For the '' row, since it's not included in `isExpenseSheetFedCostAmountRow`, `expenseSyncedMeetingCostAmountHint` returns undefined  thus only the breakdown is shown.
+
+Users may still want a hint line " " displayed:
+
+- If the key is '', prepend a header message about other expenses.
+- If there are no detail lines, indicate no matching amounts exist. When hovering over cells in `MeetingSummaryValueCard`, users may want to see hints for both label and amount columns. To avoid repetitive title attributes, use a single `rowTitle` prop on the `<tr>` element, which applies to the entire row. This approach leverages HTML5s support for `<tr title>` and simplifies implementation by avoiding duplication of functions for label and amount cells.
+
+- Use `rowTitle?: (r: MeetingValueRow) => string | undefined` on `MeetingSummaryValueCard`.
+- Apply the title to the `<tr>` element directly.
+- This provides a consistent hover experience across the entire row. For **** only, return the long string; others remain undefined.
+
+Combine amount input title: if row has rowTitle, avoid duplicating titles on tr and input  use **tr title only** for other cost breakdown. Alternatively, both label and amount columns could share the same title  for touch devices, consider placing the title on the **first data cell** ( + ) or the entire row.
+
+Add **`dataRowTitle?: (r: MeetingValueRow) => string | undefined`** to the card and apply it to `<tr title={...}>`.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "formatMoney|currencyFormatter"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "formatMoney|currencyFormatter",
+  "topFiles": [
+    {
+      "matchCount": 15,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 15
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add:
+
+- `OTHER_COST_BUCKET_KEY = ''` - already literal
+- 2.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- Reads the expense page state from storage.
+- Retrieves saved data related to the expense page. - Implements `buildOtherCostBucketExpenseTooltipText` after `expenseCategoryToMeetingCostBucketKey`.
+- Uses `resolveExpenseCategoryForMeetingBucket` which is imported in MonthlyMeetingPage from ExpensePage.
+- Uses `currencyFormatter` from line 114 within MonthlyMeeting module scope.
+- Sets constant MAX at line 30. - Formats currency consistently with `formatMoney` by appending "" manually instead of relying on the formatter.
+- Places the new helper function after `expenseCategoryToMeetingCostBucketKey` around line 888.
+- Ensures `currencyFormatter` is defined before the new helper function, which is located at line 114.
+- Positions the helper function after `formatMoney` at line 220, ensuring proper import order and usage of `resolveExpenseCategoryForMeetingBucket`.</details></think>
+
+_**Agent (default)**_
+
+`②기타` 버킷에 들어가는 지출표 항목 목록을 계산하는 헬퍼를 추가하고, 비용 현황 테이블 행에 `title`로 연결합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll insert after expenseCategoryToMeetingCostBucketKey closing brace (line 886):
+
+- TypeScript code block insertion
+- Line 886 reference
+- Closing brace context The code defines a constant for maximum tooltip length and a function to build expense tooltip text, filtering records by date and formatting amounts. The code processes expense records by filtering those not categorized under '', then builds a formatted tooltip text including vendor, detail, category, and purpose information. The code formats expense data into a tooltip, sorting by amount and limiting entries to a maximum defined by OTHER_COST_BUCKET_EXPENSE_TOOLTIP_MAX. It constructs lines with vendor, detail, category, and purpose information, using formatWon for amount display. If no expenses exist in the "other cost" bucket, it returns a specific message indicating no such expenses were found. The final output includes a list of formatted expense lines, with an omitted count if necessary. The code now uses a local `formatWonShort` function that formats numbers with currency symbols, referencing `currencyFormatter` from the enclosing scope. It also includes logic to append a line indicating omitted entries if necessary, and returns a formatted tooltip text for expenses in the "other cost" bucket.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+currencyFormatter is used in buildOtherCostBucketExpenseTooltipText and was defined earlier in the file around line 114.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to search for `activeMonth` within the MonthlyMeetingPage component's pageState.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "const activeMonth"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "const activeMonth",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "activeMonth ="
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "activeMonth =",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The `activeMonth` value is retrieved from `pageState` at line 2542. The `isStorageReady` and `expensePageStorageRev` values are accessible within the component. After the `computedCurrentMonthCosts` block, the following logic is added:
+
+- A `otherCostBucketExpenseHoverText` memoized function is created that returns an empty string if storage is not ready, otherwise retrieves records from storage, determines the month, and builds tooltip text.
+- A `summaryCostRowHoverTitle` callback function is defined to handle hover titles for summary cost rows. If the `resolvedStandardExpenseBucketKey` is not '', the function returns `undefined`. Otherwise, it trims `otherCostBucketExpenseHoverText` and returns the trimmed string if it's not empty, otherwise returns `undefined`.
+
+The `summaryCostRowHoverTitle` function handles hover titles for summary cost rows, ensuring empty tooltips from invalid months return `undefined`, while gathered data with zero length returns a long string.
+
+The `rowHoverTitle` prop is passed to `MeetingSummaryValueCard` components for costs. For the "" (other) expenses section, an `amountInputTitle` is added to match the hover text for the amount cell, which may duplicate the `tr` title. This ensures consistency across browsers, though Safari may behave differently. Hovering over the input field should still show the `tr` title, as `title` attributes on parent elements typically propagate to child elements in Chrome. Alternatively, set the same title on the `<input>` element for the row by merging `expenseSyncedMeetingCostAmountHint` with the other-cost text for ****.  
+- For ****, `summaryCostAmountTitle` combines the base hint with the other-cost text.  
+- For ****, which has no base hint, the function returns `extra` only.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The order of `expenseSyncedMeetingCostAmountHint` and `resolvedStandardExpenseBucketKey` definitions is incorrect, as they are placed after the `MonthlyMeetingPage` function begins.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build 2>&1
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 652 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-CVkcJ2sN.css    159.00 kB │ gzip:  26.54 kB
+dist/assets/index-ycFfzAXi.js   2,657.90 kB │ gzip: 755.09 kB
+
+✓ built in 422ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+### 적용 내용
+
+**월 마감 회의 → 1. 요약 → 비용 현황**에서 **`그 외 비용`(②기타)** 행 위에 마우스를 올리면, **같은 달 지출표** 안에서 회의 규칙상 이 줄로만 합산되는 항목이 **브라우저 툴팁(`title`)**으로 뜹니다.
+
+- 줄마다 **`거래처 · 세부`**, 있으면 **카테고리 / 용도**, **금액** 형식입니다.
+- 금액 큰 순으로 정렬했고, **최대 28건**만 보여 주고 더 있으면 `… 외 N건은 지출표에서 확인`으로 안내합니다.
+- 해당 버킷 지출이 없으면 왜 비어 있는지 짧게 설명하는 문구를 띄웁니다.
+
+**판별 로직**은 비용 줄에 채워 넣을 때와 같게 **`resolveExpenseCategoryForMeetingBucket`** → **`expenseCategoryToMeetingCostBucketKey`**로 **`②기타`만** 골라냈습니다.
+
+**구현 요약**: `MonthlyMeetingPage.tsx`에 `buildOtherCostBucketExpenseTooltipText` 추가, `MeetingSummaryValueCard`에 선택 prop **`rowHoverTitle`** 추가(비용 카드만 연결). 금액 칸에도 같은 안내가 보이도록 **`amountInputTitle`**을 `그 외 비용` 줄에 확장했습니다.
+
+지출을 고친 뒤에는 **지출표 저장**(로컬/클라우드)까지 반영되면 `expensePageStorageRev`로 툴팁 내용도 갱신됩니다.
+
+---
+
+_**User**_
+
+마우스 올려놨을때 바로 뜨게 만들어줘 ui 도 좀 통일시켜서 만들어주고 웹페이지 효과처럼 뜨니깐 잘 안보이네 아님 클릭했을때로 바꿔줘
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants the tooltip for "  " expense breakdown to: The tooltip for the expense breakdown should appear on click (with an optional hover delay) to ensure visibility and reliability. It should use consistent UI styling that improves upon the default browser tooltip. A custom popover or dropdown is recommended over the native title attribute for better visibility and control. The tooltip for the expense breakdown will be implemented as a clickable styled popover that appears near the relevant row, using consistent UI styling with shadows and borders. 
+
+Key implementation details:
+- Add `onCostBreakdownToggle` handler specifically for the "  " row in MonthlyMeeting cost card
+- Use `renderExtraRowAccessory?` to render the toggle button for the cost breakdown
+- Avoid over-engineering by not adding complex conditional props to the base component
+
+This approach keeps the implementation clean and focused on the specific use case while maintaining consistency with existing UI patterns. The tooltip for the expense breakdown will be implemented as a clickable popover styled consistently with the UI, appearing near the relevant row. The implementation will use a stateful popover inside `MonthlyMeetingPage` for the " " only, avoiding duplication or over-engineering.
+
+Key points:
+- Extend `MeetingSummaryValueCard` with row popover configuration
+- Use `expandedDetailRowIndex` and `detailPanelContent` for controlled expansion
+- Implement `popoverForRow` prop to customize popover content per row
+- Avoid invasive changes to the base component
+- Keep implementation focused and clean for the specific use case The tooltip for the expense breakdown will be implemented as a clickable popover with consistent UI styling, appearing near the relevant row on click. It will use a stateful popover inside `MonthlyMeetingPage` for the " " row only, avoiding over-engineering by not adding complex conditional props to the base component.
+
+Key implementation details:
+- Add `onCostBreakdownToggle` handler specifically for the "  " row in MonthlyMeeting cost card
+- Use `renderExtraRowAccessory?` to render the toggle button for the cost breakdown
+- Extend `MeetingSummaryValueCard` with row popover configuration
+- Use `expandedDetailRowIndex` and `detailPanelContent` for controlled expansion
+- Implement `popoverForRow` prop to customize popover content per row
+- Avoid invasive changes to the base component
+- Keep implementation focused and clean for the specific use case
+
+The popover will dynamically compute content per row using `getPopoverContent: (row) => ReactNode`, ensuring flexibility without duplicating logic or Rendering: For rows marked with `isRowTrigger`, display a small **[]** button next to the label in view mode, or make the label/amount clickable.
+
+The user requested click-to-open behavior, so a popover will appear near the row on click, with optional hover delay.
+
+Implementation steps:
+- Add state `otherCostPopoverOpenRowIndex` in `MonthlyMeetingPage`, initialized to null when closed
+- In `MeetingSummaryValueCard`, introduce optional props:
+  ```typescript
+  popoverTriggerRow?: {
+    matches: (r: MeetingValueRow, index: number) => boolean
+    openIndex: number | null
+    onOpenChange: (index: number | null) => void
+    renderPanel: (r: MeetingValueRow, index: number) => React.ReactNode
+  }
+  ``` In **`!editMode`**, for rows with popover configuration, render a "****" button or icon next to the  name with **`aria-expanded`**. On click, toggle the popover using **`onOpenChange(openIndex === index ? null : index)`**.
+
+The popover panel appears **`position: absolute`** relative to the table wrapper or uses **`position: fixed`** based on click position via ref and bounding rectangle. For MVP, place the panel **below the selected row** inside the meeting card, avoiding overflow issues with relative positioning.</details></think>
+
+_**Agent (default)**_
+
+네이티브 `title` 툴팁을 없애고, ‘그 외 비용’ 행만 클릭으로 펼치는 패널로 바꿉니다. 목록 데이터는 공통 헬퍼로 추출합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+To use ReactNode in MeetingSummaryValueCard, import type { ReactNode } from 'react'. The MonthlyMeetingPage might need to import Fragment, which can be found using grep. To use ReactNode in MeetingSummaryValueCard, import type { ReactNode } from 'react'. The MonthlyMeetingPage might need to import Fragment, which can be found using grep.
+
+Refactor:
+- Replace `buildOtherCostBucketExpenseTooltipText` with core `gatherOtherCostBucketExpenseLines(records, ym)` returning:
+  - `OtherCostBucketLine` with headline, meta, and amount
+  - `GatherResult` type with either ok=true and lines/truncated or ok=false and emptyMessage
+- Simplified type `OtherCostBreakdownGather` - `buildOtherCostBucketExpenseTooltipText` can call gather and stringify; remove if unused or keep for nothing.
+- `MeetingSummaryValueCard` props:
+  - Remove `rowHoverTitle` from   usage.
+  - Remove `rowHoverTitle` prop entirely from card (sales card doesn't use it anymore). To use ReactNode in MeetingSummaryValueCard, import type { ReactNode } from 'react'. The MonthlyMeetingPage might need to import Fragment, which can be found using grep.
+
+- Replace `amountInputTitle` merger for  , removing    and keeping only `expenseSyncedMeetingCostAmountHint` for /.
+- Add `rowExpandablePopover` prop to MeetingSummaryValueCard with:
+  - `rowMatch`: function to determine row matching
+  - `expandedRowIndex`: number or null
+  - `onExpandedChange`: handler for expanded state changes
+  - `renderExpandedContent`: function to render expanded content
+- Use Fragment to wrap tr elements with conditional colspan in JSX. When rowMatch matches and editMode is false with rowExpandablePopover enabled, render a Fragment wrapping the table row with conditional colspan handling. The row includes a label and optional expandable button that triggers onExpandedChange when clicked. When the expanded row index matches the current row index, set it to null; otherwise, keep the current index. The aria-expanded attribute reflects whether the row is expanded. The button text toggles between " " (Close details) and " " (View details) based on expansion state. If the row is expandable and its index matches the expanded index, render an additional row with expanded content. The expanded content renders inside a `<td>` with `colSpan` calculated based on whether the share column is shown. For a single row, the cell spans 3 or 4 columns depending on the presence of the share column. The structure uses a Fragment to conditionally render rows with proper colspan handling for expanded details. The panel uses a full-width layout with a merged number column. The table row includes a cell spanning 3 or 4 columns depending on the share column visibility, and the inner div contains the breakdown panel. No empty first cell is present. The outer Fragment has a proper key.
+
+For MonthlyMeeting:
+
+- The `otherCostBucketEntriesGather` is computed using `useMemo` and calls `gatherOtherCostBucketEntries`.
+- The render function returns JSX with `ul.meeting-breakdown-ul` and similar structures. The `renderOtherCostBreakdown` function uses `otherCostBucketEntriesGather` to process rows and returns early if gather result is unavailable.
+
+The gather result follows a store-like structure with three possible statuses:
+- `no_ym`: No year-month data
+- `entries`: Contains entries with headline, meta, and amount, plus truncated count
+- `empty`: Provides title and hint for empty states
+
+The `OtherCostBucketEntry` type defines each entry with:
+- `headline`: Main label
+- `meta`: Additional metadata
+- `amount`: Numeric value
+
+The implementation handles these cases through conditional rendering based on the gather result's status. To replace `buildOtherCostBucketExpenseTooltipText`, use `gatherOtherCostBucketExpenseEntries` returning `{ entries, overflowCount }`, with `overflow` calculated as `Math.max(0, total - MAX)`.  
+If entries are empty, return null entries and a flag in `messagesWhenEmpty`.
+
+Type definition for `OtherExpenseBreakdownPack` includes:
+- `ymInvalid: boolean`
+- `entries: OtherCostBucketEntry[]`
+- `overflowCount: number`  
+- `emptyMessage?: string` The `computeOtherExpenseBreakdownPack` function processes expense records for a given year-month, returning a structured pack with entries and overflow count. It validates the input year-month, sorts records by amount, slices the top entries up to a maximum limit, and calculates overflow. The result includes a flag indicating invalid year-month, the sliced entries, and the overflow count. This function is used within a `useMemo` hook to memoize the computed pack for performance optimization.</details></think>
+
+_**Agent (default)**_
+
+헬퍼를 구조화된 목록으로 바꾸고, `MeetingSummaryValueCard`에 클릭 시 펼치는 패널을 추가합니다. 네이티브 `title` 툴팁은 제거합니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+- StrReplace import to add ReactNode type
+- (No additional output needed) - Replace buildOtherCostBucketExpenseTooltipText with gatherOtherCostBucketExpenseEntries + type
+- Replace MeetingSummaryValueCard with new props + Fragment tbody
+- Replace MonthlyMeeting state and useMemo/useCallback, remove old ones, add useEffect for month
+- Verify **colSpan** thead has 4 columns with share - tbody expand `colSpan={4}` correct
+- **editMode expandable**: `rowExpandablePopover && !editMode && matches`
+- **MeetingSummaryValueCard** interface `rowExpandablePopover` optional generic - only costs card
+- Remove rowHoverTitle prop from card type and sales doesn't use it
+- CSS adjustments needed - rowExpandablePopover is now optional and includes expandedRowIndex, onExpandedChange, matchesRow, and renderPanel functions
+- showPop determines if popover should render based on editMode and matchesRow function
+- colSpanFull adjusts between 3 or 4 columns depending on showShareColumn flag
+- Popover rendering occurs when showPop is true and editMode is false</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "otherCostBucketExpenseHoverText|buildOtherCostBucketExpenseTooltipText|summaryCostsRowHoverTitle|gatherOtherCostBucketExpenseEntries"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "otherCostBucketExpenseHoverText|buildOtherCostBucketExpenseTooltipText|summaryCostsRowHoverTitle|gatherOtherCostBucketExpenseEntries",
+  "topFiles": [
+    {
+      "matchCount": 9,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 9
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "function resolvedStandardExpenseBucketKey|resolvedStandardExpenseBucketKey"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "function resolvedStandardExpenseBucketKey|resolvedStandardExpenseBucketKey",
+  "topFiles": [
+    {
+      "matchCount": 7,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 7
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "expensePageStorageRev|summaryEditMode"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "expensePageStorageRev|summaryEditMode",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 6
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add state after expensePageStorageRev:  
+- Add state management for expense page storage revision  
+- Ensure proper handling of state updates  
+- Implement necessary revisions to expense page storage logic</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "function formatMoney|const formatMoney"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "function formatMoney|const formatMoney",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+For renderPanel, I need to use either inline JSX or useMemo. The MeetingSummaryValueCard invokes renderPanel(row, rowIndex), so I can create a useCallback callback that captures entries.
+
+- I need to use useMemo for summaryCostsOtherBucketEntries.
+- I should reset otherCostExpenseBreakdownExpandedIndex when activeMonth changes.
+- The summaryCostsExpandablePopover uses useMemo and includes:
+  - expandedRowIndex set to otherCostExpenseBreakdownExpandedIndex
+  - onExpandedChange set to setOtherCostExpenseBreakdownExpandedIndex
+  - matchesRow function that checks if row's bucket key equals '' renderPanel uses summaryCostsOtherBucketEntries from useMemo instead of nested useCallback. Since renderPanel requires ReactNode and inlines JSX, it cannot be recreated with only entries dependency. Instead, useCallback is used for renderSummaryCostsOtherPanel to properly handle the ReactNode return type.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "meeting-breakdown|meeting-summary"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "meeting-breakdown|meeting-summary",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "ghost-button"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "ghost-button",
+  "topFiles": [
+    {
+      "matchCount": 24,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 24
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+rg: regex parse error:
+    (?:\.meeting-card|\.meeting-table[^-)
+                                     ^^^
+error: unclosed character class
+
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I'll add CSS after the `.meeting-card-header` block around line 2647.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "buildOtherCostBucketExpenseTooltipText"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit",
+  "pattern": "buildOtherCostBucketExpenseTooltipText",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 3,
+      "uri": ".specstory/history/2026-04-21_08-32-20Z-delete-button-styling-adjustment.md"
+    }
+  ],
+  "totalFiles": 2,
+  "totalMatches": 4
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Implement the complete replacement for the MonthlyMeetingPage block and card props. The useEffect dependency on activeMonth needs to be moved after activeMonth is defined in the code. The useState for otherCostExpenseBreakdownExpandedIndex should be placed near other state declarations (around line 1849), and the useEffect should come after activeMonth is defined (after line 2580). This ensures proper dependency handling and code organization. The state should be placed next to expensePageStorageRev, and the useEffect must come after `activeMonth` is in scope. Replace lines 2615-2649 with new logic that includes:
+
+- useEffect after destructuring activeMonth:
+  ```
+  useEffect(() => {
+    setOtherCostExpenseBreakdownExpandedIndex(null)
+  }, [activeMonth])
+  ```
+
+- Add useMemo/callback/useEffect block after computedCurrentMonthCosts:
+  ```
+  const computedCurrentMonthCosts = useMemo(...)
+
+  const otherCostBucketExpenseEntriesForPanel = useMemo(() => {
+    if (!isStorageReady) return []
+  ```</details></think>
+
+_**Agent (default)**_
+
+`buildOtherCostBucketExpenseTooltipText` 참조 제거, 클릭 펼치기 패널과 스타일 연결 중입니다.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Fix the overflow message: ` ${currencyFormatter.`</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/parkcg/The\ Symbol_Edit/app && npm run build</summary>
+
+```bash
+cd /Users/parkcg/The\ Symbol_Edit/app && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 652 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-BDNEtpI8.css    160.35 kB │ gzip:  26.74 kB
+dist/assets/index-GPMAT7J0.js   2,659.52 kB │ gzip: 755.45 kB
+
+✓ built in 466ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints">
+<details>
+<summary>Tool use: **read_lints**</summary>
+
+
+Parameters:
+
+```json
+{
+  "paths": [
+    "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx"
+  ]
+}
+```
+Result:
+
+```json
+{
+  "linterErrorsByFile": [
+    {
+      "relativeWorkspacePath": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx"
+    }
+  ]
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="read_lints"><details>
+<summary>Tool use: **read_lints**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+작업 반영했습니다. 브라우저 `title` 기본 툴팁은 빼고, **보기 모드**에서 「그 외 비용」행만 **「내역 보기」/「내역 닫기」**로 펼치는 인앱 패널로 바꿨습니다.
+
+### 동작 요약
+- **편집 모드**에서는 예전처럼 라벨만 보이고, 토글은 없음.
+- 항목이 나오면 **금액 큰 순**으로 최대 **30건**까지 표시하고, 그보다 많으면 **「외 N건」** 안내.
+
+### 수정 파일
+- `MonthlyMeetingPage.tsx`: `gatherOtherCostBucketExpenseEntries`로 목록 만들기 + 월 변경 시 패널 접기 + `MeetingSummaryValueCard`에 `rowExpandablePopover`.
+- `App.css`: 카드와 맞춘 패널·토글·리스트 스타일.
+
+`npm run build`까지 통과했습니다.
+
+---
+
+_**User**_
+
+내역보기 버튼 너무 커 칸 세로 크기에 맞게 조정해줘
+
+---
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "meeting-breakdown-toggle|meeting-summary-label"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "meeting-breakdown-toggle|meeting-summary-label",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "meeting-table|meeting-cell-input|meeting-col-idx"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "meeting-table|meeting-cell-input|meeting-col-idx",
+  "topFiles": [
+    {
+      "matchCount": 29,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 29
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The summary table utilizes `meeting-table` with cell inputs featuring padding of approximately 5px 6px, or 7px 9px for non-compact regular meeting-cell-input.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/App.css</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The `.ghost-button` class has a `min-height: 36px` property that is overriding the intended padding styles. The `.meeting-breakdown-toggle` element needs `min-height: 0` or `min-height: calc(10.5px * 1.2 + 8px)` to match the input row height. 
+
+The `.meeting-table:not(.meeting-table-compact) .meeting-cell-input` has padding 5px 6px with font-size 11px, resulting in approximately 23px total height plus border.
+
+Selectors should target both `.meeting-breakdown-toggle` and `.ghost-button` classes. The `.meeting-breakdown-toggle.ghost-button` class requires higher specificity to override `min-height`. 
+
+Options include:
+- Setting `min-height: unset` and using `height: auto` with `padding: 2px 7px`, `font-size: 10.5px`, `line-height: 1.2`, `font-weight: 600`, `border-radius: 6px`, and `box-shadow: none`
+- Using `min-height: 22px` with `align-items: center` in flex layout
+
+Additionally, reduce the gap in the layout. The `.meeting-breakdown-toggle` element's `min-height` is being overridden by `.ghost-button` due to CSS file order, with `.ghost-button`</details></think>

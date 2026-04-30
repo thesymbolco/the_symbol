@@ -2646,6 +2646,142 @@ button.statement-bulk-custom-add {
   border-bottom: 1px solid rgba(219, 229, 241, 0.9);
 }
 
+.meeting-summary-label-with-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 0;
+}
+
+.meeting-summary-label-text {
+  min-width: 0;
+  line-height: 1.2;
+  font-size: inherit;
+}
+
+.meeting-breakdown-toggle {
+  flex-shrink: 0;
+  appearance: none;
+  margin: 0;
+  cursor: pointer;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0;
+  padding: 1px 6px;
+  min-height: 0;
+  color: #1d4ed8;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #cfe0f8;
+  border-radius: 5px;
+  box-shadow: none;
+  white-space: nowrap;
+  vertical-align: middle;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.meeting-breakdown-toggle:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+
+.meeting-breakdown-toggle:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 1px;
+}
+
+.meeting-breakdown-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.meeting-summary-expand-row .meeting-summary-expand-cell {
+  padding: 0 8px 10px;
+  border: none;
+  background: transparent;
+  vertical-align: top;
+}
+
+.meeting-breakdown-panel {
+  margin: 0 0 2px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.meeting-breakdown-caption,
+.meeting-breakdown-empty {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.meeting-breakdown-empty {
+  margin-bottom: 0;
+}
+
+.meeting-breakdown-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.meeting-breakdown-item {
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.meeting-breakdown-item-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.meeting-breakdown-headline {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.4;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.meeting-breakdown-amount {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+}
+
+.meeting-breakdown-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.meeting-breakdown-overflow {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
 .inventory-roasting-summary-actions {
   display: inline-flex;
   align-items: center;

@@ -1,4 +1,4 @@
-import type { FocusEvent } from 'react'
+import type { FocusEvent, ReactNode } from 'react'
 import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   CartesianGrid,
@@ -428,6 +428,14 @@ const MeetingSummaryValueCard = (props: {
   shouldShowRemoveRowButton?: (r: MeetingValueRow) => boolean
   /** 금액 입력 툴팁(자동 집계 안내 등) */
   amountInputTitle?: (r: MeetingValueRow) => string | undefined
+  /** 특정 행 클릭 펼치기 패널(예: 그 외 비용 지출 내역) · 보기 모드에서만 */
+  rowExpandablePopover?: {
+    expandedRowIndex: number | null
+    onExpandedChange: (index: number | null) => void
+    matchesRow: (row: MeetingValueRow, rowIndex: number) => boolean
+    renderPanel: (row: MeetingValueRow, rowIndex: number) => ReactNode
+    toggleLabels?: { expand: string; collapse: string }
+  }
   onAddRow: () => void
   onLabelChange: (rowIndex: number, value: string) => void
   onValueChange: (rowIndex: number, value: string) => void
@@ -444,6 +452,7 @@ const MeetingSummaryValueCard = (props: {
     isAmountReadonly,
     shouldShowRemoveRowButton,
     amountInputTitle,
+    rowExpandablePopover,
     onAddRow,
     onLabelChange,
     onValueChange,
@@ -471,56 +480,94 @@ const MeetingSummaryValueCard = (props: {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, rowIndex) => (
-            <tr key={`${tableId}-${rowIndex}`}>
-              <td className="meeting-col-idx" title="자동">
-                {meetingValueRowIndexText(rows, rowIndex, indexKind)}
-              </td>
-              <td>
-                {editMode ? (
-                  <div className="meeting-header-edit-row">
+          {rows.map((row, rowIndex) => {
+            const expandable =
+              rowExpandablePopover && !editMode && rowExpandablePopover.matchesRow(row, rowIndex)
+            const fullColSpan = showShareColumn ? 4 : 3
+            const expandLabels = rowExpandablePopover?.toggleLabels ?? {
+              expand: '내역 보기',
+              collapse: '내역 닫기',
+            }
+            const isExpanded =
+              expandable && rowExpandablePopover!.expandedRowIndex === rowIndex
+            return (
+              <Fragment key={`${tableId}-${rowIndex}`}>
+                <tr>
+                  <td className="meeting-col-idx" title="자동">
+                    {meetingValueRowIndexText(rows, rowIndex, indexKind)}
+                  </td>
+                  <td>
+                    {editMode ? (
+                      <div className="meeting-header-edit-row">
+                        <input
+                          className="meeting-header-input"
+                          type="text"
+                          value={row.label}
+                          onChange={(event) => onLabelChange(rowIndex, event.target.value)}
+                        />
+                        {rowCanRemove(row) ? (
+                          <button type="button" className="meeting-icon-button" onClick={() => onRemoveRow(rowIndex)}>
+                            -
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : expandable ? (
+                      <div className="meeting-summary-label-with-toggle">
+                        <span className="meeting-summary-label-text">{row.label}</span>
+                        <button
+                          type="button"
+                          className="meeting-breakdown-toggle"
+                          onClick={() =>
+                            rowExpandablePopover!.onExpandedChange(
+                              rowExpandablePopover.expandedRowIndex === rowIndex ? null : rowIndex,
+                            )
+                          }
+                          aria-expanded={Boolean(isExpanded)}
+                        >
+                          {isExpanded ? expandLabels.collapse : expandLabels.expand}
+                        </button>
+                      </div>
+                    ) : (
+                      row.label
+                    )}
+                  </td>
+                  <td>
                     <input
-                      className="meeting-header-input"
+                      className={
+                        isAmountReadonly(row) ? 'meeting-cell-input meeting-cell-input-readonly' : 'meeting-cell-input'
+                      }
                       type="text"
-                      value={row.label}
-                      onChange={(event) => onLabelChange(rowIndex, event.target.value)}
+                      inputMode="numeric"
+                      value={formatAmountForInput(row.amount)}
+                      readOnly={isAmountReadonly(row)}
+                      title={amountInputTitle?.(row)}
+                      onChange={(event) => onValueChange(rowIndex, event.target.value)}
                     />
-                    {rowCanRemove(row) ? (
-                      <button type="button" className="meeting-icon-button" onClick={() => onRemoveRow(rowIndex)}>
-                        -
-                      </button>
-                    ) : null}
-                  </div>
-                ) : (
-                  row.label
-                )}
-              </td>
-              <td>
-                <input
-                  className={
-                    isAmountReadonly(row) ? 'meeting-cell-input meeting-cell-input-readonly' : 'meeting-cell-input'
-                  }
-                  type="text"
-                  inputMode="numeric"
-                  value={formatAmountForInput(row.amount)}
-                  readOnly={isAmountReadonly(row)}
-                  title={amountInputTitle?.(row)}
-                  onChange={(event) => onValueChange(rowIndex, event.target.value)}
-                />
-              </td>
-              {showShareColumn ? (
-                <td>
-                  <input
-                    className="meeting-cell-input meeting-cell-input-readonly"
-                    type="text"
-                    inputMode="decimal"
-                    value={formatSharePercent(row.share)}
-                    readOnly
-                  />
-                </td>
-              ) : null}
-            </tr>
-          ))}
+                  </td>
+                  {showShareColumn ? (
+                    <td>
+                      <input
+                        className="meeting-cell-input meeting-cell-input-readonly"
+                        type="text"
+                        inputMode="decimal"
+                        value={formatSharePercent(row.share)}
+                        readOnly
+                      />
+                    </td>
+                  ) : null}
+                </tr>
+                {expandable && isExpanded ? (
+                  <tr className="meeting-summary-expand-row">
+                    <td className="meeting-summary-expand-cell" colSpan={fullColSpan}>
+                      <div className="meeting-breakdown-panel" role="region" aria-live="polite">
+                        {rowExpandablePopover!.renderPanel(row, rowIndex)}
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            )
+          })}
         </tbody>
       </table>
     </article>
@@ -883,6 +930,65 @@ const expenseCategoryToMeetingCostBucketKey = (cat: string): string => {
     return '②운영경비'
   }
   return '②기타'
+}
+
+const OTHER_COST_BUCKET_PANEL_MAX_ENTRIES = 30
+
+type OtherCostBucketExpenseEntry = {
+  headline: string
+  metaLabel: string
+  amount: number
+}
+
+/** 「그 외 비용」(②기타)에 집계된 지출표 행 목록 · 패널·정렬 재사용 */
+function gatherOtherCostBucketExpenseEntries(
+  records: ExpenseRecord[],
+  ym: string,
+): OtherCostBucketExpenseEntry[] {
+  const prefix = ym.trim()
+  if (!/^\d{4}-\d{2}$/.test(prefix)) {
+    return []
+  }
+
+  const gathered: OtherCostBucketExpenseEntry[] = []
+  for (const r of records) {
+    const ds = typeof r.expenseDate === 'string' ? r.expenseDate.trim() : ''
+    if (!ds.startsWith(prefix)) {
+      continue
+    }
+    const amt = typeof r.totalAmount === 'number' && Number.isFinite(r.totalAmount) ? r.totalAmount : 0
+    if (amt <= 0) {
+      continue
+    }
+    const resolved = resolveExpenseCategoryForMeetingBucket(r).trim() || '미분류'
+    if (expenseCategoryToMeetingCostBucketKey(resolved) !== '②기타') {
+      continue
+    }
+    const vendor = (r.vendorName ?? '').trim()
+    const detail = (r.detail ?? '').trim()
+    let headline =
+      vendor && detail ? `${vendor} · ${detail}` : vendor || detail || '(거래처·세부항목 미입력)'
+    if (headline.length > 90) {
+      headline = `${headline.slice(0, 87)}…`
+    }
+    const cat = (r.category ?? '').trim()
+    const purpose = (r.purpose ?? '').trim()
+    const metaParts: string[] = []
+    if (cat.length > 0) {
+      metaParts.push(cat)
+    }
+    if (purpose.length > 0 && purpose !== cat) {
+      metaParts.push(`용도: ${purpose}`)
+    }
+    const metaLabel = metaParts.join(' · ')
+    gathered.push({
+      headline,
+      metaLabel,
+      amount: amt,
+    })
+  }
+  gathered.sort((a, b) => b.amount - a.amount)
+  return gathered
 }
 
 const MEETING_COST_BUCKET_LABEL_FALLBACK: Record<string, string> = {
@@ -1741,6 +1847,9 @@ function MonthlyMeetingPage() {
   const [greenBeanOrderStorageRev, setGreenBeanOrderStorageRev] = useState(0)
   const [statementRecordsStorageRev, setStatementRecordsStorageRev] = useState(0)
   const [expensePageStorageRev, setExpensePageStorageRev] = useState(0)
+  const [otherCostExpenseBreakdownExpandedIndex, setOtherCostExpenseBreakdownExpandedIndex] = useState<
+    number | null
+  >(null)
   const [outboundShareChartOpen, setOutboundShareChartOpen] = useState(true)
   const [outboundPieHoveredSliceIndex, setOutboundPieHoveredSliceIndex] = useState<number | null>(null)
   /** 출고·재고 세부 표는 모달에서만 표시 */
@@ -2505,6 +2614,73 @@ function MonthlyMeetingPage() {
     () => computeCurrentMonthCosts(activeMonthState.currentMonthCosts),
     [activeMonthState.currentMonthCosts],
   )
+
+  const otherCostBucketExpenseEntriesForPanel = useMemo(() => {
+    if (!isStorageReady) {
+      return []
+    }
+    const { records } = readExpensePageStateFromStorage()
+    const ym = meetingMonthLabelToExpenseYm(activeMonth, records)
+    if (!ym) {
+      return []
+    }
+    return gatherOtherCostBucketExpenseEntries(records, ym)
+  }, [activeMonth, expensePageStorageRev, isStorageReady])
+
+  useEffect(() => {
+    setOtherCostExpenseBreakdownExpandedIndex(null)
+  }, [activeMonth])
+
+  const renderSummaryCostsOtherPanel = useCallback((): ReactNode => {
+    const entries = otherCostBucketExpenseEntriesForPanel
+    if (entries.length === 0) {
+      return (
+        <p className="meeting-breakdown-empty">
+          이 달에 「그 외 비용」(②기타)으로 집계된 지출표 내역이 없습니다. 지출표에서 해당 월 거래와 분류를 확인해
+          주세요.
+        </p>
+      )
+    }
+    const visible = entries.slice(0, OTHER_COST_BUCKET_PANEL_MAX_ENTRIES)
+    const overflow = entries.length - visible.length
+    return (
+      <>
+        <p className="meeting-breakdown-caption">
+          지출표에서 카테고리가 「미분류」이거나 다른 분류 줄에 매핑되지 않아 「그 외 비용」(②기타)으로 들어간 항목입니다.
+          금액 큰 순입니다.
+        </p>
+        <ul className="meeting-breakdown-list">
+          {visible.map((e, idx) => (
+            <li key={`${e.headline}-${idx}`} className="meeting-breakdown-item">
+              <div className="meeting-breakdown-item-row">
+                <span className="meeting-breakdown-headline">{e.headline}</span>
+                <span className="meeting-breakdown-amount">{formatMoney(e.amount)}</span>
+              </div>
+              {e.metaLabel ? <div className="meeting-breakdown-meta">{e.metaLabel}</div> : null}
+            </li>
+          ))}
+        </ul>
+        {overflow > 0 ? (
+          <p className="meeting-breakdown-overflow">외 {overflow}건 — 지출표에서 전체를 확인할 수 있습니다.</p>
+        ) : null}
+      </>
+    )
+  }, [otherCostBucketExpenseEntriesForPanel])
+
+  const summaryCostsExpandablePopover = useMemo(
+    () => ({
+      expandedRowIndex: otherCostExpenseBreakdownExpandedIndex,
+      onExpandedChange: setOtherCostExpenseBreakdownExpandedIndex,
+      matchesRow: (row: MeetingValueRow) => resolvedStandardExpenseBucketKey(row) === '②기타',
+      toggleLabels: { expand: '내역 보기', collapse: '내역 닫기' } as const,
+      renderPanel: (_row: MeetingValueRow, _rowIndex: number) => renderSummaryCostsOtherPanel(),
+    }),
+    [otherCostExpenseBreakdownExpandedIndex, renderSummaryCostsOtherPanel],
+  )
+
+  const summaryCostsAmountInputTitle = useCallback((row: MeetingValueRow): string | undefined => {
+    return expenseSyncedMeetingCostAmountHint(row)
+  }, [])
 
   const computedRoastingSales = useMemo(
     () => computeRoastingSales(data.roastingSales),
@@ -3516,7 +3692,8 @@ function MonthlyMeetingPage() {
               indexKind="costs"
               isAmountReadonly={(row) => isCostGrandRow(row) || isExpenseSheetFedCostAmountRow(row)}
               shouldShowRemoveRowButton={(row) => !isCostGrandRow(row)}
-              amountInputTitle={expenseSyncedMeetingCostAmountHint}
+              rowExpandablePopover={summaryCostsExpandablePopover}
+              amountInputTitle={summaryCostsAmountInputTitle}
               onAddRow={() => addMonthStateRow('currentMonthCosts', '새 비용 항목')}
               onLabelChange={(i, v) => updateMonthStateLabel('currentMonthCosts', i, v)}
               onValueChange={(i, v) => updateValueRow('currentMonthCosts', i, v)}
