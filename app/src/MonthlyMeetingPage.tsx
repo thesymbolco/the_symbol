@@ -1240,13 +1240,14 @@ const parseMeetingStatementDeliveryRecords = (): BeanStatementDeliveryRecord[] =
       const r = row as Record<string, unknown>
       const deliveryDate = typeof r.deliveryDate === 'string' ? r.deliveryDate : ''
       const itemName = typeof r.itemName === 'string' ? r.itemName : ''
+      const specUnit = typeof r.specUnit === 'string' ? r.specUnit : ''
       const clientName = typeof r.clientName === 'string' ? r.clientName : ''
       const qty = typeof r.quantity === 'number' && Number.isFinite(r.quantity) ? r.quantity : 0
       const totalAmount = typeof r.totalAmount === 'number' && Number.isFinite(r.totalAmount) ? r.totalAmount : 0
       if (!deliveryDate || !itemName) {
         continue
       }
-      out.push({ deliveryDate, itemName, quantity: qty, totalAmount, clientName })
+      out.push({ deliveryDate, itemName, specUnit, quantity: qty, totalAmount, clientName })
     }
     return out
   } catch {

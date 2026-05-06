@@ -1455,7 +1455,8 @@ function App() {
     note: '부가세 별도',
     isCashHandled: false,
   })
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7))
+  /** 카드·캘린더·목록(month) 표시 공통: 납품일 `YYYY-MM` */
+  const [recordsScopeYm, setRecordsScopeYm] = useState(() => new Date().toISOString().slice(0, 7))
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [statementEntryModalOpen, setStatementEntryModalOpen] = useState(false)
   const [bulkItemPickerOpen, setBulkItemPickerOpen] = useState(false)
@@ -1690,6 +1691,21 @@ function App() {
       setStatementEntryModalOpen(false)
     }
   }, [activePage])
+
+  useEffect(() => {
+    setRecordsScopeYm((prev) => {
+      const m = prev.slice(5, 7)
+      const mm = /^\d{2}$/.test(m) ? m : '01'
+      return `${selectedYear}-${mm}`
+    })
+  }, [selectedYear])
+
+  useEffect(() => {
+    const y = recordsScopeYm.slice(0, 4)
+    if (/^\d{4}$/.test(y) && y !== selectedYear) {
+      setSelectedYear(y)
+    }
+  }, [recordsScopeYm, selectedYear])
 
   useEffect(() => {
     if (!statementEntryModalOpen) {
@@ -2246,7 +2262,6 @@ function App() {
     const startOfWeek = new Date(today)
     startOfWeek.setDate(today.getDate() - 6)
     const startOfWeekIso = startOfWeek.toISOString().slice(0, 10)
-    const currentMonth = todayIso.slice(0, 7)
     const query = recordsSearchQuery.trim().toLowerCase()
     const seqById = statementDeliveryMonthSeqById
 
@@ -2254,7 +2269,7 @@ function App() {
       if (recordsRangeFilter === 'year' && !record.deliveryDate.startsWith(selectedYear)) {
         return false
       }
-      if (recordsRangeFilter === 'month' && !record.deliveryDate.startsWith(currentMonth)) {
+      if (recordsRangeFilter === 'month' && !record.deliveryDate.startsWith(recordsScopeYm)) {
         return false
       }
       if (recordsRangeFilter === 'week' && record.deliveryDate < startOfWeekIso) {
@@ -2287,7 +2302,16 @@ function App() {
       }
       return dir * a.clientName.localeCompare(b.clientName, 'ko')
     })
-  }, [statementPreviewRecords, recordsRangeFilter, recordsNoteFilter, recordsSearchQuery, selectedYear, statementSort, statementDeliveryMonthSeqById])
+  }, [
+    statementPreviewRecords,
+    recordsRangeFilter,
+    recordsNoteFilter,
+    recordsSearchQuery,
+    selectedYear,
+    recordsScopeYm,
+    statementSort,
+    statementDeliveryMonthSeqById,
+  ])
 
   const visibleTotals = useMemo(() => {
     return visibleRecords.reduce(
@@ -2316,7 +2340,7 @@ function App() {
     if (!clientKey) {
       return null
     }
-    const currentMonth = new Date().toISOString().slice(0, 7)
+    const scopeYm = recordsScopeYm
     let count = 0
     let totalAmount = 0
     let quantity = 0
@@ -2325,17 +2349,17 @@ function App() {
       if (normalizeName(record.clientName) !== clientKey) {
         return
       }
-      if (!lastDeliveryDate || record.deliveryDate > lastDeliveryDate) {
-        lastDeliveryDate = record.deliveryDate
-      }
-      if (record.deliveryDate.startsWith(currentMonth)) {
+      if (record.deliveryDate.startsWith(scopeYm)) {
         count += 1
         totalAmount += record.totalAmount
         quantity += record.quantity
+        if (!lastDeliveryDate || record.deliveryDate > lastDeliveryDate) {
+          lastDeliveryDate = record.deliveryDate
+        }
       }
     })
-    return { count, totalAmount, quantity, lastDeliveryDate, currentMonth }
-  }, [form.clientName, records])
+    return { count, totalAmount, quantity, lastDeliveryDate, scopeYm }
+  }, [form.clientName, records, recordsScopeYm])
 
   const duplicateCandidate = useMemo(() => {
     const clientKey = normalizeName(form.clientName)
@@ -2362,11 +2386,16 @@ function App() {
         totalAmount: number
         count: number
         lastDeliveryDate: string
-        monthAmount: number
       }
     >()
-    const currentMonth = new Date().toISOString().slice(0, 7)
+    const scopeYm = recordsScopeYm.trim()
+    if (!/^\d{4}-\d{2}$/.test(scopeYm)) {
+      return []
+    }
     statementPreviewRecords.forEach((record) => {
+      if (!record.deliveryDate.startsWith(scopeYm)) {
+        return
+      }
       const baseClientName = record.clientName.trim()
       const cardClientName = record.isCashHandled
         ? `${baseClientName || '미지정'}-${CASH_CLIENT_LABEL}`
@@ -2379,20 +2408,16 @@ function App() {
         totalAmount: 0,
         count: 0,
         lastDeliveryDate: '',
-        monthAmount: 0,
       }
       existing.totalAmount += record.totalAmount
       existing.count += 1
       if (!existing.lastDeliveryDate || record.deliveryDate > existing.lastDeliveryDate) {
         existing.lastDeliveryDate = record.deliveryDate
       }
-      if (record.deliveryDate.startsWith(currentMonth)) {
-        existing.monthAmount += record.totalAmount
-      }
       grouped.set(key, existing)
     })
     return Array.from(grouped.values()).sort((a, b) => b.totalAmount - a.totalAmount)
-  }, [statementPreviewRecords])
+  }, [statementPreviewRecords, recordsScopeYm])
 
   const regularClientCards = useMemo(
     () => clientCardStats.filter((card) => !card.isCashHandled),
@@ -2405,8 +2430,8 @@ function App() {
   )
 
   const cardTaxIssueDateByClientName = useMemo(() => {
-    const ym = new Date().toISOString().slice(0, 7)
-    const [year, monthRaw] = ym.split('-')
+    const scopeYm = recordsScopeYm.trim()
+    const [year, monthRaw] = scopeYm.split('-')
     const monthIndex = Number(monthRaw) - 1
     if (!year || monthIndex < 0 || monthIndex > 11) {
       return new Map<string, string>()
@@ -2423,12 +2448,12 @@ function App() {
       }
     })
     return out
-  }, [clientCardStats, monthlyDateOverrides])
+  }, [clientCardStats, monthlyDateOverrides, recordsScopeYm])
 
   const calendarEntries = useMemo(() => {
     const map = new Map<string, { count: number; totalAmount: number; records: StatementRecord[] }>()
     statementPreviewRecords.forEach((record) => {
-      if (!record.deliveryDate.startsWith(calendarMonth)) {
+      if (!record.deliveryDate.startsWith(recordsScopeYm)) {
         return
       }
       const existing = map.get(record.deliveryDate) ?? {
@@ -2442,7 +2467,7 @@ function App() {
       map.set(record.deliveryDate, existing)
     })
     return map
-  }, [statementPreviewRecords, calendarMonth])
+  }, [statementPreviewRecords, recordsScopeYm])
 
   const totalSupplyAmount = useMemo(
     () => statementPreviewRecords.reduce((sum, record) => sum + record.supplyAmount, 0),
@@ -3575,6 +3600,7 @@ function App() {
   }
 
   const handleFilterByClient = (clientName: string) => {
+    setRecordsRangeFilter('month')
     setRecordsSearchQuery(clientName === CASH_CLIENT_LABEL ? CASH_CLIENT_LABEL : clientName)
     setActiveView('records')
   }
@@ -3656,7 +3682,7 @@ function App() {
   }
 
   const handleCalendarShiftMonth = (delta: number) => {
-    setCalendarMonth((current) => {
+    setRecordsScopeYm((current) => {
       const [year, month] = current.split('-').map(Number)
       const date = new Date(year, (month || 1) - 1 + delta, 1)
       const nextYear = date.getFullYear()
@@ -4166,6 +4192,22 @@ function App() {
                   </option>
                 ))}
               </select>
+              <select
+                aria-label="납품 월 선택"
+                className="statements-records-month-select"
+                value={Number(recordsScopeYm.slice(5, 7)) || 1}
+                onChange={(event) =>
+                  setRecordsScopeYm(
+                    `${selectedYear}-${String(Number(event.target.value)).padStart(2, '0')}`,
+                  )
+                }
+              >
+                {MONTH_LABELS.map((label, i) => (
+                  <option key={label} value={i + 1}>
+                    {label}
+                  </option>
+                ))}
+              </select>
               {activeView === 'summary' ? (
                 <button
                   type="button"
@@ -4528,20 +4570,25 @@ function App() {
           ) : activeView === 'cards' ? (
             <div className="statements-cards-viewport">
               {clientCardStats.length === 0 ? (
-                <p className="empty-state">아직 저장된 거래처가 없습니다.</p>
+                <p className="empty-state">
+                  {recordsScopeYm.replace('-', '.')} 납품 기록에 해당하는 거래처가 없습니다.
+                </p>
               ) : (
                 <>
                   {regularClientCards.length > 0 ? (
                     <section className="statements-cards-section">
                       <h4 className="statements-cards-section-title">거래처 카드</h4>
                       <div className="statements-cards-grid">
-                        {regularClientCards.map((card) => (
+                        {regularClientCards.map((card) => {
+                          const taxIssueRaw = cardTaxIssueDateByClientName.get(card.clientName) ?? ''
+                          const hasTaxIssueDate = Boolean(taxIssueRaw.trim())
+                          return (
                           <button
                             key={card.clientName}
                             type="button"
-                            className="statements-client-card"
+                            className={`statements-client-card${hasTaxIssueDate ? ' statements-client-card--tax-issued' : ''}`}
                             onClick={() => handleFilterByClient(card.clientName)}
-                            title="입력 목록에서 이 거래처만 필터링"
+                            title={`${recordsScopeYm.replace('-', '.')} · 입력 목록에서 이 거래처만 표시`}
                           >
                             <div className="statements-client-card-head">
                               <strong>{card.clientName}</strong>
@@ -4551,16 +4598,24 @@ function App() {
                               {formatCurrency(card.totalAmount)}원
                             </div>
                             <dl className="statements-client-card-meta">
-                              <div>
-                                <dt>이번달</dt>
-                                <dd>{formatCurrency(card.monthAmount)}원</dd>
-                              </div>
-                              <div>
+                              <div
+                                className={`statements-client-card-meta-issue${hasTaxIssueDate ? ' is-issued' : ' is-pending'}`}
+                                aria-label={
+                                  hasTaxIssueDate
+                                    ? `세금계산서 발행일 ${formatDateLabel(taxIssueRaw)}`
+                                    : '세금계산서 발행일 미입력'
+                                }
+                              >
                                 <dt>발행일자</dt>
                                 <dd>
-                                  {cardTaxIssueDateByClientName.get(card.clientName)
-                                    ? formatDateLabel(cardTaxIssueDateByClientName.get(card.clientName)!)
-                                    : '—'}
+                                  <span className="statements-client-card-issue-date">
+                                    {hasTaxIssueDate ? formatDateLabel(taxIssueRaw) : '—'}
+                                  </span>
+                                  <span
+                                    className={`statements-client-card-issue-badge${hasTaxIssueDate ? ' is-issued' : ' is-pending'}`}
+                                  >
+                                    {hasTaxIssueDate ? '세금발행' : '미발행'}
+                                  </span>
                                 </dd>
                               </div>
                               <div>
@@ -4571,7 +4626,8 @@ function App() {
                               </div>
                             </dl>
                           </button>
-                        ))}
+                          )
+                        })}
                       </div>
                     </section>
                   ) : null}
@@ -4579,13 +4635,16 @@ function App() {
                     <section className="statements-cards-section statements-cards-section-cash">
                       <h4 className="statements-cards-section-title">현금 카드</h4>
                       <div className="statements-cards-grid">
-                        {cashClientCards.map((card) => (
+                        {cashClientCards.map((card) => {
+                          const taxIssueRaw = cardTaxIssueDateByClientName.get(card.clientName) ?? ''
+                          const hasTaxIssueDate = Boolean(taxIssueRaw.trim())
+                          return (
                           <button
                             key={card.clientName}
                             type="button"
-                            className="statements-client-card statements-client-card-cash"
+                            className={`statements-client-card statements-client-card-cash${hasTaxIssueDate ? ' statements-client-card--tax-issued' : ''}`}
                             onClick={() => handleFilterByClient(card.clientName)}
-                            title="입력 목록에서 이 현금 거래처만 필터링"
+                            title={`${recordsScopeYm.replace('-', '.')} · 입력 목록에서 이 현금 거래처만 표시`}
                           >
                             <div className="statements-client-card-head">
                               <strong>{card.clientName}</strong>
@@ -4595,16 +4654,24 @@ function App() {
                               {formatCurrency(card.totalAmount)}원
                             </div>
                             <dl className="statements-client-card-meta">
-                              <div>
-                                <dt>이번달</dt>
-                                <dd>{formatCurrency(card.monthAmount)}원</dd>
-                              </div>
-                              <div>
+                              <div
+                                className={`statements-client-card-meta-issue${hasTaxIssueDate ? ' is-issued' : ' is-pending'}`}
+                                aria-label={
+                                  hasTaxIssueDate
+                                    ? `세금계산서 발행일 ${formatDateLabel(taxIssueRaw)}`
+                                    : '세금계산서 발행일 미입력'
+                                }
+                              >
                                 <dt>발행일자</dt>
                                 <dd>
-                                  {cardTaxIssueDateByClientName.get(card.clientName)
-                                    ? formatDateLabel(cardTaxIssueDateByClientName.get(card.clientName)!)
-                                    : '—'}
+                                  <span className="statements-client-card-issue-date">
+                                    {hasTaxIssueDate ? formatDateLabel(taxIssueRaw) : '—'}
+                                  </span>
+                                  <span
+                                    className={`statements-client-card-issue-badge${hasTaxIssueDate ? ' is-issued' : ' is-pending'}`}
+                                  >
+                                    {hasTaxIssueDate ? '세금발행' : '미발행'}
+                                  </span>
                                 </dd>
                               </div>
                               <div>
@@ -4615,7 +4682,8 @@ function App() {
                               </div>
                             </dl>
                           </button>
-                        ))}
+                          )
+                        })}
                       </div>
                     </section>
                   ) : null}
@@ -4632,7 +4700,7 @@ function App() {
                 >
                   ◀
                 </button>
-                <strong>{calendarMonth.replace('-', '.')}</strong>
+                <strong>{recordsScopeYm.replace('-', '.')}</strong>
                 <button
                   type="button"
                   className="ghost-button"
@@ -4644,14 +4712,14 @@ function App() {
                   type="button"
                   className="ghost-button"
                   onClick={() =>
-                    setCalendarMonth(new Date().toISOString().slice(0, 7))
+                    setRecordsScopeYm(new Date().toISOString().slice(0, 7))
                   }
                 >
                   이번달
                 </button>
               </div>
               {(() => {
-                const [cy, cm] = calendarMonth.split('-').map(Number)
+                const [cy, cm] = recordsScopeYm.split('-').map(Number)
                 const firstDay = new Date(cy, (cm || 1) - 1, 1)
                 const daysInMonth = new Date(cy, cm || 1, 0).getDate()
                 const leadingBlanks = firstDay.getDay()
@@ -5506,7 +5574,7 @@ function App() {
             {clientMonthSnapshot && clientMonthSnapshot.count > 0 ? (
               <div className="statement-client-snapshot" role="status">
                 <span className="statement-client-snapshot-title">
-                  {form.clientName} · {clientMonthSnapshot.currentMonth.replace('-', '.')} 월 요약
+                  {form.clientName} · {clientMonthSnapshot.scopeYm.replace('-', '.')} 월 요약
                 </span>
                 <span className="statement-client-snapshot-pill">{clientMonthSnapshot.count}건</span>
                 <span className="statement-client-snapshot-pill">

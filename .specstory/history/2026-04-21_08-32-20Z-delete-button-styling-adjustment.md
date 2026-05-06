@@ -76548,7 +76548,239 @@ _**Agent (default)**_
 
 <details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
 
-Status: **loading**
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.29 kB
+dist/assets/index-DteC1emq.css    162.78 kB │ gzip:  27.11 kB
+dist/assets/index-BYgOMnWg.js   2,673.88 kB │ gzip: 759.45 kB
+
+✓ built in 458ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+적용했습니다. 중복 계산되는 구간만 제거되도록 바꿨습니다.
+
+변경 기준:
+- `출금액 요약` 계산 시,
+- 로스팅실 `생두비용` 값이 있어도
+- 비용현황에 이미 아래 항목이 **0보다 큰 금액으로 존재하면**
+  - `①재료비`
+  - `재료비(매출·생두)` (`①매출별생두재료`)
+- `로스팅실 생두비용`을 별도 출금으로 **추가하지 않도록** 처리했습니다.
+
+즉, **재료비에 이미 반영된 달만** 로스팅실 생두비용 중복 가산을 막고,  
+그 외 달(재료비에 해당 금액이 없는 경우)은 기존처럼 별도 반영됩니다.
+
+수정 파일:
+- `app/src/MonthlyMeetingPage.tsx`
+
+빌드 통과했습니다.
+
+---
+
+_**User**_
+
+월 마감회의에서 재료비가 판매량 * 원두별 매출 분석페이지의 원두원가의 1KG 혹은 200G 값이 곱해져야하는데 잘못 곱해지고 있는거같은데 확인해볼래
+
+---
+
+_**Agent (default)**_
+
+좋은 포인트입니다. 지금 월 마감회의 재료비 계산 로직이 `kg/200g` 단위를 어떻게 처리하는지 코드 기준으로 바로 점검하고, 틀린 부분이면 바로 수정하겠습니다.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "quantity|specUnit|200|1/KG|kg|원가|roastedBeanCost200g|computeBeanSalesMaterialCostForYm"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx",
+  "pattern": "quantity|specUnit|200|1/KG|kg|원가|roastedBeanCost200g|computeBeanSalesMaterialCostForYm",
+  "topFiles": [
+    {
+      "matchCount": 44,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 44
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "parseMeetingStatementDeliveryRecords|quantity|spec|totalQuantityKg|computeBeanSalesMaterialCostForYm"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx",
+  "pattern": "parseMeetingStatementDeliveryRecords|quantity|spec|totalQuantityKg|computeBeanSalesMaterialCostForYm",
+  "topFiles": [
+    {
+      "matchCount": 12,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 12
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesRoastedCost.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/BeanSalesAnalysisPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+원인 찾았습니다. 월 마감회의 쪽은 현재 `quantity`를 그대로 kg로 취급하고 있고, 원가도 `원두원가(1kg/200g)`가 아니라 생두 원/kg 기준으로 계산하고 있었습니다.  
+요청하신 기준대로 맞추도록 **(1) 200g 수량 환산 + (2) 원두원가(로스팅 환산 1kg 원가) 기준 계산**으로 수정하겠습니다.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/beanSalesMeetingMaterialCost.ts</summary>
 
 </details>
 
@@ -76558,3 +76790,82 @@ Status: **loading**
 <summary>Tool use: **edit_file_v2**</summary>
 
 </details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/MonthlyMeetingPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npm run build</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npm run build
+```
+
+```
+
+&gt; app@0.0.0 build
+&gt; tsc -b &amp;&amp; vite build
+
+vite v8.0.3 building client environment for production...
+[2Ktransforming...✓ 653 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.45 kB │ gzip:   0.28 kB
+dist/assets/index-DteC1emq.css    162.78 kB │ gzip:  27.11 kB
+dist/assets/index-CS75lAcg.js   2,674.17 kB │ gzip: 759.57 kB
+
+✓ built in 495ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+확인해봤고, 말씀하신 부분 맞았습니다. 월 마감회의 재료비 계산이 기준과 달랐어요.
+
+수정한 내용:
+- `거래명세 quantity`를 그대로 kg로 보던 로직을 보정
+  - `specUnit`이 `200g` 계열이면 `quantity * 0.2kg`로 환산
+- 재료비 계산 단가를 생두 원/kg가 아니라  
+  **원두별 매출 분석에서 보여주는 1kg 원가 기준(로스팅 환산 원가)**으로 계산하도록 변경
+  - 결과적으로 `판매량(kg 환산) * 원두원가(1kg)` 형태
+  - 200g 상품도 동일 기준으로 일관되게 계산됨
+
+수정 파일:
+- `app/src/beanSalesMeetingMaterialCost.ts`
+- `app/src/MonthlyMeetingPage.tsx` (명세 파싱 시 `specUnit` 전달)
+
+빌드도 통과했습니다.
+
+원하면 다음으로, 원두별 매출 분석 페이지의 `원가액` 계산도 같은 기준으로 완전히 맞는지 교차 점검해서 동일 공식으로 맞춰드릴게요.
+
+---
+
+_**User**_
+
+그럼 밑에 표시되는 값도 바껴야겠지? 아직 원두원가가 표시가되는게 아니네

@@ -1655,7 +1655,8 @@ button.statement-bulk-custom-add {
   justify-content: flex-end;
 }
 
-.statements-records-panel-toolbar .statements-records-toolbar-actions select.statements-records-year-select {
+.statements-records-panel-toolbar .statements-records-toolbar-actions select.statements-records-year-select,
+.statements-records-panel-toolbar .statements-records-toolbar-actions select.statements-records-month-select {
   width: auto;
   flex: 0 0 auto;
   min-width: 4.75rem;
@@ -1665,6 +1666,11 @@ button.statement-bulk-custom-add {
   font-weight: 600;
   line-height: 1.3;
   border-radius: 9px;
+}
+
+.statements-records-panel-toolbar .statements-records-toolbar-actions select.statements-records-month-select {
+  min-width: 5rem;
+  max-width: 7rem;
 }
 
 .statements-records-panel-toolbar .statements-records-excel-btn {
@@ -2097,6 +2103,59 @@ button.statement-bulk-custom-add {
   color: #0f172a;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.statements-client-card--tax-issued {
+  border-color: #86efac;
+  box-shadow: inset 3px 0 0 0 #22c55e;
+}
+
+.statements-client-card-cash.statements-client-card--tax-issued {
+  border-color: #4ade80;
+}
+
+.statements-client-card-meta-issue dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  row-gap: 4px;
+  white-space: normal;
+}
+
+.statements-client-card-issue-date {
+  font-weight: 700;
+}
+
+.statements-client-card-meta-issue.is-issued .statements-client-card-issue-date {
+  color: #14532d;
+}
+
+.statements-client-card-issue-badge {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.statements-client-card-issue-badge.is-issued {
+  background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
+  border-color: #86efac;
+  color: #14532d;
+}
+
+.statements-client-card-issue-badge.is-pending {
+  background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%);
+  border-color: #fdba74;
+  color: #9a3412;
+}
+
+.statements-client-card-meta-issue.is-pending dt {
+  color: #f97316;
 }
 
 .statements-calendar-viewport {

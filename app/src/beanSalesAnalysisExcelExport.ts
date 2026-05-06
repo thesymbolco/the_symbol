@@ -44,6 +44,8 @@ export type BeanSalesClientLine = {
 
 export type BeanSalesAnalysisExcelInput = {
   year: number
+  /** 1–12, 거래명세 납품일 기준 월 */
+  month: number
   sortByLabel: string
   createdAt: Date
   summaryRows: BeanSalesExportSummaryRow[]
@@ -215,10 +217,13 @@ const applySheet = (ws: ExcelJS.Worksheet, matrix: (string | number)[][], varian
 
 const buildSummaryMatrix = (input: BeanSalesAnalysisExcelInput): (string | number)[][] => {
   const rows: (string | number)[][] = []
-  rows.push([`[원두별 매출 분석] ${input.year}년`])
+  rows.push([`[원두별 매출 분석] ${input.year}년 ${input.month}월`])
   const iso = input.createdAt.toISOString()
   const local = input.createdAt.toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' })
-  rows.push([`기준: 거래명세(납품일 ${input.year}년) / 입출고 생두`, `정렬: ${input.sortByLabel}`])
+  rows.push([
+    `기준: 거래명세(납품일 ${input.year}년 ${input.month}월) / 입출고 생두`,
+    `정렬: ${input.sortByLabel}`,
+  ])
   rows.push([`생성: ${local} (${iso.slice(0, 19)}Z)`, ''])
   rows.push(['—'])
   rows.push(['■ 매출 요약 (매출 0인 품목 제외)'])
@@ -265,7 +270,7 @@ const buildSummaryMatrix = (input: BeanSalesAnalysisExcelInput): (string | numbe
 
 const buildNotInMatrix = (input: BeanSalesAnalysisExcelInput): (string | number)[][] => {
   const rows: (string | number)[][] = []
-  rows.push([`[입고에 맞지 않은 품목] ${input.year}년`])
+  rows.push([`[입고에 맞지 않은 품목] ${input.year}년 ${input.month}월`])
   rows.push([`기준: 거래명세 품목만`, ``, ``, ``, ``])
   rows.push(['—'])
   rows.push(['■ 입고 N. 품목명이 없는 거래(매출 일부)'])
@@ -281,7 +286,7 @@ const buildNotInMatrix = (input: BeanSalesAnalysisExcelInput): (string | number)
 
 const buildClientMatrix = (input: BeanSalesAnalysisExcelInput): (string | number)[][] => {
   const rows: (string | number)[][] = []
-  rows.push([`[거래처별] ${input.year}년`])
+  rows.push([`[거래처별] ${input.year}년 ${input.month}월`])
   rows.push([`기준: 매출 요약 품목 → 거래처`, ``, ``, ``])
   rows.push(['—'])
   rows.push(['■ 품목·거래처별 수량·매출'])
@@ -319,6 +324,7 @@ export const exportStyledBeanSalesAnalysisExcel = async (input: BeanSalesAnalysi
 
   const buffer = await workbook.xlsx.writeBuffer()
   const y = input.year
+  const m = String(input.month).padStart(2, '0')
   const stamp = input.createdAt.toISOString().slice(0, 10)
-  downloadBufferAsFile(buffer as ArrayBuffer, `원두별매출_${y}년_${stamp}.xlsx`)
+  downloadBufferAsFile(buffer as ArrayBuffer, `원두별매출_${y}년${m}월_${stamp}.xlsx`)
 }

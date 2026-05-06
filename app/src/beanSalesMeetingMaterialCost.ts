@@ -5,11 +5,13 @@
 import { hasAnyStatementManualForItem } from './beanStatementManualMappings'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel, type MapStatementItemToInventoryOptions } from './beanSalesStatementMapping'
 import { getLatestGreenOrderWonPerKgByInventoryLabel, type BlendRecipeSnapshot } from './beanSalesGreenOrderUnitPrice'
+import { roastedBeanCost1KgFromGreenWonPerKg } from './beanSalesRoastedCost'
 import type { InventoryBeanRow, InventoryStatusState } from './inventoryStatusUtils'
 
 export type BeanStatementDeliveryRecord = {
   deliveryDate: string
   itemName: string
+  specUnit: string
   quantity: number
   totalAmount: number
   clientName: string
@@ -65,6 +67,32 @@ function blendRecipeSnapshotFromInventory(st: InventoryStatusState | null): Blen
   }
 }
 
+const normalizeSpecUnit = (value: string): string =>
+  value
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
+    .replace(/ML/g, 'ML')
+
+/** 거래명세 수량을 kg로 환산(1kg/200g 대응). 규격이 없으면 기존과 동일하게 quantity를 kg로 간주. */
+const statementQuantityToKg = (record: BeanStatementDeliveryRecord): number => {
+  const qty = typeof record.quantity === 'number' && Number.isFinite(record.quantity) ? Math.max(0, record.quantity) : 0
+  if (qty <= 0) {
+    return 0
+  }
+  const spec = normalizeSpecUnit(record.specUnit)
+  if (
+    spec === '200/G' ||
+    spec === '200G' ||
+    spec === '0.2/KG' ||
+    spec === '0.2KG' ||
+    spec === '1/5KG'
+  ) {
+    return qty * 0.2
+  }
+  return qty
+}
+
 /** 입출고 `beanRows` + 거래명세·생두 주문가로 월별 추정 재료 원가 라인 계산 */
 export function computeBeanSalesMaterialCostForYm(
   ym: string | null,
@@ -117,8 +145,7 @@ export function computeBeanSalesMaterialCostForYm(
     } else if (sortKey < acc.sortKey) {
       acc.sortKey = sortKey
     }
-    const q =
-      typeof record.quantity === 'number' && Number.isFinite(record.quantity) ? Math.max(0, record.quantity) : 0
+    const q = statementQuantityToKg(record)
     acc.totalQuantityKg += q
     const rev = typeof record.totalAmount === 'number' && Number.isFinite(record.totalAmount) ? record.totalAmount : 0
     acc.totalRevenueWon += rev
@@ -128,8 +155,9 @@ export function computeBeanSalesMaterialCostForYm(
     const g = latestGreenWonByLabel.get(row.beanLabel)
     const wonPerKg = g ? g.wonPerKg : null
     const greenOrderDateRef = g ? g.orderDate : null
+    const roastedCost1kg = wonPerKg != null ? roastedBeanCost1KgFromGreenWonPerKg(wonPerKg) : null
     const estimatedCostWon =
-      wonPerKg != null && row.totalQuantityKg > 0 ? Math.round(wonPerKg * row.totalQuantityKg) : null
+      roastedCost1kg != null && row.totalQuantityKg > 0 ? Math.round(roastedCost1kg * row.totalQuantityKg) : null
     return {
       beanLabel: row.beanLabel,
       sortKey: row.sortKey,

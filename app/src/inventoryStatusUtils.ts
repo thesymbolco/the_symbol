@@ -193,6 +193,34 @@ const formatLocalDate = (date: Date) => {
 /** 브라우저 로컬 기준 오늘 `YYYY-MM-DD` (기준일·실사일·요약 재고 열에 사용) */
 export const todayLocalIsoDateString = (): string => formatLocalDate(new Date())
 
+/** `YYYY-MM`에 대해 달력상 마지막 날 `YYYY-MM-DD` */
+export const lastCalendarDayIsoInMonth = (ym: string): string => {
+  const matched = ym.trim().match(/^(\d{4})-(\d{2})$/)
+  if (!matched) {
+    return `${ym.slice(0, 7)}-28`
+  }
+  const y = Number(matched[1])
+  const m = Number(matched[2])
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) {
+    return `${ym.slice(0, 7)}-28`
+  }
+  const d = new Date(y, m, 0)
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${matched[1]}-${matched[2]}-${day}`
+}
+
+/** `YYYY-MM` 달에 `add`개월을 더한 `YYYY-MM` */
+export const calendarYmPlusMonths = (ym: string, add: number): string => {
+  const matched = ym.trim().match(/^(\d{4})-(\d{2})$/)
+  if (!matched) {
+    return ym
+  }
+  const y = Number(matched[1])
+  const mo = Number(matched[2]) - 1 + add
+  const d = new Date(y, mo, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 const parseDateValue = (value: unknown): string => {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return formatLocalDate(value)

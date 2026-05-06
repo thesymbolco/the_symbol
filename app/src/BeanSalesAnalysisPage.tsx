@@ -15,6 +15,10 @@ import {
   writeStatementInventoryManuals,
   syncStatementInventoryManualsFromCloud,
 } from './beanStatementManualMappings'
+import {
+  filterStatementsByYmDelivery,
+  type BeanStatementDeliveryRecord,
+} from './beanSalesMeetingMaterialCost'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
 import { normalizeInventoryStatusState, withReferenceDateToday } from './inventoryStatusUtils'
 import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'
@@ -156,6 +160,7 @@ function BeanSalesAnalysisPage() {
     [mode, activeCompanyId],
   )
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().getMonth() + 1)
   const [viewMode, setViewMode] = useState<'revenue' | 'detailed'>('revenue')
   const [sortBy, setSortBy] = useState<'inventory' | 'revenue' | 'quantity'>('inventory')
   const [linkModalOpen, setLinkModalOpen] = useState(false)
@@ -416,9 +421,17 @@ function BeanSalesAnalysisPage() {
     }
   }, [mode, activeCompanyId, greenOrderReadTick])
 
+  const analysisYm = useMemo(
+    () => `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`,
+    [selectedYear, selectedMonth],
+  )
+
   const statementRecords = useMemo(() => {
-    return statementRecordsRaw.filter((record) => new Date(record.deliveryDate).getFullYear() === selectedYear)
-  }, [selectedYear, statementRecordsRaw])
+    return filterStatementsByYmDelivery(
+      statementRecordsRaw as unknown as readonly BeanStatementDeliveryRecord[],
+      analysisYm,
+    ) as unknown as StatementRecord[]
+  }, [analysisYm, statementRecordsRaw])
 
   const inventoryBeanRows = useMemo(() => {
     const normalized = normalizeInventoryStatusState(inventoryStateRaw)
@@ -647,6 +660,7 @@ function BeanSalesAnalysisPage() {
     )
     await exportStyledBeanSalesAnalysisExcel({
       year: selectedYear,
+      month: selectedMonth,
       sortByLabel,
       createdAt: new Date(),
       summaryRows,
@@ -654,7 +668,7 @@ function BeanSalesAnalysisPage() {
       notInRows: notInInventoryByStatement.map((r) => ({ ...r })),
       clientLines,
     })
-  }, [rowsWithRevenue, selectedYear, sortBy, notInInventoryByStatement])
+  }, [rowsWithRevenue, selectedYear, selectedMonth, sortBy, notInInventoryByStatement])
 
   return (
     <div className="bean-sales-analysis-page">
@@ -680,6 +694,17 @@ function BeanSalesAnalysisPage() {
           <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
             {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
               <option key={year} value={year}>{year}년</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="analysis-control-field">
+          월
+          <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>
+                {m}월
+              </option>
             ))}
           </select>
         </label>

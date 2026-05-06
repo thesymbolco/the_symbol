@@ -23,10 +23,12 @@ import {
   roastingColumnMatchesBeanRow,
 } from './inventoryBlendRecipes'
 import {
+  calendarYmPlusMonths,
   cloneBlendingRecipe,
   createDefaultInventoryStatusState,
   createZeroedInventoryStatusFrom,
   dayIndexForReferenceDate,
+  lastCalendarDayIsoInMonth,
   normalizeInventoryStatusState,
   parseInventoryWorkbook,
   resizeBlendingCyclesToDayCount,
@@ -270,11 +272,17 @@ const downloadBufferAsFile = (buffer: ArrayBuffer | Uint8Array, filename: string
 /**
  * 재고 연쇄에 쓰는「직접 입력(핀)」열: 항상 1열(월초) + 실사로 표시한 날.
  * 실사 표시가 없으면 예전과 같이 `실사 기준일` 열만 추가 핀으로 둔다.
+ *
+ * 단, 기준일과 실사 기준일이 **같은 날**(ISO 문자열 동일)이면 해당 열은 연쇄로 채워야 하는
+ * 종료 재고 역할이라 핀하지 않음. 그렇지 않으면 저장된 재고 칸이 0일 때 오늘이 6일이어도
+ * 「6일 재고만 0」처럼 보이는 버그가 난다.
  */
 const buildStockPinnedDayIndices = (
   days: readonly number[],
   surveyMarkedDays: readonly number[],
   physicalCountDayIndex: number,
+  referenceDateISO: string,
+  physicalCountDateISO: string,
 ): Set<number> => {
   const pinned = new Set<number>()
   const n = days.length
@@ -290,7 +298,12 @@ const buildStockPinnedDayIndices = (
   }
   if (surveyMarkedDays.length === 0) {
     const phys = Math.min(Math.max(physicalCountDayIndex, 0), n - 1)
-    pinned.add(phys)
+    const refDay = referenceDateISO.trim().slice(0, 10)
+    const physDay = physicalCountDateISO.trim().slice(0, 10)
+    const skipPhysPinBecauseSameAsReference = refDay.length === 10 && refDay === physDay
+    if (!skipPhysPinBecauseSameAsReference) {
+      pinned.add(phys)
+    }
   }
   return pinned
 }
@@ -425,7 +438,13 @@ export function getLowGreenBeanWarningItems(state: InventoryStatusState): LowGre
     return []
   }
   const physIdx = dayIndexForReferenceDate(state.days, state.physicalCountDate)
-  const pins = buildStockPinnedDayIndices(state.days, state.surveyMarkedDays, physIdx)
+  const pins = buildStockPinnedDayIndices(
+    state.days,
+    state.surveyMarkedDays,
+    physIdx,
+    state.referenceDate,
+    state.physicalCountDate,
+  )
   const endingIdx = dayIndexForReferenceDate(state.days, state.referenceDate)
   const out: LowGreenBeanWarningItem[] = []
   for (const bean of state.beanRows) {
@@ -526,6 +545,78 @@ const syncRoastingRowsFromBeanProduction = (state: InventoryStatusState): Invent
   )
   const nextTotalsRow = totalsRow ? { ...totalsRow, values: totals } : { day: '계' as const, values: totals }
   return [...nextDailyRows, nextTotalsRow]
+}
+
+/**
+ * 기준일이 직전 달의 **바로 다음 달**로 바뀔 때만: 전월 말일 종료 재고를 달의 첫 열(1일) 시작 재고로 이월하고,
+ * 일별 입고·생산·출고·로스팅·블렌딩 사이클은 새 달용으로 비웁니다.
+ * 조건이 맞지 않으면 `null` — 호출 측에서 기준일만 갱신합니다.
+ */
+const rolloverInventoryStateToNextCalendarMonth = (
+  current: InventoryStatusState,
+  nextReferenceDate: string,
+): InventoryStatusState | null => {
+  const prevRef = current.referenceDate
+  if (prevRef.length < 10 || nextReferenceDate.length < 10) {
+    return null
+  }
+  const prevYm = prevRef.slice(0, 7)
+  const nextYm = nextReferenceDate.slice(0, 7)
+  if (prevYm === nextYm || nextYm !== calendarYmPlusMonths(prevYm, 1)) {
+    return null
+  }
+
+  const prevMonthLastDayIso = lastCalendarDayIsoInMonth(prevYm)
+  const physIdx = dayIndexForReferenceDate(current.days, current.physicalCountDate)
+  const pins = buildStockPinnedDayIndices(
+    current.days,
+    current.surveyMarkedDays,
+    physIdx,
+    current.referenceDate,
+    current.physicalCountDate,
+  )
+  const endIdx = dayIndexForReferenceDate(current.days, prevMonthLastDayIso)
+
+  const n = current.days.length
+  const zeros = () => Array.from({ length: n }, () => 0)
+
+  const nextBeanRows = current.beanRows.map((bean) => {
+    const resynced = current.skipAutoStockDisplay ? [...bean.stock] : resyncAutoStockForBeanRow(bean, pins)
+    const len = resynced.length
+    const capped = len <= 0 ? 0 : Math.min(Math.max(endIdx, 0), len - 1)
+    const closing = resynced[capped] ?? 0
+    const nextStock = zeros()
+    nextStock[0] = closing
+    return {
+      ...bean,
+      inbound: zeros(),
+      production: zeros(),
+      outbound: zeros(),
+      stock: nextStock,
+    }
+  })
+
+  const zeroCycles = Array.from({ length: n }, () => 0)
+  let next: InventoryStatusState = {
+    ...current,
+    skipAutoStockDisplay: false,
+    referenceDate: nextReferenceDate,
+    physicalCountDate: nextReferenceDate,
+    surveyMarkedDays: [],
+    beanRows: nextBeanRows,
+    blendingDarkCycles: zeroCycles,
+    blendingLightCycles: zeroCycles,
+    blendingDecaffeineCycles: zeroCycles,
+    roastingRows: current.roastingRows.map((row) => ({
+      ...row,
+      values: row.values.map(() => 0),
+    })),
+  }
+  next = {
+    ...next,
+    roastingRows: syncRoastingRowsFromBeanProduction(next),
+  }
+  return applyPhysicalCountDateWhenEnablingAuto(next)
 }
 
 /** 직접 입력 → 자동 재고로 바꿀 때: 실사일이 같은 달 1일만 잡혀 있고 기준일이 1일이 아니면 기준일과 맞춤 */
@@ -1744,7 +1835,13 @@ function InventoryStatusPage() {
         next = { ...next, surveyMarkedDays: [...next.days] }
         next = withPhysicalCountDateFromSurveyMarks(next)
         const physIdx = dayIndexForReferenceDate(next.days, next.physicalCountDate)
-        const pins = buildStockPinnedDayIndices(next.days, next.surveyMarkedDays, physIdx)
+        const pins = buildStockPinnedDayIndices(
+          next.days,
+          next.surveyMarkedDays,
+          physIdx,
+          next.referenceDate,
+          next.physicalCountDate,
+        )
         next = {
           ...next,
           skipAutoStockDisplay: false,
@@ -2068,8 +2165,16 @@ function InventoryStatusPage() {
         inventoryState.days,
         inventoryState.surveyMarkedDays,
         physicalCountDayIndex,
+        inventoryState.referenceDate,
+        inventoryState.physicalCountDate,
       ),
-    [inventoryState.days, inventoryState.surveyMarkedDays, physicalCountDayIndex],
+    [
+      inventoryState.days,
+      inventoryState.surveyMarkedDays,
+      physicalCountDayIndex,
+      inventoryState.referenceDate,
+      inventoryState.physicalCountDate,
+    ],
   )
 
   /** 입고·생산·출고에 맞춘 연쇄 재고. 엑셀 업로드 직후(`skipAutoStockDisplay`)는 시트 재고 그대로 */
@@ -2503,7 +2608,13 @@ function InventoryStatusPage() {
       const resyncAll = (next: InventoryStatusState): InventoryStatusState => {
         const synced = withPhysicalCountDateFromSurveyMarks(next)
         const physIdx = dayIndexForReferenceDate(synced.days, synced.physicalCountDate)
-        const pins = buildStockPinnedDayIndices(synced.days, synced.surveyMarkedDays, physIdx)
+        const pins = buildStockPinnedDayIndices(
+          synced.days,
+          synced.surveyMarkedDays,
+          physIdx,
+          synced.referenceDate,
+          synced.physicalCountDate,
+        )
         return {
           ...synced,
           skipAutoStockDisplay: false,
@@ -2579,7 +2690,13 @@ function InventoryStatusPage() {
         return current
       }
       const physIdx = dayIndexForReferenceDate(current.days, current.physicalCountDate)
-      const pins = buildStockPinnedDayIndices(current.days, current.surveyMarkedDays, physIdx)
+      const pins = buildStockPinnedDayIndices(
+        current.days,
+        current.surveyMarkedDays,
+        physIdx,
+        current.referenceDate,
+        current.physicalCountDate,
+      )
       const restored = resyncAutoStockForBeanRow(bean, pins)
       return {
         ...current,
@@ -2653,7 +2770,13 @@ function InventoryStatusPage() {
     setInventoryState((current) => {
       const pinsFor = (s: InventoryStatusState) => {
         const physIdx = dayIndexForReferenceDate(s.days, s.physicalCountDate)
-        return buildStockPinnedDayIndices(s.days, s.surveyMarkedDays, physIdx)
+        return buildStockPinnedDayIndices(
+          s.days,
+          s.surveyMarkedDays,
+          physIdx,
+          s.referenceDate,
+          s.physicalCountDate,
+        )
       }
 
       if (targetKey === 'production') {
@@ -2824,7 +2947,13 @@ function InventoryStatusPage() {
     }
 
     const physIdx = dayIndexForReferenceDate(current.days, current.physicalCountDate)
-    const pins = buildStockPinnedDayIndices(current.days, current.surveyMarkedDays, physIdx)
+    const pins = buildStockPinnedDayIndices(
+      current.days,
+      current.surveyMarkedDays,
+      physIdx,
+      current.referenceDate,
+      current.physicalCountDate,
+    )
     return {
       ...current,
       beanRows: nextBeanRows.map((bean, bi) => ({
@@ -2907,7 +3036,13 @@ function InventoryStatusPage() {
       })
 
       const physIdx = dayIndexForReferenceDate(current.days, current.physicalCountDate)
-      const pins = buildStockPinnedDayIndices(current.days, current.surveyMarkedDays, physIdx)
+      const pins = buildStockPinnedDayIndices(
+        current.days,
+        current.surveyMarkedDays,
+        physIdx,
+        current.referenceDate,
+        current.physicalCountDate,
+      )
       return {
         ...current,
         skipAutoStockDisplay: false,
@@ -3015,7 +3150,13 @@ function InventoryStatusPage() {
       const syncedRoasting = syncRoastingRowsFromBeanProduction(updatedState)
 
       const physIdx = dayIndexForReferenceDate(current.days, current.physicalCountDate)
-      const pins = buildStockPinnedDayIndices(current.days, current.surveyMarkedDays, physIdx)
+      const pins = buildStockPinnedDayIndices(
+        current.days,
+        current.surveyMarkedDays,
+        physIdx,
+        current.referenceDate,
+        current.physicalCountDate,
+      )
 
       return {
         ...updatedState,
@@ -3236,7 +3377,13 @@ function InventoryStatusPage() {
       setInventoryState((cur) => {
         const next = applyPhysicalCountDateWhenEnablingAuto({ ...cur, surveyMarkedDays: [] })
         const physIdx = dayIndexForReferenceDate(next.days, next.physicalCountDate)
-        const pins = buildStockPinnedDayIndices(next.days, next.surveyMarkedDays, physIdx)
+        const pins = buildStockPinnedDayIndices(
+          next.days,
+          next.surveyMarkedDays,
+          physIdx,
+          next.referenceDate,
+          next.physicalCountDate,
+        )
         return {
           ...next,
           skipAutoStockDisplay: false,
@@ -3478,12 +3625,28 @@ function InventoryStatusPage() {
               value={inventoryState.referenceDate}
               onChange={(event) => {
                 const nextRef = event.target.value
-                setInventoryState((current) => ({
-                  ...current,
-                  skipAutoStockDisplay: false,
-                  referenceDate: nextRef,
-                  physicalCountDate: `${nextRef.slice(0, 8)}${current.physicalCountDate.slice(8, 10)}`,
-                }))
+                if (!nextRef || nextRef.length < 10) {
+                  return
+                }
+                let didMonthRollover = false
+                setInventoryState((current) => {
+                  const rolled = rolloverInventoryStateToNextCalendarMonth(current, nextRef)
+                  if (rolled) {
+                    didMonthRollover = true
+                    return rolled
+                  }
+                  return {
+                    ...current,
+                    skipAutoStockDisplay: false,
+                    referenceDate: nextRef,
+                    physicalCountDate: `${nextRef.slice(0, 8)}${current.physicalCountDate.slice(8, 10)}`,
+                  }
+                })
+                if (didMonthRollover) {
+                  setStatusMessage(
+                    '새 달로 전환했습니다. 전월 말일 재고를 이달 1일 시작 재고로 옮기고, 입고·생산·출고·로스팅·블렌딩 사이클을 비웠습니다.',
+                  )
+                }
               }}
             />
           </label>
