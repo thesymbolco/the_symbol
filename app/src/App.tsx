@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ExcelJS from 'exceljs'
 import BeanSalesAnalysisPage from './BeanSalesAnalysisPage'
 import ExpensePage, { EXPENSE_PAGE_STORAGE_KEY } from './ExpensePage'
@@ -305,6 +305,12 @@ type MonthlySummaryRow = {
 type StatementMonthlyDateOverride = {
   issueDate: string
   paymentDate: string
+}
+
+type StatementClientHubModalState = {
+  cardTitle: string
+  summaryClientName: string
+  recordsFilter: { baseName: string; cashOnly: boolean }
 }
 
 type PricingRule = {
@@ -1457,6 +1463,11 @@ function App() {
   })
   /** 카드·캘린더·목록(month) 표시 공통: 납품일 `YYYY-MM` */
   const [recordsScopeYm, setRecordsScopeYm] = useState(() => new Date().toISOString().slice(0, 7))
+  const [statementClientHubModal, setStatementClientHubModal] = useState<StatementClientHubModalState | null>(
+    null,
+  )
+  const [clientHubModalTab, setClientHubModalTab] = useState<'summary' | 'records'>('summary')
+  const [clientHubSummaryAllMonths, setClientHubSummaryAllMonths] = useState(false)
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [statementEntryModalOpen, setStatementEntryModalOpen] = useState(false)
   const [bulkItemPickerOpen, setBulkItemPickerOpen] = useState(false)
@@ -2671,6 +2682,83 @@ function App() {
     [selectedYear],
   )
 
+  const clientHubModalMonthIndexes = useMemo(() => {
+    if (clientHubSummaryAllMonths) {
+      return MONTH_LABELS.map((_, index) => index)
+    }
+    const m = Number(recordsScopeYm.slice(5, 7)) - 1
+    return m >= 0 && m <= 11 ? [m] : [new Date().getMonth()]
+  }, [clientHubSummaryAllMonths, recordsScopeYm])
+
+  const clientHubModalRecords = useMemo(() => {
+    if (!statementClientHubModal) {
+      return [] as StatementRecord[]
+    }
+    const { baseName, cashOnly } = statementClientHubModal.recordsFilter
+    const nk = normalizeName(baseName)
+    return statementPreviewRecords
+      .filter((r) => {
+        if (!r.deliveryDate.startsWith(recordsScopeYm)) {
+          return false
+        }
+        if (normalizeName(r.clientName) !== nk) {
+          return false
+        }
+        if (cashOnly) {
+          return r.isCashHandled
+        }
+        return !r.isCashHandled
+      })
+      .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))
+  }, [statementClientHubModal, statementPreviewRecords, recordsScopeYm])
+
+  const clientHubModalSummaryRow = useMemo(() => {
+    if (!statementClientHubModal) {
+      return null
+    }
+    const key = normalizeName(statementClientHubModal.summaryClientName)
+    return summaryRows.find((row) => normalizeName(row.clientName) === key) ?? null
+  }, [statementClientHubModal, summaryRows])
+
+  const openStatementClientHubFromCard = useCallback(
+    (card: { clientName: string; isCashHandled: boolean }) => {
+      const isCash = card.isCashHandled
+      const stripped = card.clientName.replace(new RegExp(`-${CASH_CLIENT_LABEL}$`), '')
+      const baseName = isCash ? stripped.trim() || '미지정' : card.clientName.trim()
+      setStatementClientHubModal({
+        cardTitle: card.clientName,
+        summaryClientName: baseName,
+        recordsFilter: { baseName, cashOnly: isCash },
+      })
+      setClientHubModalTab('summary')
+      setClientHubSummaryAllMonths(false)
+    },
+    [],
+  )
+
+  const goToRecordsPageFromHub = useCallback(() => {
+    if (!statementClientHubModal) {
+      return
+    }
+    setRecordsRangeFilter('month')
+    setRecordsSearchQuery(statementClientHubModal.cardTitle)
+    setActiveView('records')
+    setStatementClientHubModal(null)
+  }, [statementClientHubModal])
+
+  useEffect(() => {
+    if (!statementClientHubModal || activePage !== 'statements') {
+      return
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setStatementClientHubModal(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [statementClientHubModal, activePage])
+
   useLayoutEffect(() => {
     if (activePage !== 'statements') {
       setStatementStickyHScrollVisible(false)
@@ -3599,12 +3687,6 @@ function App() {
     window.requestAnimationFrame(() => formPanel?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
   }
 
-  const handleFilterByClient = (clientName: string) => {
-    setRecordsRangeFilter('month')
-    setRecordsSearchQuery(clientName === CASH_CLIENT_LABEL ? CASH_CLIENT_LABEL : clientName)
-    setActiveView('records')
-  }
-
   const handleStartInlineEdit = (record: StatementRecord) => {
     setInlineEditRecordId(record.id)
     setInlineEditDraft({
@@ -3961,6 +4043,219 @@ function App() {
       closeAdminUnlockDialog()
     }
   }, [activePage, isAdminUnlockDialogOpen, closeAdminUnlockDialog])
+
+  const renderStatementRecordsTableBody = (rows: StatementRecord[], emptyMessage: string): ReactNode => {
+    if (rows.length === 0) {
+      return (
+        <tr>
+          <td colSpan={14} className="empty-state">
+            {emptyMessage}
+          </td>
+        </tr>
+      )
+    }
+    return rows.map((record) => {
+      const isInlineEditing = inlineEditRecordId === record.id
+      if (isInlineEditing) {
+        return (
+          <tr key={record.id} className="statement-row-editing">
+            <td>{statementDeliveryMonthSeqById.get(record.id) ?? '—'}</td>
+            <td>
+              <input
+                type="date"
+                value={inlineEditDraft.deliveryDate}
+                onChange={(event) =>
+                  setInlineEditDraft((current) => ({
+                    ...current,
+                    deliveryDate: event.target.value,
+                  }))
+                }
+              />
+            </td>
+            <td>
+              <input
+                type="date"
+                value={inlineEditDraft.issueDate}
+                onChange={(event) =>
+                  setInlineEditDraft((current) => ({
+                    ...current,
+                    issueDate: event.target.value,
+                  }))
+                }
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                value={inlineEditDraft.deliveryCount}
+                onChange={(event) =>
+                  setInlineEditDraft((current) => ({
+                    ...current,
+                    deliveryCount: event.target.value,
+                  }))
+                }
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                value={inlineEditDraft.clientName}
+                onChange={(event) =>
+                  setInlineEditDraft((current) => ({
+                    ...current,
+                    clientName: event.target.value,
+                  }))
+                }
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                value={inlineEditDraft.itemName}
+                onChange={(event) =>
+                  setInlineEditDraft((current) => ({
+                    ...current,
+                    itemName: event.target.value,
+                  }))
+                }
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                value={inlineEditDraft.specUnit}
+                onChange={(event) =>
+                  setInlineEditDraft((current) => ({
+                    ...current,
+                    specUnit: event.target.value,
+                  }))
+                }
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={inlineEditDraft.quantity}
+                onChange={(event) =>
+                  setInlineEditDraft((current) => ({
+                    ...current,
+                    quantity: event.target.value,
+                  }))
+                }
+              />
+            </td>
+            <td>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={inlineEditDraft.unitPrice}
+                onChange={(event) =>
+                  setInlineEditDraft((current) => ({
+                    ...current,
+                    unitPrice: event.target.value,
+                  }))
+                }
+              />
+            </td>
+            <td>
+              <select
+                value={inlineEditDraft.note}
+                onChange={(event) =>
+                  setInlineEditDraft((current) => ({
+                    ...current,
+                    note: event.target.value,
+                  }))
+                }
+              >
+                {NOTE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <label className="statement-cash-inline-toggle">
+                <input
+                  type="checkbox"
+                  checked={inlineEditDraft.isCashHandled}
+                  onChange={(event) =>
+                    setInlineEditDraft((current) => ({
+                      ...current,
+                      isCashHandled: event.target.checked,
+                    }))
+                  }
+                />
+                현금
+              </label>
+            </td>
+            <td colSpan={3} className="statement-inline-preview">
+              {(() => {
+                const q = parseNumber(inlineEditDraft.quantity)
+                const p = parseNumber(inlineEditDraft.unitPrice)
+                const supply = q * p
+                const tax = calculateTaxAmount(supply, inlineEditDraft.note)
+                return `공급 ${formatCurrency(supply)} · 세액 ${formatCurrency(tax)} · 계 ${formatCurrency(supply + tax)}`
+              })()}
+            </td>
+            <td className="statement-record-actions">
+              <button type="button" className="table-action primary" onClick={handleSaveInlineEdit}>
+                저장
+              </button>
+              <button type="button" className="table-action" onClick={handleCancelInlineEdit}>
+                취소
+              </button>
+            </td>
+          </tr>
+        )
+      }
+      return (
+        <tr
+          key={record.id}
+          className={`statement-row${editingRecordId === record.id ? ' statement-row-editing' : ''}${record.isCashHandled ? ' statement-row-cash' : ''}`}
+          onDoubleClick={() => handleStartInlineEdit(record)}
+          title="더블클릭하면 바로 수정합니다"
+        >
+          <td>{statementDeliveryMonthSeqById.get(record.id) ?? '—'}</td>
+          <td>{formatDateLabel(record.deliveryDate)}</td>
+          <td>{record.issueDate ? formatDateLabel(record.issueDate) : ''}</td>
+          <td>{record.deliveryCount}</td>
+          <td>{record.clientName}</td>
+          <td>{record.itemName}</td>
+          <td>{record.specUnit || '-'}</td>
+          <td>{record.quantity}</td>
+          <td>{formatCurrency(record.unitPrice)}</td>
+          <td>
+            {record.note}
+            {record.isCashHandled ? ` · ${CASH_CLIENT_LABEL}` : ''}
+          </td>
+          <td>{formatCurrency(record.supplyAmount)}</td>
+          <td>{formatCurrency(record.taxAmount)}</td>
+          <td>{formatCurrency(record.totalAmount)}</td>
+          <td className="statement-record-actions">
+            <button
+              type="button"
+              className="table-action statement-record-action-mini"
+              onClick={() => handleStartInlineEdit(record)}
+              title="현재 행에서 바로 수정"
+            >
+              빠른수정
+            </button>
+            <button
+              type="button"
+              className="table-action statement-record-action-mini"
+              onClick={() => handleStartEditStatementRecord(record)}
+              title="상단 입력 폼에서 수정"
+            >
+              폼수정
+            </button>
+            <button type="button" className="table-action statement-record-action-mini" onClick={() => handleDelete(record.id)}>
+              삭제
+            </button>
+          </td>
+        </tr>
+      )
+    })
+  }
 
   return (
     <div
@@ -4344,225 +4639,11 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={14} className="empty-state">
-                        {records.length === 0
-                          ? '아직 저장된 거래명세서가 없습니다.'
-                          : '현재 조건에 맞는 건이 없습니다. 필터나 검색어를 변경해 보세요.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    visibleRecords.map((record) => {
-                      const isInlineEditing = inlineEditRecordId === record.id
-                      if (isInlineEditing) {
-                        return (
-                          <tr key={record.id} className="statement-row-editing">
-                            <td>{statementDeliveryMonthSeqById.get(record.id) ?? '—'}</td>
-                            <td>
-                              <input
-                                type="date"
-                                value={inlineEditDraft.deliveryDate}
-                                onChange={(event) =>
-                                  setInlineEditDraft((current) => ({
-                                    ...current,
-                                    deliveryDate: event.target.value,
-                                  }))
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="date"
-                                value={inlineEditDraft.issueDate}
-                                onChange={(event) =>
-                                  setInlineEditDraft((current) => ({
-                                    ...current,
-                                    issueDate: event.target.value,
-                                  }))
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="text"
-                                value={inlineEditDraft.deliveryCount}
-                                onChange={(event) =>
-                                  setInlineEditDraft((current) => ({
-                                    ...current,
-                                    deliveryCount: event.target.value,
-                                  }))
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="text"
-                                value={inlineEditDraft.clientName}
-                                onChange={(event) =>
-                                  setInlineEditDraft((current) => ({
-                                    ...current,
-                                    clientName: event.target.value,
-                                  }))
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="text"
-                                value={inlineEditDraft.itemName}
-                                onChange={(event) =>
-                                  setInlineEditDraft((current) => ({
-                                    ...current,
-                                    itemName: event.target.value,
-                                  }))
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="text"
-                                value={inlineEditDraft.specUnit}
-                                onChange={(event) =>
-                                  setInlineEditDraft((current) => ({
-                                    ...current,
-                                    specUnit: event.target.value,
-                                  }))
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="text"
-                                inputMode="decimal"
-                                value={inlineEditDraft.quantity}
-                                onChange={(event) =>
-                                  setInlineEditDraft((current) => ({
-                                    ...current,
-                                    quantity: event.target.value,
-                                  }))
-                                }
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                value={inlineEditDraft.unitPrice}
-                                onChange={(event) =>
-                                  setInlineEditDraft((current) => ({
-                                    ...current,
-                                    unitPrice: event.target.value,
-                                  }))
-                                }
-                              />
-                            </td>
-                            <td>
-                              <select
-                                value={inlineEditDraft.note}
-                                onChange={(event) =>
-                                  setInlineEditDraft((current) => ({
-                                    ...current,
-                                    note: event.target.value,
-                                  }))
-                                }
-                              >
-                                {NOTE_OPTIONS.map((option) => (
-                                  <option key={option} value={option}>
-                                    {option}
-                                  </option>
-                                ))}
-                              </select>
-                              <label className="statement-cash-inline-toggle">
-                                <input
-                                  type="checkbox"
-                                  checked={inlineEditDraft.isCashHandled}
-                                  onChange={(event) =>
-                                    setInlineEditDraft((current) => ({
-                                      ...current,
-                                      isCashHandled: event.target.checked,
-                                    }))
-                                  }
-                                />
-                                현금
-                              </label>
-                            </td>
-                            <td colSpan={3} className="statement-inline-preview">
-                              {(() => {
-                                const q = parseNumber(inlineEditDraft.quantity)
-                                const p = parseNumber(inlineEditDraft.unitPrice)
-                                const supply = q * p
-                                const tax = calculateTaxAmount(supply, inlineEditDraft.note)
-                                return `공급 ${formatCurrency(supply)} · 세액 ${formatCurrency(tax)} · 계 ${formatCurrency(supply + tax)}`
-                              })()}
-                            </td>
-                            <td className="statement-record-actions">
-                              <button
-                                type="button"
-                                className="table-action primary"
-                                onClick={handleSaveInlineEdit}
-                              >
-                                저장
-                              </button>
-                              <button
-                                type="button"
-                                className="table-action"
-                                onClick={handleCancelInlineEdit}
-                              >
-                                취소
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      }
-                      return (
-                        <tr
-                          key={record.id}
-                          className={`statement-row${editingRecordId === record.id ? ' statement-row-editing' : ''}${record.isCashHandled ? ' statement-row-cash' : ''}`}
-                          onDoubleClick={() => handleStartInlineEdit(record)}
-                          title="더블클릭하면 바로 수정합니다"
-                        >
-                          <td>{statementDeliveryMonthSeqById.get(record.id) ?? '—'}</td>
-                          <td>{formatDateLabel(record.deliveryDate)}</td>
-                          <td>{record.issueDate ? formatDateLabel(record.issueDate) : ''}</td>
-                          <td>{record.deliveryCount}</td>
-                          <td>{record.clientName}</td>
-                          <td>{record.itemName}</td>
-                          <td>{record.specUnit || '-'}</td>
-                          <td>{record.quantity}</td>
-                          <td>{formatCurrency(record.unitPrice)}</td>
-                          <td>{record.note}{record.isCashHandled ? ` · ${CASH_CLIENT_LABEL}` : ''}</td>
-                          <td>{formatCurrency(record.supplyAmount)}</td>
-                          <td>{formatCurrency(record.taxAmount)}</td>
-                          <td>{formatCurrency(record.totalAmount)}</td>
-                          <td className="statement-record-actions">
-                            <button
-                              type="button"
-                              className="table-action statement-record-action-mini"
-                              onClick={() => handleStartInlineEdit(record)}
-                              title="현재 행에서 바로 수정"
-                            >
-                              빠른수정
-                            </button>
-                            <button
-                              type="button"
-                              className="table-action statement-record-action-mini"
-                              onClick={() => handleStartEditStatementRecord(record)}
-                              title="상단 입력 폼에서 수정"
-                            >
-                              폼수정
-                            </button>
-                            <button
-                              type="button"
-                              className="table-action statement-record-action-mini"
-                              onClick={() => handleDelete(record.id)}
-                            >
-                              삭제
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })
+                  {renderStatementRecordsTableBody(
+                    visibleRecords,
+                    records.length === 0
+                      ? '아직 저장된 거래명세서가 없습니다.'
+                      : '현재 조건에 맞는 건이 없습니다. 필터나 검색어를 변경해 보세요.',
                   )}
                 </tbody>
               </table>
@@ -4587,8 +4668,8 @@ function App() {
                             key={card.clientName}
                             type="button"
                             className={`statements-client-card${hasTaxIssueDate ? ' statements-client-card--tax-issued' : ''}`}
-                            onClick={() => handleFilterByClient(card.clientName)}
-                            title={`${recordsScopeYm.replace('-', '.')} · 입력 목록에서 이 거래처만 표시`}
+                            onClick={() => openStatementClientHubFromCard(card)}
+                            title={`${recordsScopeYm.replace('-', '.')} · 납품·발행일 확인/수정`}
                           >
                             <div className="statements-client-card-head">
                               <strong>{card.clientName}</strong>
@@ -4643,8 +4724,8 @@ function App() {
                             key={card.clientName}
                             type="button"
                             className={`statements-client-card statements-client-card-cash${hasTaxIssueDate ? ' statements-client-card--tax-issued' : ''}`}
-                            onClick={() => handleFilterByClient(card.clientName)}
-                            title={`${recordsScopeYm.replace('-', '.')} · 입력 목록에서 이 현금 거래처만 표시`}
+                            onClick={() => openStatementClientHubFromCard(card)}
+                            title={`${recordsScopeYm.replace('-', '.')} · 납품·발행일 확인/수정`}
                           >
                             <div className="statements-client-card-head">
                               <strong>{card.clientName}</strong>
@@ -6177,6 +6258,198 @@ function App() {
                 취소
               </button>
               <button type="button" className="primary-button" onClick={handleAdminUnlockConfirm}>
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {statementClientHubModal ? (
+        <div
+          className="statement-client-hub-backdrop"
+          role="presentation"
+          onClick={() => setStatementClientHubModal(null)}
+        >
+          <div
+            className="statement-client-hub-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="statement-client-hub-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="statement-client-hub-modal-top">
+              <div>
+                <h2 id="statement-client-hub-title" className="statement-client-hub-title">
+                  {statementClientHubModal.cardTitle}
+                </h2>
+                <p className="statement-client-hub-meta">
+                  납품 월 {recordsScopeYm.replace('-', '.')} · 집계 연도 {selectedYear}년 ·{' '}
+                  {statementClientHubModal.recordsFilter.cashOnly ? '현금 거래만' : '현금 제외 줄'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ghost-button statement-client-hub-close"
+                onClick={() => setStatementClientHubModal(null)}
+                aria-label="닫기"
+              >
+                닫기
+              </button>
+            </div>
+
+            <div className="statement-client-hub-tabs" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={clientHubModalTab === 'summary'}
+                className={clientHubModalTab === 'summary' ? 'is-active' : ''}
+                onClick={() => setClientHubModalTab('summary')}
+              >
+                월별 납품현황
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={clientHubModalTab === 'records'}
+                className={clientHubModalTab === 'records' ? 'is-active' : ''}
+                onClick={() => setClientHubModalTab('records')}
+              >
+                입력 목록
+              </button>
+            </div>
+
+            {clientHubModalTab === 'summary' ? (
+              <div className="statement-client-hub-panel statement-client-hub-panel-summary">
+                <div className="statement-client-hub-panel-toolbar">
+                  <button
+                    type="button"
+                    className="ghost-button small"
+                    onClick={() => setClientHubSummaryAllMonths((v) => !v)}
+                  >
+                    {clientHubSummaryAllMonths ? '해당 월만 보기' : '연도 전체 월'}
+                  </button>
+                  <span className="statement-client-hub-hint">
+                    발행일자는 메인 「월별 납품현황」과 동일하게 저장됩니다.
+                  </span>
+                </div>
+                {!clientHubModalSummaryRow ? (
+                  <p className="statement-client-hub-empty">
+                    {selectedYear}년 요약표에 해당 거래처 줄이 없습니다. (납품이 없거나 이름이 다르면 나오지 않을 수 있습니다.)
+                  </p>
+                ) : (
+                  <div className="table-wrapper statement-client-hub-summary-wrap">
+                    <table className={`summary-table${clientHubSummaryAllMonths ? '' : ' summary-table--single-month'}`}>
+                      <thead>
+                        <tr>
+                          <th rowSpan={2}>NO</th>
+                          <th rowSpan={2}>거래처명</th>
+                          <th rowSpan={2}>합계(부가세포함)</th>
+                          <th rowSpan={2}>점유율</th>
+                          {clientHubModalMonthIndexes.map((monthIndex) => (
+                            <th key={MONTH_LABELS[monthIndex]} colSpan={3}>
+                              {MONTH_LABELS[monthIndex]}
+                            </th>
+                          ))}
+                        </tr>
+                        <tr>
+                          {clientHubModalMonthIndexes.flatMap((monthIndex) => [
+                            <th key={`${MONTH_LABELS[monthIndex]}-amount`}>금액</th>,
+                            <th key={`${MONTH_LABELS[monthIndex]}-issue`}>발행일자</th>,
+                            <th key={`${MONTH_LABELS[monthIndex]}-payment`}>입금일자</th>,
+                          ])}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>1</td>
+                          <td>{clientHubModalSummaryRow.clientName}</td>
+                          <td>{formatCurrency(clientHubModalSummaryRow.totalAmount)}</td>
+                          <td>{clientHubModalSummaryRow.share.toFixed(1)}%</td>
+                          {clientHubModalMonthIndexes.flatMap((monthIndex) => {
+                            const month = clientHubModalSummaryRow.months[monthIndex]!
+                            return [
+                              <td key={`hub-${monthIndex}-amount`}>{month.amount ? formatCurrency(month.amount) : ''}</td>,
+                              <td key={`hub-${monthIndex}-issue`}>
+                                <input
+                                  type="date"
+                                  className="statement-summary-date-input"
+                                  value={month.issueDate}
+                                  onChange={(event) =>
+                                    handleSummaryMonthDateChange(
+                                      clientHubModalSummaryRow.clientName,
+                                      monthIndex,
+                                      'issueDate',
+                                      event.target.value,
+                                    )
+                                  }
+                                />
+                              </td>,
+                              <td key={`hub-${monthIndex}-payment`}>
+                                <input
+                                  type="date"
+                                  className="statement-summary-date-input"
+                                  value={month.paymentDate}
+                                  onChange={(event) =>
+                                    handleSummaryMonthDateChange(
+                                      clientHubModalSummaryRow.clientName,
+                                      monthIndex,
+                                      'paymentDate',
+                                      event.target.value,
+                                    )
+                                  }
+                                />
+                              </td>,
+                            ]
+                          })}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="statement-client-hub-panel statement-client-hub-panel-records">
+                <p className="statement-client-hub-records-scope">
+                  {recordsScopeYm.replace('-', '.')} 납품 · 이 거래처({statementClientHubModal.recordsFilter.cashOnly ? '현금' : '일반'})
+                  줄만 표시합니다.
+                </p>
+                <div className="statement-client-hub-records-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>번호</th>
+                        <th>납품일</th>
+                        <th>발행일자</th>
+                        <th>횟수</th>
+                        <th>거래처명</th>
+                        <th>품목</th>
+                        <th>규격/단위</th>
+                        <th>수량</th>
+                        <th>단가</th>
+                        <th>과세구분</th>
+                        <th>공급가액</th>
+                        <th>세액</th>
+                        <th>계</th>
+                        <th aria-label="작업" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {renderStatementRecordsTableBody(
+                        clientHubModalRecords,
+                        '이 조건에 맞는 납품 줄이 없습니다.',
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="statement-client-hub-footer">
+              <button type="button" className="ghost-button" onClick={goToRecordsPageFromHub}>
+                입력 목록 전체 화면
+              </button>
+              <button type="button" className="primary-button" onClick={() => setStatementClientHubModal(null)}>
                 확인
               </button>
             </div>

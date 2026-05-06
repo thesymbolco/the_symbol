@@ -1460,11 +1460,25 @@ const inferCalendarYearForMeetingMonth = (monthNum: number, records: ExpenseReco
     }
     counts.set(y, (counts.get(y) ?? 0) + 1)
   }
-  if (counts.size > 0) {
-    const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])
-    return ranked[0]![0]
+  if (counts.size === 0) {
+    return new Date().getFullYear()
   }
-  return new Date().getFullYear()
+  const currentYear = new Date().getFullYear()
+  const currentCount = counts.get(currentYear) ?? 0
+  if (currentCount > 0) {
+    let otherHasStrictlyMore = false
+    for (const [y, c] of counts) {
+      if (y !== currentYear && c > currentCount) {
+        otherHasStrictlyMore = true
+        break
+      }
+    }
+    if (!otherHasStrictlyMore) {
+      return currentYear
+    }
+  }
+  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])
+  return ranked[0]![0]
 }
 
 const meetingMonthLabelToExpenseYm = (monthLabel: string, records: ExpenseRecord[]): string | null => {
@@ -2031,6 +2045,20 @@ const migrateMonthState = (s: MonthlyMeetingMonthState): MonthlyMeetingMonthStat
   inventoryRow: s.inventoryRow,
 })
 
+/** 열람 시 당월 탭 우선 — 커스텀 `months`에 이번 달이 없을 때만 저장값·폴백 사용 */
+const resolveDefaultActiveMeetingMonth = (data: MonthlyMeetingData, parsedActiveMonth: unknown): string => {
+  const calendarMonthTab = `${new Date().getMonth() + 1}월`
+  if (data.months.includes(calendarMonthTab)) {
+    return calendarMonthTab
+  }
+  const saved =
+    parsedActiveMonth !== undefined && parsedActiveMonth !== null ? String(parsedActiveMonth).trim() : ''
+  if (saved && data.months.includes(saved)) {
+    return saved
+  }
+  return data.monthLabel
+}
+
 const normalizeMonthlyMeetingPageState = (raw: unknown): MonthlyMeetingPageState => {
   const parsed = (raw && typeof raw === 'object' ? raw : null) as Partial<MonthlyMeetingPageState> | null
   const parsedData = (parsed?.data as MonthlyMeetingData | undefined) ?? monthlyMeetingData
@@ -2042,7 +2070,7 @@ const normalizeMonthlyMeetingPageState = (raw: unknown): MonthlyMeetingPageState
   return migrateProductionHeaderToOutbound(
     stripInventoryTotalAmountColumn({
       data,
-      activeMonth: String(parsed?.activeMonth ?? data.monthLabel),
+      activeMonth: resolveDefaultActiveMeetingMonth(data, parsed?.activeMonth),
       notesByMonth: {
         ...createDefaultNotesByMonth(data.months),
         ...(parsed?.notesByMonth ?? {}),
@@ -2404,6 +2432,25 @@ function MonthlyMeetingPage() {
       ),
     [companyExpenseRecordsCached, lsExpenseRecordsForMeetingLink, mode],
   )
+
+  /** 상단 월 탭(`activeMonth`)과 「거래명세 집계 월」·로스팅/생두 자동반영 기준을 동일하게 맞춤 */
+  useEffect(() => {
+    if (!isStorageReady) {
+      return
+    }
+    const ym = meetingMonthLabelToExpenseYm(pageState.activeMonth, expenseRecordsForMeetingLink)
+    if (!ym) {
+      return
+    }
+    if (roastingSalesReferenceYm.trim() !== ym) {
+      setRoastingSalesReferenceYm(ym)
+    }
+  }, [
+    expenseRecordsForMeetingLink,
+    isStorageReady,
+    pageState.activeMonth,
+    roastingSalesReferenceYm,
+  ])
 
   /** 지출표 → 재료비·기타 세부, 비용현황 ①②, 매출 채널(키워드) 자동 연동 + 거래명세·입출고·생두단가 기반 재료비(매출·생두) */
   useEffect(() => {
@@ -3155,14 +3202,6 @@ function MonthlyMeetingPage() {
     () => computeCurrentMonthSales(activeMonthState.currentMonthSales, computedCurrentMonthCosts, computedRoastingSales),
     [activeMonthState.currentMonthSales, computedCurrentMonthCosts, computedRoastingSales],
   )
-  const summarySalesRows = useMemo(
-    () =>
-      activeMonth === '4월'
-        ? computedCurrentMonthSales.filter((row) => !isSalesNetRow(row))
-        : computedCurrentMonthSales,
-    [activeMonth, computedCurrentMonthSales],
-  )
-
   const computedStoreSales = useMemo(
     () => computeStoreSales(activeMonthState.storeSales),
     [activeMonthState.storeSales],
@@ -4163,7 +4202,7 @@ function MonthlyMeetingPage() {
               tableId="summary-sales"
               title="매출"
               newRowButtonLabel="항목 추가"
-              rows={summarySalesRows}
+              rows={computedCurrentMonthSales}
               showShareColumn
               editMode={summaryEditMode}
               indexKind="sales"
@@ -4374,10 +4413,23 @@ function MonthlyMeetingPage() {
                       className="meeting-roasting-month-input"
                       value={roastingSalesReferenceYm}
                       onChange={(event) => {
-                        const v = event.target.value
-                        if (v && parseYm(v)) {
-                          setRoastingSalesReferenceYm(v)
+                        const v = event.target.value.trim()
+                        const ref = parseYm(v)
+                        if (!ref) {
+                          return
                         }
+                        const ym = `${ref.y}-${String(ref.m).padStart(2, '0')}`
+                        setRoastingSalesReferenceYm(ym)
+                        const tabLabel = `${ref.m}월`
+                        setPageState((current) => {
+                          if (!current.data.months.includes(tabLabel)) {
+                            return current
+                          }
+                          if (current.activeMonth === tabLabel) {
+                            return current
+                          }
+                          return { ...current, activeMonth: tabLabel }
+                        })
                       }}
                     />
                   </label>

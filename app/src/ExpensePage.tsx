@@ -669,9 +669,7 @@ export function normalizeExpensePageState(value: unknown): ExpensePageState {
 
   const source = value as Partial<ExpensePageState>
   const records = Array.isArray(source.records) ? source.records.map(normalizeRecord).filter(Boolean) : []
-  const activeMonth = typeof source.activeMonth === 'string' && /^\d{4}-\d{2}$/.test(source.activeMonth)
-    ? source.activeMonth
-    : currentMonth
+  const activeMonth = currentMonth
 
   const tableColumns = sanitizeExpenseTableColumns(source.tableColumns)
   const categoryBudgetsByMonth =
@@ -1396,12 +1394,8 @@ function ExpensePage() {
   const updateExpenseDateAndKeepVisible = (recordId: string, nextExpenseDate: string) => {
     setPinnedRecordId(recordId)
     setPageState((current) => {
-      const nextMonth = /^\d{4}-\d{2}-\d{2}$/.test(nextExpenseDate)
-        ? nextExpenseDate.slice(0, 7)
-        : current.activeMonth
       return {
         ...current,
-        activeMonth: nextMonth,
         records: current.records.map((record) => {
           if (record.id !== recordId) {
             return record
