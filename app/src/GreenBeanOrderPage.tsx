@@ -103,6 +103,11 @@ export type GreenBeanMonthlyItemSnapshot = {
   lineTotal: number
 }
 
+export type GreenBeanSnapshotSupplierTotal = {
+  supplierLabel: string
+  amount: number
+}
+
 export type GreenBeanMonthlyPoint = {
   id: string
   /** YYYY-MM */
@@ -138,6 +143,8 @@ export type GreenBeanOrderDatedSnapshot = {
   deductions?: GreenBeanOrderDeductions
   /** 일자 기록 시 메모(선택) */
   memo?: string
+  /** 일자 기록 시점 업체(공급처)별 품목 소계(차감 전) */
+  supplierTotals?: GreenBeanSnapshotSupplierTotal[]
   itemCount: number
   items?: GreenBeanMonthlyItemSnapshot[]
 }
@@ -874,6 +881,57 @@ function snapshotDeductionSummary(row: GreenBeanOrderDatedSnapshot): string {
   return bits.join(' · ')
 }
 
+function formatSnapshotSupplierTotals(row: GreenBeanOrderDatedSnapshot): string {
+  const totals = row.supplierTotals
+  if (!totals || totals.length === 0) {
+    return ''
+  }
+  return totals
+    .map((entry) => `${entry.supplierLabel} ${formatMoney(entry.amount)}`)
+    .join(' / ')
+}
+
+function deriveSnapshotSupplierTotalsFromCurrentRows(
+  row: GreenBeanOrderDatedSnapshot,
+  currentRows: GreenBeanOrderRow[],
+  supplierLabels: string[],
+): GreenBeanSnapshotSupplierTotal[] | null {
+  const totals = row.supplierTotals
+  if (totals && totals.length > 0) {
+    return totals
+  }
+  if (currentRows.length === 0 || supplierLabels.length === 0) {
+    return null
+  }
+  const itemMap = new Map(
+    currentRows
+      .map((r) => [normalizeItemKey(r.itemName), r] as const)
+      .filter(([k]) => Boolean(k)),
+  )
+  if (itemMap.size === 0) {
+    return null
+  }
+  const derived = supplierLabels.map((label, si) => {
+    let amount = 0
+    for (const it of row.items ?? []) {
+      const hit = itemMap.get(normalizeItemKey(it.itemName))
+      if (!hit) {
+        continue
+      }
+      const pickedIndex = resolveUnitPriceIndex(hit.supplierPrices, hit.priceSource ?? 'auto')
+      if (pickedIndex !== si || it.lineTotal <= 0) {
+        continue
+      }
+      amount += it.lineTotal
+    }
+    return {
+      supplierLabel: label.trim() || `열 ${si + 1}`,
+      amount,
+    }
+  })
+  return derived.some((x) => x.amount > 0) ? derived : null
+}
+
 /** 표 제목에서 연·월을 추정 (예: 26.04월, 4월, 2026년 4월) */
 function guessMonthKeyFromTitle(title: string): string | null {
   const yearNow = new Date().getFullYear()
@@ -1154,6 +1212,29 @@ function normalizePersisted(raw: unknown): GreenBeanOrderPersisted {
     return parsed.length > 0 ? parsed : undefined
   }
 
+  const parseSnapshotSupplierTotals = (raw: unknown): GreenBeanSnapshotSupplierTotal[] | undefined => {
+    if (!Array.isArray(raw)) {
+      return undefined
+    }
+    const parsed = raw
+      .map((cell) => {
+        if (!cell || typeof cell !== 'object') {
+          return null
+        }
+        const row = cell as Record<string, unknown>
+        const supplierLabel = typeof row.supplierLabel === 'string' ? row.supplierLabel.trim() : ''
+        if (!supplierLabel) {
+          return null
+        }
+        return {
+          supplierLabel,
+          amount: parseNumber(row.amount),
+        }
+      })
+      .filter((x): x is GreenBeanSnapshotSupplierTotal => x !== null)
+    return parsed.length > 0 ? parsed : undefined
+  }
+
   const orderSnapshotsRaw = Array.isArray(o.orderSnapshots) ? o.orderSnapshots : []
   let orderSnapshots: GreenBeanOrderDatedSnapshot[] = orderSnapshotsRaw
     .map((item): GreenBeanOrderDatedSnapshot | null => {
@@ -1166,6 +1247,7 @@ function normalizePersisted(raw: unknown): GreenBeanOrderPersisted {
         return null
       }
       const items = parseSnapshotItems(row.items)
+      const supplierTotals = parseSnapshotSupplierTotals(row.supplierTotals)
       const snap: GreenBeanOrderDatedSnapshot = {
         id: typeof row.id === 'string' && row.id ? row.id : crypto.randomUUID(),
         orderDate,
@@ -1190,6 +1272,9 @@ function normalizePersisted(raw: unknown): GreenBeanOrderPersisted {
       if (items && items.length > 0) {
         snap.items = items
       }
+      if (supplierTotals && supplierTotals.length > 0) {
+        snap.supplierTotals = supplierTotals
+      }
       const memoRaw = row.memo
       if (typeof memoRaw === 'string' && memoRaw.trim()) {
         snap.memo = memoRaw.trim().slice(0, 500)
@@ -1211,6 +1296,7 @@ function normalizePersisted(raw: unknown): GreenBeanOrderPersisted {
           return null
         }
         const items = parseSnapshotItems(row.items)
+        const supplierTotals = parseSnapshotSupplierTotals(row.supplierTotals)
         const snap: GreenBeanOrderDatedSnapshot = {
           id: typeof row.id === 'string' && row.id ? row.id : crypto.randomUUID(),
           orderDate: `${monthKey}-01`,
@@ -1221,6 +1307,9 @@ function normalizePersisted(raw: unknown): GreenBeanOrderPersisted {
         }
         if (items && items.length > 0) {
           snap.items = items
+        }
+        if (supplierTotals && supplierTotals.length > 0) {
+          snap.supplierTotals = supplierTotals
         }
         return snap
       })
@@ -1818,6 +1907,7 @@ export default function GreenBeanOrderPage() {
     return { sumQty, grossMoney, sumMoney, almaD, gscD, otherD, sumDeductions }
   }, [persisted.rows, persisted.orderDeductions])
 
+
   const baselineTotals = useMemo(() => {
     const b = persisted.baseline
     if (!b) {
@@ -2103,6 +2193,19 @@ export default function GreenBeanOrderPage() {
         quantityKg: r.quantityKg,
         lineTotal: r.lineTotal,
       }))
+    const supplierTotals: GreenBeanSnapshotSupplierTotal[] = persisted.supplierLabels.map((label, si) => {
+      const amount = persisted.rows.reduce((sum, row) => {
+        const pickedIndex = resolveUnitPriceIndex(row.supplierPrices, row.priceSource ?? 'auto')
+        if (pickedIndex !== si || row.lineTotal <= 0) {
+          return sum
+        }
+        return sum + row.lineTotal
+      }, 0)
+      return {
+        supplierLabel: label.trim() || `열 ${si + 1}`,
+        amount,
+      }
+    })
     const dSnap = parseOrderDeductions(persisted.orderDeductions)
     const snap: GreenBeanOrderDatedSnapshot = {
       id: crypto.randomUUID(),
@@ -2113,6 +2216,7 @@ export default function GreenBeanOrderPage() {
       sumMoneyGross: totals.grossMoney,
       itemCount,
       items: items.length > 0 ? items : undefined,
+      supplierTotals,
     }
     if (dSnap.almaWon > 0 || dSnap.gscWon > 0 || dSnap.otherWon > 0) {
       snap.deductions = { ...dSnap }
@@ -3591,6 +3695,7 @@ export default function GreenBeanOrderPage() {
                     <th scope="col">저장 시각</th>
                     <th scope="col">품목 수</th>
                     <th scope="col">수량</th>
+                    <th scope="col">업체별 소계</th>
                     <th scope="col">품목 소계</th>
                     <th scope="col">감면</th>
                     <th scope="col">반영 총액</th>
@@ -3607,6 +3712,20 @@ export default function GreenBeanOrderPage() {
                       <td>{new Date(row.savedAt).toLocaleString('ko-KR')}</td>
                       <td>{row.itemCount}개</td>
                       <td>{formatKg(row.sumQty)}</td>
+                      <td className="green-bean-history-supplier-cell">
+                        {(() => {
+                          const supplierTotals = deriveSnapshotSupplierTotalsFromCurrentRows(
+                            row,
+                            persisted.rows,
+                            persisted.supplierLabels,
+                          )
+                          if (!supplierTotals || supplierTotals.length === 0) {
+                            return <span className="muted">—</span>
+                          }
+                          const line = formatSnapshotSupplierTotals({ ...row, supplierTotals })
+                          return line ? <span title={line}>{line}</span> : <span className="muted">—</span>
+                        })()}
+                      </td>
                       <td>{formatMoney(snapshotGrossMoney(row))}</td>
                       <td className="green-bean-history-deduction-cell">{snapshotDeductionSummary(row)}</td>
                       <td>{formatMoney(row.sumMoney)}</td>

@@ -10021,6 +10021,13 @@ button.green-bean-toolbar-link:hover:not(:disabled) {
   text-align: right;
 }
 
+.green-bean-history-supplier-cell {
+  min-width: 220px;
+  max-width: 360px;
+  white-space: normal !important;
+  line-height: 1.35;
+}
+
 @media (max-width: 960px) {
   .green-bean-overview-grid,
   .green-bean-per-item-layout {
