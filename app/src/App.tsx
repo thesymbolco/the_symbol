@@ -2430,6 +2430,52 @@ function App() {
     return Array.from(grouped.values()).sort((a, b) => b.totalAmount - a.totalAmount)
   }, [statementPreviewRecords, recordsScopeYm])
 
+  /** 도구줄 「납품 월」과 동일 기준 — 월별 합계·거래처 수·건수 */
+  const statementScopeMonthSummary = useMemo(() => {
+    const scopeYm = recordsScopeYm.trim()
+    if (!/^\d{4}-\d{2}$/.test(scopeYm)) {
+      return {
+        scopeYm,
+        totalAmount: 0,
+        recordCount: 0,
+        distinctClientCards: 0,
+      }
+    }
+    const clientKeys = new Set<string>()
+    let totalAmount = 0
+    let recordCount = 0
+    for (const record of statementPreviewRecords) {
+      if (!record.deliveryDate.startsWith(scopeYm)) {
+        continue
+      }
+      recordCount += 1
+      totalAmount += record.totalAmount
+      const baseClientName = record.clientName.trim()
+      const cardClientName = record.isCashHandled
+        ? `${baseClientName || '미지정'}-${CASH_CLIENT_LABEL}`
+        : baseClientName
+      const key = normalizeName(cardClientName)
+      if (key) {
+        clientKeys.add(key)
+      }
+    }
+    return {
+      scopeYm,
+      totalAmount,
+      recordCount,
+      distinctClientCards: clientKeys.size,
+    }
+  }, [recordsScopeYm, statementPreviewRecords])
+
+  const statementScopeYmLabel = useMemo(() => {
+    const ym = recordsScopeYm.trim()
+    const matched = ym.match(/^(\d{4})-(\d{2})$/)
+    if (!matched) {
+      return ym
+    }
+    return `${matched[1]}년 ${Number(matched[2])}월`
+  }, [recordsScopeYm])
+
   const regularClientCards = useMemo(
     () => clientCardStats.filter((card) => !card.isCashHandled),
     [clientCardStats],
@@ -2657,8 +2703,9 @@ function App() {
     if (showAllSummaryMonths) {
       return MONTH_LABELS.map((_, index) => index)
     }
-    return [new Date().getMonth()]
-  }, [showAllSummaryMonths])
+    const m = Number(recordsScopeYm.trim().slice(5, 7)) - 1
+    return m >= 0 && m <= 11 ? [m] : [new Date().getMonth()]
+  }, [recordsScopeYm, showAllSummaryMonths])
 
   const handleSummaryMonthDateChange = useCallback(
     (
@@ -4401,8 +4448,20 @@ function App() {
                       <strong>{formatCurrency(grandTotal)}원</strong>
                     </div>
                     <div className="metric-card">
-                      <span>{selectedYear} 집계 거래처</span>
+                      <span>{selectedYear}년 집계 거래처</span>
                       <strong>{summaryRows.length}곳</strong>
+                    </div>
+                    <div className="metric-card">
+                      <span>{statementScopeYmLabel} 납품 합계</span>
+                      <strong>{formatCurrency(statementScopeMonthSummary.totalAmount)}원</strong>
+                    </div>
+                    <div className="metric-card">
+                      <span>{statementScopeYmLabel} 집계 거래처</span>
+                      <strong>{statementScopeMonthSummary.distinctClientCards}곳</strong>
+                    </div>
+                    <div className="metric-card">
+                      <span>{statementScopeYmLabel} 납품 건수</span>
+                      <strong>{statementScopeMonthSummary.recordCount}건</strong>
                     </div>
                   </>
                 ) : (
@@ -4526,6 +4585,24 @@ function App() {
               >
                 월별현황 엑셀 저장
               </button>
+            </div>
+          </div>
+
+          <div
+            className="statements-scope-month-snapshot no-print"
+            aria-label={`${statementScopeYmLabel} 납품 집계`}
+          >
+            <div className="metric-card">
+              <span>{statementScopeYmLabel} 납품 합계</span>
+              <strong>{formatCurrency(statementScopeMonthSummary.totalAmount)}원</strong>
+            </div>
+            <div className="metric-card">
+              <span>{statementScopeYmLabel} 집계 거래처</span>
+              <strong>{statementScopeMonthSummary.distinctClientCards}곳</strong>
+            </div>
+            <div className="metric-card">
+              <span>{statementScopeYmLabel} 납품 건수</span>
+              <strong>{statementScopeMonthSummary.recordCount}건</strong>
             </div>
           </div>
 
@@ -5342,6 +5419,24 @@ function App() {
               >
                 저장
               </button>
+            </div>
+          </div>
+
+          <div
+            className="statements-scope-month-snapshot statements-entry-modal-snapshot no-print"
+            aria-label={`${statementScopeYmLabel} 납품 집계`}
+          >
+            <div className="metric-card">
+              <span>{statementScopeYmLabel} 납품 합계</span>
+              <strong>{formatCurrency(statementScopeMonthSummary.totalAmount)}원</strong>
+            </div>
+            <div className="metric-card">
+              <span>{statementScopeYmLabel} 집계 거래처</span>
+              <strong>{statementScopeMonthSummary.distinctClientCards}곳</strong>
+            </div>
+            <div className="metric-card">
+              <span>{statementScopeYmLabel} 납품 건수</span>
+              <strong>{statementScopeMonthSummary.recordCount}건</strong>
             </div>
           </div>
 

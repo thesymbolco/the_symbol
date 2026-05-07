@@ -2526,6 +2526,49 @@ button.statement-bulk-custom-add {
   font-size: 12px;
 }
 
+.statements-hero-compact .hero-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+}
+
+@media (min-width: 1200px) {
+  .statements-hero-compact .hero-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/** 납품 월(연·월 선택) 기준 합계·거래처·건수 스냅샷 */
+.statements-scope-month-snapshot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 4px 0 14px;
+}
+
+.statements-scope-month-snapshot .metric-card {
+  flex: 1 1 160px;
+  min-width: 0;
+  min-height: 72px;
+  padding: 12px 14px;
+  gap: 6px;
+}
+
+.statements-scope-month-snapshot .metric-card strong {
+  font-size: 20px;
+}
+
+.statements-scope-month-snapshot .metric-card span {
+  font-size: 12px;
+}
+
+.statements-records-panel > .statements-scope-month-snapshot {
+  padding: 0 2px;
+}
+
+.statements-form-compact .statements-entry-modal-snapshot {
+  margin-bottom: 12px;
+}
+
 .statements-form-compact.panel {
   padding: 14px 16px;
 }
