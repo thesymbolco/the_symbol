@@ -254,7 +254,7 @@ const parseDateValue = (value: unknown): string => {
   return formatLocalDate(new Date())
 }
 
-const cloneState = (state: InventoryStatusState): InventoryStatusState => ({
+export const cloneInventoryStatusState = (state: InventoryStatusState): InventoryStatusState => ({
   referenceDate: state.referenceDate,
   physicalCountDate: state.physicalCountDate,
   surveyMarkedDays: [...state.surveyMarkedDays],
@@ -333,7 +333,7 @@ const ensureExpectedBeanRows = (beanRows: InventoryBeanRow[]) => {
 
 /** 품목명·날짜 열·로스팅 열 구조는 유지하고 입고·생산·출고·재고·로스팅 수치만 모두 0으로 맞춘다. */
 export const createZeroedInventoryStatusFrom = (current: InventoryStatusState): InventoryStatusState => {
-  const base = cloneState(current)
+  const base = cloneInventoryStatusState(current)
   return {
     ...base,
     surveyMarkedDays: [],
@@ -357,7 +357,7 @@ export const createZeroedInventoryStatusFrom = (current: InventoryStatusState): 
 
 export const createDefaultInventoryStatusState = (): InventoryStatusState => {
   const today = todayLocalIsoDateString()
-  return cloneState({
+  return cloneInventoryStatusState({
     referenceDate: today,
     physicalCountDate: defaultPhysicalCountDateFromReference(today),
     surveyMarkedDays: [],
@@ -396,11 +396,20 @@ export const createDefaultInventoryStatusState = (): InventoryStatusState => {
   })
 }
 
+/** 클라우드 동기화용: 기준일·실사일은 장치마다 두므로 페이로드에는 고정 placeholder만 넣습니다. */
+export const CLOUD_REFERENCE_DATE_PLACEHOLDER = '2000-01-01'
+
 /**
- * 저장값을 불러온 직후에도 상단「기준일」을 브라우저 로컬 오늘로 맞출 때 사용합니다.
- * 실사일은 같은 날 기준으로 맞춰 계산 오류(존재하지 않는 월 일자 등)를 피합니다.
+ * 기준일이 클라우드 placeholder(또는 그와 같은 `2000-` 더미)일 때만 로컬 오늘로 맞춥니다.
+ * 엑셀 업로드·로컬 저장에 들어 있는 실제 월(예: 4월)은 덮어쓰지 않습니다.
  */
 export const withReferenceDateToday = (state: InventoryStatusState): InventoryStatusState => {
+  const ref = state.referenceDate.trim()
+  const isUnsetOrCloudPlaceholder =
+    ref.length < 10 || ref === CLOUD_REFERENCE_DATE_PLACEHOLDER || ref.startsWith('2000-')
+  if (!isUnsetOrCloudPlaceholder) {
+    return state
+  }
   const today = todayLocalIsoDateString()
   if (state.referenceDate === today) {
     return state
@@ -411,9 +420,6 @@ export const withReferenceDateToday = (state: InventoryStatusState): InventorySt
     physicalCountDate: defaultPhysicalCountDateFromReference(today),
   }
 }
-
-/** 클라우드 동기화용: 기준일·실사일은 장치마다 두므로 페이로드에는 고정 placeholder만 넣습니다. */
-export const CLOUD_REFERENCE_DATE_PLACEHOLDER = '2000-01-01'
 
 export function stripReferenceDatesForCloudSync(state: InventoryStatusState): InventoryStatusState {
   return {

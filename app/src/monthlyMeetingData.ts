@@ -1,5 +1,8 @@
 export type MeetingValueRowRole = 'salesRoastingTotal' | 'salesTotal' | 'salesNet' | 'costsGrand'
 
+/** 비용 현황 표 집계 줄 표시명 — 구 저장본의 ⑨비용계·「비용계」와 동일 줄로 취급·마이그레이션 시 이 이름으로 통일 */
+export const MEETING_COST_GRAND_DISPLAY_LABEL = '비용 합계'
+
 /**
  * `label`은 자유(표에 보이는 이름). 집계·지출 자동칸은 `role` / `expenseKey`로 구분.
  */
@@ -77,7 +80,7 @@ export const monthlyMeetingData: MonthlyMeetingData = {
     { label: '순이익(매출−비용)', amount: null, share: null, role: 'salesNet' },
   ],
   currentMonthCosts: [
-    { label: '비용 합계', amount: null, share: null, role: 'costsGrand' },
+    { label: MEETING_COST_GRAND_DISPLAY_LABEL, amount: null, share: null, role: 'costsGrand' },
     {
       label: '재료비(매출·생두)',
       amount: null,

@@ -2249,7 +2249,7 @@ button.statement-bulk-custom-add {
 
 .statements-client-card-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 12px;
   margin: 0;
   font-size: 12px;
@@ -2563,10 +2563,6 @@ button.statement-bulk-custom-add {
 
 .statements-records-panel > .statements-scope-month-snapshot {
   padding: 0 2px;
-}
-
-.statements-form-compact .statements-entry-modal-snapshot {
-  margin-bottom: 12px;
 }
 
 .statements-form-compact.panel {
@@ -3945,6 +3941,177 @@ button.statement-bulk-custom-add {
   margin-bottom: 12px;
 }
 
+.meeting-bean-material-freeze-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.meeting-bean-material-freeze-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.meeting-bean-material-freeze-on {
+  font-weight: 600;
+  color: #0f766e;
+}
+
+.meeting-bean-material-freeze-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.meeting-bean-freeze-header-btn {
+  font-size: 13px;
+}
+
+.meeting-bean-freeze-header-btn--locked {
+  border-color: #0d9488;
+  background: #ecfdf5;
+  color: #115e59;
+  font-weight: 600;
+}
+
+.meeting-bean-material-modal-frozen-note {
+  margin-top: 0;
+}
+
+.inventory-quick-entry {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.inventory-quick-entry-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+
+.inventory-quick-entry-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.inventory-quick-entry-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  max-width: 52ch;
+  line-height: 1.35;
+}
+
+.inventory-quick-entry-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+}
+
+.inventory-quick-entry-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12px;
+  color: #475569;
+}
+
+.inventory-quick-entry-field--grow {
+  flex: 1 1 180px;
+}
+
+.inventory-quick-entry-field--kg {
+  width: 96px;
+  flex: 0 0 auto;
+}
+
+.inventory-quick-entry-field-label {
+  font-size: 12px;
+  color: #475569;
+}
+
+.inventory-quick-entry-field input[type='date'],
+.inventory-quick-entry-field input[type='text'],
+.inventory-quick-entry-field select {
+  min-height: 38px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  font-size: 14px;
+  background: #fff;
+}
+
+.inventory-quick-entry-field select {
+  max-width: 100%;
+}
+
+.inventory-quick-entry-kind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.inventory-quick-entry-kind-btn {
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.inventory-quick-entry-kind-btn:hover {
+  background: #f1f5f9;
+}
+
+.inventory-quick-entry-kind-btn.active {
+  border-color: #0f766e;
+  background: #ccfbf1;
+  color: #134e4a;
+  font-weight: 600;
+}
+
+.inventory-quick-entry-submit {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  min-height: 38px;
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+@media (max-width: 720px) {
+  .inventory-quick-entry-field--kg {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .inventory-quick-entry-submit {
+    width: 100%;
+  }
+}
+
 .inventory-hero-title-row {
   display: flex;
   align-items: center;
@@ -5039,6 +5206,32 @@ button.statement-bulk-custom-add {
 
 .inventory-day-th-num {
   font-variant-numeric: tabular-nums;
+}
+
+/* 원두 일자별 상세 모달: 기준 월이 이번 달일 때 오늘 일 열 강조 */
+.inventory-bean-detail-modal .inventory-day-th--today {
+  background: linear-gradient(180deg, #dbeafe 0%, #e0f7ff 100%);
+  box-shadow: inset 0 -3px 0 #38bdf8;
+}
+
+.inventory-bean-detail-modal .inventory-day-th--today .inventory-day-th-num {
+  font-weight: 800;
+  color: #0369a1;
+}
+
+.inventory-bean-detail-modal td.inventory-bean-detail-td--today {
+  background: #eff6ff;
+  box-shadow: inset 1px 0 0 rgba(56, 189, 248, 0.55), inset -1px 0 0 rgba(56, 189, 248, 0.55);
+}
+
+.inventory-bean-detail-modal td.inventory-bean-detail-td--today .inventory-cell-input {
+  border-color: #7dd3fc;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.inventory-bean-detail-modal td.inventory-bean-detail-td--today .inventory-cell-input.meeting-cell-input-readonly {
+  background: rgba(241, 245, 249, 0.9);
+  border-color: #bae6fd;
 }
 
 .inventory-survey-day-button {

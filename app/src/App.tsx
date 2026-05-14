@@ -271,6 +271,7 @@ type StatementSortConfig = { column: StatementSortColumn; direction: StatementSo
 type FormState = {
   deliveryDate: string
   issueDate: string
+  paymentDate: string
   deliveryCount: string
   clientName: string
   itemName: string
@@ -400,7 +401,8 @@ const today = new Date().toISOString().slice(0, 10)
 
 const defaultFormState = (): FormState => ({
   deliveryDate: today,
-  issueDate: today,
+  issueDate: '',
+  paymentDate: '',
   deliveryCount: '1',
   clientName: '',
   itemName: '',
@@ -983,7 +985,8 @@ const buildEditFormStateFromRecord = (
   return {
     form: {
       deliveryDate: record.deliveryDate,
-      issueDate: record.issueDate ?? '',
+      issueDate: '',
+      paymentDate: '',
       deliveryCount: record.deliveryCount,
       clientName: trimmedClient,
       itemName: trimmedItem,
@@ -1441,6 +1444,7 @@ function App() {
   const [inlineEditDraft, setInlineEditDraft] = useState<{
     deliveryDate: string
     issueDate: string
+    paymentDate: string
     deliveryCount: string
     clientName: string
     itemName: string
@@ -1452,6 +1456,7 @@ function App() {
   }>({
     deliveryDate: '',
     issueDate: '',
+    paymentDate: '',
     deliveryCount: '',
     clientName: '',
     itemName: '',
@@ -2351,11 +2356,18 @@ function App() {
     if (!clientKey) {
       return null
     }
-    const scopeYm = recordsScopeYm
+    const scopeYm = recordsScopeYm.trim()
+    const [yStr, mStr] = scopeYm.split('-')
+    const monthIndex = Number(mStr) - 1
+    const monthOverrideKey =
+      yStr && monthIndex >= 0 && monthIndex <= 11
+        ? statementMonthlyDateOverrideKey(yStr, monthIndex, form.clientName.trim())
+        : ''
+    const hubIssue = monthOverrideKey ? monthlyDateOverrides[monthOverrideKey]?.issueDate ?? '' : ''
+    const hubPayment = monthOverrideKey ? monthlyDateOverrides[monthOverrideKey]?.paymentDate ?? '' : ''
     let count = 0
     let totalAmount = 0
     let quantity = 0
-    let lastDeliveryDate = ''
     records.forEach((record) => {
       if (normalizeName(record.clientName) !== clientKey) {
         return
@@ -2364,13 +2376,10 @@ function App() {
         count += 1
         totalAmount += record.totalAmount
         quantity += record.quantity
-        if (!lastDeliveryDate || record.deliveryDate > lastDeliveryDate) {
-          lastDeliveryDate = record.deliveryDate
-        }
       }
     })
-    return { count, totalAmount, quantity, lastDeliveryDate, scopeYm }
-  }, [form.clientName, records, recordsScopeYm])
+    return { count, totalAmount, quantity, scopeYm, hubIssue, hubPayment }
+  }, [form.clientName, records, recordsScopeYm, monthlyDateOverrides])
 
   const duplicateCandidate = useMemo(() => {
     const clientKey = normalizeName(form.clientName)
@@ -2502,6 +2511,27 @@ function App() {
       const issueDate = monthlyDateOverrides[key]?.issueDate ?? ''
       if (issueDate) {
         out.set(card.clientName, issueDate)
+      }
+    })
+    return out
+  }, [clientCardStats, monthlyDateOverrides, recordsScopeYm])
+
+  const cardPaymentDateByClientName = useMemo(() => {
+    const scopeYm = recordsScopeYm.trim()
+    const [year, monthRaw] = scopeYm.split('-')
+    const monthIndex = Number(monthRaw) - 1
+    if (!year || monthIndex < 0 || monthIndex > 11) {
+      return new Map<string, string>()
+    }
+    const out = new Map<string, string>()
+    clientCardStats.forEach((card) => {
+      const baseName = card.isCashHandled
+        ? card.clientName.replace(new RegExp(`-${CASH_CLIENT_LABEL}$`), '')
+        : card.clientName
+      const key = statementMonthlyDateOverrideKey(year, monthIndex, baseName)
+      const paymentDate = monthlyDateOverrides[key]?.paymentDate ?? ''
+      if (paymentDate) {
+        out.set(card.clientName, paymentDate)
       }
     })
     return out
@@ -3135,7 +3165,7 @@ function App() {
         newRecords.push({
           id: crypto.randomUUID(),
           deliveryDate: form.deliveryDate,
-          issueDate: form.issueDate.trim(),
+          issueDate: '',
           paymentDate: '',
           deliveryCount: form.deliveryCount,
           clientName: clientTrim,
@@ -3221,7 +3251,7 @@ function App() {
       newRecords.push({
         id: crypto.randomUUID(),
         deliveryDate: form.deliveryDate,
-        issueDate: form.issueDate.trim(),
+        issueDate: '',
         paymentDate: '',
         deliveryCount: form.deliveryCount,
         clientName: clientTrim,
@@ -3615,12 +3645,10 @@ function App() {
   }
 
   const resetStatementFormAfterSave = () => {
-    const nextToday = new Date().toISOString().slice(0, 10)
     setForm((current) => ({
       ...defaultFormState(),
       clientName: current.clientName,
       deliveryDate: current.deliveryDate,
-      issueDate: nextToday,
       manualLineEntry: current.manualLineEntry,
     }))
     setIsCustomClient(false)
@@ -3655,8 +3683,8 @@ function App() {
     const nextRecord: StatementRecord = {
       id: editingRecordId ?? crypto.randomUUID(),
       deliveryDate: form.deliveryDate,
-      issueDate: form.issueDate.trim(),
-      paymentDate: '',
+      issueDate: (existingRecord?.issueDate ?? '').trim(),
+      paymentDate: (existingRecord?.paymentDate ?? '').trim(),
       deliveryCount: form.deliveryCount,
       clientName: form.clientName.trim(),
       itemName: form.itemName.trim(),
@@ -3718,7 +3746,8 @@ function App() {
     setIsCustomSpec(!QUICK_SPEC_VALUES.has(record.specUnit.trim()) && record.specUnit.trim() !== '')
     setForm({
       deliveryDate: new Date().toISOString().slice(0, 10),
-      issueDate: new Date().toISOString().slice(0, 10),
+      issueDate: '',
+      paymentDate: '',
       deliveryCount: record.deliveryCount,
       clientName: record.clientName,
       itemName: record.itemName,
@@ -3739,6 +3768,7 @@ function App() {
     setInlineEditDraft({
       deliveryDate: record.deliveryDate,
       issueDate: record.issueDate ?? '',
+      paymentDate: record.paymentDate ?? '',
       deliveryCount: record.deliveryCount,
       clientName: record.clientName,
       itemName: record.itemName,
@@ -3779,6 +3809,7 @@ function App() {
                 ...record,
                 deliveryDate: inlineEditDraft.deliveryDate,
                 issueDate: inlineEditDraft.issueDate.trim(),
+                paymentDate: inlineEditDraft.paymentDate.trim(),
                 deliveryCount: inlineEditDraft.deliveryCount || '1',
                 clientName: inlineEditDraft.clientName.trim(),
                 itemName: inlineEditDraft.itemName.trim(),
@@ -4095,7 +4126,7 @@ function App() {
     if (rows.length === 0) {
       return (
         <tr>
-          <td colSpan={14} className="empty-state">
+          <td colSpan={15} className="empty-state">
             {emptyMessage}
           </td>
         </tr>
@@ -4127,6 +4158,18 @@ function App() {
                   setInlineEditDraft((current) => ({
                     ...current,
                     issueDate: event.target.value,
+                  }))
+                }
+              />
+            </td>
+            <td>
+              <input
+                type="date"
+                value={inlineEditDraft.paymentDate}
+                onChange={(event) =>
+                  setInlineEditDraft((current) => ({
+                    ...current,
+                    paymentDate: event.target.value,
                   }))
                 }
               />
@@ -4265,6 +4308,7 @@ function App() {
           <td>{statementDeliveryMonthSeqById.get(record.id) ?? '—'}</td>
           <td>{formatDateLabel(record.deliveryDate)}</td>
           <td>{record.issueDate ? formatDateLabel(record.issueDate) : ''}</td>
+          <td>{record.paymentDate ? formatDateLabel(record.paymentDate) : ''}</td>
           <td>{record.deliveryCount}</td>
           <td>{record.clientName}</td>
           <td>{record.itemName}</td>
@@ -4697,6 +4741,7 @@ function App() {
                       납품일{statementSort?.column === 'deliveryDate' ? SORT_ARROW[statementSort.direction] : ''}
                     </th>
                     <th>발행일자</th>
+                    <th>입금일자</th>
                     <th>횟수</th>
                     <th
                       className="sortable-th"
@@ -4740,13 +4785,15 @@ function App() {
                         {regularClientCards.map((card) => {
                           const taxIssueRaw = cardTaxIssueDateByClientName.get(card.clientName) ?? ''
                           const hasTaxIssueDate = Boolean(taxIssueRaw.trim())
+                          const paymentRaw = cardPaymentDateByClientName.get(card.clientName) ?? ''
+                          const hasPaymentDate = Boolean(paymentRaw.trim())
                           return (
                           <button
                             key={card.clientName}
                             type="button"
                             className={`statements-client-card${hasTaxIssueDate ? ' statements-client-card--tax-issued' : ''}`}
                             onClick={() => openStatementClientHubFromCard(card)}
-                            title={`${recordsScopeYm.replace('-', '.')} · 납품·발행일 확인/수정`}
+                            title={`${recordsScopeYm.replace('-', '.')} · 발행·입금일자는 카드에서 월별 납품현황으로 지정`}
                           >
                             <div className="statements-client-card-head">
                               <strong>{card.clientName}</strong>
@@ -4776,11 +4823,9 @@ function App() {
                                   </span>
                                 </dd>
                               </div>
-                              <div>
-                                <dt>마지막 납품</dt>
-                                <dd>
-                                  {card.lastDeliveryDate ? formatDateLabel(card.lastDeliveryDate) : '—'}
-                                </dd>
+                              <div className="statements-client-card-meta-payment">
+                                <dt>입금일자</dt>
+                                <dd>{hasPaymentDate ? formatDateLabel(paymentRaw) : '—'}</dd>
                               </div>
                             </dl>
                           </button>
@@ -4796,13 +4841,15 @@ function App() {
                         {cashClientCards.map((card) => {
                           const taxIssueRaw = cardTaxIssueDateByClientName.get(card.clientName) ?? ''
                           const hasTaxIssueDate = Boolean(taxIssueRaw.trim())
+                          const paymentRaw = cardPaymentDateByClientName.get(card.clientName) ?? ''
+                          const hasPaymentDate = Boolean(paymentRaw.trim())
                           return (
                           <button
                             key={card.clientName}
                             type="button"
                             className={`statements-client-card statements-client-card-cash${hasTaxIssueDate ? ' statements-client-card--tax-issued' : ''}`}
                             onClick={() => openStatementClientHubFromCard(card)}
-                            title={`${recordsScopeYm.replace('-', '.')} · 납품·발행일 확인/수정`}
+                            title={`${recordsScopeYm.replace('-', '.')} · 발행·입금일자는 카드에서 월별 납품현황으로 지정`}
                           >
                             <div className="statements-client-card-head">
                               <strong>{card.clientName}</strong>
@@ -4832,11 +4879,9 @@ function App() {
                                   </span>
                                 </dd>
                               </div>
-                              <div>
-                                <dt>마지막 납품</dt>
-                                <dd>
-                                  {card.lastDeliveryDate ? formatDateLabel(card.lastDeliveryDate) : '—'}
-                                </dd>
+                              <div className="statements-client-card-meta-payment">
+                                <dt>입금일자</dt>
+                                <dd>{hasPaymentDate ? formatDateLabel(paymentRaw) : '—'}</dd>
                               </div>
                             </dl>
                           </button>
@@ -5422,24 +5467,6 @@ function App() {
             </div>
           </div>
 
-          <div
-            className="statements-scope-month-snapshot statements-entry-modal-snapshot no-print"
-            aria-label={`${statementScopeYmLabel} 납품 집계`}
-          >
-            <div className="metric-card">
-              <span>{statementScopeYmLabel} 납품 합계</span>
-              <strong>{formatCurrency(statementScopeMonthSummary.totalAmount)}원</strong>
-            </div>
-            <div className="metric-card">
-              <span>{statementScopeYmLabel} 집계 거래처</span>
-              <strong>{statementScopeMonthSummary.distinctClientCards}곳</strong>
-            </div>
-            <div className="metric-card">
-              <span>{statementScopeYmLabel} 납품 건수</span>
-              <strong>{statementScopeMonthSummary.recordCount}건</strong>
-            </div>
-          </div>
-
           {isAdminOpen ? (
             <div className="admin-panel admin-panel--compact">
               <div className="admin-panel-header">
@@ -5757,9 +5784,14 @@ function App() {
                   {formatCurrency(clientMonthSnapshot.totalAmount)}원
                 </span>
                 <span className="statement-client-snapshot-pill">누적 {clientMonthSnapshot.quantity}개</span>
-                {clientMonthSnapshot.lastDeliveryDate ? (
+                {clientMonthSnapshot.hubIssue ? (
                   <span className="statement-client-snapshot-pill">
-                    마지막 납품 {formatDateLabel(clientMonthSnapshot.lastDeliveryDate)}
+                    발행 {formatDateLabel(clientMonthSnapshot.hubIssue)}
+                  </span>
+                ) : null}
+                {clientMonthSnapshot.hubPayment ? (
+                  <span className="statement-client-snapshot-pill">
+                    입금 {formatDateLabel(clientMonthSnapshot.hubPayment)}
                   </span>
                 ) : null}
               </div>
@@ -5807,14 +5839,6 @@ function App() {
                   type="date"
                   value={form.deliveryDate}
                   onChange={(event) => handleFieldChange('deliveryDate', event.target.value)}
-                />
-              </label>
-              <label className="statement-form-field statement-form-field--date">
-                발행일자
-                <input
-                  type="date"
-                  value={form.issueDate}
-                  onChange={(event) => handleFieldChange('issueDate', event.target.value)}
                 />
               </label>
               <label className="statement-form-field statement-form-field--count">
@@ -6425,7 +6449,7 @@ function App() {
                     {clientHubSummaryAllMonths ? '해당 월만 보기' : '연도 전체 월'}
                   </button>
                   <span className="statement-client-hub-hint">
-                    발행일자는 메인 「월별 납품현황」과 동일하게 저장됩니다.
+                    발행·입금일자는 메인 「월별 납품현황」과 동일하게 저장되며, 거래처 카드에서도 같은 값이 보입니다.
                   </span>
                 </div>
                 {!clientHubModalSummaryRow ? (
@@ -6516,6 +6540,7 @@ function App() {
                         <th>번호</th>
                         <th>납품일</th>
                         <th>발행일자</th>
+                        <th>입금일자</th>
                         <th>횟수</th>
                         <th>거래처명</th>
                         <th>품목</th>

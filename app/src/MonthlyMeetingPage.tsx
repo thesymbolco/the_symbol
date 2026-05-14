@@ -48,6 +48,7 @@ import {
   type InventoryStatusState,
 } from './inventoryStatusUtils'
 import {
+  MEETING_COST_GRAND_DISPLAY_LABEL,
   monthlyMeetingData,
   type MeetingMonthlyRow,
   type MeetingProductionRow,
@@ -139,6 +140,8 @@ type MonthlyMeetingMonthState = {
   storeSales: MeetingStoreSalesRow
   productionRow: MeetingProductionRow
   inventoryRow: MeetingProductionRow
+  /** true면 재료비(매출·생두) 줄이 생두 단가·거래명세·입출고 변경 시 자동 갱신되지 않음 */
+  beanSalesMaterialFrozen?: boolean
 }
 
 type MonthlyMeetingPageState = {
@@ -312,7 +315,9 @@ const isComputedSalesRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) =>
   isSalesTotalRow(r) || isSalesNetRow(r) || isSalesRoastingTotalRow(r)
 
 const isCostGrandRow = (r: Pick<MeetingValueRow, 'label' | 'role'>) =>
-  r.role === 'costsGrand' || r.label === '⑨비용계'
+  r.role === 'costsGrand' ||
+  r.label.trim() === '⑨비용계' ||
+  stripLeadingIndexFromLabel(String(r.label ?? '')).trim() === '비용계'
 
 const isRoastSubtotalRow = (r: Pick<MeetingMonthlyRow, 'label' | 'roastRole'>) =>
   r.roastRole === 'subtotal' || r.label === '합 계' || r.label === '합계'
@@ -1166,32 +1171,6 @@ const MEETING_COST_BUCKET_LABEL_FALLBACK: Record<string, string> = {
   '②기타': '그 외 비용',
 }
 
-const MEETING_COST_BUCKET_SORT_ORDER: readonly string[] = [
-  '①재료비',
-  MEETING_BEAN_MATERIAL_BUCKET_KEY,
-  '③임대료',
-  '⑥전기세',
-  '⑧인건비',
-  '②기타경비',
-  '②운영경비',
-  '②기타',
-]
-
-const compareMeetingExpenseBucketKeys = (a: string, b: string): number => {
-  const ia = MEETING_COST_BUCKET_SORT_ORDER.indexOf(a)
-  const ib = MEETING_COST_BUCKET_SORT_ORDER.indexOf(b)
-  if (ia >= 0 && ib >= 0) {
-    return ia - ib
-  }
-  if (ia >= 0) {
-    return -1
-  }
-  if (ib >= 0) {
-    return 1
-  }
-  return a.localeCompare(b, 'ko')
-}
-
 const beanMaterialMeetingLinesToBreakdownEntries = (lines: BeanSalesMaterialMeetingLine[]): OtherCostBucketExpenseEntry[] =>
   lines.map((line) => {
     const dk = line.greenOrderDateRef
@@ -1297,8 +1276,8 @@ const mergeBeanSalesMaterialCostIntoMeetingRows = (
 }
 
 /**
- * 지출표 자동연동 줄(삭제 가능). 없으면 복구해 두어 이름·금액을 수정할 수 있게 합니다.
- * `costRowKey`가 아닌 항목명만 같은 경우 라벨에 맞춰 `expenseKey`만 채워 넣습니다.
+ * 지출표와 연결되는 표준 버킷(기타경비·운영경비·그 외). `hydrateStandardExpenseKeyOnRow`로 `expenseKey`만 채운다.
+ * 지출 연동 시 빈 행을 월마다 강제로 다시 넣지 않아, 사용자가 줄인 비용 항목 개수가 월별로 유지됩니다.
  */
 const USER_EDITABLE_STANDARD_EXPENSE_KEYS = ['②기타경비', '②운영경비', '②기타'] as const
 
@@ -1331,8 +1310,14 @@ const isExpenseSheetFedCostAmountRow = (r: MeetingValueRow): boolean => {
   return k === '②기타경비' || k === '②운영경비'
 }
 
-const expenseSyncedMeetingCostAmountHint = (row: MeetingValueRow): string | undefined => {
+const expenseSyncedMeetingCostAmountHint = (
+  row: MeetingValueRow,
+  beanSalesMaterialFrozen?: boolean,
+): string | undefined => {
   if (String(row.expenseKey ?? '').trim() === MEETING_BEAN_MATERIAL_BUCKET_KEY) {
+    if (beanSalesMaterialFrozen) {
+      return '이 달은 「재료비(매출·생두) 금액 고정」을 켜 두어 표시 금액이 자동으로 바뀌지 않습니다. 생두 단가·거래명세를 바꿔도 이 줄은 유지되며, 다시 자동 반영하려면 아래에서 고정을 해제하세요.'
+    }
     return '이 금액은 해당 월 거래명세 납품·판매량(kg)과 생두 주문 일자별 기록의 원/kg으로 추정합니다. 원두별 매출 분석과 같은 규칙이며, 거래명세·입출고·생두 주문을 수정하면 바뀝니다.'
   }
   if (!isExpenseSheetFedCostAmountRow(row)) {
@@ -1377,59 +1362,10 @@ const resolveMonthlyMeetingCostBreakdownTarget = (
   return null
 }
 
-const ensureMeetingBeanMaterialCostRowPresent = (body: MeetingValueRow[]): MeetingValueRow[] => {
-  if (body.some((r) => String(r.expenseKey ?? '').trim() === MEETING_BEAN_MATERIAL_BUCKET_KEY)) {
-    return body
-  }
-  const label = MEETING_COST_BUCKET_LABEL_FALLBACK[MEETING_BEAN_MATERIAL_BUCKET_KEY]
-  const newRow: MeetingValueRow = {
-    label,
-    amount: null,
-    share: null,
-    expenseKey: MEETING_BEAN_MATERIAL_BUCKET_KEY,
-  }
-  const idxExpenseMaterial = body.findIndex((r) => costRowKey(r) === '①재료비')
-  if (idxExpenseMaterial >= 0) {
-    return [...body.slice(0, idxExpenseMaterial + 1), newRow, ...body.slice(idxExpenseMaterial + 1)]
-  }
-  const idxLease = body.findIndex((r) => costRowKey(r) === '③임대료')
-  if (idxLease >= 0) {
-    return [...body.slice(0, idxLease), newRow, ...body.slice(idxLease)]
-  }
-  return [newRow, ...body]
-}
-
-const ensureStandardUserExpenseBucketRowsInBody = (body: MeetingValueRow[]): MeetingValueRow[] => {
-  const occupied = new Set<string>()
-  for (const r of body) {
-    const k = resolvedStandardExpenseBucketKey(r)
-    if (k) {
-      occupied.add(k)
-    }
-  }
-  const inserts: MeetingValueRow[] = []
-  for (const key of USER_EDITABLE_STANDARD_EXPENSE_KEYS) {
-    if (occupied.has(key)) {
-      continue
-    }
-    inserts.push({
-      label: MEETING_COST_BUCKET_LABEL_FALLBACK[key] ?? key.replace(/^②/, ''),
-      amount: null,
-      share: null,
-      expenseKey: key,
-    })
-    occupied.add(key)
-  }
-  if (inserts.length === 0) {
-    return body
-  }
-  inserts.sort((a, b) => compareMeetingExpenseBucketKeys(a.expenseKey!, b.expenseKey!))
-  return [...body, ...inserts]
-}
 
 const prepareExpenseLinkedCostBodyRows = (bodyWithoutGrand: MeetingValueRow[]): MeetingValueRow[] => {
-  const hydrated = bodyWithoutGrand.map(hydrateStandardExpenseKeyOnRow)
-  return ensureMeetingBeanMaterialCostRowPresent(ensureStandardUserExpenseBucketRowsInBody(hydrated))
+  /** 월별로 사용자가 줄인 비용 행을 유지하기 위해, 지출 연동 시 빈 표준 행·새 버킷 줄을 강제 추가하지 않음 */
+  return bodyWithoutGrand.map(hydrateStandardExpenseKeyOnRow)
 }
 
 const ensureEditableExpenseCostRowsShape = (costRows: MeetingValueRow[]): MeetingValueRow[] => {
@@ -1519,24 +1455,7 @@ const buildMeetingCostsFromExpenses = (records: ExpenseRecord[], ym: string, bas
   const grandRow = grandIdx >= 0 ? base[grandIdx]! : null
   const bodyRowsBase = prepareExpenseLinkedCostBodyRows(base.filter((row) => !isCostGrandRow(row)))
 
-  const existingBucketKeys = new Set(bodyRowsBase.map(costRowKey))
-  const inserts: MeetingValueRow[] = []
-  for (const bucketKey of [...map.keys()].sort(compareMeetingExpenseBucketKeys)) {
-    if (existingBucketKeys.has(bucketKey)) {
-      continue
-    }
-    inserts.push({
-      label: MEETING_COST_BUCKET_LABEL_FALLBACK[bucketKey] ?? bucketKey.replace(/^②/, ''),
-      amount: null,
-      share: null,
-      expenseKey: bucketKey,
-    })
-    existingBucketKeys.add(bucketKey)
-  }
-
-  const bodyRows = [...bodyRowsBase, ...inserts]
-
-  const patchedBody = bodyRows.map((row) => {
+  const patchedBody = bodyRowsBase.map((row) => {
     const key = costRowKey(row)
     if (!map.has(key)) {
       return row
@@ -1726,7 +1645,7 @@ const computeRoastingSales = (rows: MonthlyMeetingData['roastingSales']) => {
   })
 }
 
-/** 출금: 「비용 현황」에서 ⑨(비용 합계)를 제외한 항목 + (별도인 경우) 생두비용. */
+/** 출금: 「비용 현황」에서 집계 줄(비용 합계)을 제외한 항목 + (별도인 경우) 생두비용. */
 
 type MeetingCashflowAmountLine = {
   label: string
@@ -1966,21 +1885,44 @@ const createDefaultState = (): MonthlyMeetingPageState => ({
 
 const migrateMeetingValueRow = (r: MeetingValueRow, ctx: 'sales' | 'costs'): MeetingValueRow => {
   const out: MeetingValueRow = { ...r }
+  const labelRaw = String(out.label ?? '')
+
   if (!out.role) {
-    if (out.label === '로스팅실 매출 총 합계') {
+    if (labelRaw === '로스팅실 매출 총 합계') {
       out.role = 'salesRoastingTotal'
-    } else if (out.label === '⑧총매출') {
+    } else if (labelRaw === '⑧총매출') {
       out.role = 'salesTotal'
-    } else if (out.label === '⑨순이익') {
+    } else if (labelRaw === '⑨순이익') {
       out.role = 'salesNet'
-    } else if (out.label === '⑨비용계') {
+    } else if (labelRaw === '⑨비용계') {
       out.role = 'costsGrand'
     }
   }
-  if (ctx === 'costs' && (out.expenseKey == null || out.expenseKey === '') && /^[①②③④⑥⑦⑧⑨]/.test(out.label)) {
-    out.expenseKey = out.label
+
+  if (ctx === 'costs' && !out.role) {
+    const plainGrand = stripLeadingIndexFromLabel(labelRaw).trim()
+    if (plainGrand === MEETING_COST_GRAND_DISPLAY_LABEL || plainGrand === '비용계') {
+      out.role = 'costsGrand'
+    }
   }
+
+  if (
+    ctx === 'costs' &&
+    out.role !== 'costsGrand' &&
+    (out.expenseKey == null || out.expenseKey === '') &&
+    /^[①②③④⑥⑦⑧⑨]/.test(labelRaw)
+  ) {
+    out.expenseKey = labelRaw
+  }
+
   out.label = stripLeadingIndexFromLabel(out.label)
+
+  if (ctx === 'costs' && out.role === 'costsGrand') {
+    const next: MeetingValueRow = { ...out, label: MEETING_COST_GRAND_DISPLAY_LABEL }
+    delete next.expenseKey
+    return next
+  }
+
   return out
 }
 
@@ -2043,18 +1985,19 @@ const migrateMonthState = (s: MonthlyMeetingMonthState): MonthlyMeetingMonthStat
   storeSales: s.storeSales,
   productionRow: s.productionRow,
   inventoryRow: s.inventoryRow,
+  beanSalesMaterialFrozen: typeof s.beanSalesMaterialFrozen === 'boolean' ? s.beanSalesMaterialFrozen : undefined,
 })
 
-/** 열람 시 당월 탭 우선 — 커스텀 `months`에 이번 달이 없을 때만 저장값·폴백 사용 */
+/** 저장된 활성 월 우선 — 없거나 목록 밖이면 당월 등으로 폴백 (탭이 당월로 강제되는 문제 방지) */
 const resolveDefaultActiveMeetingMonth = (data: MonthlyMeetingData, parsedActiveMonth: unknown): string => {
-  const calendarMonthTab = `${new Date().getMonth() + 1}월`
-  if (data.months.includes(calendarMonthTab)) {
-    return calendarMonthTab
-  }
   const saved =
     parsedActiveMonth !== undefined && parsedActiveMonth !== null ? String(parsedActiveMonth).trim() : ''
   if (saved && data.months.includes(saved)) {
     return saved
+  }
+  const calendarMonthTab = `${new Date().getMonth() + 1}월`
+  if (data.months.includes(calendarMonthTab)) {
+    return calendarMonthTab
   }
   return data.monthLabel
 }
@@ -2452,7 +2395,8 @@ function MonthlyMeetingPage() {
     roastingSalesReferenceYm,
   ])
 
-  /** 지출표 → 재료비·기타 세부, 비용현황 ①②, 매출 채널(키워드) 자동 연동 + 거래명세·입출고·생두단가 기반 재료비(매출·생두) */
+  /** 지출표 → 재료비·기타 세부, 비용현황 ①②, 매출 채널(키워드) 자동 연동 + 거래명세·입출고·생두단가 기반 재료비(매출·생두).
+   * 현재 선택한 월 탭만 갱신합니다(다른 달은 보는 탭이 바뀔 때 해당 달만 맞춤) — 타 월 표가 함께 덮여 꼬이는 것을 막습니다. */
   useEffect(() => {
     if (!isStorageReady || sectionEditModes.summary) {
       return
@@ -2464,43 +2408,46 @@ function MonthlyMeetingPage() {
 
     setPageState((current) => {
       const fallbackStates = createMonthStates(current.data)
-      let nextMonthStates = { ...current.monthStatesByMonth }
-      let changed = false
-      for (const monthLabel of current.data.months) {
-        const ym = meetingMonthLabelToExpenseYm(monthLabel, records)
-        if (!ym) {
-          continue
-        }
-        const base = nextMonthStates[monthLabel] ?? fallbackStates[monthLabel]!
-        const built = buildMeetingCostsFromExpenses(records, ym, base.currentMonthCosts)
-        const stmMonth = filterStatementsByYmDelivery(stmtAll, ym)
-        const beanResult = computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, mapOpts)
-        const nextCosts = computeCurrentMonthCosts(mergeBeanSalesMaterialCostIntoMeetingRows(built, ym, beanResult))
-        const salesPatchMap = aggregateExpenseSalesPatches(records, ym)
-        const nextSalesRaw = applySalesPatchesFromMap(base.currentMonthSales, salesPatchMap)
+      const monthLabel = current.activeMonth
+      if (!current.data.months.includes(monthLabel)) {
+        return current
+      }
+      const ym = meetingMonthLabelToExpenseYm(monthLabel, records)
+      if (!ym) {
+        return current
+      }
 
-        const costsUnchanged =
-          meetingValueRowsSignature(nextCosts) === meetingValueRowsSignature(computeCurrentMonthCosts(base.currentMonthCosts))
-        const salesUnchanged = meetingValueRowsSignature(nextSalesRaw) === meetingValueRowsSignature(base.currentMonthSales)
+      const nextMonthStates = { ...current.monthStatesByMonth }
+      const base = nextMonthStates[monthLabel] ?? fallbackStates[monthLabel]!
+      const built = buildMeetingCostsFromExpenses(records, ym, base.currentMonthCosts)
+      const stmMonth = filterStatementsByYmDelivery(stmtAll, ym)
+      const beanResult =
+        base.beanSalesMaterialFrozen === true
+          ? null
+          : computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, mapOpts)
+      const nextCosts = computeCurrentMonthCosts(mergeBeanSalesMaterialCostIntoMeetingRows(built, ym, beanResult))
+      const salesPatchMap = aggregateExpenseSalesPatches(records, ym)
+      const nextSalesRaw = applySalesPatchesFromMap(base.currentMonthSales, salesPatchMap)
 
-        if (costsUnchanged && salesUnchanged) {
-          continue
-        }
+      const costsUnchanged =
+        meetingValueRowsSignature(nextCosts) === meetingValueRowsSignature(computeCurrentMonthCosts(base.currentMonthCosts))
+      const salesUnchanged = meetingValueRowsSignature(nextSalesRaw) === meetingValueRowsSignature(base.currentMonthSales)
 
-        nextMonthStates = {
+      if (costsUnchanged && salesUnchanged) {
+        return current
+      }
+
+      return {
+        ...current,
+        monthStatesByMonth: {
           ...nextMonthStates,
           [monthLabel]: {
             ...base,
             currentMonthCosts: nextCosts,
             currentMonthSales: nextSalesRaw,
           },
-        }
-        changed = true
+        },
       }
-      if (!changed) {
-        return current
-      }
-      return { ...current, monthStatesByMonth: nextMonthStates }
     })
   }, [
     expenseRecordsForMeetingLink,
@@ -2511,6 +2458,9 @@ function MonthlyMeetingPage() {
     statementRecordsStorageRev,
     inventoryLinkTick,
     beanMeetingMaterialDepsRev,
+    pageState.activeMonth,
+    /** 고정 토글 시 자동 재계산(해제) 또는 고정 반영 */
+    pageState.monthStatesByMonth[pageState.activeMonth]?.beanSalesMaterialFrozen,
   ])
 
   useEffect(() => {
@@ -2753,7 +2703,11 @@ function MonthlyMeetingPage() {
           lastJson = nextJson
           lastCloudPollJsonRef.current = nextJson
           window.localStorage.setItem(MONTHLY_MEETING_LAST_SYNCED_JSON_KEY, nextJson)
-          setPageState(normalized)
+          setPageState((prev) =>
+            normalized.data.months.includes(prev.activeMonth)
+              ? { ...normalized, activeMonth: prev.activeMonth }
+              : normalized,
+          )
         }
       } catch {
         /* retry next cycle */
@@ -3073,6 +3027,13 @@ function MonthlyMeetingPage() {
     }))
   }
 
+  const toggleBeanSalesMaterialFreeze = () => {
+    updateMonthState((ms) => ({
+      ...ms,
+      beanSalesMaterialFrozen: !ms.beanSalesMaterialFrozen,
+    }))
+  }
+
   const computedCurrentMonthCosts = useMemo(
     () => computeCurrentMonthCosts(activeMonthState.currentMonthCosts),
     [activeMonthState.currentMonthCosts],
@@ -3189,9 +3150,11 @@ function MonthlyMeetingPage() {
     [],
   )
 
-  const summaryCostsAmountInputTitle = useCallback((row: MeetingValueRow): string | undefined => {
-    return expenseSyncedMeetingCostAmountHint(row)
-  }, [])
+  const summaryCostsAmountInputTitle = useCallback(
+    (row: MeetingValueRow): string | undefined =>
+      expenseSyncedMeetingCostAmountHint(row, activeMonthState.beanSalesMaterialFrozen === true),
+    [activeMonthState.beanSalesMaterialFrozen],
+  )
 
   const computedRoastingSales = useMemo(
     () => computeRoastingSales(data.roastingSales),
@@ -3397,7 +3360,7 @@ function MonthlyMeetingPage() {
         value: cashflowPl.netCashMarginRatio,
         unit: 'ratio' as const,
       },
-      { label: `${activeMonth} 비용계`, value: costGrand, unit: 'won' as const },
+      { label: `${activeMonth} ${MEETING_COST_GRAND_DISPLAY_LABEL}`, value: costGrand, unit: 'won' as const },
       { label: `${activeMonth} 재료비`, value: pickCostLineAmount(costs, '①재료비'), unit: 'won' as const },
       {
         label: `${activeMonth} 재료비(매출·생두)`,
@@ -3795,6 +3758,7 @@ function MonthlyMeetingPage() {
               ...cloneProductionRow(sourceState.inventoryRow),
               label: copyTargetMonth,
             },
+            beanSalesMaterialFrozen: sourceState.beanSalesMaterialFrozen,
           },
         },
       }
@@ -4135,18 +4099,20 @@ function MonthlyMeetingPage() {
             <button type="button" className="ghost-button" onClick={handleExportMeetingExcel}>
               현재 월 엑셀 저장
             </button>
-            <select value={copyTargetMonth} onChange={(event) => setCopyTargetMonth(event.target.value)}>
-              {data.months
-                .filter((month) => month !== activeMonth)
-                .map((month) => (
-                  <option key={month} value={month}>
-                    {month}로 복사
-                  </option>
-                ))}
-            </select>
-            <button type="button" className="ghost-button" onClick={handleCopyMonth}>
-              현재 월 복사
-            </button>
+            <div style={{ display: 'none' }} aria-hidden>
+              <select value={copyTargetMonth} onChange={(event) => setCopyTargetMonth(event.target.value)}>
+                {data.months
+                  .filter((month) => month !== activeMonth)
+                  .map((month) => (
+                    <option key={month} value={month}>
+                      {month}로 복사
+                    </option>
+                  ))}
+              </select>
+              <button type="button" className="ghost-button" onClick={handleCopyMonth}>
+                현재 월 복사
+              </button>
+            </div>
           </div>
 
           <p className="meeting-excel-export-hint">
@@ -4188,10 +4154,26 @@ function MonthlyMeetingPage() {
                 </button>
                 <span>1. {activeMonth} 요약</span>
               </h2>
-              <p className="meeting-section-description">월 매출, 비용, 손익 흐름을 한 번에 비교하는 핵심 요약 영역입니다.</p>
+              <p className="meeting-section-description">
+                월 매출, 비용, 손익 흐름을 한 번에 비교하는 핵심 요약 영역입니다. 지출표·거래명세 자동연동은 「요약」이
+                완료(읽기)일 때만 돌며, 그때 갱신되는 것은 현재 선택한 월 탭입니다. 다른 달은 그 탭을 열었을 때 같은 규칙으로
+                맞춥니다.
+              </p>
             </div>
             <div className="meeting-actions meeting-section-actions">
               {renderItemEditToggleButton('summary')}
+              <button
+                type="button"
+                className={
+                  activeMonthState.beanSalesMaterialFrozen
+                    ? 'ghost-button meeting-bean-freeze-header-btn meeting-bean-freeze-header-btn--locked'
+                    : 'ghost-button meeting-bean-freeze-header-btn'
+                }
+                onClick={toggleBeanSalesMaterialFreeze}
+                title="비용 표의 「재료비(매출·생두)」 줄만, 나중에 생두 단가·거래명세가 바뀌어도 자동으로 바뀌지 않게 고정합니다."
+              >
+                {activeMonthState.beanSalesMaterialFrozen ? '재료비(생두) 고정 중 · 해제' : '재료비(생두) 금액 고정'}
+              </button>
             </div>
           </div>
 
@@ -4231,12 +4213,22 @@ function MonthlyMeetingPage() {
             />
           </div>
 
+          <div className="meeting-bean-material-freeze-row" role="note">
+            <p className="meeting-bean-material-freeze-text">
+              재료비(매출·생두)는 생두 주문 원/kg·거래명세가 바뀌면 다시 계산됩니다. 위쪽 헤더의「재료비(생두) 금액
+              고정」으로 이 달 숫자를 유지할 수 있습니다.
+              {activeMonthState.beanSalesMaterialFrozen ? (
+                <span className="meeting-bean-material-freeze-on"> 이 달은 고정 중입니다.</span>
+              ) : null}
+            </p>
+          </div>
+
           <div className="meeting-summary-cashflow">
                 <p className="meeting-cashflow-hint">
                   당월 매출(결제), 로스팅실 집계 월 거래처 매출, 매장 전체 판매(홀·배달·간편배달)을 합산한 입금
                   합계입니다. 점유비는 각 구간 안에서만 나눈 비율입니다(당월 결제끼리, 로스팅 거래처끼리, 매장 채널끼리 합이
-                  100%). 출금은 위 「비용 현황」표의 ⑨(비용 합계)를 제외한 각 항목 금액, 로스팅실 생두비용(별도 반영
-                  시)을 더한 값이며, 맨 아래 출금 합계에 표시됩니다(생두비용이 비용 표 ⑨에 이미 포함되면 이중 합산되지
+                  100%). 출금은 위 「비용 현황」표의 집계 줄(비용 합계)을 제외한 각 항목 금액, 로스팅실 생두비용(별도 반영
+                  시)을 더한 값이며, 맨 아래 출금 합계에 표시됩니다(생두비용이 비용 합계 집계 줄에 이미 포함되면 이중 합산되지
                   않도록 한 줄을 생략합니다).
                 </p>
                 <div className="meeting-cashflow-columns">
@@ -4328,7 +4320,7 @@ function MonthlyMeetingPage() {
                           </>
                         ) : null}
                         <tr className="meeting-cashflow-section-row">
-                          <td colSpan={2}>비용 현황 (⑨ 비용 합계 제외)</td>
+                          <td colSpan={2}>비용 현황 (비용 합계·집계 줄 제외)</td>
                         </tr>
                         {outboundCashflow.extraCostLines.map((row, idx) => (
                           <tr key={`out-c-${idx}-${row.label}`}>
@@ -5147,6 +5139,12 @@ function MonthlyMeetingPage() {
                 ? MEETING_COST_BREAKDOWN_MODAL_COPY[meetingCostDetailModal.bucket].hint
                 : MEETING_BEAN_MATERIAL_MODAL_COPY.hint}
             </p>
+            {meetingCostDetailModal.kind === 'beanMaterial' && activeMonthState.beanSalesMaterialFrozen ? (
+              <p className="muted tiny meeting-pi-table-modal-hint meeting-bean-material-modal-frozen-note">
+                이 달은 비용 표에서 「금액 고정」이 켜져 있습니다. 아래 품목 줄은 현재 데이터로 다시 계산한 참고용이며, 위 비용
+                표에 보이는 합계와 다를 수 있습니다.
+              </p>
+            ) : null}
             <div className="meeting-breakdown-sort-bar" role="toolbar" aria-label="내역 정렬">
               <span className="meeting-breakdown-sort-bar-label">정렬 기준</span>
               <div className="segmented meeting-breakdown-sort-segmented">
