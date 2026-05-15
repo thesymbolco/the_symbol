@@ -20,7 +20,11 @@ import {
   type BeanStatementDeliveryRecord,
 } from './beanSalesMeetingMaterialCost'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
-import { normalizeInventoryStatusState, withReferenceDateToday } from './inventoryStatusUtils'
+import {
+  normalizeInventoryStatusState,
+  parseInventoryStatusStateFromLocalStorageJson,
+  withReferenceDateToday,
+} from './inventoryStatusUtils'
 import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'
 import { roastedBeanCost1KgFromGreenWonPerKg, roastedBeanCost200gFrom1KgCost } from './beanSalesRoastedCost'
 import { STATEMENT_RECORDS_SAVED_EVENT } from './MonthlyMeetingPage'
@@ -284,6 +288,7 @@ function BeanSalesAnalysisPage() {
           if (nextJson !== lastGreenOrderDoc) {
             lastGreenOrderDoc = nextJson
             window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(greenOrderDoc))
+            window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
             setGreenOrderCloudSyncTick((n) => n + 1)
           }
         }
@@ -352,7 +357,7 @@ function BeanSalesAnalysisPage() {
             return null
           }
           const parsed = JSON.parse(raw)
-          const normalized = normalizeInventoryStatusState(parsed)
+          const normalized = parseInventoryStatusStateFromLocalStorageJson(parsed)
           return normalized ?? null
         } catch {
           return null
@@ -774,7 +779,92 @@ function BeanSalesAnalysisPage() {
       </div>
 
       {viewMode === 'revenue' && (
-        <div className="analysis-section">
+        <>
+          <div className="revenue-summary-table revenue-summary-table--no-hscroll bean-sales-summary-below-metrics">
+            <h3>매출 요약</h3>
+            <table className="bean-sales-revenue-table">
+              <thead>
+                <tr>
+                  <th rowSpan={2}>원두명</th>
+                  <th rowSpan={2}>매출액</th>
+                  <th rowSpan={2}>매출 비율</th>
+                  <th rowSpan={2}>수량</th>
+                  <th rowSpan={2}>매출 평균단가</th>
+                  <th colSpan={2} className="bean-sales-th-roasted-group">
+                    원두원가
+                  </th>
+                  <th rowSpan={2}>원가액</th>
+                  <th rowSpan={2}>이익</th>
+                  <th rowSpan={2}>거래처 수</th>
+                  <th rowSpan={2}>거래 건수</th>
+                  <th rowSpan={2}>수정</th>
+                </tr>
+                <tr>
+                  <th>1kg</th>
+                  <th>200g</th>
+                </tr>
+              </thead>
+              <tbody>
+                {beanSalesAnalysis
+                  .filter(data => data.totalRevenue > 0)
+                  .map(data => (
+                    <tr key={data.beanName}>
+                      <td><strong>{data.beanName}</strong></td>
+                      <td>{formatCurrency(data.totalRevenue)}원</td>
+                      <td>{totalRevenue > 0 ? ((data.totalRevenue / totalRevenue) * 100).toFixed(1) : 0}%</td>
+                      <td>{formatNumber(data.totalQuantity)}개</td>
+                      <td>{formatCurrency(data.avgUnitPrice)}원</td>
+                      <td>
+                        {data.latestGreenWonPerKg != null
+                          ? `${formatCurrency(roastedBeanCost1KgFromGreenWonPerKg(data.latestGreenWonPerKg))}원`
+                          : '—'}
+                      </td>
+                      <td>
+                        {data.latestGreenWonPerKg != null
+                          ? `${formatCurrency(
+                              roastedBeanCost200gFrom1KgCost(
+                                roastedBeanCost1KgFromGreenWonPerKg(data.latestGreenWonPerKg),
+                              ),
+                            )}원`
+                          : '—'}
+                      </td>
+                      <td>
+                        {data.estimatedCostAmount != null ? `${formatCurrency(data.estimatedCostAmount)}원` : '—'}
+                      </td>
+                      <td
+                        className={
+                          data.estimatedProfitAmount != null
+                            ? data.estimatedProfitAmount >= 0
+                              ? 'bean-sales-spread-pos'
+                              : 'bean-sales-spread-neg'
+                            : 'bean-sales-td-muted'
+                        }
+                      >
+                        {data.estimatedProfitAmount != null
+                          ? `${data.estimatedProfitAmount >= 0 ? '+' : '−'}${formatCurrency(Math.abs(data.estimatedProfitAmount))}원`
+                          : '—'}
+                      </td>
+                      <td>{data.clientCount}곳</td>
+                      <td>{data.transactionCount}건</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="bean-sales-row-edit-btn"
+                          onClick={() => {
+                            setLinkModalPreferredToLabel(data.beanName)
+                            setLinkModalOpen(true)
+                          }}
+                        >
+                          수정
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="analysis-section">
           <div className="chart-grid">
             <div className="chart-container">
               <h3>원두별 매출 비율</h3>
@@ -946,91 +1036,8 @@ function BeanSalesAnalysisPage() {
               )}
             </div>
           </div>
-
-          <div className="revenue-summary-table revenue-summary-table--no-hscroll">
-            <h3>매출 요약</h3>
-            <table className="bean-sales-revenue-table">
-              <thead>
-                <tr>
-                  <th rowSpan={2}>원두명</th>
-                  <th rowSpan={2}>매출액</th>
-                  <th rowSpan={2}>매출 비율</th>
-                  <th rowSpan={2}>수량</th>
-                  <th rowSpan={2}>매출 평균단가</th>
-                  <th colSpan={2} className="bean-sales-th-roasted-group">
-                    원두원가
-                  </th>
-                  <th rowSpan={2}>원가액</th>
-                  <th rowSpan={2}>이익</th>
-                  <th rowSpan={2}>거래처 수</th>
-                  <th rowSpan={2}>거래 건수</th>
-                  <th rowSpan={2}>수정</th>
-                </tr>
-                <tr>
-                  <th>1kg</th>
-                  <th>200g</th>
-                </tr>
-              </thead>
-              <tbody>
-                {beanSalesAnalysis
-                  .filter(data => data.totalRevenue > 0)
-                  .map(data => (
-                    <tr key={data.beanName}>
-                      <td><strong>{data.beanName}</strong></td>
-                      <td>{formatCurrency(data.totalRevenue)}원</td>
-                      <td>{totalRevenue > 0 ? ((data.totalRevenue / totalRevenue) * 100).toFixed(1) : 0}%</td>
-                      <td>{formatNumber(data.totalQuantity)}개</td>
-                      <td>{formatCurrency(data.avgUnitPrice)}원</td>
-                      <td>
-                        {data.latestGreenWonPerKg != null
-                          ? `${formatCurrency(roastedBeanCost1KgFromGreenWonPerKg(data.latestGreenWonPerKg))}원`
-                          : '—'}
-                      </td>
-                      <td>
-                        {data.latestGreenWonPerKg != null
-                          ? `${formatCurrency(
-                              roastedBeanCost200gFrom1KgCost(
-                                roastedBeanCost1KgFromGreenWonPerKg(data.latestGreenWonPerKg),
-                              ),
-                            )}원`
-                          : '—'}
-                      </td>
-                      <td>
-                        {data.estimatedCostAmount != null ? `${formatCurrency(data.estimatedCostAmount)}원` : '—'}
-                      </td>
-                      <td
-                        className={
-                          data.estimatedProfitAmount != null
-                            ? data.estimatedProfitAmount >= 0
-                              ? 'bean-sales-spread-pos'
-                              : 'bean-sales-spread-neg'
-                            : 'bean-sales-td-muted'
-                        }
-                      >
-                        {data.estimatedProfitAmount != null
-                          ? `${data.estimatedProfitAmount >= 0 ? '+' : '−'}${formatCurrency(Math.abs(data.estimatedProfitAmount))}원`
-                          : '—'}
-                      </td>
-                      <td>{data.clientCount}곳</td>
-                      <td>{data.transactionCount}건</td>
-                      <td>
-                        <button
-                          type="button"
-                          className="bean-sales-row-edit-btn"
-                          onClick={() => {
-                            setLinkModalPreferredToLabel(data.beanName)
-                            setLinkModalOpen(true)
-                          }}
-                        >
-                          수정
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
         </div>
+        </>
       )}
 
       {inventoryBeanRows.length > 0 && notInInventoryByStatement.length > 0 ? (
@@ -1377,6 +1384,10 @@ function BeanSalesAnalysisPage() {
         .revenue-summary-table--no-hscroll {
           overflow-x: hidden;
           max-width: 100%;
+        }
+
+        .bean-sales-summary-below-metrics {
+          margin-bottom: 28px;
         }
 
         .revenue-summary-table h3 {

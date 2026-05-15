@@ -17,7 +17,7 @@ import InventoryStatusPage, {
   inventoryPageScopedKey,
   type LowGreenBeanWarningItem,
 } from './InventoryStatusPage'
-import { normalizeInventoryStatusState } from './inventoryStatusUtils'
+import { parseInventoryStatusStateFromLocalStorageJson } from './inventoryStatusUtils'
 import MonthlyMeetingPage, {
   MONTHLY_MEETING_DATA_KEY,
   STATEMENT_RECORDS_SAVED_EVENT,
@@ -1420,7 +1420,7 @@ function App() {
         setLowGreenBeanWarningItems([])
         return
       }
-      const state = normalizeInventoryStatusState(JSON.parse(raw) as unknown)
+      const state = parseInventoryStatusStateFromLocalStorageJson(JSON.parse(raw) as unknown)
       if (!state) {
         setLowGreenBeanWarningItems([])
         return

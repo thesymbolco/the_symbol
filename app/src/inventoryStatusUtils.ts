@@ -542,6 +542,24 @@ export const normalizeInventoryStatusState = (value: unknown): InventoryStatusSt
   }
 }
 
+/** 입출고 페이지 localStorage v2 래퍼의 `v` 값 (`InventoryStatusPage` 저장 형식과 동일). */
+export const INVENTORY_LOCAL_STORAGE_ENVELOPE_VERSION = 2
+
+/**
+ * 입출고 localStorage JSON: v2 래퍼(`{ v: 2, inventoryState, inventoryByMonth }`)와
+ * 구버전·타 경로의 순수 `InventoryStatusState` 객체를 모두 `InventoryStatusState`로 정규화한다.
+ */
+export const parseInventoryStatusStateFromLocalStorageJson = (parsed: unknown): InventoryStatusState | null => {
+  if (!parsed || typeof parsed !== 'object') {
+    return null
+  }
+  const rec = parsed as { v?: number; inventoryState?: unknown }
+  if (rec.v === INVENTORY_LOCAL_STORAGE_ENVELOPE_VERSION) {
+    return normalizeInventoryStatusState(rec.inventoryState)
+  }
+  return normalizeInventoryStatusState(parsed)
+}
+
 const getSheetCellValue = (sheet: XLSX.WorkSheet, rowIndex: number, columnIndex: number) => {
   const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })
   const cell = sheet[address]

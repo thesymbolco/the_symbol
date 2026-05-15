@@ -13,7 +13,10 @@ import {
 import * as XLSX from 'xlsx'
 import PageSaveStatus from './components/PageSaveStatus'
 import { exportStyledGreenBeanOrderExcel } from './greenBeanOrderExcelExport'
-import { dayIndexForReferenceDate, normalizeInventoryStatusState } from './inventoryStatusUtils'
+import {
+  dayIndexForReferenceDate,
+  parseInventoryStatusStateFromLocalStorageJson,
+} from './inventoryStatusUtils'
 import { INVENTORY_STATUS_STORAGE_KEY } from './InventoryStatusPage'
 import {
   BEAN_NAME_ALIASES_STORAGE_KEY,
@@ -370,7 +373,7 @@ function readInventoryStockFromStorage(
     if (!raw) {
       return empty()
     }
-    const parsed = normalizeInventoryStatusState(JSON.parse(raw))
+    const parsed = parseInventoryStatusStateFromLocalStorageJson(JSON.parse(raw))
     if (!parsed) {
       return { ...empty(), hasStoredPayload: true, loadError: true }
     }

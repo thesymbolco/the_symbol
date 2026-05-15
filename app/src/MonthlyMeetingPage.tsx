@@ -44,7 +44,7 @@ import {
 import { exportStyledMeetingMonthExcel, sanitizeExcelFileBaseName } from './monthlyMeetingExcelStyledExport'
 import {
   dayIndexForReferenceDate,
-  normalizeInventoryStatusState,
+  parseInventoryStatusStateFromLocalStorageJson,
   type InventoryStatusState,
 } from './inventoryStatusUtils'
 import {
@@ -472,7 +472,8 @@ const MEETING_BEAN_MATERIAL_MODAL_COPY = {
     '해당 월 거래명세 납품일이 속한 로스팅 거래를 입출고 생두와 맞춘 뒤, 생두 주문 일자별 기록의 최근 1kg당 단가(원두별 매출 분석과 동일)로 추정한 생두 원가입니다.',
   empty:
     '이 달 납품 건이 없거나, 입출고에 없는 품목만 있으면 여기에 잡히지 않을 수 있습니다. 거래명세·입출고·생두 주문을 확인해 주세요.',
-  hint: '단가가 없는 품목은 추정 원가 0으로 표시될 수 있습니다. 생두 주문 스냅샷·원/kg 직접 입력을 맞춰 주세요.',
+  hint:
+    '「생두 단가 미확보」가 보이면: (1) 생두 주문 페이지의 「일자 기록」에, 그 입출고 품목명과 맞게 매핑되는 줄이 있고 수량·금액이 있어야 합니다. (2) 다크/라이트/디카페인 블렌드는 구성 원두 단가로 계산하거나, 원두별 매출 분석의 「명세↔입고」에서 블렌드 원/kg을 직접 넣을 수 있습니다. (3) 거래명세 품목명이 입출고와 다르면 같은 화면에서 수동 매핑을 맞춰 주세요.',
 }
 
 /** 1. 요약 — 매출·비용·재료·기타 4칸(동일 UI, 집계 행·점유비 열 유무만 다름) */
@@ -1181,7 +1182,7 @@ const beanMaterialMeetingLinesToBreakdownEntries = (lines: BeanSalesMaterialMeet
     if (line.wonPerKg != null && Number.isFinite(line.wonPerKg)) {
       metaBits.push(`${currencyFormatter.format(Math.round(line.wonPerKg))}원/kg`)
     } else {
-      metaBits.push('생두 단가 미확보')
+      metaBits.push('생두 단가 미확보 — 생두 주문 일자 기록·원/kg 없음(또는 블렌드 레시피/직접 원/kg)')
     }
     const qtyStr =
       Number.isInteger(line.totalQuantityKg) || line.totalQuantityKg % 1 === 0
@@ -1244,7 +1245,7 @@ const readMeetingInventoryForBeanMaterial = (mode: 'local' | 'cloud', companyId:
     if (!raw) {
       return null
     }
-    return normalizeInventoryStatusState(JSON.parse(raw))
+    return parseInventoryStatusStateFromLocalStorageJson(JSON.parse(raw))
   } catch {
     return null
   }
@@ -2110,6 +2111,9 @@ function MonthlyMeetingPage() {
   const { mode, activeCompanyId, user } = useAppRuntime()
   /** 입출고 페이지와 동일한 localStorage 키 + 캐시 갱신 시 4번 출고·재고 표를 다시 읽음 */
   const [inventoryLinkTick, setInventoryLinkTick] = useState(0)
+  /** `storage` 리스너(빈 deps)에서 최신 모드·회사 스코프 입출고 키를 쓰기 위한 ref */
+  const storageRuntimeRef = useRef({ mode, activeCompanyId })
+  storageRuntimeRef.current = { mode, activeCompanyId }
   const [pageState, setPageState] = useState<MonthlyMeetingPageState>(createDefaultState)
   const pageStateRef = useRef(pageState)
   pageStateRef.current = pageState
@@ -2222,14 +2226,22 @@ function MonthlyMeetingPage() {
     window.addEventListener(STATEMENT_RECORDS_SAVED_EVENT, bumpBeanMeetingMaterial)
     window.addEventListener(EXPENSE_PAGE_SAVED_EVENT, bumpExpense)
     const onStorage = (event: StorageEvent) => {
+      const { mode: stMode, activeCompanyId: stCid } = storageRuntimeRef.current
       if (event.key === GREEN_BEAN_ORDER_STORAGE_KEY) {
         bumpGreenBean()
+        bumpBeanMeetingMaterial()
       }
       if (event.key === STATEMENT_RECORDS_STORAGE_KEY) {
         bumpStatements()
+        bumpBeanMeetingMaterial()
       }
       if (event.key === EXPENSE_PAGE_STORAGE_KEY) {
         bumpExpense()
+      }
+      const invScoped = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, stMode, stCid)
+      if (event.key === invScoped || event.key === INVENTORY_STATUS_STORAGE_KEY) {
+        setInventoryLinkTick((n) => n + 1)
+        bumpBeanMeetingMaterial()
       }
     }
     window.addEventListener('storage', onStorage)
@@ -2245,6 +2257,30 @@ function MonthlyMeetingPage() {
     }
   }, [])
 
+  /** 다른 탭·백그라운드 갱신을 놓쳤을 때: 브라우저 탭을 다시 보이게 하면 재료비(매출·생두) 연동을 한 번 더 태움 */
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof window.setTimeout> | undefined
+    const onVis = () => {
+      if (typeof document === 'undefined' || document.visibilityState !== 'visible') {
+        return
+      }
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId)
+      }
+      timeoutId = window.setTimeout(() => {
+        timeoutId = undefined
+        setBeanMeetingMaterialDepsRev((n) => n + 1)
+      }, 200)
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      document.removeEventListener('visibilitychange', onVis)
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     const bump = () => setInventoryLinkTick((n) => n + 1)
     const bumpBean = () => setBeanMeetingMaterialDepsRev((n) => n + 1)
@@ -2255,17 +2291,6 @@ function MonthlyMeetingPage() {
       window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, bumpBean)
     }
   }, [])
-
-  useEffect(() => {
-    const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === key) {
-        setInventoryLinkTick((n) => n + 1)
-      }
-    }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
-  }, [mode, activeCompanyId])
 
   /** 거래명세 납품일(집계 월) 기준으로 2번 표 거래처명 행의 매출 열을 자동 반영 */
   useEffect(() => {

@@ -21,8 +21,15 @@ import {
   type StatementInventoryManualEntry,
 } from './beanStatementManualMappings'
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument } from './lib/companyDocuments'
+import { STATEMENT_RECORDS_SAVED_EVENT } from './MonthlyMeetingPage'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel, type MapStatementItemToInventoryOptions } from './beanSalesStatementMapping'
-import { normalizeInventoryStatusState, withReferenceDateToday, type BlendingRecipe, type InventoryBeanRow } from './inventoryStatusUtils'
+import {
+  normalizeInventoryStatusState,
+  parseInventoryStatusStateFromLocalStorageJson,
+  withReferenceDateToday,
+  type BlendingRecipe,
+  type InventoryBeanRow,
+} from './inventoryStatusUtils'
 
 const STATEMENT_RECORDS_KEY = 'statement-records-v1'
 
@@ -183,7 +190,7 @@ function StatementInventoryLinkModal({
         if (!raw) {
           return null
         }
-        const st = normalizeInventoryStatusState(JSON.parse(raw))
+        const st = parseInventoryStatusStateFromLocalStorageJson(JSON.parse(raw))
         if (!st) {
           return null
         }
@@ -298,6 +305,7 @@ function StatementInventoryLinkModal({
             )
             if (Array.isArray(remoteStatement?.records)) {
               window.localStorage.setItem(STATEMENT_RECORDS_KEY, JSON.stringify(remoteStatement.records))
+              window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
             }
           } catch (error) {
             console.error('명세↔입고 모달: 거래명세 클라우드 문서를 읽지 못했습니다.', error)
@@ -314,6 +322,7 @@ function StatementInventoryLinkModal({
                 const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId)
                 const merged = withReferenceDateToday(st)
                 window.localStorage.setItem(key, JSON.stringify(merged))
+                window.dispatchEvent(new Event(INVENTORY_STATUS_CACHE_EVENT))
               }
             }
           } catch (error) {

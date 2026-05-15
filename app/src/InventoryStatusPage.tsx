@@ -32,7 +32,9 @@ import {
   dayIndexForReferenceDate,
   defaultPhysicalCountDateFromReference,
   lastCalendarDayIsoInMonth,
+  INVENTORY_LOCAL_STORAGE_ENVELOPE_VERSION,
   normalizeInventoryStatusState,
+  parseInventoryStatusStateFromLocalStorageJson,
   parseInventoryWorkbook,
   resizeBlendingCyclesToDayCount,
   todayLocalIsoDateString,
@@ -714,8 +716,6 @@ type InventoryPageDocument = {
   historyNotes: InventoryHistoryNote[]
 }
 
-const INVENTORY_LOCAL_PERSIST_V2 = 2
-
 const restoreMonthBucketAfterCloud = (ym: string, state: InventoryStatusState): InventoryStatusState => {
   const ref = state.referenceDate.trim()
   if (ref === CLOUD_REFERENCE_DATE_PLACEHOLDER || ref.startsWith('2000-')) {
@@ -823,18 +823,22 @@ const readInventoryPageLocalDocument = (mode: 'local' | 'cloud', companyId: stri
   if (saved) {
     try {
       const raw = JSON.parse(saved) as unknown
-      if (raw && typeof raw === 'object' && (raw as { v?: number }).v === INVENTORY_LOCAL_PERSIST_V2) {
-        const wrap = raw as { inventoryState?: unknown; inventoryByMonth?: unknown }
-        const inv = normalizeInventoryStatusState(wrap.inventoryState)
+      if (raw && typeof raw === 'object' && (raw as { v?: number }).v === INVENTORY_LOCAL_STORAGE_ENVELOPE_VERSION) {
+        const wrap = raw as { inventoryByMonth?: unknown }
+        const inv = parseInventoryStatusStateFromLocalStorageJson(raw)
         if (inv) {
           inventoryState = inv
         }
         inventoryByMonth = normalizeInventoryByMonthFromUnknown(wrap.inventoryByMonth)
-        const parsedBaseline = savedBaseline ? normalizeInventoryStatusState(JSON.parse(savedBaseline)) : null
+        const parsedBaseline = savedBaseline
+          ? parseInventoryStatusStateFromLocalStorageJson(JSON.parse(savedBaseline))
+          : null
         baselineState = parsedBaseline ?? inventoryState
       } else {
-        const parsed = normalizeInventoryStatusState(raw)
-        const parsedBaseline = savedBaseline ? normalizeInventoryStatusState(JSON.parse(savedBaseline)) : null
+        const parsed = parseInventoryStatusStateFromLocalStorageJson(raw)
+        const parsedBaseline = savedBaseline
+          ? parseInventoryStatusStateFromLocalStorageJson(JSON.parse(savedBaseline))
+          : null
         if (parsed) {
           inventoryState = parsed
           baselineState = parsedBaseline ?? parsed
@@ -2078,7 +2082,7 @@ function InventoryStatusPage() {
     window.localStorage.setItem(
       inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId),
       JSON.stringify({
-        v: INVENTORY_LOCAL_PERSIST_V2,
+        v: INVENTORY_LOCAL_STORAGE_ENVELOPE_VERSION,
         inventoryState,
         inventoryByMonth,
       }),
