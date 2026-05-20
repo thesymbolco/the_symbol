@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ExcelJS from 'exceljs'
 import BeanSalesAnalysisPage from './BeanSalesAnalysisPage'
+import BeanMarginCalcPage from './BeanMarginCalcPage'
 import ExpensePage, { EXPENSE_PAGE_STORAGE_KEY } from './ExpensePage'
 import MemoPage, { MEMO_PAGE_STORAGE_KEY } from './MemoPage'
 import TeamManagementPage from './TeamManagementPage'
@@ -55,6 +56,7 @@ type AppActivePage =
   | 'expense'
   | 'staffPayroll'
   | 'greenBeanOrder'
+  | 'beanMarginCalc'
   | 'memo'
   | 'dailyMeeting'
   | 'team'
@@ -80,6 +82,7 @@ const PAGE_CATEGORY_GROUPS: {
     pages: [
       { page: 'inventory', label: '입출고 현황' },
       { page: 'greenBeanOrder', label: '생두 주문' },
+      { page: 'beanMarginCalc', label: '원두별 마진 계산' },
     ],
   },
   {
@@ -129,6 +132,10 @@ const PAGE_HEADER_META: Record<AppActivePage, { title: string; description: stri
   greenBeanOrder: {
     title: '생두 주문',
     description: '생두 주문, 가격 비교, 재고 연동 정보를 한곳에서 확인합니다.',
+  },
+  beanMarginCalc: {
+    title: '원두별 마진 계산',
+    description: '생두가·운영경비·블렌딩 비율로 원두원가, 판매가, 마진율을 엑셀과 동일한 수식으로 계산합니다.',
   },
   memo: {
     title: '메모',
@@ -197,6 +204,13 @@ const WORKSPACE_SHELL_PAGE_HERO: Record<
       '생두 주문, 가격 비교, 재고 연동 정보를 한곳에서 확인합니다. 저장 데이터는 이 브라우저에만 보관될 수 있습니다.',
     copyCloud:
       '생두 주문, 가격 비교, 재고 연동 정보를 한곳에서 확인합니다. 회사 문서로 동기화되면 주문표를 팀과 함께 관리할 수 있습니다.',
+  },
+  beanMarginCalc: {
+    headline: '원두별 마진 계산',
+    copyLocal:
+      '엑셀「원두별_마진_계산」과 같은 운영경비·블렌딩·마진 수식을 웹에서 계산합니다. 입력값은 이 브라우저에 저장됩니다.',
+    copyCloud:
+      '엑셀「원두별_마진_계산」과 같은 운영경비·블렌딩·마진 수식을 웹에서 계산합니다. 입력값은 이 브라우저에 저장됩니다.',
   },
   memo: {
     headline: '메모',
@@ -1192,7 +1206,8 @@ const getBackupPayload = (
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'memo' ||
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'dailyMeeting' ||
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'team' ||
-    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'beanSalesAnalysis'
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'beanSalesAnalysis' ||
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'beanMarginCalc'
       ? (window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) as AppActivePage)
       : undefined,
   monthlyMeetingState: window.localStorage.getItem(MONTHLY_MEETING_DATA_KEY) ?? '',
@@ -1256,7 +1271,8 @@ const readBackupFile = async (fileHandle: FileSystemFileHandle): Promise<AppBack
       parsed.activePage === 'memo' ||
       parsed.activePage === 'dailyMeeting' ||
       parsed.activePage === 'team' ||
-      parsed.activePage === 'beanSalesAnalysis'
+      parsed.activePage === 'beanSalesAnalysis' ||
+      parsed.activePage === 'beanMarginCalc'
         ? parsed.activePage
         : undefined,
     monthlyMeetingState: String(parsed.monthlyMeetingState ?? ''),
@@ -1371,7 +1387,8 @@ function App() {
       savedPage === 'greenBeanOrder' ||
       savedPage === 'dailyMeeting' ||
       savedPage === 'team' ||
-      savedPage === 'beanSalesAnalysis'
+      savedPage === 'beanSalesAnalysis' ||
+      savedPage === 'beanMarginCalc'
     ) {
       return savedPage
     }
@@ -6587,6 +6604,8 @@ function App() {
         <StaffPayrollPage />
       ) : activePage === 'greenBeanOrder' ? (
         <GreenBeanOrderPage />
+      ) : activePage === 'beanMarginCalc' ? (
+        <BeanMarginCalcPage />
       ) : activePage === 'dailyMeeting' ? (
         <MemoPage mode="dailyOnly" />
       ) : activePage === 'team' ? (

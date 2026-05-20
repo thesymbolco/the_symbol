@@ -65,6 +65,26 @@ function todayLocalIsoDate(): string {
   return `${y}-${m}-${day}`
 }
 
+function formatDailyHeroDate(iso: string): { weekday: string; label: string; isToday: boolean } {
+  const d = new Date(`${iso}T12:00:00`)
+  if (Number.isNaN(d.getTime())) {
+    return { weekday: '', label: iso, isToday: false }
+  }
+  return {
+    weekday: d.toLocaleDateString('ko-KR', { weekday: 'long' }),
+    label: d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }),
+    isToday: iso === todayLocalIsoDate(),
+  }
+}
+
+function weekdayShortForIso(iso: string): string {
+  const d = new Date(`${iso}T12:00:00`)
+  if (Number.isNaN(d.getTime())) {
+    return ''
+  }
+  return d.toLocaleDateString('ko-KR', { weekday: 'short' })
+}
+
 const SCOPE_META: { id: MemoScope; label: string }[] = [
   { id: 'general', label: '기타·전반' },
   { id: 'statements', label: '거래명세' },
@@ -750,10 +770,13 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
       const doneCount = row.todos.filter((t) => t.done).length
       const activeTodos = row.todos.filter((t) => !t.done).slice(0, 3)
       const doneTodos = row.todos.filter((t) => t.done).slice(0, 2)
+      const noteTrim = row.note.trim()
       return {
         date: key,
         title: `${m}/${day}`,
-        notePreview: row.note.trim().slice(0, 220),
+        weekdayShort: weekdayShortForIso(key),
+        hasNote: noteTrim.length > 0,
+        notePreview: noteTrim.slice(0, 220),
         todoTotal: row.todos.length,
         todoDone: doneCount,
         activeTodos,
@@ -761,6 +784,9 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
       }
     })
   }, [dailyByDate])
+
+  const dailyHero = useMemo(() => formatDailyHeroDate(dailyDate), [dailyDate])
+  const dailySkin = forceDailyOnly || memoTab === 'daily'
 
   useEffect(() => {
     if (memoTab !== 'daily') {
@@ -1192,16 +1218,22 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
   }
 
   return (
-    <div className="memo-page">
-      <header className="memo-page-top">
+    <div className={`memo-page${dailySkin ? ' memo-page--daily' : ''}`}>
+      <header className={`memo-page-top${forceDailyOnly ? ' memo-page-top--daily' : ''}`}>
+        {!forceDailyOnly ? (
         <div className="memo-page-top-main">
           <h2 className="memo-page-top-title">
-            {forceDailyOnly ? '일일회의' : forceComfortOnly ? '편의 메모' : '편의 메모 · 일일회의'}
+            {forceComfortOnly ? '편의 메모' : '편의 메모 · 일일회의'}
           </h2>
           <p className="memo-page-status" role="status">
             {statusMessage}
           </p>
         </div>
+        ) : (
+          <p className="memo-page-status memo-page-status--daily" role="status">
+            {statusMessage}
+          </p>
+        )}
         <PageSaveStatus
           className="memo-page-savebox"
           mode={runtimeMode}
@@ -1237,34 +1269,56 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
 
       {memoTab === 'daily' ? (
         <div className="memo-daily">
-          <div className="panel memo-daily-toolbar">
-            <label className="memo-daily-date-field">
-              <span>날짜</span>
-              <input type="date" value={dailyDate} onChange={(e) => setDailyDate(e.target.value)} />
-            </label>
-            <div className="memo-daily-date-nav">
-              <button type="button" className="memo-page-btn memo-page-btn--ghost" onClick={() => shiftDailyDate(-1)}>
-                이전 날
+          <section className="memo-daily-hero" aria-label="회의 날짜">
+            <div className="memo-daily-hero-main">
+              <button
+                type="button"
+                className="memo-daily-hero-nav"
+                onClick={() => shiftDailyDate(-1)}
+                aria-label="이전 날"
+              >
+                ‹
               </button>
-              <button type="button" className="memo-page-btn memo-page-btn--ghost" onClick={() => setDailyDate(todayLocalIsoDate())}>
-                오늘
-              </button>
-              <button type="button" className="memo-page-btn memo-page-btn--ghost" onClick={() => shiftDailyDate(1)}>
-                다음 날
+              <div className="memo-daily-hero-date">
+                <span className="memo-daily-hero-weekday">{dailyHero.weekday}</span>
+                <h2 className="memo-daily-hero-title">{dailyHero.label}</h2>
+                {dailyHero.isToday ? (
+                  <span className="memo-daily-hero-today-badge">오늘</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="memo-daily-hero-today-link"
+                    onClick={() => setDailyDate(todayLocalIsoDate())}
+                  >
+                    오늘로 이동
+                  </button>
+                )}
+                <label className="memo-daily-hero-picker">
+                  <span className="visually-hidden">날짜 선택</span>
+                  <input type="date" value={dailyDate} onChange={(e) => setDailyDate(e.target.value)} />
+                </label>
+              </div>
+              <button
+                type="button"
+                className="memo-daily-hero-nav"
+                onClick={() => shiftDailyDate(1)}
+                aria-label="다음 날"
+              >
+                ›
               </button>
             </div>
-            <label className="memo-daily-search-field">
-              <span>검색</span>
+            <label className="memo-daily-hero-search">
+              <span className="visually-hidden">검색</span>
               <input
                 type="search"
                 value={dailySearch}
                 onChange={(e) => setDailySearch(e.target.value)}
-                placeholder="메모/할 일/날짜 검색"
+                placeholder="메모·할 일·날짜 검색"
               />
             </label>
-          </div>
+          </section>
           {dailySearch.trim() ? (
-            <div className="panel memo-daily-search-panel" role="status" aria-live="polite">
+            <div className="memo-daily-search-panel" role="status" aria-live="polite">
               {dailySearchResults.length === 0 ? (
                 <p className="memo-daily-search-empty">검색 결과 없음</p>
               ) : (
@@ -1289,83 +1343,35 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
               )}
             </div>
           ) : null}
-          <section className="panel memo-daily-weekly-panel" aria-labelledby="memo-daily-weekly-heading">
-            <div className="memo-daily-weekly-head">
-              <h3 id="memo-daily-weekly-heading" className="memo-daily-block-title">
-                최근 7일 타임라인
-              </h3>
-              <span className="memo-daily-weekly-sub">기준일 포함 최근 7일</span>
-            </div>
-            <ul className="memo-daily-weekly-list">
-              {weeklyTimeline.map((row) => (
-                <li key={row.date}>
-                  <button
-                    type="button"
-                    className={row.date === dailyDate ? 'memo-daily-weekly-item is-active' : 'memo-daily-weekly-item'}
-                    onClick={() => setDailyDate(row.date)}
-                  >
-                    <strong>
-                      {row.title} <span>{row.date}</span>
-                    </strong>
-                    <em>
-                      할 일 {row.todoDone}/{row.todoTotal}
-                    </em>
-                    <span className="memo-daily-weekly-hover-detail">
-                      <span className="memo-daily-weekly-hover-title">회의 메모</span>
-                      <span className="memo-daily-weekly-hover-body">
-                        {(row.notePreview || '해당 날짜의 회의 메모가 없습니다.').split('\n').map((line, idx) => {
-                          const trimmed = line.trim()
-                          const isHeading =
-                            trimmed === '이슈' ||
-                            trimmed === '결정 사항' ||
-                            trimmed === '요청/공유 사항' ||
-                            trimmed === '내일 할 일'
-                          return (
-                            <span key={`${row.date}-line-${idx}`} className={isHeading ? 'is-heading' : undefined}>
-                              {line || '\u00A0'}
-                            </span>
-                          )
-                        })}
-                      </span>
-                      {row.todoTotal > 0 ? (
-                        <span className="memo-daily-weekly-hover-todos">
-                          <strong>할 일</strong>
-                          {row.activeTodos.length > 0 ? (
-                            <span className="memo-daily-weekly-hover-todo-group">
-                              <em>진행</em>
-                              {row.activeTodos.map((todo) => (
-                                <span key={`${row.date}-active-${todo.id}`} className="todo-item">
-                                  • {todo.text}
-                                </span>
-                              ))}
-                            </span>
-                          ) : null}
-                          {row.doneTodos.length > 0 ? (
-                            <span className="memo-daily-weekly-hover-todo-group">
-                              <em>완료</em>
-                              {row.doneTodos.map((todo) => (
-                                <span key={`${row.date}-done-${todo.id}`} className="todo-item done">
-                                  • {todo.text}
-                                </span>
-                              ))}
-                            </span>
-                          ) : null}
-                          {row.todoTotal > row.activeTodos.length + row.doneTodos.length ? (
-                            <span className="memo-daily-weekly-hover-more">
-                              +{row.todoTotal - (row.activeTodos.length + row.doneTodos.length)}개 더 있음
-                            </span>
-                          ) : null}
-                        </span>
-                      ) : null}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
+          <nav className="memo-daily-day-rail" aria-label="최근 7일">
+            {[...weeklyTimeline].reverse().map((row) => (
+              <button
+                key={row.date}
+                type="button"
+                className={[
+                  'memo-daily-day-pill',
+                  row.date === dailyDate ? 'is-active' : '',
+                  row.hasNote ? 'has-note' : '',
+                  row.todoTotal > 0 ? 'has-todos' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => setDailyDate(row.date)}
+                aria-current={row.date === dailyDate ? 'date' : undefined}
+              >
+                <span className="memo-daily-day-pill__dow">{row.weekdayShort}</span>
+                <span className="memo-daily-day-pill__date">{row.title}</span>
+                {row.todoTotal > 0 ? (
+                  <span className="memo-daily-day-pill__meta">
+                    {row.todoDone}/{row.todoTotal}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </nav>
 
           <div className="memo-daily-layout">
-            <section className="panel memo-daily-note-block">
+            <section className="memo-daily-note-block">
               <div className="memo-daily-note-head">
                 <h3 className="memo-daily-block-title">회의 메모</h3>
                 <div className="memo-daily-note-head-actions">
@@ -1395,9 +1401,11 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
                       onFocus={() => {
                         dailyMeetingSectionEditingRef.current = true
                       }}
-                      onBlur={() => {
+                      onBlur={(e) => {
                         dailyMeetingSectionEditingRef.current = false
-                        commitDailyMeetingSections(dailyMeetingSections)
+                        const sections = { ...dailyMeetingSections, [section.key]: e.target.value }
+                        setDailyMeetingSections(sections)
+                        commitDailyMeetingSections(sections)
                       }}
                       placeholder={section.placeholder}
                       rows={4}
@@ -1435,9 +1443,9 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
               ) : null}
             </section>
 
-            <aside className="panel memo-daily-todos-block" aria-labelledby="memo-daily-todos-heading">
+            <aside className="memo-daily-todos-block" aria-labelledby="memo-daily-todos-heading">
               <h3 id="memo-daily-todos-heading" className="memo-daily-block-title">
-                오늘 할 일
+                {dailyHero.isToday ? '오늘 할 일' : '당일 할 일'}
               </h3>
               <div className="memo-todo-add">
                 <input
@@ -1563,12 +1571,12 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
               </div>
             </aside>
           </div>
-          <section className="panel memo-daily-linked-panel" aria-labelledby="memo-daily-linked-heading">
+          <section className="memo-daily-linked-panel" aria-labelledby="memo-daily-linked-heading">
             <div className="memo-daily-linked-head">
               <h3 id="memo-daily-linked-heading" className="memo-daily-block-title">
-                연동 메모 최근 10개
+                연동 메모
               </h3>
-              <span>마우스를 올리면 내용 보기</span>
+              <span className="memo-daily-linked-sub">최근 10건 · 항목에 마우스를 올리면 미리보기</span>
             </div>
             {recentLinkedRows.length === 0 ? (
               <p className="memo-daily-linked-empty">연동된 메모가 없습니다.</p>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   useAppRuntime,
   type CreateMemberInput,
@@ -30,6 +30,17 @@ const TITLE_OPTIONS = [
 ] as const
 
 type BusyState = null | { kind: 'create' } | { kind: 'member'; userId: string; action: string }
+
+const DEFAULT_CREATE_FORM: CreateMemberInput = {
+  username: '',
+  password: '',
+  displayName: '',
+  phone: '',
+  title: TITLE_OPTIONS[6],
+  department: '',
+  email: '',
+  role: 'member',
+}
 
 function initialsForMember(displayName: string, username: string): string {
   const base = (displayName || username).trim()
@@ -73,16 +84,10 @@ export default function TeamManagementPage() {
   const [loadError, setLoadError] = useState('')
   const [busy, setBusy] = useState<BusyState>(null)
   const [flash, setFlash] = useState<{ kind: 'info' | 'error'; text: string } | null>(null)
-  const [createForm, setCreateForm] = useState<CreateMemberInput>({
-    username: '',
-    password: '',
-    displayName: '',
-    phone: '',
-    title: TITLE_OPTIONS[6],
-    department: '',
-    email: '',
-    role: 'member',
-  })
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [createForm, setCreateForm] = useState<CreateMemberInput>(DEFAULT_CREATE_FORM)
+  const [createPasswordConfirm, setCreatePasswordConfirm] = useState('')
+  const [createModalError, setCreateModalError] = useState('')
   const [editDrafts, setEditDrafts] = useState<Record<string, Partial<TeamMember>>>({})
   const [passwordDraft, setPasswordDraft] = useState('')
   /** 카드 뒤집기: 뒷면에 상세·수정 */
@@ -117,6 +122,35 @@ export default function TeamManagementPage() {
     void loadMembers()
   }, [loadMembers, mode])
 
+  useEffect(() => {
+    if (!createModalOpen) {
+      return
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && busy?.kind !== 'create') {
+        setCreateModalOpen(false)
+        setCreateModalError('')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [busy?.kind, createModalOpen])
+
+  const openCreateModal = () => {
+    setCreateForm(DEFAULT_CREATE_FORM)
+    setCreatePasswordConfirm('')
+    setCreateModalError('')
+    setCreateModalOpen(true)
+  }
+
+  const closeCreateModal = () => {
+    if (busy?.kind === 'create') {
+      return
+    }
+    setCreateModalOpen(false)
+    setCreateModalError('')
+  }
+
   const showFlash = (kind: 'info' | 'error', text: string) => {
     setFlash({ kind, text })
     if (kind === 'error') {
@@ -128,26 +162,39 @@ export default function TeamManagementPage() {
     }
   }
 
-  const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setCreateModalError('')
+    const username = createForm.username.trim()
+    const displayName = createForm.displayName.trim()
+    if (!displayName) {
+      setCreateModalError('이름을 입력해 주세요.')
+      return
+    }
+    if (!username) {
+      setCreateModalError('아이디를 입력해 주세요.')
+      return
+    }
+    if (createForm.password.length < 6) {
+      setCreateModalError('비밀번호는 6자 이상이어야 합니다.')
+      return
+    }
+    if (createForm.password !== createPasswordConfirm) {
+      setCreateModalError('비밀번호 확인이 일치하지 않습니다.')
+      return
+    }
     setBusy({ kind: 'create' })
-    const error = await createTeamMember(createForm)
+    const error = await createTeamMember({ ...createForm, username, displayName })
     setBusy(null)
     if (error) {
+      setCreateModalError(error)
       showFlash('error', error)
       return
     }
-    showFlash('info', `${createForm.displayName || createForm.username} 계정을 만들었습니다.`)
-    setCreateForm({
-      username: '',
-      password: '',
-      displayName: '',
-      phone: '',
-      title: TITLE_OPTIONS[6],
-      department: '',
-      email: '',
-      role: 'member',
-    })
+    showFlash('info', `${displayName || username} 계정을 만들었습니다.`)
+    setCreateModalOpen(false)
+    setCreateForm(DEFAULT_CREATE_FORM)
+    setCreatePasswordConfirm('')
     await loadMembers()
   }
 
@@ -264,9 +311,16 @@ export default function TeamManagementPage() {
                 : '회사를 선택해 주세요.'}
             </p>
           </div>
-          <button type="button" className="ghost-button" onClick={() => void loadMembers()} disabled={isLoading}>
-            {isLoading ? '불러오는 중…' : '새로고침'}
-          </button>
+          <div className="team-section-head-actions">
+            {isOwner ? (
+              <button type="button" className="primary-button team-create-open-btn" onClick={openCreateModal}>
+                계정 만들기
+              </button>
+            ) : null}
+            <button type="button" className="ghost-button" onClick={() => void loadMembers()} disabled={isLoading}>
+              {isLoading ? '불러오는 중…' : '새로고침'}
+            </button>
+          </div>
         </header>
         {loadError ? <p className="app-auth-error">{loadError}</p> : null}
         {flash ? (
@@ -274,7 +328,10 @@ export default function TeamManagementPage() {
         ) : null}
         <div className="team-cards-wrap">
           {members.length === 0 && !isLoading ? (
-            <p className="muted team-cards-empty">구성원이 없습니다. 아래 폼에서 추가해 보세요.</p>
+            <p className="muted team-cards-empty">
+              구성원이 없습니다.
+              {isOwner ? ' 「계정 만들기」로 추가할 수 있습니다.' : null}
+            </p>
           ) : (
             <div className="team-cards-grid">
               {members.map((member) => {
@@ -540,109 +597,158 @@ export default function TeamManagementPage() {
         </div>
       </section>
 
-      {isOwner ? (
-        <section className="team-section">
-          <header className="team-section-head">
-            <div>
-              <h2>새 계정 만들기</h2>
-              <p className="muted">
-                아이디와 비밀번호로 로그인할 수 있는 계정을 만들고 이 회사에 바로 연결합니다.
-              </p>
-            </div>
-          </header>
-          <form className="team-create-form" onSubmit={handleCreate}>
-            <div className="team-create-grid">
-              <label>
-                이름 *
-                <input
-                  value={createForm.displayName}
-                  onChange={(event) => setCreateForm((prev) => ({ ...prev, displayName: event.target.value }))}
-                  required
-                />
-              </label>
-              <label>
-                직책
-                <select
-                  value={createForm.title}
-                  onChange={(event) => setCreateForm((prev) => ({ ...prev, title: event.target.value }))}
-                >
-                  {TITLE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                부서명
-                <input
-                  value={createForm.department}
-                  onChange={(event) => setCreateForm((prev) => ({ ...prev, department: event.target.value }))}
-                  placeholder="예: 로스팅팀 / 매장운영"
-                />
-              </label>
-              <label>
-                휴대폰번호
-                <input
-                  value={createForm.phone}
-                  onChange={(event) => setCreateForm((prev) => ({ ...prev, phone: event.target.value }))}
-                  placeholder="010-0000-0000"
-                />
-              </label>
-              <label>
-                실제 이메일
-                <input
-                  type="email"
-                  value={createForm.email}
-                  onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))}
-                  placeholder="name@company.com"
-                />
-              </label>
-              <label>
-                아이디 *
+      {createModalOpen && isOwner ? (
+        <div
+          className="inventory-reset-dialog-backdrop team-signup-modal-backdrop"
+          onClick={closeCreateModal}
+          role="presentation"
+        >
+          <form
+            className="team-signup-modal app-auth-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="team-signup-modal-title"
+            onSubmit={handleCreate}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="eyebrow">팀 계정</p>
+            <h2 id="team-signup-modal-title">새 계정 만들기</h2>
+            <p className="app-auth-copy">
+              로그인에 쓸 아이디·비밀번호와 프로필을 입력하면 이 회사에 바로 연결됩니다.
+            </p>
+
+            <fieldset className="team-signup-fieldset">
+              <legend>로그인 정보</legend>
+              <label className="app-auth-field">
+                아이디
                 <input
                   value={createForm.username}
                   onChange={(event) => setCreateForm((prev) => ({ ...prev, username: event.target.value }))}
-                  placeholder="영문/숫자/._- 3~32자"
-                  required
+                  placeholder="영문·숫자·._- (3~32자)"
+                  autoComplete="username"
                   autoCapitalize="none"
+                  autoCorrect="off"
                   spellCheck={false}
-                />
-              </label>
-              <label>
-                비밀번호 *
-                <input
-                  type="text"
-                  value={createForm.password}
-                  onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))}
-                  placeholder="6자 이상"
                   required
                 />
               </label>
-              <label>
+              <div className="team-signup-field-row">
+                <label className="app-auth-field">
+                  비밀번호
+                  <input
+                    type="password"
+                    value={createForm.password}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))}
+                    placeholder="6자 이상"
+                    autoComplete="new-password"
+                    required
+                  />
+                </label>
+                <label className="app-auth-field">
+                  비밀번호 확인
+                  <input
+                    type="password"
+                    value={createPasswordConfirm}
+                    onChange={(event) => setCreatePasswordConfirm(event.target.value)}
+                    placeholder="다시 입력"
+                    autoComplete="new-password"
+                    required
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset className="team-signup-fieldset">
+              <legend>프로필</legend>
+              <label className="app-auth-field">
+                이름
+                <input
+                  value={createForm.displayName}
+                  onChange={(event) => setCreateForm((prev) => ({ ...prev, displayName: event.target.value }))}
+                  placeholder="표시 이름"
+                  autoComplete="name"
+                  required
+                />
+              </label>
+              <div className="team-signup-field-row">
+                <label className="app-auth-field">
+                  휴대폰
+                  <input
+                    value={createForm.phone}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, phone: event.target.value }))}
+                    placeholder="010-0000-0000"
+                    autoComplete="tel"
+                  />
+                </label>
+                <label className="app-auth-field">
+                  이메일
+                  <input
+                    type="email"
+                    value={createForm.email}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))}
+                    placeholder="name@company.com"
+                    autoComplete="email"
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset className="team-signup-fieldset">
+              <legend>소속 · 권한</legend>
+              <div className="team-signup-field-row">
+                <label className="app-auth-field">
+                  직책
+                  <select
+                    value={createForm.title}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, title: event.target.value }))}
+                  >
+                    {TITLE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="app-auth-field">
+                  부서
+                  <input
+                    value={createForm.department}
+                    onChange={(event) => setCreateForm((prev) => ({ ...prev, department: event.target.value }))}
+                    placeholder="예: 로스팅팀"
+                  />
+                </label>
+              </div>
+              <label className="app-auth-field">
                 역할
                 <select
                   value={createForm.role}
                   onChange={(event) =>
                     setCreateForm((prev) => ({
                       ...prev,
-                      role: event.target.value as 'owner' | 'admin' | 'member',
+                      role: event.target.value as CreateMemberInput['role'],
                     }))
                   }
                 >
-                  <option value="member">member</option>
-                  <option value="admin">admin</option>
-                  <option value="owner">owner</option>
+                  <option value="member">{ROLE_LABEL.member}</option>
+                  <option value="admin">{ROLE_LABEL.admin}</option>
+                  <option value="owner">{ROLE_LABEL.owner}</option>
                 </select>
               </label>
-            </div>
-            <div className="team-create-actions">
+            </fieldset>
+
+            {createModalError ? <p className="app-auth-error">{createModalError}</p> : null}
+
+            <div className="team-signup-modal-actions">
+              <button type="button" className="ghost-button" onClick={closeCreateModal} disabled={busy?.kind === 'create'}>
+                취소
+              </button>
               <button type="submit" className="primary-button" disabled={busy?.kind === 'create'}>
                 {busy?.kind === 'create' ? '만드는 중…' : '계정 만들기'}
               </button>
             </div>
+            <p className="app-auth-hint">만든 계정으로 바로 로그인할 수 있습니다.</p>
           </form>
-        </section>
+        </div>
       ) : null}
 
       <section className="team-section">
