@@ -200,13 +200,13 @@ const mergeVisibleExpenseColumns = (tableColumns: ExpenseTableColumn[] | undefin
 }
 
 const expenseHeaderAliases = {
-  expenseDate: ['날짜', '지출일', '거래일자', '사용일자'],
+  expenseDate: ['날짜', '지출일', '거래일자', '사용일자', '거래일시'],
   dueDate: ['지급예정일', '지급일', '결제예정일', '예정일'],
   vendorName: ['거래처', '업체명', '거래처명', '가맹점명', '사용처'],
   category: ['카테고리', '분류', '비용분류'],
   purpose: ['용도', '비용용도', '경비용도', '경비구분', '세부구분'],
   detail: ['세부항목', '항목', '내용', '적요'],
-  totalAmount: ['금액', '합계금액', '총액', '결제금액', '사용금액'],
+  totalAmount: ['금액', '합계금액', '총액', '결제금액', '사용금액', '출금액'],
   supplyAmount: ['공급가액', '공급가', '공급금액'],
   taxAmount: ['부가세', '세액', 'vat'],
   taxType: ['과세구분', '부가세구분', '증빙구분'],
@@ -784,6 +784,122 @@ const extractImportLayout = (rawHeaderRow: unknown[], columns: ParsedExpenseColu
 const findHeaderIndex = (headers: string[], aliases: readonly string[]) =>
   headers.findIndex((cell) => aliases.map(normalizeHeader).includes(cell))
 
+/** 신한 등 입출금 통장 엑셀(거래일시·출금액·내용·거래점명·메모) */
+type BankTransactionColumns = {
+  expenseDate: number
+  withdrawalAmount: number
+  vendorName: number
+  branchName: number
+  categoryMemo: number
+}
+
+const BANK_TRANSACTION_IMPORT_LAYOUT: ExpenseTableColumn[] = [
+  { id: 'mapped:expenseDate', label: '지출일', kind: 'mapped', mappedKey: 'expenseDate' },
+  { id: 'mapped:vendorName', label: '거래처', kind: 'mapped', mappedKey: 'vendorName' },
+  { id: 'mapped:detail', label: '거래점명', kind: 'mapped', mappedKey: 'detail' },
+  { id: 'mapped:category', label: '카테고리', kind: 'mapped', mappedKey: 'category' },
+  { id: 'mapped:totalAmount', label: '결제금액', kind: 'mapped', mappedKey: 'totalAmount' },
+  { id: 'mapped:paymentMethod', label: '지급수단', kind: 'mapped', mappedKey: 'paymentMethod' },
+  { id: 'mapped:paymentStatus', label: '상태', kind: 'mapped', mappedKey: 'paymentStatus' },
+]
+
+const findBankTransactionHeaderRowIndex = (rows: unknown[][]): number =>
+  rows.findIndex((row) => {
+    const cells = row.map(normalizeHeader)
+    return cells.includes('거래일시') && cells.includes('출금액') && cells.includes('내용')
+  })
+
+const resolveBankTransactionColumns = (headers: string[]): BankTransactionColumns | null => {
+  const expenseDate = headers.indexOf('거래일시')
+  const withdrawalAmount = headers.indexOf('출금액')
+  const vendorName = headers.indexOf('내용')
+  if (expenseDate < 0 || withdrawalAmount < 0 || vendorName < 0) {
+    return null
+  }
+  return {
+    expenseDate,
+    withdrawalAmount,
+    vendorName,
+    branchName: headers.indexOf('거래점명'),
+    categoryMemo: headers.indexOf('메모'),
+  }
+}
+
+/** 거래일시에서 년·월·일만 사용 (뒤 시간은 무시) */
+const parseBankTransactionDate = (value: unknown): string => {
+  const text = normalizeText(value)
+  if (!text) {
+    return ''
+  }
+  const datePart = text.split(/\s+/)[0]?.trim() ?? text
+  return parseSpreadsheetDate(datePart) || parseSpreadsheetDate(text)
+}
+
+const parseBankTransactionWorkbook = (
+  rows: unknown[][],
+  headerRowIndex: number,
+  columns: BankTransactionColumns,
+): { records: ExpenseRecord[]; layout: ExpenseTableColumn[]; warnings: string[] } => {
+  const warnings = ['입출금 통장 양식으로 불러왔습니다. 출금 건만 지출로 등록합니다.']
+  let skippedDepositOnly = 0
+  let skippedInvalidDate = 0
+
+  const records = rows
+    .slice(headerRowIndex + 1)
+    .flatMap((row) => {
+      const withdrawal = parseNumber(row[columns.withdrawalAmount])
+      if (withdrawal <= 0) {
+        skippedDepositOnly += 1
+        return []
+      }
+      const expenseDate = parseBankTransactionDate(row[columns.expenseDate])
+      if (!expenseDate) {
+        skippedInvalidDate += 1
+        return []
+      }
+      const vendorName = normalizeText(row[columns.vendorName])
+      const branchName =
+        columns.branchName >= 0 ? normalizeText(row[columns.branchName]) : ''
+      const categoryMemo =
+        columns.categoryMemo >= 0 ? normalizeText(row[columns.categoryMemo]) : ''
+      const category = mergeImportedExpenseCategory(categoryMemo, '')
+
+      if (!vendorName && !branchName) {
+        return []
+      }
+
+      return [
+        {
+          id: crypto.randomUUID(),
+          expenseDate,
+          dueDate: expenseDate,
+          vendorName,
+          category,
+          detail: branchName,
+          totalAmount: withdrawal,
+          taxType: '면세' as TaxType,
+          paymentMethod: '계좌이체' as PaymentMethod,
+          paymentStatus: '지급완료' as PaymentStatus,
+          isRecurring: false,
+          hasReceipt: '',
+          memo: '',
+          purpose: '',
+          extraValues: undefined,
+        },
+      ]
+    })
+    .sort((left, right) => right.expenseDate.localeCompare(left.expenseDate))
+
+  if (skippedDepositOnly > 0) {
+    warnings.push(`입금만 있는 ${skippedDepositOnly}건은 제외했습니다.`)
+  }
+  if (skippedInvalidDate > 0) {
+    warnings.push(`거래일시를 읽지 못한 ${skippedInvalidDate}건은 제외했습니다.`)
+  }
+
+  return { records, layout: BANK_TRANSACTION_IMPORT_LAYOUT, warnings }
+}
+
 const findFirstNonEmptyHeaderRowIndex = (rows: unknown[][]): number => {
   return rows.findIndex((row) => row.some((cell) => normalizeText(cell).length > 0))
 }
@@ -826,6 +942,15 @@ const parseExpenseWorkbook = (
     raw: false,
     dateNF: 'yyyy-mm-dd',
   })
+
+  const bankHeaderRowIndex = findBankTransactionHeaderRowIndex(rows)
+  if (bankHeaderRowIndex >= 0) {
+    const bankHeaders = (rows[bankHeaderRowIndex] ?? []).map(normalizeHeader)
+    const bankColumns = resolveBankTransactionColumns(bankHeaders)
+    if (bankColumns) {
+      return parseBankTransactionWorkbook(rows, bankHeaderRowIndex, bankColumns)
+    }
+  }
 
   const strictHeaderRowIndex = rows.findIndex((row) => {
     const normalizedCells = row.map(normalizeHeader)
@@ -1775,9 +1900,8 @@ function ExpensePage() {
           <div>
             <h2>사업 지출 입력</h2>
             <p className="muted">
-              지출 엑셀을 올리면 시트에 있는 열 순서·제목에 맞춰 아래 목록 칸이 바뀝니다. 「표 열 기본으로」로 전체
-              열을 다시 켤 수 있습니다. 엑셀 또는 아래 목록에서 「용도」에 기타경비·운영경비를 적거나, 카테고리를 해당
-              값으로 선택하면 해당 월의 월 마감 회의 「비용 현황」에도 나누어 자동 반영됩니다.
+              지출 엑셀을 올리면 시트 열에 맞춰 아래 목록이 바뀝니다. 입출금 통장 파일(거래일시·출금액·내용·거래점명·메모)도
+              읽을 수 있으며, 출금 건만 지출로 넣습니다. 「표 열 기본으로」로 전체 열을 다시 켤 수 있습니다.
             </p>
           </div>
         </div>
