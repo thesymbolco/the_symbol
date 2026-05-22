@@ -4,9 +4,14 @@
  */
 import { hasAnyStatementManualForItem } from './beanStatementManualMappings'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel, type MapStatementItemToInventoryOptions } from './beanSalesStatementMapping'
-import { getLatestGreenOrderWonPerKgByInventoryLabel, type BlendRecipeSnapshot } from './beanSalesGreenOrderUnitPrice'
+import {
+  DEFAULT_GREEN_ORDER_UNIT_PRICE_MODE,
+  getGreenOrderWonPerKgByInventoryLabel,
+  type BlendRecipeSnapshot,
+  type GreenOrderUnitPriceMode,
+} from './beanSalesGreenOrderUnitPrice'
 import { roastedBeanCost1KgFromGreenWonPerKg } from './beanSalesRoastedCost'
-import type { InventoryBeanRow, InventoryStatusState } from './inventoryStatusUtils'
+import type { InventoryBeanRow, InventoryStatusState, InventoryStorageEnvelope } from './inventoryStatusUtils'
 
 export type BeanStatementDeliveryRecord = {
   deliveryDate: string
@@ -23,6 +28,7 @@ export type BeanSalesMaterialMeetingLine = {
   totalQuantityKg: number
   totalRevenueWon: number
   wonPerKg: number | null
+  /** 생두 단가 근거: `2026-03 가중평균 (주문 2건)` · `2026-03-15` · `직접` 등 */
   greenOrderDateRef: string | null
   estimatedCostWon: number | null
 }
@@ -31,6 +37,7 @@ export type BeanSalesMaterialMeetingResult = {
   lines: BeanSalesMaterialMeetingLine[]
   /** 라인별 추정 원가 중 null을 제외한 합계(내역 표시와 동일) */
   totalEstimatedCostWon: number
+  priceMode: GreenOrderUnitPriceMode
 }
 
 const deliveryYmPrefix = (deliveryDate: string): string => {
@@ -75,7 +82,7 @@ const normalizeSpecUnit = (value: string): string =>
     .replace(/ML/g, 'ML')
 
 /** 거래명세 수량을 kg로 환산(1kg/200g 대응). 규격이 없으면 기존과 동일하게 quantity를 kg로 간주. */
-const statementQuantityToKg = (record: BeanStatementDeliveryRecord): number => {
+export const statementQuantityToKg = (record: BeanStatementDeliveryRecord): number => {
   const qty = typeof record.quantity === 'number' && Number.isFinite(record.quantity) ? Math.max(0, record.quantity) : 0
   if (qty <= 0) {
     return 0
@@ -94,11 +101,18 @@ const statementQuantityToKg = (record: BeanStatementDeliveryRecord): number => {
 }
 
 /** 입출고 `beanRows` + 거래명세·생두 주문가로 월별 추정 재료 원가 라인 계산 */
+export type ComputeBeanSalesMaterialCostOptions = MapStatementItemToInventoryOptions & {
+  /** 기본: 이동평균(전월 재고+당월 입고) */
+  greenOrderPriceMode?: GreenOrderUnitPriceMode
+  /** `moving_avg` 시 전월 말 재고 — 입출고 v2 월별 스냅샷 */
+  inventoryEnvelope?: InventoryStorageEnvelope | null
+}
+
 export function computeBeanSalesMaterialCostForYm(
   ym: string | null,
   statementsInMonth: readonly BeanStatementDeliveryRecord[],
   inventory: InventoryStatusState | null,
-  mapOptions: MapStatementItemToInventoryOptions,
+  mapOptions: ComputeBeanSalesMaterialCostOptions,
 ): BeanSalesMaterialMeetingResult | null {
   if (!ym || !/^\d{4}-\d{2}$/.test(ym.trim())) {
     return null
@@ -110,11 +124,14 @@ export function computeBeanSalesMaterialCostForYm(
   const inventoryBeanRows: InventoryBeanRow[] = Array.isArray(inventory?.beanRows) ? inventory.beanRows : []
   const allowedInventoryLabels = new Set(inventoryBeanRows.map((b) => formatBeanRowLabel(b)))
   const blendSnapshot = blendRecipeSnapshotFromInventory(inventory)
-  const latestGreenWonByLabel = getLatestGreenOrderWonPerKgByInventoryLabel(
-    inventoryBeanRows,
-    mapOptions,
-    blendSnapshot,
-  )
+  const priceMode = mapOptions.greenOrderPriceMode ?? DEFAULT_GREEN_ORDER_UNIT_PRICE_MODE
+  const greenWonByLabel = getGreenOrderWonPerKgByInventoryLabel(inventoryBeanRows, {
+    mode: priceMode,
+    ym: ym.trim(),
+    mapOpts: mapOptions,
+    blendRecipeSnapshot: blendSnapshot,
+    inventoryEnvelope: mapOptions.inventoryEnvelope,
+  })
 
   type BuildAcc = {
     beanLabel: string
@@ -152,9 +169,9 @@ export function computeBeanSalesMaterialCostForYm(
   }
 
   const lines: BeanSalesMaterialMeetingLine[] = Array.from(salesMap.values()).map((row) => {
-    const g = latestGreenWonByLabel.get(row.beanLabel)
+    const g = greenWonByLabel.get(row.beanLabel)
     const wonPerKg = g ? g.wonPerKg : null
-    const greenOrderDateRef = g ? g.orderDate : null
+    const greenOrderDateRef = g ? g.basisRef : null
     const roastedCost1kg = wonPerKg != null ? roastedBeanCost1KgFromGreenWonPerKg(wonPerKg) : null
     const estimatedCostWon =
       roastedCost1kg != null && row.totalQuantityKg > 0 ? Math.round(roastedCost1kg * row.totalQuantityKg) : null
@@ -183,5 +200,5 @@ export function computeBeanSalesMaterialCostForYm(
     }
   }
 
-  return { lines, totalEstimatedCostWon }
+  return { lines, totalEstimatedCostWon, priceMode }
 }

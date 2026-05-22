@@ -41,11 +41,16 @@ import {
   type BeanSalesMaterialMeetingResult,
   type BeanStatementDeliveryRecord,
 } from './beanSalesMeetingMaterialCost'
+import {
+  readStoredGreenOrderUnitPriceMode,
+  writeStoredGreenOrderUnitPriceMode,
+  type GreenOrderUnitPriceMode,
+} from './beanSalesGreenOrderUnitPrice'
 import { exportStyledMeetingMonthExcel, sanitizeExcelFileBaseName } from './monthlyMeetingExcelStyledExport'
 import {
   dayIndexForReferenceDate,
-  parseInventoryStatusStateFromLocalStorageJson,
-  type InventoryStatusState,
+  parseInventoryStorageEnvelopeFromJson,
+  type InventoryStorageEnvelope,
 } from './inventoryStatusUtils'
 import {
   MEETING_COST_GRAND_DISPLAY_LABEL,
@@ -469,7 +474,7 @@ const MEETING_COST_BREAKDOWN_MODAL_COPY: Record<
 
 const MEETING_BEAN_MATERIAL_MODAL_COPY = {
   caption:
-    '해당 월 거래명세 납품일이 속한 로스팅 거래를 입출고 생두와 맞춘 뒤, 생두 주문 일자별 기록의 최근 1kg당 단가(원두별 매출 분석과 동일)로 추정한 생두 원가입니다.',
+    '해당 월 거래명세 납품·판매량(kg)에, 생두 주문 단가(헤더에서 「당월 평균」 또는 「최근 주문」)를 곱해 추정한 생두 원가입니다. 원두별 매출 분석과 같은 규칙입니다.',
   empty:
     '이 달 납품 건이 없거나, 입출고에 없는 품목만 있으면 여기에 잡히지 않을 수 있습니다. 거래명세·입출고·생두 주문을 확인해 주세요.',
   hint:
@@ -1158,7 +1163,7 @@ const pickExpenseRecordsForMeetingLink = (
   return lsRecords.length >= cloudRecords.length ? lsRecords : cloudRecords
 }
 
-/** 비용 현황 · 원두별 매출 분석과 같은 추정 생두 원가(거래명세 납품 월×kg×최근 원/kg) */
+/** 비용 현황 · 원두별 매출 분석과 같은 추정 생두 원가(거래명세 납품 월×kg×생두 주문 단가) */
 const MEETING_BEAN_MATERIAL_BUCKET_KEY = '①매출별생두재료'
 
 const MEETING_COST_BUCKET_LABEL_FALLBACK: Record<string, string> = {
@@ -1189,10 +1194,13 @@ const beanMaterialMeetingLinesToBreakdownEntries = (lines: BeanSalesMaterialMeet
         ? String(Math.round(line.totalQuantityKg))
         : line.totalQuantityKg.toFixed(2)
     metaBits.push(`판매량 ${qtyStr}kg · 매출 ${formatMoney(line.totalRevenueWon)}`)
-    if (line.greenOrderDateRef && line.greenOrderDateRef !== '직접') {
-      metaBits.push(`주문·단가 기준: ${line.greenOrderDateRef}`)
+    if (line.greenOrderDateRef) {
+      metaBits.push(`단가 근거: ${line.greenOrderDateRef}`)
     }
     const cost = line.estimatedCostWon != null && line.estimatedCostWon > 0 ? Math.round(line.estimatedCostWon) : 0
+    if (cost > 0) {
+      metaBits.push(`추정 재료비 ${formatMoney(cost)}`)
+    }
     return {
       sortDateKey: parseExpenseMeetBreakdownIsoDate(dk),
       expenseDateLabel: dateLabel,
@@ -1235,7 +1243,10 @@ const parseMeetingStatementDeliveryRecords = (): BeanStatementDeliveryRecord[] =
   }
 }
 
-const readMeetingInventoryForBeanMaterial = (mode: 'local' | 'cloud', companyId: string | null): InventoryStatusState | null => {
+const readMeetingInventoryEnvelopeForBeanMaterial = (
+  mode: 'local' | 'cloud',
+  companyId: string | null,
+): InventoryStorageEnvelope => {
   try {
     const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, companyId)
     let raw = window.localStorage.getItem(key)
@@ -1243,12 +1254,20 @@ const readMeetingInventoryForBeanMaterial = (mode: 'local' | 'cloud', companyId:
       raw = window.localStorage.getItem(INVENTORY_STATUS_STORAGE_KEY)
     }
     if (!raw) {
-      return null
+      return { inventoryState: null, inventoryByMonth: {} }
     }
-    return parseInventoryStatusStateFromLocalStorageJson(JSON.parse(raw))
+    return parseInventoryStorageEnvelopeFromJson(JSON.parse(raw))
   } catch {
-    return null
+    return { inventoryState: null, inventoryByMonth: {} }
   }
+}
+
+const isBeanMaterialMeetingCostRow = (row: MeetingValueRow): boolean => {
+  if (String(row.expenseKey ?? '').trim() === MEETING_BEAN_MATERIAL_BUCKET_KEY) {
+    return true
+  }
+  const plain = stripLeadingIndexFromLabel(String(row.label ?? '')).trim()
+  return plain === MEETING_COST_BUCKET_LABEL_FALLBACK[MEETING_BEAN_MATERIAL_BUCKET_KEY]
 }
 
 const mergeBeanSalesMaterialCostIntoMeetingRows = (
@@ -1261,11 +1280,11 @@ const mergeBeanSalesMaterialCostIntoMeetingRows = (
     return rows
   }
 
-  const hasSalesKg = result.lines.some((l) => l.totalQuantityKg > 0 && l.totalRevenueWon > 0)
+  const hasSalesKg = result.lines.some((l) => l.totalQuantityKg > 0)
   const nextAmt = hasSalesKg ? Math.max(0, Math.round(result.totalEstimatedCostWon)) : null
 
   return rows.map((row) => {
-    if (costRowKey(row) !== keyBucket) {
+    if (!isBeanMaterialMeetingCostRow(row)) {
       return row
     }
     return {
@@ -1304,22 +1323,34 @@ const resolvedStandardExpenseBucketKey = (row: MeetingValueRow): string | null =
 
 /** 지출표에서만 금액이 채워지는 줄 — 회의표에서 금액 수동 수정 불가 */
 const isExpenseSheetFedCostAmountRow = (r: MeetingValueRow): boolean => {
-  if (String(r.expenseKey ?? '').trim() === MEETING_BEAN_MATERIAL_BUCKET_KEY) {
+  if (isBeanMaterialMeetingCostRow(r)) {
     return true
   }
   const k = resolvedStandardExpenseBucketKey(r)
   return k === '②기타경비' || k === '②운영경비'
 }
 
+const greenOrderPriceModeHintLabel = (priceMode: GreenOrderUnitPriceMode): string => {
+  if (priceMode === 'moving_avg') {
+    return '이동평균(전월 말 재고+당월 입고) 원/kg'
+  }
+  if (priceMode === 'monthly_avg') {
+    return '당월 생두 주문 가중평균 원/kg'
+  }
+  return '품목별 최근 생두 주문 원/kg'
+}
+
 const expenseSyncedMeetingCostAmountHint = (
   row: MeetingValueRow,
   beanSalesMaterialFrozen?: boolean,
+  greenOrderPriceMode?: GreenOrderUnitPriceMode,
 ): string | undefined => {
-  if (String(row.expenseKey ?? '').trim() === MEETING_BEAN_MATERIAL_BUCKET_KEY) {
+  if (isBeanMaterialMeetingCostRow(row)) {
     if (beanSalesMaterialFrozen) {
       return '이 달은 「재료비(매출·생두) 금액 고정」을 켜 두어 표시 금액이 자동으로 바뀌지 않습니다. 생두 단가·거래명세를 바꿔도 이 줄은 유지되며, 다시 자동 반영하려면 아래에서 고정을 해제하세요.'
     }
-    return '이 금액은 해당 월 거래명세 납품·판매량(kg)과 생두 주문 일자별 기록의 원/kg으로 추정합니다. 원두별 매출 분석과 같은 규칙이며, 거래명세·입출고·생두 주문을 수정하면 바뀝니다.'
+    const modeLabel = greenOrderPriceMode ? greenOrderPriceModeHintLabel(greenOrderPriceMode) : '당월 생두 주문 가중평균 원/kg'
+    return `이 금액은 해당 월 거래명세 납품·판매량(kg)과 생두 주문 단가(${modeLabel})로 추정합니다. 헤더에서 단가 기준을 바꾸면 즉시 다시 계산되며, 세부 내역(금액 클릭)에서 품목별 단가 근거를 볼 수 있습니다.`
   }
   if (!isExpenseSheetFedCostAmountRow(row)) {
     return undefined
@@ -1353,7 +1384,7 @@ const hydrateStandardExpenseKeyOnRow = (row: MeetingValueRow): MeetingValueRow =
 const resolveMonthlyMeetingCostBreakdownTarget = (
   row: MeetingValueRow,
 ): MeetingCostDetailModalOpen | null => {
-  if (String(row.expenseKey ?? '').trim() === MEETING_BEAN_MATERIAL_BUCKET_KEY) {
+  if (isBeanMaterialMeetingCostRow(row)) {
     return { kind: 'beanMaterial' }
   }
   const bucket = resolvedStandardExpenseBucketKey(row)
@@ -2163,6 +2194,9 @@ function MonthlyMeetingPage() {
   const [companyExpenseRecordsCached, setCompanyExpenseRecordsCached] = useState<ExpenseRecord[]>([])
   /** 원두별 매출·생두 단가·매핑 변경 시 재료비(매출·생두) 줄 재계산 */
   const [beanMeetingMaterialDepsRev, setBeanMeetingMaterialDepsRev] = useState(0)
+  const [greenOrderPriceMode, setGreenOrderPriceMode] = useState<GreenOrderUnitPriceMode>(() =>
+    readStoredGreenOrderUnitPriceMode(),
+  )
   const [outboundShareChartOpen, setOutboundShareChartOpen] = useState(true)
   const [outboundPieHoveredSliceIndex, setOutboundPieHoveredSliceIndex] = useState<number | null>(null)
   /** 출고·재고 세부 표는 모달에서만 표시 */
@@ -2428,8 +2462,9 @@ function MonthlyMeetingPage() {
     }
     const records = expenseRecordsForMeetingLink
     const stmtAll = parseMeetingStatementDeliveryRecords()
-    const inv = readMeetingInventoryForBeanMaterial(mode, activeCompanyId)
-    const mapOpts = { mode, companyId: activeCompanyId } as const
+    const invEnvelope = readMeetingInventoryEnvelopeForBeanMaterial(mode, activeCompanyId)
+    const inv = invEnvelope.inventoryState
+    const mapOpts = { mode, companyId: activeCompanyId, greenOrderPriceMode, inventoryEnvelope: invEnvelope } as const
 
     setPageState((current) => {
       const fallbackStates = createMonthStates(current.data)
@@ -2483,6 +2518,7 @@ function MonthlyMeetingPage() {
     statementRecordsStorageRev,
     inventoryLinkTick,
     beanMeetingMaterialDepsRev,
+    greenOrderPriceMode,
     pageState.activeMonth,
     /** 고정 토글 시 자동 재계산(해제) 또는 고정 반영 */
     pageState.monthStatesByMonth[pageState.activeMonth]?.beanSalesMaterialFrozen,
@@ -3059,10 +3095,14 @@ function MonthlyMeetingPage() {
     }))
   }
 
-  const computedCurrentMonthCosts = useMemo(
-    () => computeCurrentMonthCosts(activeMonthState.currentMonthCosts),
-    [activeMonthState.currentMonthCosts],
-  )
+  const applyGreenOrderUnitPriceMode = (next: GreenOrderUnitPriceMode) => {
+    if (next === greenOrderPriceMode) {
+      return
+    }
+    setGreenOrderPriceMode(next)
+    writeStoredGreenOrderUnitPriceMode(next)
+    setBeanMeetingMaterialDepsRev((n) => n + 1)
+  }
 
   const summaryCostBucketExpenseLines = useMemo(() => {
     const emptyLists: Record<MeetingCostsExpenseBucketKey, OtherCostBucketExpenseEntry[]> = {
@@ -3096,8 +3136,14 @@ function MonthlyMeetingPage() {
     }
     const stmtAll = parseMeetingStatementDeliveryRecords()
     const stmMonth = filterStatementsByYmDelivery(stmtAll, ym)
-    const inv = readMeetingInventoryForBeanMaterial(mode, activeCompanyId)
-    return computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, { mode, companyId: activeCompanyId })
+    const invEnvelope = readMeetingInventoryEnvelopeForBeanMaterial(mode, activeCompanyId)
+    const inv = invEnvelope.inventoryState
+    return computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, {
+      mode,
+      companyId: activeCompanyId,
+      greenOrderPriceMode,
+      inventoryEnvelope: invEnvelope,
+    })
   }, [
     activeMonth,
     expenseRecordsForMeetingLink,
@@ -3107,6 +3153,71 @@ function MonthlyMeetingPage() {
     statementRecordsStorageRev,
     inventoryLinkTick,
     beanMeetingMaterialDepsRev,
+    greenOrderPriceMode,
+  ])
+
+  const beanMaterialCostTotalsBothModes = useMemo(() => {
+    if (!isStorageReady) {
+      return null
+    }
+    const records = expenseRecordsForMeetingLink
+    const ym = meetingMonthLabelToExpenseYm(activeMonth, records)
+    if (!ym) {
+      return null
+    }
+    const stmtAll = parseMeetingStatementDeliveryRecords()
+    const stmMonth = filterStatementsByYmDelivery(stmtAll, ym)
+    const invEnvelope = readMeetingInventoryEnvelopeForBeanMaterial(mode, activeCompanyId)
+    const inv = invEnvelope.inventoryState
+    const baseOpts = { mode, companyId: activeCompanyId, inventoryEnvelope: invEnvelope }
+    const moving = computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, {
+      ...baseOpts,
+      greenOrderPriceMode: 'moving_avg',
+    })
+    const monthly = computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, {
+      ...baseOpts,
+      greenOrderPriceMode: 'monthly_avg',
+    })
+    const latest = computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, {
+      ...baseOpts,
+      greenOrderPriceMode: 'latest',
+    })
+    return {
+      moving: moving != null ? Math.round(moving.totalEstimatedCostWon) : null,
+      monthly: monthly != null ? Math.round(monthly.totalEstimatedCostWon) : null,
+      latest: latest != null ? Math.round(latest.totalEstimatedCostWon) : null,
+    }
+  }, [
+    activeMonth,
+    expenseRecordsForMeetingLink,
+    isStorageReady,
+    mode,
+    activeCompanyId,
+    statementRecordsStorageRev,
+    inventoryLinkTick,
+    beanMeetingMaterialDepsRev,
+  ])
+
+  /** 토글·거래명세 변경 시 즉시 표에 반영(저장 state는 useEffect가 뒤따라 맞춤) */
+  const computedCurrentMonthCosts = useMemo(() => {
+    const ym = meetingMonthLabelToExpenseYm(activeMonth, expenseRecordsForMeetingLink)
+    const hydratedCosts = activeMonthState.currentMonthCosts.map(hydrateStandardExpenseKeyOnRow)
+    const liveBean =
+      !activeMonthState.beanSalesMaterialFrozen && ym && beanMaterialMeetingResultForActiveMonth
+        ? mergeBeanSalesMaterialCostIntoMeetingRows(
+            hydratedCosts,
+            ym,
+            beanMaterialMeetingResultForActiveMonth,
+          )
+        : hydratedCosts
+    return computeCurrentMonthCosts(liveBean)
+  }, [
+    activeMonth,
+    activeMonthState.beanSalesMaterialFrozen,
+    activeMonthState.currentMonthCosts,
+    beanMaterialMeetingResultForActiveMonth,
+    expenseRecordsForMeetingLink,
+    greenOrderPriceMode,
   ])
 
   const meetingCostDetailModalSortedEntries = useMemo(() => {
@@ -3177,8 +3288,12 @@ function MonthlyMeetingPage() {
 
   const summaryCostsAmountInputTitle = useCallback(
     (row: MeetingValueRow): string | undefined =>
-      expenseSyncedMeetingCostAmountHint(row, activeMonthState.beanSalesMaterialFrozen === true),
-    [activeMonthState.beanSalesMaterialFrozen],
+      expenseSyncedMeetingCostAmountHint(
+        row,
+        activeMonthState.beanSalesMaterialFrozen === true,
+        greenOrderPriceMode,
+      ),
+    [activeMonthState.beanSalesMaterialFrozen, greenOrderPriceMode],
   )
 
   const computedRoastingSales = useMemo(
@@ -3389,7 +3504,7 @@ function MonthlyMeetingPage() {
       { label: `${activeMonth} 재료비`, value: pickCostLineAmount(costs, '①재료비'), unit: 'won' as const },
       {
         label: `${activeMonth} 재료비(매출·생두)`,
-        value: pickCostLineAmount(costs, MEETING_BEAN_MATERIAL_BUCKET_KEY),
+        value: costs.find(isBeanMaterialMeetingCostRow)?.amount ?? 0,
         unit: 'won' as const,
       },
       { label: `${activeMonth} 기타경비`, value: pickCostLineAmount(costs, '②기타경비'), unit: 'won' as const },
@@ -4187,6 +4302,51 @@ function MonthlyMeetingPage() {
             </div>
             <div className="meeting-actions meeting-section-actions">
               {renderItemEditToggleButton('summary')}
+              <div
+                className="meeting-bean-price-mode"
+                role="group"
+                aria-label="생두 단가 기준"
+              >
+                <button
+                  type="button"
+                  className={
+                    greenOrderPriceMode === 'moving_avg'
+                      ? 'ghost-button meeting-bean-price-mode-btn meeting-bean-price-mode-btn--active'
+                      : 'ghost-button meeting-bean-price-mode-btn'
+                  }
+                  disabled={activeMonthState.beanSalesMaterialFrozen === true}
+                  onClick={() => applyGreenOrderUnitPriceMode('moving_avg')}
+                  title="전월 말 입출고 재고(kg)×전월 단가 + 당월 생두 입고를 합산한 이동평균입니다. 4월 주문 잔량이 5월 판매 원가에 반영됩니다."
+                >
+                  이동평균
+                </button>
+                <button
+                  type="button"
+                  className={
+                    greenOrderPriceMode === 'monthly_avg'
+                      ? 'ghost-button meeting-bean-price-mode-btn meeting-bean-price-mode-btn--active'
+                      : 'ghost-button meeting-bean-price-mode-btn'
+                  }
+                  disabled={activeMonthState.beanSalesMaterialFrozen === true}
+                  onClick={() => applyGreenOrderUnitPriceMode('monthly_avg')}
+                  title="해당 월 생두 주문 금액÷kg 가중평균으로 재료비(매출·생두)를 계산합니다."
+                >
+                  당월 평균
+                </button>
+                <button
+                  type="button"
+                  className={
+                    greenOrderPriceMode === 'latest'
+                      ? 'ghost-button meeting-bean-price-mode-btn meeting-bean-price-mode-btn--active'
+                      : 'ghost-button meeting-bean-price-mode-btn'
+                  }
+                  disabled={activeMonthState.beanSalesMaterialFrozen === true}
+                  onClick={() => applyGreenOrderUnitPriceMode('latest')}
+                  title="품목별 가장 최근 생두 주문 일자 기록의 원/kg으로 계산합니다."
+                >
+                  최근 주문
+                </button>
+              </div>
               <button
                 type="button"
                 className={
@@ -4240,8 +4400,27 @@ function MonthlyMeetingPage() {
 
           <div className="meeting-bean-material-freeze-row" role="note">
             <p className="meeting-bean-material-freeze-text">
-              재료비(매출·생두)는 생두 주문 원/kg·거래명세가 바뀌면 다시 계산됩니다. 위쪽 헤더의「재료비(생두) 금액
-              고정」으로 이 달 숫자를 유지할 수 있습니다.
+              위 비용 표의 <strong>「재료비(매출·생두)」</strong> 줄만 토글의 영향을 받습니다(비용 합계·지출표
+              「원재료비」와는 별도). 단가 기준: <strong>{greenOrderPriceModeHintLabel(greenOrderPriceMode)}</strong>
+              {beanMaterialMeetingResultForActiveMonth != null ? (
+                <>
+                  {' '}
+                  · 이 기준 추정{' '}
+                  <strong>
+                    {formatMoney(Math.round(beanMaterialMeetingResultForActiveMonth.totalEstimatedCostWon))}
+                  </strong>
+                </>
+              ) : null}
+              {beanMaterialCostTotalsBothModes != null ? (
+                <span className="meeting-bean-material-freeze-compare">
+                  {' '}
+                  (이동평균 {formatMoney(beanMaterialCostTotalsBothModes.moving ?? 0)} · 당월 평균{' '}
+                  {formatMoney(beanMaterialCostTotalsBothModes.monthly ?? 0)} · 최근 주문{' '}
+                  {formatMoney(beanMaterialCostTotalsBothModes.latest ?? 0)})
+                </span>
+              ) : null}
+              . 이동평균은 입출고 <strong>전월 말 재고</strong>가 있어야 4월 잔량 등이 반영됩니다. 「내역 보기」에서 품목별
+              단가·추정 원가를 확인하세요.
               {activeMonthState.beanSalesMaterialFrozen ? (
                 <span className="meeting-bean-material-freeze-on"> 이 달은 고정 중입니다.</span>
               ) : null}

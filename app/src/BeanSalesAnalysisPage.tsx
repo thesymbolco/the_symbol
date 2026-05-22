@@ -6,7 +6,12 @@ import {
   inventoryPageScopedKey,
 } from './InventoryStatusPage'
 import { BLEND_WON_OVERRIDES_SAVED_EVENT } from './beanBlendWonOverrides'
-import { getLatestGreenOrderWonPerKgByInventoryLabel } from './beanSalesGreenOrderUnitPrice'
+import {
+  GREEN_ORDER_UNIT_PRICE_MODE_EVENT,
+  GREEN_ORDER_UNIT_PRICE_MODE_STORAGE_KEY,
+  getGreenOrderWonPerKgByInventoryLabel,
+  readStoredGreenOrderUnitPriceMode,
+} from './beanSalesGreenOrderUnitPrice'
 import { GREEN_BEAN_ORDER_SAVED_EVENT, GREEN_BEAN_ORDER_STORAGE_KEY } from './GreenBeanOrderPage'
 import {
   BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT,
@@ -17,12 +22,14 @@ import {
 } from './beanStatementManualMappings'
 import {
   filterStatementsByYmDelivery,
+  statementQuantityToKg,
   type BeanStatementDeliveryRecord,
 } from './beanSalesMeetingMaterialCost'
 import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
 import {
   normalizeInventoryStatusState,
   parseInventoryStatusStateFromLocalStorageJson,
+  parseInventoryStorageEnvelopeFromJson,
   withReferenceDateToday,
 } from './inventoryStatusUtils'
 import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'
@@ -77,10 +84,12 @@ type BeanSalesData = {
     quantity: number
     revenue: number
   }>
-  /** 생두 주문 일자 기록·품목을 입출고 라벨에 맞춰 묶은 뒤, 가장 최근 스냅샷의 원/kg(없으면 null) */
+  /** 생두 주문 원/kg(당월 가중평균 또는 최근 주문 — 월 마감 설정과 동일) */
   latestGreenWonPerKg: number | null
+  /** 단가 근거 문구 */
   latestGreenOrderDate: string | null
-  /** 최근 주문 원가(원/kg) × 판매수량 */
+  /** 판매 kg × 로스팅 원가(원/kg) 추정 */
+  totalQuantityKg: number
   estimatedCostAmount: number | null
   /** 매출액 − 추정 원가액 */
   estimatedProfitAmount: number | null
@@ -171,6 +180,7 @@ function BeanSalesAnalysisPage() {
   const [linkModalPreferredToLabel, setLinkModalPreferredToLabel] = useState<string | null>(null)
   const [statementRecordsTick, setStatementRecordsTick] = useState(0)
   const [greenOrderCloudSyncTick, setGreenOrderCloudSyncTick] = useState(0)
+  const [greenOrderPriceModeTick, setGreenOrderPriceModeTick] = useState(0)
   const [statementRecordsRaw, setStatementRecordsRaw] = useState<StatementRecord[]>([])
   const [inventoryStateRaw, setInventoryStateRaw] = useState<unknown>(null)
 
@@ -190,12 +200,22 @@ function BeanSalesAnalysisPage() {
     window.addEventListener(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, onManual)
     window.addEventListener(BLEND_WON_OVERRIDES_SAVED_EVENT, onBlendOvr)
     window.addEventListener(STATEMENT_RECORDS_SAVED_EVENT, onStatement)
+    const onPriceMode = () => setGreenOrderPriceModeTick((n) => n + 1)
+    window.addEventListener(GREEN_ORDER_UNIT_PRICE_MODE_EVENT, onPriceMode)
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === GREEN_ORDER_UNIT_PRICE_MODE_STORAGE_KEY) {
+        onPriceMode()
+      }
+    }
+    window.addEventListener('storage', onStorage)
     return () => {
       window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, onInv)
       window.removeEventListener(GREEN_BEAN_ORDER_SAVED_EVENT, onGbo)
       window.removeEventListener(BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT, onManual)
       window.removeEventListener(BLEND_WON_OVERRIDES_SAVED_EVENT, onBlendOvr)
       window.removeEventListener(STATEMENT_RECORDS_SAVED_EVENT, onStatement)
+      window.removeEventListener(GREEN_ORDER_UNIT_PRICE_MODE_EVENT, onPriceMode)
+      window.removeEventListener('storage', onStorage)
     }
   }, [])
 
@@ -455,9 +475,47 @@ function BeanSalesAnalysisPage() {
     }
   }, [inventoryStateRaw])
 
-  const latestGreenWonByLabel = useMemo(
-    () => getLatestGreenOrderWonPerKgByInventoryLabel(inventoryBeanRows, mapOptions, blendRecipeSnapshot),
-    [inventoryBeanRows, greenOrderReadTick, greenOrderCloudSyncTick, mapOptions, manualMappingTick, blendRecipeSnapshot],
+  const greenOrderPriceMode = useMemo(
+    () => readStoredGreenOrderUnitPriceMode(),
+    [greenOrderPriceModeTick],
+  )
+
+  const inventoryEnvelope = useMemo(() => {
+    try {
+      const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mapOptions.mode ?? 'local', mapOptions.companyId ?? null)
+      let raw = window.localStorage.getItem(key)
+      if (!raw && key !== INVENTORY_STATUS_STORAGE_KEY) {
+        raw = window.localStorage.getItem(INVENTORY_STATUS_STORAGE_KEY)
+      }
+      if (!raw) {
+        return { inventoryState: null, inventoryByMonth: {} }
+      }
+      return parseInventoryStorageEnvelopeFromJson(JSON.parse(raw))
+    } catch {
+      return { inventoryState: null, inventoryByMonth: {} }
+    }
+  }, [mapOptions.mode, mapOptions.companyId, inventoryReadTick])
+
+  const greenWonByLabel = useMemo(
+    () =>
+      getGreenOrderWonPerKgByInventoryLabel(inventoryBeanRows, {
+        mode: greenOrderPriceMode,
+        ym: analysisYm,
+        mapOpts: mapOptions,
+        blendRecipeSnapshot,
+        inventoryEnvelope,
+      }),
+    [
+      inventoryBeanRows,
+      greenOrderReadTick,
+      greenOrderCloudSyncTick,
+      mapOptions,
+      manualMappingTick,
+      blendRecipeSnapshot,
+      greenOrderPriceMode,
+      analysisYm,
+      inventoryEnvelope,
+    ],
   )
 
   /** 입출고 생두 표에 없는 품목(키워드만 맞는 영문·더치·미매칭 원문)은 집계에서 제외 */
@@ -511,6 +569,7 @@ function BeanSalesAnalysisPage() {
           clients: [],
           latestGreenWonPerKg: null,
           latestGreenOrderDate: null,
+          totalQuantityKg: 0,
           estimatedCostAmount: null,
           estimatedProfitAmount: null,
         })
@@ -522,7 +581,16 @@ function BeanSalesAnalysisPage() {
       }
 
       const data = salesMap.get(beanName)!
+      const deliveryForKg: BeanStatementDeliveryRecord = {
+        deliveryDate: record.deliveryDate,
+        itemName: record.itemName,
+        specUnit: '',
+        quantity: record.quantity,
+        totalAmount: record.totalAmount,
+        clientName: record.clientName,
+      }
       data.totalQuantity += record.quantity
+      data.totalQuantityKg += statementQuantityToKg(deliveryForKg)
       data.totalRevenue += record.totalAmount
       data.transactionCount += 1
 
@@ -539,11 +607,12 @@ function BeanSalesAnalysisPage() {
       data.avgUnitPrice = data.totalQuantity > 0 ? data.totalRevenue / data.totalQuantity : 0
       data.clientCount = data.clients.length
       data.clients.sort((a, b) => b.revenue - a.revenue)
-      const g = latestGreenWonByLabel.get(data.beanName)
-      if (g) {
+      const g = greenWonByLabel.get(data.beanName)
+      if (g && data.totalQuantityKg > 0) {
         data.latestGreenWonPerKg = g.wonPerKg
-        data.latestGreenOrderDate = g.orderDate
-        data.estimatedCostAmount = g.wonPerKg * data.totalQuantity
+        data.latestGreenOrderDate = g.basisRef
+        const roasted1kg = roastedBeanCost1KgFromGreenWonPerKg(g.wonPerKg)
+        data.estimatedCostAmount = Math.round(roasted1kg * data.totalQuantityKg)
         data.estimatedProfitAmount = data.totalRevenue - data.estimatedCostAmount
       } else {
         data.latestGreenWonPerKg = null
@@ -578,7 +647,7 @@ function BeanSalesAnalysisPage() {
     const notInList = Array.from(notIn.values()).sort((a, b) => b.totalRevenue - a.totalRevenue)
     const excludedSum = notInList.reduce((s, r) => s + r.totalRevenue, 0)
     return { beanSalesAnalysis: sorted, notInInventoryByStatement: notInList, excludedRevenueNotInInventory: excludedSum }
-  }, [statementRecords, sortBy, inventoryBeanRows, latestGreenWonByLabel, allowedInventoryLabels, mapOptions, manualMappingTick])
+  }, [statementRecords, sortBy, inventoryBeanRows, greenWonByLabel, allowedInventoryLabels, mapOptions, manualMappingTick])
 
   /** 매출 요약 표·차트·엑셀(요약 시트)과 동일: 매출액 0인 품목 제외 */
   const rowsWithRevenue = useMemo(

@@ -6,7 +6,9 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
+import { createPortal } from 'react-dom'
 import ExcelJS from 'exceljs'
 import * as XLSX from 'xlsx'
 import PageSaveStatus from './components/PageSaveStatus'
@@ -1928,11 +1930,17 @@ function InventoryStatusPage() {
   inventoryByMonthRef.current = inventoryByMonth
   const lastCloudPollJsonRef = useRef('')
   /** POS 스타일 빠른 입력: 일·품목·구분·kg → 해당 일 셀에 누적 */
+  const [quickEntryModalOpen, setQuickEntryModalOpen] = useState(false)
   const [quickEntryDate, setQuickEntryDate] = useState('')
   const [quickEntryBeanName, setQuickEntryBeanName] = useState('')
   const [quickEntryKind, setQuickEntryKind] = useState<'inbound' | 'production' | 'outbound'>('inbound')
   const [quickEntryKg, setQuickEntryKg] = useState('')
+  const [quickEntryBatchSearch, setQuickEntryBatchSearch] = useState('')
   const quickEntryKgInputRef = useRef<HTMLInputElement>(null)
+
+  const closeQuickEntryModal = useCallback(() => {
+    setQuickEntryModalOpen(false)
+  }, [])
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -1961,6 +1969,63 @@ function InventoryStatusPage() {
       return inventoryState.beanRows[0]?.name ?? ''
     })
   }, [isStorageReady, inventoryState.beanRows, selectedBeanName])
+
+  useEffect(() => {
+    if (!quickEntryModalOpen) {
+      return
+    }
+    queueMicrotask(() => quickEntryKgInputRef.current?.focus())
+  }, [quickEntryModalOpen])
+
+  useEffect(() => {
+    if (!quickEntryModalOpen) {
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setQuickEntryModalOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [quickEntryModalOpen])
+
+  useEffect(() => {
+    if (!quickEntryModalOpen) {
+      return
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [quickEntryModalOpen])
+
+  const quickEntryDayIndex = useMemo(() => {
+    if (!quickEntryDate || quickEntryDate.length < 10) {
+      return -1
+    }
+    if (quickEntryDate.slice(0, 7) !== inventoryState.referenceDate.slice(0, 7)) {
+      return -1
+    }
+    const dayNum = Number(quickEntryDate.slice(8, 10))
+    if (!Number.isFinite(dayNum)) {
+      return -1
+    }
+    return inventoryState.days.findIndex((day) => day === dayNum)
+  }, [inventoryState.days, inventoryState.referenceDate, quickEntryDate])
+
+  const quickEntryBatchRows = useMemo(() => {
+    const needle = normalizeNameKey(quickEntryBatchSearch)
+    return inventoryState.beanRows
+      .map((bean, beanIndex) => ({ bean, beanIndex }))
+      .filter(({ bean }) => {
+        if (!needle) {
+          return true
+        }
+        return normalizeNameKey(`${bean.no} ${bean.name}`).includes(needle)
+      })
+  }, [inventoryState.beanRows, quickEntryBatchSearch])
 
   useEffect(() => {
     let cancelled = false
@@ -3102,6 +3167,30 @@ function InventoryStatusPage() {
     queueMicrotask(() => quickEntryKgInputRef.current?.focus())
   }
 
+  const updateQuickBatchValue = (
+    beanIndex: number,
+    targetKey: 'inbound' | 'production' | 'outbound',
+    nextValue: string,
+  ) => {
+    if (quickEntryDayIndex < 0) {
+      setStatusMessage('일괄 입력 날짜를 현재 기준월 안의 날짜로 선택해 주세요.')
+      return
+    }
+    updateBeanValue(beanIndex, targetKey, quickEntryDayIndex, nextValue)
+  }
+
+  const handleQuickBatchInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') {
+      return
+    }
+    event.preventDefault()
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('.inventory-quick-batch-input'))
+    const currentIndex = inputs.indexOf(event.currentTarget)
+    const nextInput = inputs[currentIndex + (event.shiftKey ? -1 : 1)]
+    nextInput?.focus()
+    nextInput?.select()
+  }
+
   const commitInventoryProductRenameFromSummary = (previousDisplayName: string, nextRaw: string) => {
     if (!inventoryNameEditMode) {
       return
@@ -3873,86 +3962,189 @@ function InventoryStatusPage() {
             </div>
           </div>
         </div>
-        <div className="inventory-quick-entry no-print" aria-label="빠른 입력">
-          <div className="inventory-quick-entry-header">
-            <h3>빠른 입력</h3>
-            <p className="inventory-quick-entry-hint">
-              선택한 날·품목 칸에 kg을 <strong>누적</strong>합니다. 표의 입고·생산·출고와 같은 값입니다.
-            </p>
-          </div>
-          <form
-            className="inventory-quick-entry-form"
-            onSubmit={(event) => {
-              event.preventDefault()
-              submitQuickEntry()
-            }}
+        <div className="inventory-quick-entry-launch no-print">
+          <button
+            type="button"
+            className="primary-button inventory-quick-entry-open-btn"
+            onClick={() => setQuickEntryModalOpen(true)}
           >
-            <label className="inventory-quick-entry-field">
-              날짜
-              <input
-                type="date"
-                value={quickEntryDate}
-                min={`${inventoryState.referenceDate.slice(0, 7)}-01`}
-                max={lastCalendarDayIsoInMonth(inventoryState.referenceDate.slice(0, 7))}
-                onChange={(event) => setQuickEntryDate(event.target.value)}
-              />
-            </label>
-            <label className="inventory-quick-entry-field inventory-quick-entry-field--grow">
-              생두
-              <select
-                value={quickEntryBeanName}
-                onChange={(event) => setQuickEntryBeanName(event.target.value)}
-              >
-                {inventoryState.beanRows.map((b) => (
-                  <option key={`${b.no}-${b.name}`} value={b.name}>
-                    {b.no}. {b.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="inventory-quick-entry-field">
-              <span className="inventory-quick-entry-field-label">구분</span>
-              <div className="inventory-quick-entry-kind" role="group" aria-label="입력 구분">
-                {(
-                  [
-                    ['inbound', '입고'],
-                    ['production', '생산(사용)'],
-                    ['outbound', '출고'],
-                  ] as const
-                ).map(([k, label]) => (
-                  <button
-                    key={k}
-                    type="button"
-                    className={
-                      quickEntryKind === k
-                        ? 'inventory-quick-entry-kind-btn active'
-                        : 'inventory-quick-entry-kind-btn'
-                    }
-                    onClick={() => setQuickEntryKind(k)}
-                  >
-                    {label}
+            빠른 입력 열기
+          </button>
+          <span className="inventory-quick-entry-launch-hint">
+            {quickEntryDate ? `${Number(quickEntryDate.slice(8, 10))}일` : '날짜 선택'} · 입고/생산/출고를 한 번에 입력
+          </span>
+        </div>
+        {quickEntryModalOpen ? createPortal(
+          (
+          <div
+            className="inventory-reset-dialog-backdrop inventory-quick-entry-modal-backdrop no-print"
+            role="presentation"
+            onClick={closeQuickEntryModal}
+          >
+            <div
+              className="inventory-quick-entry-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="inventory-quick-entry-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="inventory-quick-entry-modal-top">
+                <div>
+                  <h3 id="inventory-quick-entry-modal-title">빠른 입력</h3>
+                  <p>날짜를 고정하고, 품목별 입고·생산·출고를 빠르게 입력합니다.</p>
+                </div>
+                <button type="button" className="ghost-button small-hit" onClick={closeQuickEntryModal}>
+                  닫기
+                </button>
+              </div>
+              <div className="inventory-quick-entry no-print" aria-label="빠른 입력">
+                <form
+                  className="inventory-quick-entry-form inventory-quick-entry-form--compact"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    submitQuickEntry()
+                  }}
+                >
+                  <label className="inventory-quick-entry-field">
+                    날짜
+                    <input
+                      type="date"
+                      value={quickEntryDate}
+                      min={`${inventoryState.referenceDate.slice(0, 7)}-01`}
+                      max={lastCalendarDayIsoInMonth(inventoryState.referenceDate.slice(0, 7))}
+                      onChange={(event) => setQuickEntryDate(event.target.value)}
+                    />
+                  </label>
+                  <label className="inventory-quick-entry-field inventory-quick-entry-field--grow">
+                    품목
+                    <select
+                      value={quickEntryBeanName}
+                      onChange={(event) => setQuickEntryBeanName(event.target.value)}
+                    >
+                      {inventoryState.beanRows.map((b) => (
+                        <option key={`${b.no}-${b.name}`} value={b.name}>
+                          {b.no}. {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="inventory-quick-entry-field">
+                    <span className="inventory-quick-entry-field-label">누적</span>
+                    <div className="inventory-quick-entry-kind" role="group" aria-label="입력 구분">
+                      {(
+                        [
+                          ['inbound', '입고'],
+                          ['production', '생산'],
+                          ['outbound', '출고'],
+                        ] as const
+                      ).map(([k, label]) => (
+                        <button
+                          key={k}
+                          type="button"
+                          className={
+                            quickEntryKind === k
+                              ? 'inventory-quick-entry-kind-btn active'
+                              : 'inventory-quick-entry-kind-btn'
+                          }
+                          onClick={() => setQuickEntryKind(k)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="inventory-quick-entry-field inventory-quick-entry-field--kg">
+                    kg
+                    <input
+                      ref={quickEntryKgInputRef}
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      enterKeyHint="done"
+                      placeholder="+kg"
+                      value={quickEntryKg}
+                      onChange={(event) => setQuickEntryKg(event.target.value)}
+                    />
+                  </label>
+                  <button type="submit" className="primary-button inventory-quick-entry-submit">
+                    누적
                   </button>
-                ))}
+                </form>
+                <div className="inventory-quick-batch">
+                  <div className="inventory-quick-batch-header">
+                    <div>
+                      <h4>선택 날짜 일괄 입력</h4>
+                      <p>값은 누적이 아니라 해당 날짜의 칸 값으로 바로 저장됩니다.</p>
+                    </div>
+                    <label className="inventory-quick-batch-search">
+                      품목 찾기
+                      <input
+                        type="search"
+                        value={quickEntryBatchSearch}
+                        onChange={(event) => setQuickEntryBatchSearch(event.target.value)}
+                        placeholder="번호·원두명"
+                      />
+                    </label>
+                  </div>
+                  {quickEntryDayIndex < 0 ? (
+                    <p className="inventory-quick-batch-empty">
+                      현재 기준월 안의 날짜를 선택하면 일괄 입력 표가 열립니다.
+                    </p>
+                  ) : quickEntryBatchRows.length === 0 ? (
+                    <p className="inventory-quick-batch-empty">검색된 품목이 없습니다.</p>
+                  ) : (
+                    <div className="inventory-quick-batch-table-wrap">
+                      <table className="inventory-quick-batch-table">
+                        <thead>
+                          <tr>
+                            <th scope="col">품목</th>
+                            <th scope="col">입고</th>
+                            <th scope="col">생산</th>
+                            <th scope="col">출고</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {quickEntryBatchRows.map(({ bean, beanIndex }) => (
+                            <tr key={`${bean.no}-${bean.name}`}>
+                              <th scope="row">
+                                <span className="inventory-quick-batch-no">{bean.no}</span>
+                                <span className="inventory-quick-batch-name">{bean.name}</span>
+                              </th>
+                              {(
+                                [
+                                  ['inbound', '입고'],
+                                  ['production', '생산'],
+                                  ['outbound', '출고'],
+                                ] as const
+                              ).map(([key, label]) => (
+                                <td key={key}>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    inputMode="decimal"
+                                    className="inventory-quick-batch-input"
+                                    aria-label={`${bean.name} ${label}`}
+                                    value={inventoryNumericInputValue(bean[key][quickEntryDayIndex] ?? 0)}
+                                    onFocus={(event) => event.currentTarget.select()}
+                                    onKeyDown={handleQuickBatchInputKeyDown}
+                                    onChange={(event) => updateQuickBatchValue(beanIndex, key, event.target.value)}
+                                  />
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            <label className="inventory-quick-entry-field inventory-quick-entry-field--kg">
-              kg
-              <input
-                ref={quickEntryKgInputRef}
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                enterKeyHint="done"
-                placeholder="누적"
-                value={quickEntryKg}
-                onChange={(event) => setQuickEntryKg(event.target.value)}
-              />
-            </label>
-            <button type="submit" className="primary-button inventory-quick-entry-submit">
-              반영
-            </button>
-          </form>
-        </div>
+          </div>
+          ),
+          document.body,
+        ) : null}
         <div className="meeting-config-row inventory-config-row inventory-config-row--single-line">
           <label className="meeting-inline-field">
             기준일

@@ -560,6 +560,84 @@ export const parseInventoryStatusStateFromLocalStorageJson = (parsed: unknown): 
   return normalizeInventoryStatusState(parsed)
 }
 
+export type InventoryStorageEnvelope = {
+  inventoryState: InventoryStatusState | null
+  inventoryByMonth: Record<string, InventoryStatusState>
+}
+
+/** v2 래퍼(월별 스냅샷 포함) 또는 단일 `InventoryStatusState` JSON */
+export const parseInventoryStorageEnvelopeFromJson = (parsed: unknown): InventoryStorageEnvelope => {
+  const empty: InventoryStorageEnvelope = { inventoryState: null, inventoryByMonth: {} }
+  if (!parsed || typeof parsed !== 'object') {
+    return empty
+  }
+  const rec = parsed as { v?: number; inventoryState?: unknown; inventoryByMonth?: unknown }
+  if (rec.v === INVENTORY_LOCAL_STORAGE_ENVELOPE_VERSION) {
+    const inventoryByMonth: Record<string, InventoryStatusState> = {}
+    if (rec.inventoryByMonth && typeof rec.inventoryByMonth === 'object') {
+      for (const [ym, st] of Object.entries(rec.inventoryByMonth as Record<string, unknown>)) {
+        const key = typeof ym === 'string' ? ym.trim() : ''
+        if (!/^\d{4}-\d{2}$/.test(key)) {
+          continue
+        }
+        const normalized = normalizeInventoryStatusState(st)
+        if (normalized) {
+          inventoryByMonth[key] = normalized
+        }
+      }
+    }
+    return {
+      inventoryState: normalizeInventoryStatusState(rec.inventoryState),
+      inventoryByMonth,
+    }
+  }
+  const single = normalizeInventoryStatusState(parsed)
+  if (!single) {
+    return empty
+  }
+  const ym = single.referenceDate.slice(0, 7)
+  if (/^\d{4}-\d{2}$/.test(ym)) {
+    return { inventoryState: single, inventoryByMonth: { [ym]: single } }
+  }
+  return { inventoryState: single, inventoryByMonth: {} }
+}
+
+/** 해당 월 말일 열 기준 생두 재고(kg) — `inventoryByMonth[ym]` 또는 그 달 `referenceDate`인 현재 state */
+export const greenBeanStockKgByLabelAtYmEnd = (
+  ym: string,
+  envelope: InventoryStorageEnvelope | null | undefined,
+): Map<string, number> => {
+  const prefix = ym.trim()
+  const out = new Map<string, number>()
+  if (!/^\d{4}-\d{2}$/.test(prefix) || !envelope) {
+    return out
+  }
+  const bucket = envelope.inventoryByMonth[prefix] ?? null
+  const st =
+    bucket ??
+    (envelope.inventoryState && envelope.inventoryState.referenceDate.slice(0, 7) === prefix
+      ? envelope.inventoryState
+      : null)
+  if (!st || !Array.isArray(st.beanRows)) {
+    return out
+  }
+  const refDate = lastCalendarDayIsoInMonth(prefix)
+  const dayIdx = dayIndexForReferenceDate(st.days, refDate)
+  for (const bean of st.beanRows) {
+    const label =
+      bean.no != null && Number.isFinite(bean.no)
+        ? `${bean.no}. ${bean.name}`
+        : String(bean.name ?? '').trim()
+    const raw = bean.stock[dayIdx]
+    const kg = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0
+    if (kg <= 0) {
+      continue
+    }
+    out.set(label, (out.get(label) ?? 0) + kg)
+  }
+  return out
+}
+
 const getSheetCellValue = (sheet: XLSX.WorkSheet, rowIndex: number, columnIndex: number) => {
   const address = XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })
   const cell = sheet[address]

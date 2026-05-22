@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react'
+import { getGreenOrderWonPerKgByInventoryLabel } from './beanSalesGreenOrderUnitPrice'
+import { mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
+import { INVENTORY_STATUS_STORAGE_KEY } from './InventoryStatusPage'
+import { parseInventoryStatusStateFromLocalStorageJson, type InventoryBeanRow } from './inventoryStatusUtils'
 import {
   BEAN_MARGIN_CALC_STORAGE_KEY,
   DEFAULT_BEAN_MARGIN_STATE,
@@ -422,6 +426,43 @@ export default function BeanMarginCalcPage() {
     }
   }
 
+  const importMonthlyGreenPrices = () => {
+    const now = new Date()
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    let beanRows: InventoryBeanRow[] = []
+    try {
+      const raw = window.localStorage.getItem(INVENTORY_STATUS_STORAGE_KEY)
+      if (raw) {
+        const st = parseInventoryStatusStateFromLocalStorageJson(JSON.parse(raw))
+        beanRows = Array.isArray(st?.beanRows) ? st.beanRows : []
+      }
+    } catch {
+      beanRows = []
+    }
+    const priceMap = getGreenOrderWonPerKgByInventoryLabel(beanRows, { mode: 'monthly_avg', ym })
+    let updated = 0
+    setState((prev) => ({
+      ...prev,
+      products: prev.products.map((p) => {
+        if (p.kind !== 'single') {
+          return p
+        }
+        const { label } = mapStatementItemToInventoryLabel(p.name, beanRows)
+        const c = priceMap.get(label)
+        if (!c || !Number.isFinite(c.wonPerKg)) {
+          return p
+        }
+        updated += 1
+        return { ...p, greenWonPerKg: Math.round(c.wonPerKg) }
+      }),
+    }))
+    window.alert(
+      updated > 0
+        ? `${ym} 생두 주문 가중평균으로 싱글 오리진 ${updated}건 생두가를 채웠습니다.`
+        : `${ym} 생두 주문·입출고 매칭 데이터가 없어 바뀐 항목이 없습니다.`,
+    )
+  }
+
   const opex = state.operating
   const opexTotals = computed.operating
 
@@ -482,6 +523,17 @@ export default function BeanMarginCalcPage() {
             </span>
             <button type="button" className="green-bean-toolbar-link bean-margin-aux-link" onClick={() => setModal('blend')}>
               블렌딩
+            </button>
+            <span className="bean-margin-aux-sep" aria-hidden>
+              |
+            </span>
+            <button
+              type="button"
+              className="green-bean-toolbar-link bean-margin-aux-link"
+              onClick={importMonthlyGreenPrices}
+              title="이번 달 생두 주문 일자 기록의 품목별 가중평균 원/kg을 싱글 오리진 생두가에 반영합니다."
+            >
+              당월 생두가
             </button>
             <span className="bean-margin-aux-sep" aria-hidden>
               |
