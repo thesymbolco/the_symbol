@@ -3,8 +3,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -17,7 +16,13 @@ import {
   dayIndexForReferenceDate,
   parseInventoryStatusStateFromLocalStorageJson,
 } from './inventoryStatusUtils'
-import { INVENTORY_STATUS_STORAGE_KEY } from './InventoryStatusPage'
+import {
+  INVENTORY_STATUS_CACHE_EVENT,
+  INVENTORY_STATUS_STORAGE_KEY,
+  buildStockPinnedDayIndices,
+  inventoryPageScopedKey,
+  resyncAutoStockForBeanRow,
+} from './InventoryStatusPage'
 import {
   BEAN_NAME_ALIASES_STORAGE_KEY,
   BEAN_NAME_ALIASES_UPDATED_EVENT,
@@ -359,6 +364,8 @@ function attachAliasStockKeys(
 function readInventoryStockFromStorage(
   normalizeKey: (value: string) => string,
   aliases: ReadonlyArray<readonly [string, string]>,
+  mode: 'local' | 'cloud',
+  companyId: string | null,
 ): ReadInventoryStockLinkResult {
   const empty = (): ReadInventoryStockLinkResult => ({
     byItemKey: new Map(),
@@ -369,7 +376,13 @@ function readInventoryStockFromStorage(
     inventoryBeanRowCount: 0,
   })
   try {
-    const raw = window.localStorage.getItem(INVENTORY_STATUS_STORAGE_KEY)
+    // 입출고 페이지가 회사·모드별로 스코핑된 키에 저장하므로 동일 키에서 읽어야 같은 데이터를 본다.
+    const scopedKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, companyId)
+    const raw =
+      window.localStorage.getItem(scopedKey) ??
+      (scopedKey !== INVENTORY_STATUS_STORAGE_KEY
+        ? window.localStorage.getItem(INVENTORY_STATUS_STORAGE_KEY)
+        : null)
     if (!raw) {
       return empty()
     }
@@ -379,6 +392,15 @@ function readInventoryStockFromStorage(
     }
     const inventoryBeanRowCount = parsed.beanRows.length
     const dayIdx = dayIndexForReferenceDate(parsed.days, parsed.referenceDate)
+    // 입출고 페이지의 화면 표시 로직과 동일하게 자동 재고를 연쇄 계산해서 두 페이지가 같은 값을 보이게 한다.
+    const physicalCountIdx = dayIndexForReferenceDate(parsed.days, parsed.physicalCountDate)
+    const pinnedDayIndices = buildStockPinnedDayIndices(
+      parsed.days,
+      parsed.surveyMarkedDays,
+      physicalCountIdx,
+      parsed.referenceDate,
+      parsed.physicalCountDate,
+    )
     const map = new Map<string, GreenBeanInventoryStockMatch>()
     const byInventoryLinkKey = new Map<string, GreenBeanInventoryStockMatch>()
     for (const bean of parsed.beanRows) {
@@ -386,9 +408,12 @@ function readInventoryStockFromStorage(
       if (!k) {
         continue
       }
-      const stockLen = bean.stock.length
+      const resyncedStock = parsed.skipAutoStockDisplay
+        ? bean.stock
+        : resyncAutoStockForBeanRow(bean, pinnedDayIndices)
+      const stockLen = resyncedStock.length
       const cappedIdx = stockLen <= 0 ? 0 : Math.min(Math.max(dayIdx, 0), stockLen - 1)
-      const rawStock = bean.stock[cappedIdx]
+      const rawStock = resyncedStock[cappedIdx]
       const endingStock =
         typeof rawStock === 'number' && Number.isFinite(rawStock) ? Math.round(rawStock * 1000) / 1000 : 0
       const inventoryLinkKey = `inventory-bean-no:${String(bean.no)}`
@@ -1787,7 +1812,11 @@ export default function GreenBeanOrderPage() {
   useEffect(() => {
     const bump = () => setInventoryHintsTick((n) => n + 1)
     const onStorage = (e: StorageEvent) => {
-      if (e.key === INVENTORY_STATUS_STORAGE_KEY) {
+      // 다른 탭의 localStorage 변경: 스코프된 키(`...::companyId`)와 공용 키 모두 감지
+      if (
+        e.key === INVENTORY_STATUS_STORAGE_KEY ||
+        (typeof e.key === 'string' && e.key.startsWith(`${INVENTORY_STATUS_STORAGE_KEY}::`))
+      ) {
         bump()
       }
     }
@@ -1796,11 +1825,16 @@ export default function GreenBeanOrderPage() {
         bump()
       }
     }
+    // 같은 탭(SPA) 내 입출고 페이지에서 저장 직후 발생하는 커스텀 이벤트.
+    // 브라우저의 `storage` 이벤트는 다른 탭에서만 발생하므로 이 이벤트가 없으면 같은 탭 안에서는 갱신이 안 됨.
+    const onInventoryCache = () => bump()
     window.addEventListener('storage', onStorage)
     document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener(INVENTORY_STATUS_CACHE_EVENT, onInventoryCache)
     return () => {
       window.removeEventListener('storage', onStorage)
       document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener(INVENTORY_STATUS_CACHE_EVENT, onInventoryCache)
     }
   }, [])
 
@@ -1826,8 +1860,8 @@ export default function GreenBeanOrderPage() {
 
   const effectiveBeanAliases = useMemo(() => getEffectiveGreenBeanOrderAliases(), [aliasRevision])
   const inventoryOrderHints = useMemo(
-    () => readInventoryStockFromStorage(normalizeItemKey, effectiveBeanAliases),
-    [inventoryHintsTick, effectiveBeanAliases],
+    () => readInventoryStockFromStorage(normalizeItemKey, effectiveBeanAliases, mode, activeCompanyId),
+    [inventoryHintsTick, effectiveBeanAliases, mode, activeCompanyId],
   )
 
   const inventoryHintBanner = useMemo(() => {
@@ -1950,6 +1984,14 @@ export default function GreenBeanOrderPage() {
     if (!latestMonthlyRow) {
       return []
     }
+    const avgQty =
+      chartRows.length > 0
+        ? chartRows.reduce((sum, row) => sum + (row.sumQty ?? 0), 0) / chartRows.length
+        : 0
+    const avgMoney =
+      chartRows.length > 0
+        ? chartRows.reduce((sum, row) => sum + (row.sumMoney ?? 0), 0) / chartRows.length
+        : 0
     return [
       {
         id: 'qty',
@@ -1962,6 +2004,8 @@ export default function GreenBeanOrderPage() {
         deltaPositive: previousMonthlyRow ? latestMonthlyRow.sumQty - previousMonthlyRow.sumQty >= 0 : true,
         lineKey: 'sumQty' as const,
         areaColor: '#2563eb',
+        averageValue: avgQty,
+        averageLabel: formatKg(avgQty),
       },
       {
         id: 'money',
@@ -1974,9 +2018,11 @@ export default function GreenBeanOrderPage() {
         deltaPositive: previousMonthlyRow ? latestMonthlyRow.sumMoney - previousMonthlyRow.sumMoney >= 0 : true,
         lineKey: 'sumMoney' as const,
         areaColor: '#0d9488',
+        averageValue: avgMoney,
+        averageLabel: formatMoney(avgMoney),
       },
     ]
-  }, [latestMonthlyRow, previousMonthlyRow])
+  }, [chartRows, latestMonthlyRow, previousMonthlyRow])
 
   const hasPerItemSnapshots = useMemo(
     () => monthlyAggregatedPoints.some((p) => p.items && p.items.length > 0),
@@ -2072,21 +2118,44 @@ export default function GreenBeanOrderPage() {
     return itemSeriesForChart.filter((series) => visible.has(series.key))
   }, [itemSeriesForChart, visibleItemKeys])
 
-  const perItemMultiChartRows = useMemo(() => {
-    if (itemSeriesForChart.length === 0) {
+  /** 원두별 스파크라인 카드용: 각 표시 품목별로 월별 시계열 추출 */
+  const perItemSparklineCards = useMemo(() => {
+    if (visibleItemSeries.length === 0 || chartRows.length === 0) {
       return []
     }
-    return chartRows.map((row) => {
-      const point = monthlyAggregatedPoints.find((p) => p.monthKey === row.monthKey)
-      const d: Record<string, string | number> = { monthLabel: row.monthLabel }
-      for (const { key, qtyField, moneyField } of itemSeriesForChart) {
-        const it = point?.items?.find((x) => normalizeItemKey(x.itemName) === key)
-        d[qtyField] = it?.quantityKg ?? 0
-        d[moneyField] = it?.lineTotal ?? 0
+    return visibleItemSeries.map((series) => {
+      const data = chartRows.map((row) => {
+        const point = monthlyAggregatedPoints.find((p) => p.monthKey === row.monthKey)
+        const it = point?.items?.find((x) => normalizeItemKey(x.itemName) === series.key)
+        return {
+          monthLabel: row.monthLabel,
+          qty: it?.quantityKg ?? 0,
+          money: it?.lineTotal ?? 0,
+        }
+      })
+      const latest = data[data.length - 1]
+      const previous = data[data.length - 2]
+      const latestValue = perItemMetric === 'qty' ? latest?.qty ?? 0 : latest?.money ?? 0
+      const previousValue = perItemMetric === 'qty' ? previous?.qty ?? 0 : previous?.money ?? 0
+      const delta = previous ? latestValue - previousValue : 0
+      const deltaText = previous
+        ? formatSignedNumber(delta, perItemMetric === 'qty' ? ' kg' : '원')
+        : '첫 달'
+      return {
+        key: series.key,
+        label: series.label,
+        color: series.color,
+        data,
+        latestValue,
+        latestLabel:
+          perItemMetric === 'qty' ? formatKg(latestValue) : formatMoney(latestValue),
+        delta,
+        deltaText,
+        deltaPositive: delta >= 0,
+        hasPrevious: Boolean(previous),
       }
-      return d
     })
-  }, [chartRows, monthlyAggregatedPoints, itemSeriesForChart])
+  }, [chartRows, monthlyAggregatedPoints, perItemMetric, visibleItemSeries])
 
   const togglePerItemSeries = (key: string) => {
     setVisibleItemKeys((prev) => {
@@ -3478,52 +3547,89 @@ export default function GreenBeanOrderPage() {
             {monthlyOverviewCards.map((card) => (
               <section key={card.id} className="green-bean-overview-card">
                 <div className="green-bean-overview-header">
-                  <h3 className="green-bean-chart-title green-bean-overview-card-title">{card.title}</h3>
-                  <span
-                    className={
-                      card.deltaPositive ? 'green-bean-overview-delta green-bean-overview-delta--up' : 'green-bean-overview-delta green-bean-overview-delta--down'
-                    }
-                    title={previousMonthlyRow ? `최신 ${card.latestLabel} vs 직전 월` : undefined}
-                  >
-                    {card.deltaText}
+                  <h3 className="green-bean-chart-title green-bean-overview-card-title">
+                    {card.title}
+                  </h3>
+                  {previousMonthlyRow ? (
+                    <span
+                      className={
+                        card.deltaPositive
+                          ? 'green-bean-overview-delta green-bean-overview-delta--up'
+                          : 'green-bean-overview-delta green-bean-overview-delta--down'
+                      }
+                      title={`최신 ${card.latestLabel} vs 직전 월`}
+                    >
+                      {card.deltaPositive ? '▲' : '▼'} {card.deltaText}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="green-bean-overview-headline">
+                  <strong className="green-bean-overview-headline-value">
+                    {card.latestValue}
+                  </strong>
+                  <span className="green-bean-overview-headline-meta">
+                    {card.latestLabel} · 평균 {card.averageLabel}
                   </span>
                 </div>
-                <div className="green-bean-overview-kpis">
-                  <div className="green-bean-overview-kpi">
-                    <span>최신 ({card.latestLabel})</span>
-                    <strong>{card.latestValue}</strong>
-                  </div>
-                  <div className="green-bean-overview-kpi">
-                    <span>직전 월</span>
-                    <strong>{card.previousValue}</strong>
-                  </div>
-                </div>
                 <div className="green-bean-chart-canvas green-bean-chart-canvas--overview">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={chartRows} margin={{ top: 10, right: 12, left: 4, bottom: 8 }}>
+                  <ResponsiveContainer width="100%" height={210}>
+                    <AreaChart data={chartRows} margin={{ top: 12, right: 12, left: 4, bottom: 6 }}>
                       <defs>
                         <linearGradient id={`green-bean-${card.id}-fill`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={card.areaColor} stopOpacity={0.26} />
-                          <stop offset="100%" stopColor={card.areaColor} stopOpacity={0.02} />
+                          <stop offset="0%" stopColor={card.areaColor} stopOpacity={0.32} />
+                          <stop offset="100%" stopColor={card.areaColor} stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis dataKey="monthLabel" tick={{ fontSize: 11 }} tickLine={false} />
+                      <CartesianGrid
+                        strokeDasharray="2 4"
+                        stroke="#e2e8f0"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="monthLabel"
+                        tick={{ fontSize: 11, fill: '#64748b' }}
+                        tickLine={false}
+                        axisLine={{ stroke: '#e2e8f0' }}
+                        interval="preserveStartEnd"
+                        minTickGap={20}
+                      />
                       <YAxis
                         tickFormatter={(v) =>
-                          card.id === 'qty' ? currencyFormatter.format(Number(v ?? 0)) : formatAxisMoney(Number(v))
+                          card.id === 'qty'
+                            ? currencyFormatter.format(Number(v ?? 0))
+                            : formatAxisMoney(Number(v))
                         }
                         width={56}
-                        tick={{ fontSize: 10 }}
+                        tick={{ fontSize: 10, fill: '#94a3b8' }}
+                        tickLine={false}
+                        axisLine={false}
                       />
                       <Tooltip
-                        contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0' }}
+                        cursor={{ stroke: card.areaColor, strokeWidth: 1, strokeDasharray: '3 3' }}
+                        contentStyle={{
+                          borderRadius: 12,
+                          border: 'none',
+                          boxShadow: '0 8px 24px -8px rgba(15,23,42,0.18)',
+                          padding: '8px 12px',
+                        }}
+                        labelStyle={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}
+                        itemStyle={{ fontSize: 12, fontWeight: 600 }}
                         formatter={(value) => {
                           const v = Number(value ?? 0)
-                          return [card.id === 'qty' ? `${currencyFormatter.format(v)} kg` : formatMoney(v), card.title]
+                          return [
+                            card.id === 'qty' ? `${currencyFormatter.format(v)} kg` : formatMoney(v),
+                            card.title,
+                          ]
                         }}
                         labelFormatter={(label) => `${label}`}
                       />
+                      {card.averageValue > 0 && chartRows.length > 1 ? (
+                        <ReferenceLine
+                          y={card.averageValue}
+                          stroke="#cbd5e1"
+                          strokeDasharray="3 3"
+                        />
+                      ) : null}
                       <Area
                         type="monotone"
                         dataKey={card.lineKey}
@@ -3531,8 +3637,12 @@ export default function GreenBeanOrderPage() {
                         strokeWidth={2.5}
                         fill={`url(#green-bean-${card.id}-fill)`}
                         fillOpacity={1}
-                        dot={{ r: 3, strokeWidth: 1.5, fill: '#fff' }}
-                        activeDot={{ r: 5 }}
+                        dot={
+                          chartRows.length <= 12
+                            ? { r: 3, strokeWidth: 1.5, fill: '#fff', stroke: card.areaColor }
+                            : false
+                        }
+                        activeDot={{ r: 5, strokeWidth: 2, fill: '#fff', stroke: card.areaColor }}
                       />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -3622,51 +3732,107 @@ export default function GreenBeanOrderPage() {
                   <div className="green-bean-per-item-chart-card">
                     <div className="green-bean-per-item-chart-header">
                       <h4 className="green-bean-per-item-subtitle">
-                        {perItemMetric === 'qty' ? '수량 (kg)' : '총액'}
+                        {perItemMetric === 'qty' ? '수량 (kg)' : '총액'} · 원두별 미니 차트
                       </h4>
                       <span className="green-bean-per-item-count">{visibleItemSeries.length}개</span>
                     </div>
-                    <div className="green-bean-chart-canvas green-bean-chart-canvas--multi">
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={perItemMultiChartRows} margin={{ top: 10, right: 16, left: 4, bottom: 10 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                          <XAxis dataKey="monthLabel" tick={{ fontSize: 11 }} tickLine={false} />
-                          <YAxis
-                            tickFormatter={(v) =>
-                              perItemMetric === 'qty'
-                                ? currencyFormatter.format(Number(v ?? 0))
-                                : formatAxisMoney(Number(v))
-                            }
-                            width={56}
-                            tick={{ fontSize: 10 }}
-                          />
-                          <Tooltip
-                            shared={false}
-                            contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0' }}
-                            formatter={(value, name) => {
-                              const v = Number(value ?? 0)
-                              return [
-                                perItemMetric === 'qty' ? `${currencyFormatter.format(v)} kg` : formatMoney(v),
-                                String(name),
-                              ]
-                            }}
-                            labelFormatter={(label) => String(label)}
-                          />
-                          {visibleItemSeries.map(({ label, qtyField, moneyField, color }) => (
-                            <Line
-                              key={perItemMetric === 'qty' ? qtyField : moneyField}
-                              type="linear"
-                              dataKey={perItemMetric === 'qty' ? qtyField : moneyField}
-                              name={label}
-                              stroke={color}
-                              strokeWidth={2.5}
-                              dot={{ r: 3, strokeWidth: 1.5, fill: '#fff' }}
-                              activeDot={{ r: 5 }}
-                            />
-                          ))}
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
+                    {perItemSparklineCards.length === 0 ? (
+                      <p className="muted green-bean-per-item-empty">
+                        좌측 목록에서 표시할 원두를 한 가지 이상 선택하세요.
+                      </p>
+                    ) : (
+                      <div className="green-bean-sparkline-grid">
+                        {perItemSparklineCards.map((card) => (
+                          <article key={card.key} className="green-bean-sparkline-card">
+                            <header className="green-bean-sparkline-card-head">
+                              <span
+                                className="green-bean-sparkline-dot"
+                                style={{ backgroundColor: card.color }}
+                                aria-hidden
+                              />
+                              <span className="green-bean-sparkline-name" title={card.label}>
+                                {card.label}
+                              </span>
+                              {card.hasPrevious ? (
+                                <span
+                                  className={
+                                    card.deltaPositive
+                                      ? 'green-bean-sparkline-delta green-bean-sparkline-delta--up'
+                                      : 'green-bean-sparkline-delta green-bean-sparkline-delta--down'
+                                  }
+                                >
+                                  {card.deltaPositive ? '▲' : '▼'} {card.deltaText}
+                                </span>
+                              ) : (
+                                <span className="green-bean-sparkline-delta green-bean-sparkline-delta--muted">
+                                  첫 달
+                                </span>
+                              )}
+                            </header>
+                            <div className="green-bean-sparkline-value">{card.latestLabel}</div>
+                            <div className="green-bean-sparkline-chart">
+                              <ResponsiveContainer width="100%" height={70}>
+                                <AreaChart
+                                  data={card.data}
+                                  margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+                                >
+                                  <defs>
+                                    <linearGradient
+                                      id={`green-bean-spark-${card.key}`}
+                                      x1="0"
+                                      y1="0"
+                                      x2="0"
+                                      y2="1"
+                                    >
+                                      <stop
+                                        offset="0%"
+                                        stopColor={card.color}
+                                        stopOpacity={0.35}
+                                      />
+                                      <stop offset="100%" stopColor={card.color} stopOpacity={0} />
+                                    </linearGradient>
+                                  </defs>
+                                  <Tooltip
+                                    cursor={{
+                                      stroke: card.color,
+                                      strokeWidth: 1,
+                                      strokeDasharray: '2 3',
+                                    }}
+                                    contentStyle={{
+                                      borderRadius: 10,
+                                      border: 'none',
+                                      boxShadow: '0 6px 18px -8px rgba(15,23,42,0.2)',
+                                      padding: '6px 10px',
+                                    }}
+                                    labelStyle={{ fontSize: 10, color: '#64748b' }}
+                                    itemStyle={{ fontSize: 11, fontWeight: 600 }}
+                                    formatter={(value: number | string) => {
+                                      const v = Number(value ?? 0)
+                                      return [
+                                        perItemMetric === 'qty'
+                                          ? `${currencyFormatter.format(v)} kg`
+                                          : formatMoney(v),
+                                        card.label,
+                                      ]
+                                    }}
+                                  />
+                                  <Area
+                                    type="monotone"
+                                    dataKey={perItemMetric === 'qty' ? 'qty' : 'money'}
+                                    stroke={card.color}
+                                    strokeWidth={2}
+                                    fill={`url(#green-bean-spark-${card.key})`}
+                                    fillOpacity={1}
+                                    dot={false}
+                                    activeDot={{ r: 3, strokeWidth: 1.5, fill: '#fff', stroke: card.color }}
+                                  />
+                                </AreaChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </>

@@ -19,6 +19,7 @@ import InventoryStatusPage, {
   type LowGreenBeanWarningItem,
 } from './InventoryStatusPage'
 import { parseInventoryStatusStateFromLocalStorageJson } from './inventoryStatusUtils'
+import StatementPosEntryPanel from './StatementPosEntryPanel'
 import MonthlyMeetingPage, {
   MONTHLY_MEETING_DATA_KEY,
   STATEMENT_RECORDS_SAVED_EVENT,
@@ -1492,6 +1493,7 @@ function App() {
   const [clientHubSummaryAllMonths, setClientHubSummaryAllMonths] = useState(false)
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [statementEntryModalOpen, setStatementEntryModalOpen] = useState(false)
+  const [entryViewMode, setEntryViewMode] = useState<'form' | 'pos'>('form')
   const [bulkItemPickerOpen, setBulkItemPickerOpen] = useState(false)
   const [bulkItemPickerQuery, setBulkItemPickerQuery] = useState('')
   const [bulkItemPickerPick, setBulkItemPickerPick] = useState<{
@@ -5449,7 +5451,7 @@ function App() {
           }}
         >
           <div
-            className="statement-entry-modal"
+            className={`statement-entry-modal${entryViewMode === 'pos' ? ' statement-entry-modal--pos' : ''}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="statement-entry-dialog-title"
@@ -5459,6 +5461,25 @@ function App() {
           <div className="panel-header">
             <h2 id="statement-entry-dialog-title">거래명세서 입력</h2>
             <div className="form-panel-actions">
+              <div className="statement-entry-view-toggle" role="tablist" aria-label="입력 방식">
+                <button
+                  type="button"
+                  className={entryViewMode === 'form' ? 'on' : ''}
+                  onClick={() => setEntryViewMode('form')}
+                  aria-pressed={entryViewMode === 'form'}
+                >
+                  표준 입력
+                </button>
+                <button
+                  type="button"
+                  className={entryViewMode === 'pos' ? 'on' : ''}
+                  onClick={() => setEntryViewMode('pos')}
+                  aria-pressed={entryViewMode === 'pos'}
+                  title="POS 기기처럼 품목을 탭해 빠르게 입력"
+                >
+                  POS 입력
+                </button>
+              </div>
               <button
                 type="button"
                 className="ghost-button statement-header-close"
@@ -5467,23 +5488,46 @@ function App() {
               >
                 닫기
               </button>
-              <button
-                type="button"
-                className="ghost-button statement-header-admin"
-                onClick={handleAdminModeButtonClick}
-              >
-                {isAdminOpen ? '관리자 모드 닫기' : '관리자 모드'}
-              </button>
-              <button
-                type="submit"
-                form="statement-entry-form"
-                className="primary-button statement-header-save"
-              >
-                저장
-              </button>
+              {entryViewMode === 'form' ? (
+                <>
+                  <button
+                    type="button"
+                    className="ghost-button statement-header-admin"
+                    onClick={handleAdminModeButtonClick}
+                  >
+                    {isAdminOpen ? '관리자 모드 닫기' : '관리자 모드'}
+                  </button>
+                  <button
+                    type="submit"
+                    form="statement-entry-form"
+                    className="primary-button statement-header-save"
+                  >
+                    저장
+                  </button>
+                </>
+              ) : null}
             </div>
           </div>
 
+          {entryViewMode === 'pos' ? (
+            <StatementPosEntryPanel
+              clientOptions={clientOptions}
+              pricingRules={pricingRules}
+              masterItems={masterItems}
+              defaultDeliveryDate={form.deliveryDate || today}
+              defaultNote={form.note || '부가세 별도'}
+              noteOptions={NOTE_OPTIONS}
+              existingRecords={records}
+              onClose={() => setStatementEntryModalOpen(false)}
+              onCommit={(newRecords) => {
+                setRecords((current) =>
+                  [...newRecords, ...current].sort(compareStatementRecordsNewestFirst),
+                )
+                setStatementEntryModalOpen(false)
+              }}
+            />
+          ) : (
+            <>
           {isAdminOpen ? (
             <div className="admin-panel admin-panel--compact">
               <div className="admin-panel-header">
@@ -6071,6 +6115,8 @@ function App() {
               </div>
             ) : null}
           </form>
+            </>
+          )}
         </section>
           </div>
           {bulkAddPendingRecords !== null && bulkAddPendingRecords.length > 0 ? (

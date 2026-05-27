@@ -1,15 +1,9 @@
 {
   "source": "almacielo-member",
   "sourceUrl": "https://www.almacielo.com/content/content.php?cont=my_price",
-  "fetchedAt": "2026-05-21T06:57:07.090Z",
-  "itemCount": 104,
+  "fetchedAt": "2026-05-27T06:16:55.845Z",
+  "itemCount": 107,
   "items": [
-    {
-      "itemName": "[★산타바바라] 온두라스 산타 바바라 SHG EP",
-      "price": 18000,
-      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=D1DC3A8270A6F9394F88847D7F0050CF&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
-      "supplyNote": "계절한정"
-    },
     {
       "itemName": "[★월간생두] 콜롬비아 나리노 라 유니온 워시드",
       "price": 16200,
@@ -21,6 +15,12 @@
       "price": 16600,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=E369853DF766FA44E1ED0FF613F563BD&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "월간생두"
+    },
+    {
+      "itemName": "[★주간생두] 온두라스 산타 바바라 SHG EP",
+      "price": 18000,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=D1DC3A8270A6F9394F88847D7F0050CF&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "계절한정"
     },
     {
       "itemName": "[★주간생두] 콜롬비아 안티오키아 디카페인 수프리모",
@@ -188,7 +188,7 @@
       "itemName": "브라질 산토스 NY2 FC 14/16",
       "price": 12900,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=DCA5672FF3444C7E997AA9A2C4EB2094&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
-      "supplyNote": "계절한정"
+      "supplyNote": "종료임박"
     },
     {
       "itemName": "브라질 세라도 카보닉 디카페인 NY2 FC",
@@ -203,7 +203,7 @@
       "supplyNote": "★지속판매"
     },
     {
-      "itemName": "브라질 씨에라 옐로우 버번 내추럴 NY2 FC ※5월 신규 품목 입고 예정",
+      "itemName": "브라질 씨에라 옐로우 버번 내추럴 NY2 FC ※6월 초 신규 품목 입고 예정",
       "price": 14000,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=A4A042CF4FD6BFB47701CBC8A1653ADA&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "일시결품"
@@ -248,7 +248,7 @@
       "itemName": "브라질 파인컵 벌크로스터",
       "price": 13000,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=C3E0C62EE91DB8DC7382BDE7419BB573&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
-      "supplyNote": "★지속판매"
+      "supplyNote": "결품임박"
     },
     {
       "itemName": "브라질 파젠다 로보 내추럴",
@@ -276,7 +276,7 @@
     },
     {
       "itemName": "에티오피아 시다모 G4",
-      "price": 13500,
+      "price": 13800,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=0D0FD7C6E093F7B804FA0150B875B868&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "★지속판매"
     },
@@ -359,6 +359,12 @@
       "supplyNote": "NEW / 계절한정"
     },
     {
+      "itemName": "케냐 니에리 AA TOP",
+      "price": 24300,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=1C54985E4F95B7819CA0357C0CB9A09F&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "마이크로랏"
+    },
+    {
       "itemName": "케냐 니에리 PB TOP",
       "price": 22300,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=21FE5B8BA755EEAECE7A450849876228&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
@@ -375,6 +381,18 @@
       "price": 17600,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=6DD4E10E3296FA63738371EC0D5DF818&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "계절한정"
+    },
+    {
+      "itemName": "케냐 마운트 케냐 AA PLUS",
+      "price": 20100,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=42A3964579017F3CB42B26605B9AE8EF&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "계절한정"
+    },
+    {
+      "itemName": "케냐 마운트 케냐 AA TOP",
+      "price": 26300,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=52C5189391854C93E8A0E1326E56C14F&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "마이크로랏"
     },
     {
       "itemName": "케냐 마운트 케냐 PB TOP",

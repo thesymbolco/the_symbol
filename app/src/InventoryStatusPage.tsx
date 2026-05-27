@@ -302,7 +302,7 @@ const downloadBufferAsFile = (buffer: ArrayBuffer | Uint8Array, filename: string
  * 종료 재고 역할이라 핀하지 않음. 그렇지 않으면 저장된 재고 칸이 0일 때 오늘이 6일이어도
  * 「6일 재고만 0」처럼 보이는 버그가 난다.
  */
-const buildStockPinnedDayIndices = (
+export const buildStockPinnedDayIndices = (
   days: readonly number[],
   surveyMarkedDays: readonly number[],
   physicalCountDayIndex: number,
@@ -412,7 +412,7 @@ type ResyncAutoStockOptions = {
  * 자동 재고에서 품목별 재고 배열을 한곳에서 맞춘다.
  * Blending-Dark/Light는 항상 `computeBlendingAutoStockWithPins`만 사용한다.
  */
-const resyncAutoStockForBeanRow = (
+export const resyncAutoStockForBeanRow = (
   bean: InventoryBeanRow,
   pinnedDayIndices: ReadonlySet<number>,
   options?: ResyncAutoStockOptions,
@@ -491,6 +491,36 @@ export function getLowGreenBeanWarningItems(state: InventoryStatusState): LowGre
     }
   }
   return out.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+}
+
+type QuickEntryStockTone = 'ok' | 'low' | 'zero' | 'neutral'
+
+const lowStockThresholdKgForBean = (beanName: string) =>
+  isSpecialLosstingBaseBean(beanName) ? LOW_STOCK_LOSSTING_BASE_BEANS_KG : LOW_STOCK_OTHER_BEANS_KG
+
+/** 빠른 입력 모달 재고 칸 — 전역 생두 재고 경고와 동일 기준 */
+const quickEntryStockTone = (bean: InventoryBeanRow, kg: number): QuickEntryStockTone => {
+  if (isBlendingLineBeanRow(bean)) {
+    return kg <= 0 ? 'zero' : 'neutral'
+  }
+  if (kg <= 0) {
+    return 'zero'
+  }
+  return kg < lowStockThresholdKgForBean(bean.name) ? 'low' : 'ok'
+}
+
+const quickEntryStockTitle = (bean: InventoryBeanRow, kg: number): string => {
+  if (isBlendingLineBeanRow(bean)) {
+    return kg <= 0 ? '재고 0kg' : `재고 ${formatTwoDecimals(kg)}kg`
+  }
+  const threshold = lowStockThresholdKgForBean(bean.name)
+  if (kg <= 0) {
+    return `재고 없음 (기준 ${threshold}kg)`
+  }
+  if (kg < threshold) {
+    return `재고 부족 · ${formatTwoDecimals(kg)}kg (기준 ${threshold}kg 미만)`
+  }
+  return `재고 충분 · ${formatTwoDecimals(kg)}kg (기준 ${threshold}kg 이상)`
 }
 
 /** bean.production(생두 사용량 kg)을 로스팅 일별 열에 그대로 투영(수율 환산 없음) */
@@ -1936,11 +1966,25 @@ function InventoryStatusPage() {
   const [quickEntryKind, setQuickEntryKind] = useState<'inbound' | 'production' | 'outbound'>('inbound')
   const [quickEntryKg, setQuickEntryKg] = useState('')
   const [quickEntryBatchSearch, setQuickEntryBatchSearch] = useState('')
+  const [quickEntryDraftState, setQuickEntryDraftState] = useState<InventoryStatusState | null>(null)
+  const [quickEntryDirty, setQuickEntryDirty] = useState(false)
   const quickEntryKgInputRef = useRef<HTMLInputElement>(null)
 
-  const closeQuickEntryModal = useCallback(() => {
-    setQuickEntryModalOpen(false)
+  const openQuickEntryModal = useCallback(() => {
+    setQuickEntryDraftState(cloneInventoryStatusState(inventoryStateRef.current))
+    setQuickEntryDirty(false)
+    setQuickEntryModalOpen(true)
   }, [])
+
+  const closeQuickEntryModal = useCallback(() => {
+    if (quickEntryDirty && quickEntryDraftState) {
+      setInventoryState(quickEntryDraftState)
+      setStatusMessage('빠른 입력 모달에서 수정한 값을 저장했습니다.')
+    }
+    setQuickEntryModalOpen(false)
+    setQuickEntryDraftState(null)
+    setQuickEntryDirty(false)
+  }, [quickEntryDirty, quickEntryDraftState])
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -1983,12 +2027,12 @@ function InventoryStatusPage() {
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setQuickEntryModalOpen(false)
+        closeQuickEntryModal()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [quickEntryModalOpen])
+  }, [closeQuickEntryModal, quickEntryModalOpen])
 
   useEffect(() => {
     if (!quickEntryModalOpen) {
@@ -2001,23 +2045,25 @@ function InventoryStatusPage() {
     }
   }, [quickEntryModalOpen])
 
+  const quickEntrySourceState = quickEntryDraftState ?? inventoryState
+
   const quickEntryDayIndex = useMemo(() => {
     if (!quickEntryDate || quickEntryDate.length < 10) {
       return -1
     }
-    if (quickEntryDate.slice(0, 7) !== inventoryState.referenceDate.slice(0, 7)) {
+    if (quickEntryDate.slice(0, 7) !== quickEntrySourceState.referenceDate.slice(0, 7)) {
       return -1
     }
     const dayNum = Number(quickEntryDate.slice(8, 10))
     if (!Number.isFinite(dayNum)) {
       return -1
     }
-    return inventoryState.days.findIndex((day) => day === dayNum)
-  }, [inventoryState.days, inventoryState.referenceDate, quickEntryDate])
+    return quickEntrySourceState.days.findIndex((day) => day === dayNum)
+  }, [quickEntryDate, quickEntrySourceState.days, quickEntrySourceState.referenceDate])
 
   const quickEntryBatchRows = useMemo(() => {
     const needle = normalizeNameKey(quickEntryBatchSearch)
-    return inventoryState.beanRows
+    return quickEntrySourceState.beanRows
       .map((bean, beanIndex) => ({ bean, beanIndex }))
       .filter(({ bean }) => {
         if (!needle) {
@@ -2025,7 +2071,7 @@ function InventoryStatusPage() {
         }
         return normalizeNameKey(`${bean.no} ${bean.name}`).includes(needle)
       })
-  }, [inventoryState.beanRows, quickEntryBatchSearch])
+  }, [quickEntryBatchSearch, quickEntrySourceState.beanRows])
 
   useEffect(() => {
     let cancelled = false
@@ -3020,103 +3066,111 @@ function InventoryStatusPage() {
     }
   }, [beanDetailModalOpen])
 
+  const applyBeanValueUpdate = (
+    current: InventoryStatusState,
+    beanIndex: number,
+    targetKey: 'inbound' | 'production' | 'outbound' | 'stock',
+    valueIndex: number,
+    nextValue: string,
+  ): InventoryStatusState => {
+    const parsedValue = Number(nextValue) || 0
+    const pinsFor = (s: InventoryStatusState) => {
+      const physIdx = dayIndexForReferenceDate(s.days, s.physicalCountDate)
+      return buildStockPinnedDayIndices(
+        s.days,
+        s.surveyMarkedDays,
+        physIdx,
+        s.referenceDate,
+        s.physicalCountDate,
+      )
+    }
+
+    if (targetKey === 'production') {
+      const previousRawByRow = current.beanRows.map((b) => [...b.production])
+      const nextRaw = parsedValue
+      const nextBeanRows = current.beanRows.map((bean, index) => {
+        if (index !== beanIndex) {
+          return bean
+        }
+        const nextValues = [...bean.production]
+        nextValues[valueIndex] = nextRaw
+        return { ...bean, production: nextValues }
+      })
+      const pins = pinsFor({ ...current, beanRows: nextBeanRows })
+      const withRoastingSynced = syncRoastingRowsFromBeanProduction({
+        ...current,
+        beanRows: nextBeanRows,
+      })
+      return {
+        ...current,
+        skipAutoStockDisplay: false,
+        beanRows: nextBeanRows.map((bean, bi) => ({
+          ...bean,
+          stock: resyncAutoStockForBeanRow(bean, pins, {
+            previousRawProduction: previousRawByRow[bi] ?? null,
+          }),
+        })),
+        roastingRows: withRoastingSynced,
+      }
+    }
+
+    return {
+      ...current,
+      skipAutoStockDisplay: false,
+      beanRows: current.beanRows.map((bean, index) => {
+        if (index !== beanIndex) {
+          return bean
+        }
+
+        if (targetKey === 'stock') {
+          if (!isStockColumnEditable(current, valueIndex)) {
+            return bean
+          }
+          const merged = [...bean.stock]
+          merged[valueIndex] = parsedValue
+          const pins = pinsFor(current)
+          return {
+            ...bean,
+            stock: resyncAutoStockForBeanRow(bean, pins, { prefixStock: merged }),
+          }
+        }
+
+        const nextValues = [...bean[targetKey]]
+        nextValues[valueIndex] = parsedValue
+
+        let nextBean: InventoryBeanRow = {
+          ...bean,
+          [targetKey]: nextValues,
+        }
+
+        const pins = pinsFor(current)
+
+        if (targetKey === 'inbound') {
+          nextBean = {
+            ...nextBean,
+            stock: resyncAutoStockForBeanRow(nextBean, pins),
+          }
+        }
+
+        if (targetKey === 'outbound' && isBlendingOutboundAdjustsStockRow(nextBean)) {
+          nextBean = {
+            ...nextBean,
+            stock: resyncAutoStockForBeanRow(nextBean, pins),
+          }
+        }
+
+        return nextBean
+      }),
+    }
+  }
+
   const updateBeanValue = (
     beanIndex: number,
     targetKey: 'inbound' | 'production' | 'outbound' | 'stock',
     valueIndex: number,
     nextValue: string,
   ) => {
-    const parsedValue = Number(nextValue) || 0
-    setInventoryState((current) => {
-      const pinsFor = (s: InventoryStatusState) => {
-        const physIdx = dayIndexForReferenceDate(s.days, s.physicalCountDate)
-        return buildStockPinnedDayIndices(
-          s.days,
-          s.surveyMarkedDays,
-          physIdx,
-          s.referenceDate,
-          s.physicalCountDate,
-        )
-      }
-
-      if (targetKey === 'production') {
-        const previousRawByRow = current.beanRows.map((b) => [...b.production])
-        const nextRaw = parsedValue
-        const nextBeanRows = current.beanRows.map((bean, index) => {
-          if (index !== beanIndex) {
-            return bean
-          }
-          const nextValues = [...bean.production]
-          nextValues[valueIndex] = nextRaw
-          return { ...bean, production: nextValues }
-        })
-        const pins = pinsFor({ ...current, beanRows: nextBeanRows })
-        const withRoastingSynced = syncRoastingRowsFromBeanProduction({
-          ...current,
-          beanRows: nextBeanRows,
-        })
-        return {
-          ...current,
-          skipAutoStockDisplay: false,
-          beanRows: nextBeanRows.map((bean, bi) => ({
-            ...bean,
-            stock: resyncAutoStockForBeanRow(bean, pins, {
-              previousRawProduction: previousRawByRow[bi] ?? null,
-            }),
-          })),
-          roastingRows: withRoastingSynced,
-        }
-      }
-
-      return {
-        ...current,
-        skipAutoStockDisplay: false,
-        beanRows: current.beanRows.map((bean, index) => {
-          if (index !== beanIndex) {
-            return bean
-          }
-
-          if (targetKey === 'stock') {
-            if (!isStockColumnEditable(current, valueIndex)) {
-              return bean
-            }
-            const merged = [...bean.stock]
-            merged[valueIndex] = parsedValue
-            const pins = pinsFor(current)
-            return {
-              ...bean,
-              stock: resyncAutoStockForBeanRow(bean, pins, { prefixStock: merged }),
-            }
-          }
-
-          const nextValues = [...bean[targetKey]]
-          nextValues[valueIndex] = parsedValue
-
-          let nextBean: InventoryBeanRow = {
-            ...bean,
-            [targetKey]: nextValues,
-          }
-
-          const pins = pinsFor(current)
-
-          if (targetKey === 'inbound') {
-            nextBean = {
-              ...nextBean,
-              stock: resyncAutoStockForBeanRow(nextBean, pins),
-            }
-          }
-
-          if (targetKey === 'outbound' && isBlendingOutboundAdjustsStockRow(nextBean)) {
-            nextBean = {
-              ...nextBean,
-              stock: resyncAutoStockForBeanRow(nextBean, pins),
-            }
-          }
-
-          return nextBean
-        }),
-      }
-    })
+    setInventoryState((current) => applyBeanValueUpdate(current, beanIndex, targetKey, valueIndex, nextValue))
   }
 
   const submitQuickEntry = () => {
@@ -3130,7 +3184,7 @@ function InventoryStatusPage() {
       setStatusMessage('날짜를 선택해 주세요.')
       return
     }
-    const refYm = inventoryState.referenceDate.slice(0, 7)
+    const refYm = quickEntrySourceState.referenceDate.slice(0, 7)
     if (quickEntryDate.slice(0, 7) !== refYm) {
       setStatusMessage(
         '빠른 입력 날짜는 현재 기준일이 속한 달과 같아야 합니다. 기준일을 바꾸거나 날짜를 맞춰 주세요.',
@@ -3142,7 +3196,7 @@ function InventoryStatusPage() {
       setStatusMessage('날짜를 확인해 주세요.')
       return
     }
-    const state = inventoryStateRef.current
+    const state = quickEntrySourceState
     const dayIndex = state.days.findIndex((d) => d === dayNum)
     if (dayIndex < 0) {
       setStatusMessage('이 달 표에 없는 날짜입니다. (회색·비영업일 제외)')
@@ -3159,7 +3213,11 @@ function InventoryStatusPage() {
     const nextCell = Math.max(0, currentCell + delta)
     const kindLabel =
       key === 'inbound' ? '입고' : key === 'production' ? '생산(사용)' : '출고'
-    updateBeanValue(beanIndex, key, dayIndex, String(nextCell))
+    setQuickEntryDraftState((current) => {
+      const base = current ?? cloneInventoryStatusState(inventoryStateRef.current)
+      return applyBeanValueUpdate(base, beanIndex, key, dayIndex, String(nextCell))
+    })
+    setQuickEntryDirty(true)
     setStatusMessage(
       `빠른 입력 · ${quickEntryBeanName} · ${dayNum}일 ${kindLabel} ${delta >= 0 ? '+' : ''}${delta}kg → 합계 ${formatNumber(nextCell)}kg`,
     )
@@ -3176,7 +3234,11 @@ function InventoryStatusPage() {
       setStatusMessage('일괄 입력 날짜를 현재 기준월 안의 날짜로 선택해 주세요.')
       return
     }
-    updateBeanValue(beanIndex, targetKey, quickEntryDayIndex, nextValue)
+    setQuickEntryDraftState((current) => {
+      const base = current ?? cloneInventoryStatusState(inventoryStateRef.current)
+      return applyBeanValueUpdate(base, beanIndex, targetKey, quickEntryDayIndex, nextValue)
+    })
+    setQuickEntryDirty(true)
   }
 
   const handleQuickBatchInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -3966,7 +4028,7 @@ function InventoryStatusPage() {
           <button
             type="button"
             className="primary-button inventory-quick-entry-open-btn"
-            onClick={() => setQuickEntryModalOpen(true)}
+            onClick={openQuickEntryModal}
           >
             빠른 입력 열기
           </button>
@@ -3991,7 +4053,10 @@ function InventoryStatusPage() {
               <div className="inventory-quick-entry-modal-top">
                 <div>
                   <h3 id="inventory-quick-entry-modal-title">빠른 입력</h3>
-                  <p>날짜를 고정하고, 품목별 입고·생산·출고를 빠르게 입력합니다.</p>
+                  <p>
+                    날짜를 고정하고, 품목별 입고·생산·출고를 빠르게 입력합니다. 입력값은 모달을 닫을 때 한 번에
+                    저장됩니다.
+                  </p>
                 </div>
                 <button type="button" className="ghost-button small-hit" onClick={closeQuickEntryModal}>
                   닫기
@@ -4021,7 +4086,7 @@ function InventoryStatusPage() {
                       value={quickEntryBeanName}
                       onChange={(event) => setQuickEntryBeanName(event.target.value)}
                     >
-                      {inventoryState.beanRows.map((b) => (
+                      {quickEntrySourceState.beanRows.map((b) => (
                         <option key={`${b.no}-${b.name}`} value={b.name}>
                           {b.no}. {b.name}
                         </option>
@@ -4086,6 +4151,15 @@ function InventoryStatusPage() {
                       />
                     </label>
                   </div>
+                  <div className="inventory-quick-batch-stock-legend" aria-hidden="true">
+                    <span className="inventory-quick-batch-stock-legend-item is-ok">충분</span>
+                    <span className="inventory-quick-batch-stock-legend-item is-low">부족</span>
+                    <span className="inventory-quick-batch-stock-legend-item is-zero">없음</span>
+                    <span className="inventory-quick-batch-stock-legend-note">
+                      브라질·나리뇨·시다모 {LOW_STOCK_LOSSTING_BASE_BEANS_KG}kg 미만, 그 외{' '}
+                      {LOW_STOCK_OTHER_BEANS_KG}kg 미만
+                    </span>
+                  </div>
                   {quickEntryDayIndex < 0 ? (
                     <p className="inventory-quick-batch-empty">
                       현재 기준월 안의 날짜를 선택하면 일괄 입력 표가 열립니다.
@@ -4101,10 +4175,14 @@ function InventoryStatusPage() {
                             <th scope="col">입고</th>
                             <th scope="col">생산</th>
                             <th scope="col">출고</th>
+                            <th scope="col">재고</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {quickEntryBatchRows.map(({ bean, beanIndex }) => (
+                          {quickEntryBatchRows.map(({ bean, beanIndex }) => {
+                            const stockKg = bean.stock[quickEntryDayIndex] ?? 0
+                            const stockTone = quickEntryStockTone(bean, stockKg)
+                            return (
                             <tr key={`${bean.no}-${bean.name}`}>
                               <th scope="row">
                                 <span className="inventory-quick-batch-no">{bean.no}</span>
@@ -4132,8 +4210,15 @@ function InventoryStatusPage() {
                                   />
                                 </td>
                               ))}
+                              <td
+                                className={`inventory-quick-batch-stock-cell inventory-quick-batch-stock-cell--${stockTone}`}
+                                title={quickEntryStockTitle(bean, stockKg)}
+                              >
+                                {formatTwoDecimals(stockKg)}
+                              </td>
                             </tr>
-                          ))}
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>
