@@ -3806,7 +3806,7 @@ export default function GreenBeanOrderPage() {
                                     }}
                                     labelStyle={{ fontSize: 10, color: '#64748b' }}
                                     itemStyle={{ fontSize: 11, fontWeight: 600 }}
-                                    formatter={(value: number | string) => {
+                                    formatter={(value) => {
                                       const v = Number(value ?? 0)
                                       return [
                                         perItemMetric === 'qty'
