@@ -1488,14 +1488,20 @@ const buildMeetingCostsFromExpenses = (records: ExpenseRecord[], ym: string, bas
   const bodyRowsBase = prepareExpenseLinkedCostBodyRows(base.filter((row) => !isCostGrandRow(row)))
 
   const patchedBody = bodyRowsBase.map((row) => {
-    const key = costRowKey(row)
+    const hydrated = hydrateStandardExpenseKeyOnRow(row)
+    const key = costRowKey(hydrated)
     if (!map.has(key)) {
-      return row
+      return hydrated
     }
-    if (typeof row.amount === 'number' && Number.isFinite(row.amount)) {
-      return row
+    const syncedAmount = Math.round(map.get(key) ?? 0)
+    // 지출표 연동 줄(②기타경비·②운영경비·②기타)은 항상 지출표 합계로 갱신
+    if (resolvedStandardExpenseBucketKey(hydrated) != null) {
+      return { ...hydrated, amount: syncedAmount }
     }
-    return { ...row, amount: Math.round(map.get(key) ?? 0) }
+    if (typeof hydrated.amount === 'number' && Number.isFinite(hydrated.amount)) {
+      return hydrated
+    }
+    return { ...hydrated, amount: syncedAmount }
   })
 
   if (grandRow) {
@@ -2457,9 +2463,10 @@ function MonthlyMeetingPage() {
   /** 지출표 → 재료비·기타 세부, 비용현황 ①②, 매출 채널(키워드) 자동 연동 + 거래명세·입출고·생두단가 기반 재료비(매출·생두).
    * 현재 선택한 월 탭만 갱신합니다(다른 달은 보는 탭이 바뀔 때 해당 달만 맞춤) — 타 월 표가 함께 덮여 꼬이는 것을 막습니다. */
   useEffect(() => {
-    if (!isStorageReady || sectionEditModes.summary) {
+    if (!isStorageReady) {
       return
     }
+    const summaryEditMode = sectionEditModes.summary
     const records = expenseRecordsForMeetingLink
     const stmtAll = parseMeetingStatementDeliveryRecords()
     const invEnvelope = readMeetingInventoryEnvelopeForBeanMaterial(mode, activeCompanyId)
@@ -2487,7 +2494,9 @@ function MonthlyMeetingPage() {
           : computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, mapOpts)
       const nextCosts = computeCurrentMonthCosts(mergeBeanSalesMaterialCostIntoMeetingRows(built, ym, beanResult))
       const salesPatchMap = aggregateExpenseSalesPatches(records, ym)
-      const nextSalesRaw = applySalesPatchesFromMap(base.currentMonthSales, salesPatchMap)
+      const nextSalesRaw = summaryEditMode
+        ? base.currentMonthSales
+        : applySalesPatchesFromMap(base.currentMonthSales, salesPatchMap)
 
       const costsUnchanged =
         meetingValueRowsSignature(nextCosts) === meetingValueRowsSignature(computeCurrentMonthCosts(base.currentMonthCosts))

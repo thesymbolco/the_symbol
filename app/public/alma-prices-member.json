@@ -1,8 +1,8 @@
 {
   "source": "almacielo-member",
   "sourceUrl": "https://www.almacielo.com/content/content.php?cont=my_price",
-  "fetchedAt": "2026-05-27T06:16:55.845Z",
-  "itemCount": 107,
+  "fetchedAt": "2026-05-28T06:58:12.701Z",
+  "itemCount": 108,
   "items": [
     {
       "itemName": "[★월간생두] 콜롬비아 나리노 라 유니온 워시드",
@@ -345,6 +345,12 @@
       "price": 10600,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=89AE0FE22C47D374BC9350EF99E01685&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "계절한정"
+    },
+    {
+      "itemName": "인도네시아 가요 마운틴 G1 TP",
+      "price": 20300,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=3C1E4BD67169B8153E0047536C9F541E&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "NEW / 계절한정"
     },
     {
       "itemName": "인도네시아 만델링G1 TP",

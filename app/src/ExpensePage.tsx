@@ -1092,7 +1092,6 @@ function ExpensePage() {
     resetDocumentSaveUi,
     saveState,
   } = useDocumentSaveUi(mode)
-  const quickDateDigitsRef = useRef<Record<string, string>>({})
   const pageStateRef = useRef(pageState)
   pageStateRef.current = pageState
   /** 클라우드에 마지막으로 맞춘 JSON(초기 로드·수동 저장·원격이 덮어쓸 때만 갱신) */
@@ -1495,6 +1494,11 @@ function ExpensePage() {
     const key = getDateDraftKey(recordId, field)
     const draft = (dateDrafts[key] ?? '').trim()
     if (!draft) {
+      setDateDrafts((current) => {
+        const next = { ...current }
+        delete next[key]
+        return next
+      })
       return
     }
     const parsed =
@@ -1502,6 +1506,12 @@ function ExpensePage() {
         ? parseQuickMmDd(draft, Number(pageState.activeMonth.slice(0, 4)) || new Date().getFullYear())
         : parseSpreadsheetDate(draft)
     if (!parsed) {
+      setDateDrafts((current) => {
+        const next = { ...current }
+        delete next[key]
+        return next
+      })
+      setStatusMessage('날짜 형식을 확인해 주세요. 예: 2026.04.07 또는 0407(월일 4자리)')
       return
     }
     if (field === 'expenseDate') {
@@ -1552,7 +1562,6 @@ function ExpensePage() {
         return
       }
 
-      const bufferKey = `${recordId}:${field}`
       if (event.key === 'Enter') {
         event.preventDefault()
         commitDateDraft(recordId, field)
@@ -1570,29 +1579,6 @@ function ExpensePage() {
           }))
         }
         focusVendorInput(recordId)
-        return
-      }
-      if (/^\d$/.test(event.key)) {
-        event.preventDefault()
-        const nextDigits = `${quickDateDigitsRef.current[bufferKey] ?? ''}${event.key}`.slice(-4)
-        quickDateDigitsRef.current[bufferKey] = nextDigits
-        if (nextDigits.length === 4) {
-          const fallbackYear = Number(pageState.activeMonth.slice(0, 4)) || new Date().getFullYear()
-          const parsed = parseQuickMmDd(nextDigits, fallbackYear)
-          if (parsed) {
-            if (field === 'expenseDate') {
-              updateExpenseDateAndKeepVisible(recordId, parsed)
-            } else {
-              updateRecord(recordId, field, parsed as ExpenseRecord[typeof field])
-            }
-          }
-          quickDateDigitsRef.current[bufferKey] = ''
-        }
-        return
-      }
-
-      if (event.key === 'Backspace') {
-        quickDateDigitsRef.current[bufferKey] = ''
       }
     }
 
@@ -1740,7 +1726,6 @@ function ExpensePage() {
             onKeyDown={handleQuickDateKeyDown(record.id, 'expenseDate')}
             onBlur={() => {
               commitDateDraft(record.id, 'expenseDate')
-              quickDateDigitsRef.current[`${record.id}:expenseDate`] = ''
             }}
           />
         )
@@ -1761,7 +1746,6 @@ function ExpensePage() {
             onKeyDown={handleQuickDateKeyDown(record.id, 'dueDate')}
             onBlur={() => {
               commitDateDraft(record.id, 'dueDate')
-              quickDateDigitsRef.current[`${record.id}:dueDate`] = ''
             }}
           />
         )

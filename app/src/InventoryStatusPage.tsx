@@ -64,6 +64,57 @@ export const INVENTORY_STATUS_TEMPLATE_STORAGE_KEY = 'inventory-status-template-
 export const INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY = 'inventory-status-template-name-v1'
 export const INVENTORY_AUTO_STOCK_MODE_KEY = 'inventory-auto-stock-mode-v1'
 const INVENTORY_HISTORY_NOTES_STORAGE_KEY = 'inventory-history-notes-v1'
+export const INVENTORY_QUICK_ENTRY_STEPS_STORAGE_KEY = 'inventory-quick-entry-steps-v1'
+
+export type QuickEntryStepKey = 'inbound' | 'production' | 'outbound'
+
+export type QuickEntryStepSettings = Record<QuickEntryStepKey, number>
+
+const DEFAULT_QUICK_ENTRY_STEP_SETTINGS: QuickEntryStepSettings = {
+  inbound: 0.01,
+  production: 0.01,
+  outbound: 0.01,
+}
+
+const normalizeQuickEntryStepSettings = (raw: unknown): QuickEntryStepSettings => {
+  const next = { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS }
+  if (!raw || typeof raw !== 'object') {
+    return next
+  }
+  const source = raw as Partial<Record<QuickEntryStepKey, unknown>>
+  for (const key of ['inbound', 'production', 'outbound'] as const) {
+    const parsed = Number(source[key])
+    if (Number.isFinite(parsed) && parsed > 0) {
+      next[key] = parsed
+    }
+  }
+  return next
+}
+
+const quickEntryStepSettingsToDraft = (settings: QuickEntryStepSettings): Record<QuickEntryStepKey, string> => ({
+  inbound: String(settings.inbound),
+  production: String(settings.production),
+  outbound: String(settings.outbound),
+})
+
+const decimalPlacesForStep = (step: number) => {
+  if (!Number.isFinite(step)) {
+    return 2
+  }
+  const text = String(step)
+  const dot = text.indexOf('.')
+  return dot >= 0 ? Math.min(4, text.length - dot - 1) : 0
+}
+
+/** 화살표·스피너 증감 후 step 격자에 맞춤 */
+const roundKgToStep = (value: number, step: number) => {
+  if (!Number.isFinite(step) || step <= 0) {
+    return Math.max(0, value)
+  }
+  const places = decimalPlacesForStep(step)
+  const snapped = Math.round(value / step) * step
+  return Number(Math.max(0, snapped).toFixed(places))
+}
 
 type FullResetOptions = {
   /** 생두·로스팅 표 수치 전부 0 (구조·품목명·날짜는 유지). 엑셀 업로드 기준이 있으면 그 baseline은 유지 */
@@ -746,6 +797,7 @@ type InventoryPageDocument = {
   templateBase64: string | null
   templateFileName: string
   historyNotes: InventoryHistoryNote[]
+  quickEntryStepSettings?: QuickEntryStepSettings
 }
 
 const restoreMonthBucketAfterCloud = (ym: string, state: InventoryStatusState): InventoryStatusState => {
@@ -846,6 +898,9 @@ const readInventoryPageLocalDocument = (mode: 'local' | 'cloud', companyId: stri
   const savedNotes = window.localStorage.getItem(
     inventoryPageScopedKey(INVENTORY_HISTORY_NOTES_STORAGE_KEY, mode, companyId),
   )
+  const savedQuickEntrySteps = window.localStorage.getItem(
+    inventoryPageScopedKey(INVENTORY_QUICK_ENTRY_STEPS_STORAGE_KEY, mode, companyId),
+  )
 
   const defaultState = createDefaultInventoryStatusState()
 
@@ -892,6 +947,15 @@ const readInventoryPageLocalDocument = (mode: 'local' | 'cloud', companyId: stri
     }
   }
 
+  let quickEntryStepSettings = { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS }
+  if (savedQuickEntrySteps) {
+    try {
+      quickEntryStepSettings = normalizeQuickEntryStepSettings(JSON.parse(savedQuickEntrySteps))
+    } catch {
+      quickEntryStepSettings = { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS }
+    }
+  }
+
   return {
     inventoryState,
     inventoryByMonth,
@@ -899,6 +963,7 @@ const readInventoryPageLocalDocument = (mode: 'local' | 'cloud', companyId: stri
     templateBase64: savedTemplate,
     templateFileName: savedTemplateName ?? '',
     historyNotes,
+    quickEntryStepSettings,
   }
 }
 
@@ -914,6 +979,7 @@ const normalizeInventoryPageDocument = (value: unknown): InventoryPageDocument =
       templateBase64: null,
       templateFileName: '',
       historyNotes: [],
+      quickEntryStepSettings: { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS },
     }
   }
 
@@ -942,6 +1008,7 @@ const normalizeInventoryPageDocument = (value: unknown): InventoryPageDocument =
         : null,
     templateFileName: typeof source.templateFileName === 'string' ? source.templateFileName : '',
     historyNotes: normalizeInventoryHistoryNotes(source.historyNotes),
+    quickEntryStepSettings: normalizeQuickEntryStepSettings(source.quickEntryStepSettings),
   }
 }
 
@@ -1968,6 +2035,13 @@ function InventoryStatusPage() {
   const [quickEntryBatchSearch, setQuickEntryBatchSearch] = useState('')
   const [quickEntryDraftState, setQuickEntryDraftState] = useState<InventoryStatusState | null>(null)
   const [quickEntryDirty, setQuickEntryDirty] = useState(false)
+  const [quickEntryStepSettings, setQuickEntryStepSettings] = useState<QuickEntryStepSettings>(() => ({
+    ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS,
+  }))
+  const [quickEntryStepDraft, setQuickEntryStepDraft] = useState<Record<QuickEntryStepKey, string>>(() =>
+    quickEntryStepSettingsToDraft(DEFAULT_QUICK_ENTRY_STEP_SETTINGS),
+  )
+  const [quickEntryStepsPanelOpen, setQuickEntryStepsPanelOpen] = useState(false)
   const quickEntryKgInputRef = useRef<HTMLInputElement>(null)
 
   const openQuickEntryModal = useCallback(() => {
@@ -2138,6 +2212,10 @@ function InventoryStatusPage() {
       setTemplateBase64(document.templateBase64)
       setTemplateFileName(document.templateFileName)
       setHistoryNotes(document.historyNotes)
+      setQuickEntryStepSettings(document.quickEntryStepSettings ?? { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS })
+      setQuickEntryStepDraft(
+        quickEntryStepSettingsToDraft(document.quickEntryStepSettings ?? DEFAULT_QUICK_ENTRY_STEP_SETTINGS),
+      )
       setSelectedBeanName(next.beanRows[0]?.name ?? '')
       setStatusMessage(
         migratedFromManual
@@ -2296,6 +2374,16 @@ function InventoryStatusPage() {
   }, [activeCompanyId, historyNotes, isStorageReady, mode])
 
   useEffect(() => {
+    if (!isStorageReady) {
+      return
+    }
+    window.localStorage.setItem(
+      inventoryPageScopedKey(INVENTORY_QUICK_ENTRY_STEPS_STORAGE_KEY, mode, activeCompanyId),
+      JSON.stringify(quickEntryStepSettings),
+    )
+  }, [activeCompanyId, isStorageReady, mode, quickEntryStepSettings])
+
+  useEffect(() => {
     if (!isStorageReady || !isCloudReady) {
       return
     }
@@ -2314,6 +2402,7 @@ function InventoryStatusPage() {
       templateBase64,
       templateFileName,
       historyNotes,
+      quickEntryStepSettings,
     }
     const currentJson = JSON.stringify(cloudPayload)
     if (currentJson === lastCloudPollJsonRef.current) {
@@ -2351,6 +2440,7 @@ function InventoryStatusPage() {
     mode,
     templateBase64,
     templateFileName,
+    quickEntryStepSettings,
     user?.id,
     markDocumentDirty,
     markDocumentError,
@@ -2415,6 +2505,7 @@ function InventoryStatusPage() {
           templateBase64: normalized.templateBase64,
           templateFileName: normalized.templateFileName,
           historyNotes: normalized.historyNotes,
+          quickEntryStepSettings: normalized.quickEntryStepSettings,
         }
         const nextJson = JSON.stringify(pollPayload)
         if (nextJson !== lastJson) {
@@ -2426,6 +2517,14 @@ function InventoryStatusPage() {
           setTemplateBase64(normalized.templateBase64)
           setTemplateFileName(normalized.templateFileName)
           setHistoryNotes(normalized.historyNotes)
+          setQuickEntryStepSettings(
+            normalized.quickEntryStepSettings ?? { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS },
+          )
+          setQuickEntryStepDraft(
+            quickEntryStepSettingsToDraft(
+              normalized.quickEntryStepSettings ?? DEFAULT_QUICK_ENTRY_STEP_SETTINGS,
+            ),
+          )
           if (inventoryForUi.beanRows[0]) {
             setSelectedBeanName((prev) => {
               if (inventoryForUi.beanRows.some((b) => b.name === prev)) {
@@ -3241,7 +3340,58 @@ function InventoryStatusPage() {
     setQuickEntryDirty(true)
   }
 
-  const handleQuickBatchInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+  const applyQuickEntryStepSettingsFromDraft = useCallback(() => {
+    const next = normalizeQuickEntryStepSettings({
+      inbound: quickEntryStepDraft.inbound,
+      production: quickEntryStepDraft.production,
+      outbound: quickEntryStepDraft.outbound,
+    })
+    setQuickEntryStepSettings(next)
+    setQuickEntryStepDraft(quickEntryStepSettingsToDraft(next))
+    setStatusMessage(
+      `빠른 입력 증감 단위: 입고 ${next.inbound}kg · 생산 ${next.production}kg · 출고 ${next.outbound}kg`,
+    )
+  }, [quickEntryStepDraft])
+
+  useEffect(() => {
+    if (!quickEntryStepsPanelOpen) {
+      return
+    }
+    setQuickEntryStepDraft(quickEntryStepSettingsToDraft(quickEntryStepSettings))
+  }, [quickEntryStepsPanelOpen, quickEntryStepSettings])
+
+  const nudgeQuickEntryKgDraft = (direction: 1 | -1) => {
+    const step = quickEntryStepSettings[quickEntryKind]
+    const raw = quickEntryKg.replace(/,/g, '').trim()
+    const current = raw === '' ? 0 : Number(raw)
+    if (!Number.isFinite(current)) {
+      return
+    }
+    const next = roundKgToStep(current + direction * step, step)
+    setQuickEntryKg(String(next))
+  }
+
+  const handleQuickBatchInputKeyDown = (
+    event: ReactKeyboardEvent<HTMLInputElement>,
+    beanIndex: number,
+    targetKey: QuickEntryStepKey,
+  ) => {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault()
+      if (quickEntryDayIndex < 0) {
+        return
+      }
+      const bean = quickEntrySourceState.beanRows[beanIndex]
+      if (!bean) {
+        return
+      }
+      const step = quickEntryStepSettings[targetKey]
+      const direction = event.key === 'ArrowUp' ? 1 : -1
+      const current = bean[targetKey][quickEntryDayIndex] ?? 0
+      const next = roundKgToStep(current + direction * step, step)
+      updateQuickBatchValue(beanIndex, targetKey, String(next))
+      return
+    }
     if (event.key !== 'Enter') {
       return
     }
@@ -4129,12 +4279,83 @@ function InventoryStatusPage() {
                       placeholder="+kg"
                       value={quickEntryKg}
                       onChange={(event) => setQuickEntryKg(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'ArrowUp') {
+                          event.preventDefault()
+                          nudgeQuickEntryKgDraft(1)
+                        } else if (event.key === 'ArrowDown') {
+                          event.preventDefault()
+                          nudgeQuickEntryKgDraft(-1)
+                        }
+                      }}
                     />
                   </label>
                   <button type="submit" className="primary-button inventory-quick-entry-submit">
                     누적
                   </button>
                 </form>
+                <div className="inventory-quick-entry-steps-panel">
+                  <button
+                    type="button"
+                    className="ghost-button small inventory-quick-entry-steps-toggle"
+                    aria-expanded={quickEntryStepsPanelOpen}
+                    onClick={() => setQuickEntryStepsPanelOpen((open) => !open)}
+                  >
+                    증감 단위 설정 {quickEntryStepsPanelOpen ? '▾' : '▸'}
+                  </button>
+                  {quickEntryStepsPanelOpen ? (
+                    <div className="inventory-quick-entry-steps-form" role="group" aria-label="빠른 입력 증감 단위">
+                      <p className="inventory-quick-entry-steps-hint">
+                        일괄 입력 칸의 위·아래 화살표(또는 키보드 ↑↓)로 더하거나 뺄 때 쓰는 kg 단위입니다.
+                      </p>
+                      <div className="inventory-quick-entry-steps-grid">
+                        {(
+                          [
+                            ['inbound', '입고'],
+                            ['production', '생산'],
+                            ['outbound', '출고'],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <label key={key} className="inventory-quick-entry-steps-field">
+                            {label}
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={quickEntryStepDraft[key]}
+                              onChange={(event) =>
+                                setQuickEntryStepDraft((current) => ({
+                                  ...current,
+                                  [key]: event.target.value,
+                                }))
+                              }
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault()
+                                  applyQuickEntryStepSettingsFromDraft()
+                                }
+                              }}
+                              aria-label={`${label} 증감 kg`}
+                            />
+                            <span className="inventory-quick-entry-steps-unit">kg</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="inventory-quick-entry-steps-actions">
+                        <button
+                          type="button"
+                          className="primary-button small"
+                          onClick={applyQuickEntryStepSettingsFromDraft}
+                        >
+                          적용
+                        </button>
+                        <span className="inventory-quick-entry-steps-current">
+                          현재: 입고 {quickEntryStepSettings.inbound} · 생산 {quickEntryStepSettings.production} · 출고{' '}
+                          {quickEntryStepSettings.outbound}
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
                 <div className="inventory-quick-batch">
                   <div className="inventory-quick-batch-header">
                     <div>
@@ -4199,13 +4420,14 @@ function InventoryStatusPage() {
                                   <input
                                     type="number"
                                     min={0}
-                                    step="0.01"
+                                    step={quickEntryStepSettings[key]}
                                     inputMode="decimal"
                                     className="inventory-quick-batch-input"
                                     aria-label={`${bean.name} ${label}`}
+                                    title={`↑↓ ${quickEntryStepSettings[key]}kg씩 조정`}
                                     value={inventoryNumericInputValue(bean[key][quickEntryDayIndex] ?? 0)}
                                     onFocus={(event) => event.currentTarget.select()}
-                                    onKeyDown={handleQuickBatchInputKeyDown}
+                                    onKeyDown={(event) => handleQuickBatchInputKeyDown(event, beanIndex, key)}
                                     onChange={(event) => updateQuickBatchValue(beanIndex, key, event.target.value)}
                                   />
                                 </td>
