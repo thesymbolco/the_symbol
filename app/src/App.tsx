@@ -279,10 +279,6 @@ type StatementRecord = {
   isCashHandled?: boolean
 }
 
-type StatementSortColumn = 'no' | 'deliveryDate' | 'clientName'
-type StatementSortDirection = 'asc' | 'desc'
-type StatementSortConfig = { column: StatementSortColumn; direction: StatementSortDirection } | null
-
 type FormState = {
   deliveryDate: string
   issueDate: string
@@ -1394,8 +1390,6 @@ const compareStatementRecordsNewestFirst = (a: StatementRecord, b: StatementReco
   return (b.createdAt ?? '').localeCompare(a.createdAt ?? '')
 }
 
-const SORT_ARROW: Record<StatementSortDirection, string> = { asc: ' ▲', desc: ' ▼' }
-
 function App() {
   const { mode, activeCompany, activeCompanyId, user, signOut } = useAppRuntime()
   const [form, setForm] = useState<FormState>(() => defaultFormState())
@@ -1495,7 +1489,6 @@ function App() {
   const [recordsNoteFilter, setRecordsNoteFilter] = useState<'all' | '부가세 별도' | '부가세 없음'>(
     'all',
   )
-  const [statementSort, setStatementSort] = useState<StatementSortConfig>(null)
   const [inlineEditRecordId, setInlineEditRecordId] = useState<string | null>(null)
   const [inlineEditDraft, setInlineEditDraft] = useState<{
     deliveryDate: string
@@ -2342,7 +2335,6 @@ function App() {
     startOfWeek.setDate(today.getDate() - 6)
     const startOfWeekIso = startOfWeek.toISOString().slice(0, 10)
     const query = recordsSearchQuery.trim().toLowerCase()
-    const seqById = statementDeliveryMonthSeqById
 
     const filtered = statementPreviewRecords.filter((record) => {
       if (recordsRangeFilter === 'year' && !record.deliveryDate.startsWith(selectedYear)) {
@@ -2367,20 +2359,7 @@ function App() {
       return true
     })
 
-    if (!statementSort) {
-      return filtered
-    }
-
-    const dir = statementSort.direction === 'asc' ? 1 : -1
-    return [...filtered].sort((a, b) => {
-      if (statementSort.column === 'no') {
-        return dir * ((seqById.get(a.id) ?? 0) - (seqById.get(b.id) ?? 0))
-      }
-      if (statementSort.column === 'deliveryDate') {
-        return dir * a.deliveryDate.localeCompare(b.deliveryDate)
-      }
-      return dir * a.clientName.localeCompare(b.clientName, 'ko')
-    })
+    return filtered
   }, [
     statementPreviewRecords,
     recordsRangeFilter,
@@ -2388,8 +2367,6 @@ function App() {
     recordsSearchQuery,
     selectedYear,
     recordsScopeYm,
-    statementSort,
-    statementDeliveryMonthSeqById,
   ])
 
   const visibleTotals = useMemo(() => {
