@@ -19,7 +19,7 @@ import InventoryStatusPage, {
   type LowGreenBeanWarningItem,
 } from './InventoryStatusPage'
 import { parseInventoryStatusStateFromLocalStorageJson } from './inventoryStatusUtils'
-import StatementPosEntryPanel from './StatementPosEntryPanel'
+import StatementPosEntryPanel, { POS_FAVORITE_CLIENTS_STORAGE_KEY } from './StatementPosEntryPanel'
 import MonthlyMeetingPage, {
   MONTHLY_MEETING_DATA_KEY,
   STATEMENT_RECORDS_SAVED_EVENT,
@@ -327,6 +327,44 @@ type StatementClientHubModalState = {
   cardTitle: string
   summaryClientName: string
   recordsFilter: { baseName: string; cashOnly: boolean }
+}
+
+type StatementRecordsDayGroup = {
+  deliveryDate: string
+  records: StatementRecord[]
+  count: number
+  totalAmount: number
+  clientNames: string[]
+  itemNames: string[]
+}
+
+type StatementDayDetailModalState = {
+  title: string
+  deliveryDate: string
+  scope: 'visible' | 'hub'
+}
+
+const groupStatementRecordsByDeliveryDate = (rows: StatementRecord[]): StatementRecordsDayGroup[] => {
+  const map = new Map<string, StatementRecord[]>()
+  for (const record of rows) {
+    const deliveryDate = record.deliveryDate.trim()
+    if (!deliveryDate) {
+      continue
+    }
+    const bucket = map.get(deliveryDate) ?? []
+    bucket.push(record)
+    map.set(deliveryDate, bucket)
+  }
+  return [...map.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([deliveryDate, records]) => ({
+      deliveryDate,
+      records,
+      count: records.length,
+      totalAmount: records.reduce((sum, record) => sum + record.totalAmount, 0),
+      clientNames: [...new Set(records.map((record) => record.clientName.trim()).filter(Boolean))],
+      itemNames: [...new Set(records.map((record) => record.itemName.trim()).filter(Boolean))],
+    }))
 }
 
 type PricingRule = {
@@ -1491,9 +1529,10 @@ function App() {
   )
   const [clientHubModalTab, setClientHubModalTab] = useState<'summary' | 'records'>('summary')
   const [clientHubSummaryAllMonths, setClientHubSummaryAllMonths] = useState(false)
+  const [statementDayDetailModal, setStatementDayDetailModal] = useState<StatementDayDetailModalState | null>(null)
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [statementEntryModalOpen, setStatementEntryModalOpen] = useState(false)
-  const [entryViewMode, setEntryViewMode] = useState<'form' | 'pos'>('form')
+  const [entryViewMode, setEntryViewMode] = useState<'form' | 'pos'>('pos')
   const [bulkItemPickerOpen, setBulkItemPickerOpen] = useState(false)
   const [bulkItemPickerQuery, setBulkItemPickerQuery] = useState('')
   const [bulkItemPickerPick, setBulkItemPickerPick] = useState<{
@@ -2148,6 +2187,11 @@ function App() {
     })
     return Array.from(merged).sort((a, b) => a.localeCompare(b, 'ko'))
   }, [pricingRules, records])
+
+  const posFavoriteClientsStorageKey = useMemo(
+    () => inventoryPageScopedKey(POS_FAVORITE_CLIENTS_STORAGE_KEY, mode, activeCompanyId),
+    [activeCompanyId, mode],
+  )
 
   const pricingRulesGrouped = useMemo(() => {
     const map = new Map<string, { displayName: string; rules: PricingRule[] }>()
@@ -2808,6 +2852,20 @@ function App() {
       .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))
   }, [statementClientHubModal, statementPreviewRecords, recordsScopeYm])
 
+  const statementDayDetailRecords = useMemo(() => {
+    if (!statementDayDetailModal) {
+      return [] as StatementRecord[]
+    }
+    const base =
+      statementDayDetailModal.scope === 'hub' ? clientHubModalRecords : visibleRecords
+    return base.filter((record) => record.deliveryDate === statementDayDetailModal.deliveryDate)
+  }, [clientHubModalRecords, statementDayDetailModal, visibleRecords])
+
+  const statementDayDetailTotal = useMemo(
+    () => statementDayDetailRecords.reduce((sum, record) => sum + record.totalAmount, 0),
+    [statementDayDetailRecords],
+  )
+
   const clientHubModalSummaryRow = useMemo(() => {
     if (!statementClientHubModal) {
       return null
@@ -2854,6 +2912,24 @@ function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [statementClientHubModal, activePage])
+
+  useEffect(() => {
+    if (!statementDayDetailModal) {
+      return
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setStatementDayDetailModal(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [statementDayDetailModal])
+
+  const openStatementDayDetailModal = useCallback((params: StatementDayDetailModalState) => {
+    setStatementDayDetailModal(params)
+  }, [])
 
   useLayoutEffect(() => {
     if (activePage !== 'statements') {
@@ -3663,6 +3739,82 @@ function App() {
     setMasterItemMessage(`「${target.itemName}」 품목을 삭제했습니다.`)
   }
 
+  const saveClientPricingRuleForPos = useCallback(
+    (
+      clientName: string,
+      itemName: string,
+      specUnit: string,
+      unitPrice: string,
+    ): { ok: boolean; message: string } => {
+      const cn = clientName.trim()
+      const iname = itemName.trim()
+      const spec = specUnit.trim()
+      const price = Number(unitPrice.replaceAll(',', '').trim() || '0')
+      if (!cn || !iname) {
+        return { ok: false, message: '거래처와 품목을 입력하세요.' }
+      }
+      if (!Number.isFinite(price) || price <= 0) {
+        return { ok: false, message: '단가는 0보다 큰 숫자로 입력하세요.' }
+      }
+      const dedupe = pricingRuleDedupeKey(cn, iname, spec)
+      setPricingRules((current) => {
+        const filtered = current.filter(
+          (rule) => pricingRuleDedupeKey(rule.clientName, rule.itemName, rule.specUnit) !== dedupe,
+        )
+        const nextRule: PricingRule = {
+          id: crypto.randomUUID(),
+          clientName: cn,
+          itemName: iname,
+          specUnit: spec,
+          unitPrice: price,
+        }
+        return [...filtered, nextRule].sort((a, b) =>
+          `${a.clientName}-${a.itemName}`.localeCompare(`${b.clientName}-${b.itemName}`, 'ko'),
+        )
+      })
+      return { ok: true, message: `「${iname}」 단가를 저장했습니다.` }
+    },
+    [],
+  )
+
+  const saveMasterItemForPos = useCallback(
+    (itemName: string, specUnit: string, unitPrice: string): { ok: boolean; message: string } => {
+      const trimmedName = itemName.trim()
+      if (!trimmedName) {
+        return { ok: false, message: '품목명을 입력하세요.' }
+      }
+      const parsedPrice = Number(unitPrice.replaceAll(',', '').trim() || '0')
+      if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
+        return { ok: false, message: '단가는 0 이상의 숫자로 입력하세요.' }
+      }
+      const spec = specUnit.trim()
+      const existing = masterItems.find(
+        (item) => normalizeName(item.itemName) === normalizeName(trimmedName),
+      )
+      if (existing) {
+        setMasterItems((current) =>
+          current.map((item) =>
+            item.id === existing.id
+              ? { ...item, itemName: trimmedName, specUnit: spec, unitPrice: parsedPrice }
+              : item,
+          ),
+        )
+        return { ok: true, message: `「${trimmedName}」 마스터 단가를 수정했습니다.` }
+      }
+      setMasterItems((current) => [
+        ...current,
+        {
+          id: `master-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          itemName: trimmedName,
+          specUnit: spec,
+          unitPrice: parsedPrice,
+        },
+      ])
+      return { ok: true, message: `「${trimmedName}」 마스터 품목을 추가했습니다.` }
+    },
+    [masterItems],
+  )
+
   const resetStatementFormAfterSave = () => {
     setForm((current) => ({
       ...defaultFormState(),
@@ -3745,6 +3897,7 @@ function App() {
     setIsCustomItem(nextCustomItem)
     setIsCustomSpec(nextCustomSpec)
     setEditingRecordId(record.id)
+    setEntryViewMode('form')
     setStatementEntryModalOpen(true)
     setActiveView('records')
     const formPanel = document.querySelector('.statements-form-compact')
@@ -3846,18 +3999,6 @@ function App() {
         .sort(compareStatementRecordsNewestFirst),
     )
     setInlineEditRecordId(null)
-  }
-
-  const handleToggleStatementSort = (column: StatementSortColumn) => {
-    setStatementSort((prev) => {
-      if (prev?.column === column) {
-        if (prev.direction === 'asc') {
-          return { column, direction: 'desc' }
-        }
-        return null
-      }
-      return { column, direction: 'asc' }
-    })
   }
 
   const handleCalendarShiftMonth = (delta: number) => {
@@ -4367,6 +4508,50 @@ function App() {
     })
   }
 
+  const renderStatementDayGroupsList = (
+    rows: StatementRecord[],
+    emptyMessage: string,
+    onOpenDay: (group: StatementRecordsDayGroup) => void,
+  ): ReactNode => {
+    const groups = groupStatementRecordsByDeliveryDate(rows)
+    if (groups.length === 0) {
+      return <p className="statements-day-groups-empty">{emptyMessage}</p>
+    }
+    return (
+      <div className="statements-day-groups">
+        {groups.map((group) => {
+          const clientPreview =
+            group.clientNames.length <= 2
+              ? group.clientNames.join(', ')
+              : `${group.clientNames.slice(0, 2).join(', ')} 외 ${group.clientNames.length - 2}곳`
+          const itemPreview =
+            group.itemNames.length <= 3
+              ? group.itemNames.join(', ')
+              : `${group.itemNames.slice(0, 3).join(', ')} 외 ${group.itemNames.length - 3}품목`
+          return (
+            <button
+              key={group.deliveryDate}
+              type="button"
+              className="statements-day-group-card"
+              onClick={() => onOpenDay(group)}
+            >
+              <div className="statements-day-group-card-head">
+                <strong>{formatDateLabel(group.deliveryDate)}</strong>
+                <span>{group.count}건</span>
+              </div>
+              <div className="statements-day-group-card-amount">{formatCurrency(group.totalAmount)}원</div>
+              <div className="statements-day-group-card-meta">
+                <span title={group.clientNames.join(', ')}>{clientPreview || '거래처 미지정'}</span>
+                <span title={group.itemNames.join(', ')}>{itemPreview || '품목 없음'}</span>
+              </div>
+              <span className="statements-day-group-card-action">클릭하면 상세 보기</span>
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <div
       className={`app-shell${activePage === 'statements' && statementStickyHScrollVisible ? ' app-shell--sticky-hscroll-pad' : ''}`}
@@ -4591,7 +4776,13 @@ function App() {
                 </button>
               </div>
               <div className="segmented statements-records-launch">
-                <button type="button" onClick={() => setStatementEntryModalOpen(true)}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEntryViewMode('pos')
+                    setStatementEntryModalOpen(true)
+                  }}
+                >
                   거래명세서 입력
                 </button>
               </div>
@@ -4742,52 +4933,19 @@ function App() {
 
           <div className="statements-table-viewport">
           {activeView === 'records' ? (
-            <div className="table-wrapper statements-main-table-hscroll" ref={statementMainTableScrollRef}>
-              <table>
-                <thead>
-                  <tr>
-                    <th
-                      className="sortable-th"
-                      title="납품일이 속한 달에서, 납품일·거래처·입력순으로 몇 번째 건인지"
-                      onClick={() => handleToggleStatementSort('no')}
-                    >
-                      번호{statementSort?.column === 'no' ? SORT_ARROW[statementSort.direction] : ''}
-                    </th>
-                    <th
-                      className="sortable-th"
-                      onClick={() => handleToggleStatementSort('deliveryDate')}
-                    >
-                      납품일{statementSort?.column === 'deliveryDate' ? SORT_ARROW[statementSort.direction] : ''}
-                    </th>
-                    <th>발행일자</th>
-                    <th>입금일자</th>
-                    <th>횟수</th>
-                    <th
-                      className="sortable-th"
-                      onClick={() => handleToggleStatementSort('clientName')}
-                    >
-                      거래처명{statementSort?.column === 'clientName' ? SORT_ARROW[statementSort.direction] : ''}
-                    </th>
-                    <th>품목</th>
-                    <th>규격/단위</th>
-                    <th>수량</th>
-                    <th>단가</th>
-                    <th>과세구분</th>
-                    <th>공급가액</th>
-                    <th>세액</th>
-                    <th>계</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {renderStatementRecordsTableBody(
-                    visibleRecords,
-                    records.length === 0
-                      ? '아직 저장된 거래명세서가 없습니다.'
-                      : '현재 조건에 맞는 건이 없습니다. 필터나 검색어를 변경해 보세요.',
-                  )}
-                </tbody>
-              </table>
+            <div className="statements-records-day-groups-viewport">
+              {renderStatementDayGroupsList(
+                visibleRecords,
+                records.length === 0
+                  ? '아직 저장된 거래명세서가 없습니다.'
+                  : '현재 조건에 맞는 건이 없습니다. 필터나 검색어를 변경해 보세요.',
+                (group) =>
+                  openStatementDayDetailModal({
+                    title: `${formatDateLabel(group.deliveryDate)} 납품 상세`,
+                    deliveryDate: group.deliveryDate,
+                    scope: 'visible',
+                  }),
+              )}
             </div>
           ) : activeView === 'cards' ? (
             <div className="statements-cards-viewport">
@@ -5518,6 +5676,12 @@ function App() {
               defaultNote={form.note || '부가세 별도'}
               noteOptions={NOTE_OPTIONS}
               existingRecords={records}
+              favoriteClientsStorageKey={posFavoriteClientsStorageKey}
+              allItemOptions={allItemOptions}
+              onSaveClientPricingRule={saveClientPricingRuleForPos}
+              onRemoveClientPricingRule={handleRemovePricingRule}
+              onSaveMasterItem={saveMasterItemForPos}
+              onRemoveMasterItem={handleRemoveMasterItem}
               onClose={() => setStatementEntryModalOpen(false)}
               onCommit={(newRecords) => {
                 setRecords((current) =>
@@ -6447,6 +6611,77 @@ function App() {
         </div>
       ) : null}
 
+      {statementDayDetailModal ? (
+        <div
+          className="statement-client-hub-backdrop statement-day-detail-backdrop"
+          role="presentation"
+          onClick={() => setStatementDayDetailModal(null)}
+        >
+          <div
+            className="statement-day-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="statement-day-detail-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="statement-client-hub-modal-top">
+              <div>
+                <h2 id="statement-day-detail-title" className="statement-client-hub-title">
+                  {statementDayDetailModal.title}
+                </h2>
+                <p className="statement-client-hub-meta">
+                  {formatDateLabel(statementDayDetailModal.deliveryDate)} ·{' '}
+                  {statementDayDetailRecords.length.toLocaleString('ko-KR')}건 ·{' '}
+                  {formatCurrency(statementDayDetailTotal)}원
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ghost-button statement-client-hub-close"
+                onClick={() => setStatementDayDetailModal(null)}
+                aria-label="닫기"
+              >
+                닫기
+              </button>
+            </div>
+            <div className="statement-day-detail-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>번호</th>
+                    <th>납품일</th>
+                    <th>발행일자</th>
+                    <th>입금일자</th>
+                    <th>횟수</th>
+                    <th>거래처명</th>
+                    <th>품목</th>
+                    <th>규격/단위</th>
+                    <th>수량</th>
+                    <th>단가</th>
+                    <th>과세구분</th>
+                    <th>공급가액</th>
+                    <th>세액</th>
+                    <th>계</th>
+                    <th aria-label="작업" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {renderStatementRecordsTableBody(
+                    statementDayDetailRecords,
+                    '이 날짜에 해당하는 줄이 없습니다.',
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="statement-client-hub-footer">
+              <button type="button" className="primary-button" onClick={() => setStatementDayDetailModal(null)}>
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {statementClientHubModal ? (
         <div
           className="statement-client-hub-backdrop"
@@ -6594,37 +6829,18 @@ function App() {
               <div className="statement-client-hub-panel statement-client-hub-panel-records">
                 <p className="statement-client-hub-records-scope">
                   {recordsScopeYm.replace('-', '.')} 납품 · 이 거래처({statementClientHubModal.recordsFilter.cashOnly ? '현금' : '일반'})
-                  줄만 표시합니다.
+                  줄만 표시합니다. 날짜를 누르면 그날 상세 줄을 볼 수 있습니다.
                 </p>
-                <div className="statement-client-hub-records-table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>번호</th>
-                        <th>납품일</th>
-                        <th>발행일자</th>
-                        <th>입금일자</th>
-                        <th>횟수</th>
-                        <th>거래처명</th>
-                        <th>품목</th>
-                        <th>규격/단위</th>
-                        <th>수량</th>
-                        <th>단가</th>
-                        <th>과세구분</th>
-                        <th>공급가액</th>
-                        <th>세액</th>
-                        <th>계</th>
-                        <th aria-label="작업" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {renderStatementRecordsTableBody(
-                        clientHubModalRecords,
-                        '이 조건에 맞는 납품 줄이 없습니다.',
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                {renderStatementDayGroupsList(
+                  clientHubModalRecords,
+                  '이 조건에 맞는 납품 줄이 없습니다.',
+                  (group) =>
+                    openStatementDayDetailModal({
+                      title: `${formatDateLabel(group.deliveryDate)} · ${statementClientHubModal.cardTitle}`,
+                      deliveryDate: group.deliveryDate,
+                      scope: 'hub',
+                    }),
+                )}
               </div>
             )}
 

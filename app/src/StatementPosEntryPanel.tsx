@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
 
 export type PosStatementRecord = {
   id: string
@@ -34,6 +35,14 @@ export type PosMasterItem = {
   unitPrice: number
 }
 
+export const POS_FAVORITE_CLIENTS_STORAGE_KEY = 'statement-pos-favorite-clients-v1'
+
+const POS_RECENT_DAYS = 14
+const POS_RECENT_MAX = 10
+const POS_SEARCH_MAX = 24
+
+export type PosPricingAdminSaveResult = { ok: boolean; message: string }
+
 type Props = {
   clientOptions: string[]
   pricingRules: PosPricingRule[]
@@ -42,6 +51,17 @@ type Props = {
   defaultNote: string
   noteOptions: readonly string[]
   existingRecords: PosStatementRecord[]
+  favoriteClientsStorageKey: string
+  allItemOptions: string[]
+  onSaveClientPricingRule: (
+    clientName: string,
+    itemName: string,
+    specUnit: string,
+    unitPrice: string,
+  ) => PosPricingAdminSaveResult
+  onRemoveClientPricingRule: (id: string) => void
+  onSaveMasterItem: (itemName: string, specUnit: string, unitPrice: string) => PosPricingAdminSaveResult
+  onRemoveMasterItem: (id: string) => void
   onCommit: (records: PosStatementRecord[]) => void
   onClose: () => void
 }
@@ -78,6 +98,22 @@ const formatDecimal = (value: number) => {
   return Number.isInteger(value) ? value.toString() : value.toString()
 }
 
+const readFavoriteClientsFromStorage = (key: string): string[] => {
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) {
+      return []
+    }
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    return parsed.map((value) => String(value).trim()).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
 function StatementPosEntryPanel({
   clientOptions,
   pricingRules,
@@ -86,6 +122,12 @@ function StatementPosEntryPanel({
   defaultNote,
   noteOptions,
   existingRecords,
+  favoriteClientsStorageKey,
+  allItemOptions,
+  onSaveClientPricingRule,
+  onRemoveClientPricingRule,
+  onSaveMasterItem,
+  onRemoveMasterItem,
   onCommit,
   onClose,
 }: Props) {
@@ -104,7 +146,35 @@ function StatementPosEntryPanel({
     unitPrice: '',
   })
   const [keypadBuffer, setKeypadBuffer] = useState<string | null>(null)
+  const [favoriteClients, setFavoriteClients] = useState<string[]>(() =>
+    readFavoriteClientsFromStorage(favoriteClientsStorageKey),
+  )
+  const [posAdminUnlocked, setPosAdminUnlocked] = useState(false)
+  const [posLeftView, setPosLeftView] = useState<'catalog' | 'pricing'>('catalog')
+  const [posAdminPinOpen, setPosAdminPinOpen] = useState(false)
+  const [posAdminPin, setPosAdminPin] = useState('')
+  const [posAdminPinError, setPosAdminPinError] = useState('')
+  const [posAdminMessage, setPosAdminMessage] = useState('')
+  const [posAdminLineDraft, setPosAdminLineDraft] = useState({
+    itemName: '',
+    specUnit: '',
+    unitPrice: '',
+  })
+  const [posMasterDraft, setPosMasterDraft] = useState({
+    itemName: '',
+    specUnit: '',
+    unitPrice: '',
+  })
+  const [posMasterOpen, setPosMasterOpen] = useState(false)
   const cartListRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    setFavoriteClients(readFavoriteClientsFromStorage(favoriteClientsStorageKey))
+  }, [favoriteClientsStorageKey])
+
+  useEffect(() => {
+    window.localStorage.setItem(favoriteClientsStorageKey, JSON.stringify(favoriteClients))
+  }, [favoriteClients, favoriteClientsStorageKey])
 
   // 거래처별 단가표 (없으면 마스터)
   const itemCatalogForClient = useMemo(() => {
@@ -150,11 +220,171 @@ function StatementPosEntryPanel({
     )
   }, [itemCatalogForClient, itemSearch])
 
-  const filteredClients = useMemo(() => {
+  const clientDisplayByKey = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const name of clientOptions) {
+      const trimmed = name.trim()
+      if (trimmed) {
+        map.set(normalize(trimmed), trimmed)
+      }
+    }
+    return map
+  }, [clientOptions])
+
+  const favoriteSet = useMemo(
+    () => new Set(favoriteClients.map((client) => normalize(client))),
+    [favoriteClients],
+  )
+
+  const favoriteClientsResolved = useMemo(() => {
+    const out: string[] = []
+    const seen = new Set<string>()
+    for (const stored of favoriteClients) {
+      const key = normalize(stored)
+      if (seen.has(key)) {
+        continue
+      }
+      const display = clientDisplayByKey.get(key) ?? stored.trim()
+      if (!display) {
+        continue
+      }
+      seen.add(key)
+      out.push(display)
+    }
+    return out.sort((a, b) => a.localeCompare(b, 'ko'))
+  }, [clientDisplayByKey, favoriteClients])
+
+  const recentClients = useMemo(() => {
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - POS_RECENT_DAYS)
+    const cutoffIso = cutoff.toISOString().slice(0, 10)
+    const seen = new Set<string>()
+    const ordered: string[] = []
+    const sorted = [...existingRecords].sort((a, b) => {
+      const byDate = b.deliveryDate.localeCompare(a.deliveryDate)
+      if (byDate !== 0) {
+        return byDate
+      }
+      return (b.createdAt ?? '').localeCompare(a.createdAt ?? '')
+    })
+    for (const record of sorted) {
+      if (record.deliveryDate < cutoffIso) {
+        continue
+      }
+      const key = normalize(record.clientName)
+      if (!key || seen.has(key)) {
+        continue
+      }
+      const display = clientDisplayByKey.get(key) ?? record.clientName.trim()
+      if (!display) {
+        continue
+      }
+      seen.add(key)
+      ordered.push(display)
+      if (ordered.length >= POS_RECENT_MAX) {
+        break
+      }
+    }
+    return ordered
+  }, [clientDisplayByKey, existingRecords])
+
+  const recentClientsWithoutFavorites = useMemo(
+    () => recentClients.filter((name) => !favoriteSet.has(normalize(name))),
+    [favoriteSet, recentClients],
+  )
+
+  const searchResults = useMemo(() => {
     const q = normalize(clientSearch)
-    if (!q) return clientOptions
-    return clientOptions.filter((name) => normalize(name).includes(q))
+    if (!q) {
+      return [] as string[]
+    }
+    return clientOptions.filter((name) => normalize(name).includes(q)).slice(0, POS_SEARCH_MAX)
   }, [clientOptions, clientSearch])
+
+  const isClientSearchMode = normalize(clientSearch).length > 0
+
+  const toggleFavoriteClient = useCallback((clientName: string) => {
+    const key = normalize(clientName)
+    setFavoriteClients((current) => {
+      if (current.some((client) => normalize(client) === key)) {
+        return current.filter((client) => normalize(client) !== key)
+      }
+      return [...current, clientName.trim()]
+    })
+  }, [])
+
+  const clientPricingRules = useMemo(() => {
+    const clientKey = normalize(selectedClient)
+    if (!clientKey) {
+      return [] as PosPricingRule[]
+    }
+    return pricingRules
+      .filter((rule) => normalize(rule.clientName) === clientKey)
+      .sort((a, b) =>
+        `${a.itemName}\u0000${a.specUnit}`.localeCompare(`${b.itemName}\u0000${b.specUnit}`, 'ko'),
+      )
+  }, [pricingRules, selectedClient])
+
+  const usesMasterCatalogForClient = selectedClient.trim().length > 0 && clientPricingRules.length === 0
+
+  useEffect(() => {
+    setPosAdminLineDraft({ itemName: '', specUnit: '', unitPrice: '' })
+    setPosAdminMessage('')
+  }, [selectedClient])
+
+  const handlePosAdminButtonClick = () => {
+    if (posAdminUnlocked) {
+      setPosAdminUnlocked(false)
+      setPosLeftView('catalog')
+      setPosAdminMessage('')
+      return
+    }
+    setPosAdminPin('')
+    setPosAdminPinError('')
+    setPosAdminPinOpen(true)
+  }
+
+  const confirmPosAdminPin = () => {
+    if (posAdminPin !== ADMIN_FOUR_DIGIT_PIN) {
+      setPosAdminPinError('비밀번호가 올바르지 않습니다.')
+      return
+    }
+    setPosAdminPinOpen(false)
+    setPosAdminPin('')
+    setPosAdminPinError('')
+    setPosAdminUnlocked(true)
+    setPosLeftView('pricing')
+    setPosAdminMessage('단가 관리 모드입니다. 거래처를 고른 뒤 품목·단가를 추가하세요.')
+  }
+
+  const handleSavePosAdminLine = () => {
+    if (!selectedClient.trim()) {
+      setPosAdminMessage('먼저 거래처를 선택하세요.')
+      return
+    }
+    const result = onSaveClientPricingRule(
+      selectedClient,
+      posAdminLineDraft.itemName,
+      posAdminLineDraft.specUnit,
+      posAdminLineDraft.unitPrice,
+    )
+    setPosAdminMessage(result.message)
+    if (result.ok) {
+      setPosAdminLineDraft({ itemName: '', specUnit: '', unitPrice: '' })
+    }
+  }
+
+  const handleSavePosMasterLine = () => {
+    const result = onSaveMasterItem(
+      posMasterDraft.itemName,
+      posMasterDraft.specUnit,
+      posMasterDraft.unitPrice,
+    )
+    setPosAdminMessage(result.message)
+    if (result.ok) {
+      setPosMasterDraft({ itemName: '', specUnit: '', unitPrice: '' })
+    }
+  }
 
   // 거래처 변경 시 카트 초기화 (혼동 방지)
   useEffect(() => {
@@ -389,6 +619,31 @@ function StatementPosEntryPanel({
 
   const activeLine = cart.find((line) => line.id === activeLineId) ?? null
 
+  const renderClientChip = (client: string) => {
+    const isSelected = normalize(client) === normalize(selectedClient)
+    const isFavorite = favoriteSet.has(normalize(client))
+    return (
+      <div key={client} className="pos-client-chip-wrap">
+        <button
+          type="button"
+          className={`pos-client-chip${isSelected ? ' pos-client-chip--on' : ''}`}
+          onClick={() => setSelectedClient(client)}
+        >
+          {client}
+        </button>
+        <button
+          type="button"
+          className={`pos-client-fav${isFavorite ? ' pos-client-fav--on' : ''}`}
+          aria-label={isFavorite ? `${client} 즐겨찾기 해제` : `${client} 즐겨찾기`}
+          title={isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}
+          onClick={() => toggleFavoriteClient(client)}
+        >
+          ★
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="pos-entry-panel">
       <div className="pos-entry-topbar">
@@ -418,6 +673,14 @@ function StatementPosEntryPanel({
         >
           현금 {isCashHandled ? 'ON' : 'OFF'}
         </button>
+        <button
+          type="button"
+          className={`pos-toggle pos-toggle--admin${posAdminUnlocked ? ' pos-toggle--on' : ''}`}
+          aria-pressed={posAdminUnlocked}
+          onClick={handlePosAdminButtonClick}
+        >
+          관리자 {posAdminUnlocked ? 'ON' : ''}
+        </button>
         <button type="button" className="pos-topbar-close" onClick={onClose}>
           닫기
         </button>
@@ -425,34 +688,295 @@ function StatementPosEntryPanel({
 
       <div className="pos-entry-body">
         <div className="pos-entry-left">
-          <div className="pos-client-bar">
+          <div className="pos-client-bar pos-client-bar--structured">
             <input
               type="search"
-              className="pos-search"
-              placeholder="거래처 검색"
+              className="pos-search pos-search--full"
+              placeholder="거래처 검색 (이름 일부 입력)"
               value={clientSearch}
               onChange={(event) => setClientSearch(event.target.value)}
             />
-            <div className="pos-client-chips">
-              {filteredClients.length === 0 ? (
-                <span className="pos-empty">일치하는 거래처가 없습니다.</span>
-              ) : (
-                filteredClients.map((client) => (
-                  <button
-                    key={client}
-                    type="button"
-                    className={`pos-client-chip ${
-                      normalize(client) === normalize(selectedClient) ? 'pos-client-chip--on' : ''
-                    }`}
-                    onClick={() => setSelectedClient(client)}
-                  >
-                    {client}
-                  </button>
-                ))
-              )}
-            </div>
+            {isClientSearchMode ? (
+              <div className="pos-client-section">
+                <div className="pos-client-section-label">검색 결과</div>
+                <div className="pos-client-chips">
+                  {searchResults.length === 0 ? (
+                    <span className="pos-empty">일치하는 거래처가 없습니다.</span>
+                  ) : (
+                    searchResults.map((client) => renderClientChip(client))
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="pos-client-sections">
+                {favoriteClientsResolved.length > 0 ? (
+                  <div className="pos-client-section">
+                    <div className="pos-client-section-label">즐겨찾기</div>
+                    <div className="pos-client-chips">
+                      {favoriteClientsResolved.map((client) => renderClientChip(client))}
+                    </div>
+                  </div>
+                ) : null}
+                {recentClientsWithoutFavorites.length > 0 ? (
+                  <div className="pos-client-section">
+                    <div className="pos-client-section-label">최근 {POS_RECENT_DAYS}일</div>
+                    <div className="pos-client-chips">
+                      {recentClientsWithoutFavorites.map((client) => renderClientChip(client))}
+                    </div>
+                  </div>
+                ) : null}
+                {favoriteClientsResolved.length === 0 && recentClientsWithoutFavorites.length === 0 ? (
+                  <p className="pos-client-hint">
+                    즐겨찾기(★)로 자주 쓰는 거래처를 고정하거나, 이름을 검색해 선택하세요. 납품 기록이 쌓이면
+                    최근 거래처도 여기에 표시됩니다.
+                  </p>
+                ) : (
+                  <p className="pos-client-hint pos-client-hint--compact">
+                    그 외 거래처는 위 검색창에서 찾을 수 있습니다.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
+          {posAdminUnlocked ? (
+            <div className="pos-admin-view-toggle" role="tablist" aria-label="POS 좌측 화면">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={posLeftView === 'catalog'}
+                className={posLeftView === 'catalog' ? 'is-active' : ''}
+                onClick={() => setPosLeftView('catalog')}
+              >
+                품목 입력
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={posLeftView === 'pricing'}
+                className={posLeftView === 'pricing' ? 'is-active' : ''}
+                onClick={() => setPosLeftView('pricing')}
+              >
+                단가 관리
+              </button>
+            </div>
+          ) : null}
+
+          {posAdminUnlocked && posLeftView === 'pricing' ? (
+            <div className="pos-admin-panel">
+              {!selectedClient.trim() ? (
+                <p className="pos-empty pos-empty--block">단가를 관리할 거래처를 먼저 선택하세요.</p>
+              ) : (
+                <>
+                  <div className="pos-admin-panel-head">
+                    <div>
+                      <strong>{selectedClient}</strong>
+                      <span className="pos-admin-panel-sub">
+                        {usesMasterCatalogForClient
+                          ? '전용 단가 없음 · 공통 마스터 품목이 표시됩니다'
+                          : `거래처 전용 단가 ${clientPricingRules.length}건`}
+                      </span>
+                    </div>
+                  </div>
+                  {posAdminMessage ? <p className="pos-admin-status">{posAdminMessage}</p> : null}
+                  <div className="pos-admin-table-wrap">
+                    <table className="pos-admin-table">
+                      <thead>
+                        <tr>
+                          <th>품목</th>
+                          <th>규격/단위</th>
+                          <th>단가</th>
+                          <th aria-label="관리" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {clientPricingRules.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="pos-admin-empty-cell">
+                              아래에서 품목·단가를 추가하면 이 거래처 POS 카탈로그에 바로 반영됩니다.
+                            </td>
+                          </tr>
+                        ) : (
+                          clientPricingRules.map((rule) => (
+                            <tr key={rule.id}>
+                              <td>{rule.itemName}</td>
+                              <td>{rule.specUnit || '-'}</td>
+                              <td>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  className="pos-admin-inline-input"
+                                  defaultValue={String(rule.unitPrice)}
+                                  onBlur={(event) => {
+                                    const next = event.target.value.trim()
+                                    if (next === String(rule.unitPrice)) {
+                                      return
+                                    }
+                                    const result = onSaveClientPricingRule(
+                                      selectedClient,
+                                      rule.itemName,
+                                      rule.specUnit,
+                                      next,
+                                    )
+                                    setPosAdminMessage(result.message)
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                      ;(event.target as HTMLInputElement).blur()
+                                    }
+                                  }}
+                                  aria-label={`${rule.itemName} 단가`}
+                                />
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="ghost-button small danger"
+                                  onClick={() => onRemoveClientPricingRule(rule.id)}
+                                >
+                                  삭제
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="pos-admin-add-row">
+                    <input
+                      type="text"
+                      list="pos-admin-item-datalist"
+                      placeholder="품목 (목록 또는 직접)"
+                      value={posAdminLineDraft.itemName}
+                      onChange={(event) =>
+                        setPosAdminLineDraft((current) => ({ ...current, itemName: event.target.value }))
+                      }
+                    />
+                    <input
+                      type="text"
+                      placeholder="규격/단위"
+                      value={posAdminLineDraft.specUnit}
+                      onChange={(event) =>
+                        setPosAdminLineDraft((current) => ({ ...current, specUnit: event.target.value }))
+                      }
+                    />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="단가 (원)"
+                      value={posAdminLineDraft.unitPrice}
+                      onChange={(event) =>
+                        setPosAdminLineDraft((current) => ({ ...current, unitPrice: event.target.value }))
+                      }
+                    />
+                    <button type="button" className="primary-button" onClick={handleSavePosAdminLine}>
+                      품목 추가
+                    </button>
+                  </div>
+                  <datalist id="pos-admin-item-datalist">
+                    {allItemOptions.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
+                  <details
+                    className="pos-admin-master"
+                    open={posMasterOpen}
+                    onToggle={(event) => setPosMasterOpen((event.target as HTMLDetailsElement).open)}
+                  >
+                    <summary>공통 품목 마스터 ({masterItems.length}건)</summary>
+                    <p className="pos-admin-master-hint">
+                      거래처 전용 단가가 없을 때만 POS에 표시됩니다. 모든 거래처에 공통으로 쓰는 품목·단가를
+                      관리합니다.
+                    </p>
+                    <div className="pos-admin-add-row">
+                      <input
+                        type="text"
+                        placeholder="품목명"
+                        value={posMasterDraft.itemName}
+                        onChange={(event) =>
+                          setPosMasterDraft((current) => ({ ...current, itemName: event.target.value }))
+                        }
+                      />
+                      <input
+                        type="text"
+                        placeholder="규격/단위"
+                        value={posMasterDraft.specUnit}
+                        onChange={(event) =>
+                          setPosMasterDraft((current) => ({ ...current, specUnit: event.target.value }))
+                        }
+                      />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="단가 (원)"
+                        value={posMasterDraft.unitPrice}
+                        onChange={(event) =>
+                          setPosMasterDraft((current) => ({ ...current, unitPrice: event.target.value }))
+                        }
+                      />
+                      <button type="button" className="primary-button" onClick={handleSavePosMasterLine}>
+                        마스터 추가/수정
+                      </button>
+                    </div>
+                    <div className="pos-admin-table-wrap pos-admin-table-wrap--compact">
+                      <table className="pos-admin-table">
+                        <thead>
+                          <tr>
+                            <th>품목</th>
+                            <th>규격/단위</th>
+                            <th>단가</th>
+                            <th aria-label="관리" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {masterItems.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="pos-admin-empty-cell">
+                                등록된 공통 품목이 없습니다.
+                              </td>
+                            </tr>
+                          ) : (
+                            masterItems.map((item) => (
+                              <tr key={item.id}>
+                                <td>{item.itemName}</td>
+                                <td>{item.specUnit || '-'}</td>
+                                <td>{formatNumber(item.unitPrice)}원</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="ghost-button small"
+                                    onClick={() => {
+                                      setPosMasterDraft({
+                                        itemName: item.itemName,
+                                        specUnit: item.specUnit,
+                                        unitPrice: String(item.unitPrice),
+                                      })
+                                      setPosMasterOpen(true)
+                                    }}
+                                  >
+                                    불러오기
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="ghost-button small danger"
+                                    onClick={() => onRemoveMasterItem(item.id)}
+                                  >
+                                    삭제
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </>
+              )}
+            </div>
+          ) : (
+            <>
           <div className="pos-item-toolbar">
             <input
               type="search"
@@ -479,7 +1003,8 @@ function StatementPosEntryPanel({
               <div className="pos-empty pos-empty--block">먼저 거래처를 선택하세요.</div>
             ) : filteredCatalog.length === 0 ? (
               <div className="pos-empty pos-empty--block">
-                등록된 품목이 없습니다. 우측 「직접 추가」로 입력하세요.
+                등록된 품목이 없습니다. 상단 「관리자」→「단가 관리」에서 품목을 추가하거나, 아래 직접 추가를
+                사용하세요.
               </div>
             ) : (
               filteredCatalog.map((item) => (
@@ -530,12 +1055,39 @@ function StatementPosEntryPanel({
               + 줄 추가
             </button>
           </div>
+            </>
+          )}
         </div>
 
         <div className="pos-entry-right">
           <div className="pos-cart-header">
             <strong>장바구니</strong>
-            <span>{selectedClient || '거래처 미선택'}</span>
+            <span className="pos-cart-client">
+              {selectedClient ? (
+                <>
+                  {selectedClient}
+                  <button
+                    type="button"
+                    className={`pos-client-fav pos-client-fav--inline${
+                      favoriteSet.has(normalize(selectedClient)) ? ' pos-client-fav--on' : ''
+                    }`}
+                    aria-label={
+                      favoriteSet.has(normalize(selectedClient))
+                        ? `${selectedClient} 즐겨찾기 해제`
+                        : `${selectedClient} 즐겨찾기`
+                    }
+                    title={
+                      favoriteSet.has(normalize(selectedClient)) ? '즐겨찾기 해제' : '즐겨찾기에 추가'
+                    }
+                    onClick={() => toggleFavoriteClient(selectedClient)}
+                  >
+                    ★
+                  </button>
+                </>
+              ) : (
+                '거래처 미선택'
+              )}
+            </span>
           </div>
           <div className="pos-cart-list" ref={cartListRef}>
             {cart.length === 0 ? (
@@ -712,6 +1264,51 @@ function StatementPosEntryPanel({
           </button>
         </div>
       </div>
+
+      {posAdminPinOpen ? (
+        <div
+          className="pos-admin-pin-backdrop"
+          role="presentation"
+          onClick={() => setPosAdminPinOpen(false)}
+        >
+          <div
+            className="pos-admin-pin-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pos-admin-pin-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="pos-admin-pin-title">POS 관리자 모드</h3>
+            <p>거래처별 품목·단가를 관리하려면 4자리 비밀번호를 입력하세요.</p>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              autoFocus
+              value={posAdminPin}
+              onChange={(event) => {
+                setPosAdminPin(event.target.value.replace(/\D/g, '').slice(0, 4))
+                setPosAdminPinError('')
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  confirmPosAdminPin()
+                }
+              }}
+              aria-label="관리자 비밀번호 4자리"
+            />
+            {posAdminPinError ? <p className="pos-admin-pin-error">{posAdminPinError}</p> : null}
+            <div className="pos-admin-pin-actions">
+              <button type="button" className="ghost-button" onClick={() => setPosAdminPinOpen(false)}>
+                취소
+              </button>
+              <button type="button" className="primary-button" onClick={confirmPosAdminPin}>
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

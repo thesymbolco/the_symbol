@@ -16,7 +16,7 @@
       "end_timestamp": "2026-04-01T15:35:39+09:00",
       "markdown_size_bytes": 643086,
       "provider": "cursoride",
-      "last_updated": "2026-05-28T02:25:04Z"
+      "last_updated": "2026-06-04T01:09:54Z"
     },
     "43d72f31-2575-436b-892d-f10291dc697b": {
       "user_message_count": 39,
@@ -34,7 +34,7 @@
       "end_timestamp": "2026-05-06T11:44:25+09:00",
       "markdown_size_bytes": 1604892,
       "provider": "cursoride",
-      "last_updated": "2026-05-28T02:25:04Z"
+      "last_updated": "2026-06-04T01:09:54Z"
     },
     "637c6301-0c01-489b-96c3-a5e4bebeda4f": {
       "user_message_count": 1,
@@ -52,7 +52,7 @@
       "end_timestamp": "2026-05-14T10:24:35+09:00",
       "markdown_size_bytes": 1120125,
       "provider": "cursoride",
-      "last_updated": "2026-05-28T02:25:04Z"
+      "last_updated": "2026-06-04T01:09:54Z"
     },
     "774dd6b0-39d1-4c85-ad25-e90c8bd16381": {
       "user_message_count": 2,
@@ -91,13 +91,13 @@
       "last_updated": "2026-04-16T05:09:31Z"
     },
     "d88d22b5-c6f2-4f35-b781-e72eb6ba49d9": {
-      "user_message_count": 11,
-      "agent_message_count": 199,
+      "user_message_count": 26,
+      "agent_message_count": 513,
       "start_timestamp": "2026-05-26T13:34:58+09:00",
       "end_timestamp": "2026-05-26T13:34:58+09:00",
-      "markdown_size_bytes": 160172,
+      "markdown_size_bytes": 546121,
       "provider": "cursoride",
-      "last_updated": "2026-06-01T04:27:45Z"
+      "last_updated": "2026-06-04T01:44:48Z"
     },
     "dfbc7492-cf30-4354-8f0f-a7acfd4c0c16": {
       "user_message_count": 2,
@@ -106,7 +106,7 @@
       "end_timestamp": "2026-04-03T17:29:31+09:00",
       "markdown_size_bytes": 36919,
       "provider": "cursoride",
-      "last_updated": "2026-05-28T02:25:04Z"
+      "last_updated": "2026-06-04T01:09:54Z"
     },
     "eef46c8c-c942-41db-b079-4c7418ee7053": {
       "user_message_count": 1,
@@ -119,12 +119,12 @@
     },
     "f6a0d51a-249b-4e6c-ab4b-35eb8f6a947e": {
       "user_message_count": 1,
-      "agent_message_count": 3,
+      "agent_message_count": 17,
       "start_timestamp": "2026-05-28T13:28:40+09:00",
       "end_timestamp": "2026-05-28T13:28:40+09:00",
-      "markdown_size_bytes": 2026,
+      "markdown_size_bytes": 10617,
       "provider": "cursoride",
-      "last_updated": "2026-05-28T04:29:21Z"
+      "last_updated": "2026-06-04T01:09:54Z"
     }
   }
 }

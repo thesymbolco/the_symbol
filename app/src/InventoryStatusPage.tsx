@@ -65,6 +65,8 @@ export const INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY = 'inventory-status-temp
 export const INVENTORY_AUTO_STOCK_MODE_KEY = 'inventory-auto-stock-mode-v1'
 const INVENTORY_HISTORY_NOTES_STORAGE_KEY = 'inventory-history-notes-v1'
 export const INVENTORY_QUICK_ENTRY_STEPS_STORAGE_KEY = 'inventory-quick-entry-steps-v1'
+const STATEMENT_RECORDS_KEY = 'statement-records-v1'
+const STATEMENT_RECORDS_SAVED_EVENT = 'statement-records-saved'
 
 export type QuickEntryStepKey = 'inbound' | 'production' | 'outbound'
 
@@ -735,6 +737,77 @@ const rolloverInventoryStateToNextCalendarMonth = (
   return applyPhysicalCountDateWhenEnablingAuto(next)
 }
 
+/**
+ * 전월 상태에서 품목별 말일 종료 재고(kg)를 구한다.
+ * `rolloverInventoryStateToNextCalendarMonth`와 동일 로직이지만 Map만 반환.
+ */
+const computeEndingStockByBeanName = (state: InventoryStatusState): Map<string, number> => {
+  const ym = state.referenceDate.slice(0, 7)
+  const lastDayIso = lastCalendarDayIsoInMonth(ym)
+  const physIdx = dayIndexForReferenceDate(state.days, state.physicalCountDate)
+  const pins = buildStockPinnedDayIndices(
+    state.days,
+    state.surveyMarkedDays,
+    physIdx,
+    state.referenceDate,
+    state.physicalCountDate,
+  )
+  const endIdx = dayIndexForReferenceDate(state.days, lastDayIso)
+  const result = new Map<string, number>()
+  for (const bean of state.beanRows) {
+    const resynced = state.skipAutoStockDisplay ? [...bean.stock] : resyncAutoStockForBeanRow(bean, pins)
+    const len = resynced.length
+    const capped = len <= 0 ? 0 : Math.min(Math.max(endIdx, 0), len - 1)
+    result.set(normalizeNameKey(bean.name), resynced[capped] ?? 0)
+  }
+  return result
+}
+
+/**
+ * 이미 저장된 다음 달 표의 1일 시작 재고(stock[0])를 전월 말 종료 재고로 갱신한다.
+ * 입고·생산·출고 등 나머지 값은 건드리지 않아 사용자가 6월에 직접 넣은 데이터를 보존한다.
+ */
+const patchStartingStockFromPreviousMonth = (
+  nextMonthState: InventoryStatusState,
+  closingStockByName: Map<string, number>,
+): InventoryStatusState => {
+  let changed = false
+  const patchedBeanRows = nextMonthState.beanRows.map((bean) => {
+    const key = normalizeNameKey(bean.name)
+    const closing = closingStockByName.get(key)
+    if (closing == null) {
+      return bean
+    }
+    const currentStartStock = bean.stock[0] ?? 0
+    if (currentStartStock === closing) {
+      return bean
+    }
+    changed = true
+    const nextStock = [...bean.stock]
+    nextStock[0] = closing
+    return { ...bean, stock: nextStock }
+  })
+  if (!changed) {
+    return nextMonthState
+  }
+  const patched: InventoryStatusState = { ...nextMonthState, skipAutoStockDisplay: false, beanRows: patchedBeanRows }
+  const physIdx = dayIndexForReferenceDate(patched.days, patched.physicalCountDate)
+  const pins = buildStockPinnedDayIndices(
+    patched.days,
+    patched.surveyMarkedDays,
+    physIdx,
+    patched.referenceDate,
+    patched.physicalCountDate,
+  )
+  return {
+    ...patched,
+    beanRows: patched.beanRows.map((bean) => ({
+      ...bean,
+      stock: resyncAutoStockForBeanRow(bean, pins),
+    })),
+  }
+}
+
 /** 직접 입력 → 자동 재고로 바꿀 때: 실사일이 같은 달 1일만 잡혀 있고 기준일이 1일이 아니면 기준일과 맞춤 */
 const applyPhysicalCountDateWhenEnablingAuto = (current: InventoryStatusState): InventoryStatusState => {
   const ref = current.referenceDate
@@ -800,6 +873,17 @@ type InventoryPageDocument = {
   quickEntryStepSettings?: QuickEntryStepSettings
 }
 
+type InventoryStatementCalendarRecord = {
+  deliveryDate: string
+  itemName: string
+  clientName: string
+  totalAmount: number
+}
+
+type InventoryStatementPageDocumentLike = {
+  records?: unknown
+}
+
 const restoreMonthBucketAfterCloud = (ym: string, state: InventoryStatusState): InventoryStatusState => {
   const ref = state.referenceDate.trim()
   if (ref === CLOUD_REFERENCE_DATE_PLACEHOLDER || ref.startsWith('2000-')) {
@@ -836,6 +920,42 @@ const normalizeInventoryByMonthFromUnknown = (raw: unknown): Record<string, Inve
     }
   }
   return out
+}
+
+const normalizeStatementCalendarRecords = (raw: unknown): InventoryStatementCalendarRecord[] => {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+  const out: InventoryStatementCalendarRecord[] = []
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') {
+      continue
+    }
+    const src = row as Partial<InventoryStatementCalendarRecord>
+    const deliveryDate = String(src.deliveryDate ?? '').trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(deliveryDate)) {
+      continue
+    }
+    out.push({
+      deliveryDate,
+      itemName: String(src.itemName ?? '').trim(),
+      clientName: String(src.clientName ?? '').trim(),
+      totalAmount: Number.isFinite(Number(src.totalAmount)) ? Number(src.totalAmount) : 0,
+    })
+  }
+  return out
+}
+
+const readStatementCalendarRecordsFromStorage = (): InventoryStatementCalendarRecord[] => {
+  try {
+    const raw = window.localStorage.getItem(STATEMENT_RECORDS_KEY)
+    if (!raw) {
+      return []
+    }
+    return normalizeStatementCalendarRecords(JSON.parse(raw))
+  } catch {
+    return []
+  }
 }
 
 const ensureCurrentYmInBuckets = (
@@ -1998,6 +2118,9 @@ function InventoryStatusPage() {
   const [noteDate, setNoteDate] = useState(() => todayLocalIsoDateString())
   const [noteDraft, setNoteDraft] = useState('')
   const [statusMessage, setStatusMessage] = useState('브라우저에 자동 저장됩니다.')
+  const [statementCalendarOpen, setStatementCalendarOpen] = useState(false)
+  const [statementCalendarRecords, setStatementCalendarRecords] = useState<InventoryStatementCalendarRecord[]>([])
+  const [statementCalendarViewYm, setStatementCalendarViewYm] = useState(() => todayLocalIsoDateString().slice(0, 7))
   const [isStorageReady, setIsStorageReady] = useState(false)
   const [isCloudReady, setIsCloudReady] = useState(mode === 'local')
   const {
@@ -2010,6 +2133,96 @@ function InventoryStatusPage() {
     saveState,
     skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
+
+  const statementCalendarYm = statementCalendarViewYm
+  const inventoryReferenceYm = inventoryState.referenceDate.slice(0, 7)
+  const statementCalendarYmLabel = useMemo(() => {
+    const m = statementCalendarYm.match(/^(\d{4})-(\d{2})$/)
+    if (!m) {
+      return statementCalendarYm
+    }
+    return `${m[1]}년 ${Number(m[2])}월`
+  }, [statementCalendarYm])
+
+  const statementCalendarEntries = useMemo(() => {
+    const map = new Map<
+      string,
+      { count: number; totalAmount: number; records: InventoryStatementCalendarRecord[] }
+    >()
+    for (const record of statementCalendarRecords) {
+      if (!record.deliveryDate.startsWith(statementCalendarYm)) {
+        continue
+      }
+      const existing = map.get(record.deliveryDate) ?? {
+        count: 0,
+        totalAmount: 0,
+        records: [] as InventoryStatementCalendarRecord[],
+      }
+      existing.count += 1
+      existing.totalAmount += record.totalAmount
+      existing.records.push(record)
+      map.set(record.deliveryDate, existing)
+    }
+    return map
+  }, [statementCalendarRecords, statementCalendarYm])
+
+  const statementCalendarCells = useMemo(() => {
+    const matched = statementCalendarYm.match(/^(\d{4})-(\d{2})$/)
+    if (!matched) {
+      return [] as Array<{ key: string; date: string | null; day: number | null }>
+    }
+    const year = Number(matched[1])
+    const monthIndex = Number(matched[2]) - 1
+    if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+      return [] as Array<{ key: string; date: string | null; day: number | null }>
+    }
+    const firstDay = new Date(year, monthIndex, 1)
+    const leading = firstDay.getDay()
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
+    const cells: Array<{ key: string; date: string | null; day: number | null }> = []
+    for (let i = 0; i < leading; i += 1) {
+      cells.push({ key: `blank-head-${i}`, date: null, day: null })
+    }
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const date = `${statementCalendarYm}-${String(day).padStart(2, '0')}`
+      cells.push({ key: date, date, day })
+    }
+    const trailing = (7 - (cells.length % 7)) % 7
+    for (let i = 0; i < trailing; i += 1) {
+      cells.push({ key: `blank-tail-${i}`, date: null, day: null })
+    }
+    return cells
+  }, [statementCalendarYm])
+
+  useEffect(() => {
+    if (statementCalendarOpen) {
+      return
+    }
+    if (/^\d{4}-\d{2}$/.test(inventoryReferenceYm)) {
+      setStatementCalendarViewYm(inventoryReferenceYm)
+    }
+  }, [inventoryReferenceYm, statementCalendarOpen])
+
+  const refreshStatementCalendarRecords = useCallback(async () => {
+    const localRecords = readStatementCalendarRecordsFromStorage()
+    setStatementCalendarRecords(localRecords)
+    if (mode !== 'cloud' || !activeCompanyId) {
+      return
+    }
+    try {
+      const remote = await loadCompanyDocument<InventoryStatementPageDocumentLike>(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.statementPage,
+      )
+      const remoteRecords = normalizeStatementCalendarRecords(remote?.records)
+      if (remoteRecords.length > 0) {
+        setStatementCalendarRecords(remoteRecords)
+        window.localStorage.setItem(STATEMENT_RECORDS_KEY, JSON.stringify(remoteRecords))
+      }
+    } catch {
+      /* local cache fallback */
+    }
+  }, [activeCompanyId, mode])
   const initialRoastingSyncDoneRef = useRef(false)
   const [fullResetDialogOpen, setFullResetDialogOpen] = useState(false)
   const [fullResetPin, setFullResetPin] = useState('')
@@ -2195,6 +2408,8 @@ function InventoryStatusPage() {
         )
       }
 
+      const originalYm = next.referenceDate.slice(0, 7)
+      const originalSnapshot = cloneInventoryStatusState(next)
       next = withReferenceDateToday(next)
       nextBaseline = migratedFromManual ? next : withReferenceDateToday(nextBaseline)
 
@@ -2202,12 +2417,43 @@ function InventoryStatusPage() {
         return
       }
 
-      const ym = next.referenceDate.slice(0, 7)
-      setInventoryByMonth({
-        ...document.inventoryByMonth,
-        [ym]: cloneInventoryStatusState(next),
-      })
-      setInventoryState(next)
+      const todayYm = next.referenceDate.slice(0, 7)
+      const monthChanged = originalYm !== todayYm && /^\d{4}-\d{2}$/.test(originalYm) && /^\d{4}-\d{2}$/.test(todayYm)
+
+      if (monthChanged) {
+        const rolled = todayYm === calendarYmPlusMonths(originalYm, 1)
+          ? rolloverInventoryStateToNextCalendarMonth(originalSnapshot, next.referenceDate)
+          : null
+        if (rolled) {
+          setInventoryByMonth({
+            ...document.inventoryByMonth,
+            [originalYm]: cloneInventoryStatusState(originalSnapshot),
+            [todayYm]: cloneInventoryStatusState(rolled),
+          })
+          setInventoryState(rolled)
+        } else {
+          const blank = createZeroedInventoryStatusFrom(cloneInventoryStatusState(next))
+          const blanked: InventoryStatusState = {
+            ...blank,
+            referenceDate: next.referenceDate,
+            physicalCountDate: defaultPhysicalCountDateFromReference(next.referenceDate),
+            surveyMarkedDays: [],
+            skipAutoStockDisplay: false,
+          }
+          setInventoryByMonth({
+            ...document.inventoryByMonth,
+            [originalYm]: cloneInventoryStatusState(originalSnapshot),
+            [todayYm]: cloneInventoryStatusState(blanked),
+          })
+          setInventoryState(blanked)
+        }
+      } else {
+        setInventoryByMonth({
+          ...document.inventoryByMonth,
+          [todayYm]: cloneInventoryStatusState(next),
+        })
+        setInventoryState(next)
+      }
       setBaselineState(migratedFromManual ? next : nextBaseline)
       setTemplateBase64(document.templateBase64)
       setTemplateFileName(document.templateFileName)
@@ -2262,6 +2508,18 @@ function InventoryStatusPage() {
   useEffect(() => {
     clearLegacyViewerReferenceOverlayLocalStorage(mode, activeCompanyId)
   }, [activeCompanyId, mode])
+
+  useEffect(() => {
+    if (!statementCalendarOpen) {
+      return
+    }
+    void refreshStatementCalendarRecords()
+    const onSaved = () => {
+      void refreshStatementCalendarRecords()
+    }
+    window.addEventListener(STATEMENT_RECORDS_SAVED_EVENT, onSaved)
+    return () => window.removeEventListener(STATEMENT_RECORDS_SAVED_EVENT, onSaved)
+  }, [refreshStatementCalendarRecords, statementCalendarOpen])
 
   useEffect(() => {
     if (!isStorageReady) {
@@ -4186,6 +4444,94 @@ function InventoryStatusPage() {
             {quickEntryDate ? `${Number(quickEntryDate.slice(8, 10))}일` : '날짜 선택'} · 입고/생산/출고를 한 번에 입력
           </span>
         </div>
+        <div className="inventory-statement-calendar-panel no-print">
+          <div className="inventory-statement-calendar-panel-head">
+            <button
+              type="button"
+              className="ghost-button small"
+              aria-expanded={statementCalendarOpen}
+              onClick={() => {
+                const nextOpen = !statementCalendarOpen
+                setStatementCalendarOpen(nextOpen)
+                if (nextOpen) {
+                  setStatementCalendarViewYm(inventoryReferenceYm)
+                  void refreshStatementCalendarRecords()
+                }
+              }}
+            >
+              거래명세 캘린더 {statementCalendarOpen ? '숨기기' : '보기'}
+            </button>
+            <span className="inventory-statement-calendar-panel-hint">
+              화살표로 월 이동, 「기준월」으로 입출고 기준월({inventoryReferenceYm})로 돌아옵니다.
+            </span>
+          </div>
+          {statementCalendarOpen ? (
+            <div className="statements-calendar-viewport inventory-statement-calendar-viewport">
+              <div className="statements-calendar-toolbar">
+                <button
+                  type="button"
+                  className="ghost-button small"
+                  aria-label="이전 달"
+                  onClick={() => setStatementCalendarViewYm((prev) => calendarYmPlusMonths(prev, -1))}
+                >
+                  ←
+                </button>
+                <strong>{statementCalendarYmLabel}</strong>
+                <button
+                  type="button"
+                  className="ghost-button small"
+                  aria-label="다음 달"
+                  onClick={() => setStatementCalendarViewYm((prev) => calendarYmPlusMonths(prev, 1))}
+                >
+                  →
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button small"
+                  onClick={() => setStatementCalendarViewYm(inventoryReferenceYm)}
+                >
+                  기준월
+                </button>
+              </div>
+              <div className="statements-calendar-grid">
+                {['일', '월', '화', '수', '목', '금', '토'].map((dow) => (
+                  <div key={dow} className="statements-calendar-dow">
+                    {dow}
+                  </div>
+                ))}
+                {statementCalendarCells.map((cell) => {
+                  if (!cell.date || !cell.day) {
+                    return <div key={cell.key} className="statements-calendar-cell is-blank" />
+                  }
+                  const entry = statementCalendarEntries.get(cell.date)
+                  return (
+                    <div key={cell.key} className={`statements-calendar-cell${entry ? ' has-records' : ''}`}>
+                      <div className="statements-calendar-cell-head">
+                        <span>{cell.day}일</span>
+                        {entry ? <em>{entry.count}건</em> : null}
+                      </div>
+                      {entry ? (
+                        <div className="statements-calendar-cell-body">
+                          <strong>{new Intl.NumberFormat('ko-KR').format(Math.round(entry.totalAmount))}원</strong>
+                          <ul>
+                            {entry.records.slice(0, 2).map((record, idx) => (
+                              <li key={`${cell.key}-${idx}`}>
+                                {(record.clientName || '거래처 미지정').trim()} · {(record.itemName || '품목 미지정').trim()}
+                              </li>
+                            ))}
+                            {entry.records.length > 2 ? (
+                              <li className="statements-calendar-more">+{entry.records.length - 2}건 더 있음</li>
+                            ) : null}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
         {quickEntryModalOpen ? createPortal(
           (
           <div
@@ -4498,25 +4844,26 @@ function InventoryStatusPage() {
                     physicalCountDate: `${nextRef.slice(0, 8)}${physDay}`,
                     skipAutoStockDisplay: false,
                   }
-                  msg = `${newYm}에 저장해 둔 표를 불러왔습니다.`
-                } else {
-                  const rolled = rolloverInventoryStateToNextCalendarMonth(closed, nextRef)
-                  if (rolled) {
-                    nextActive = rolled
-                    msg =
-                      '새 달 표를 열었습니다. 전월 말 재고만 이달 1일 시작 재고로 이월하고, 일별 입고·생산·출고·로스팅은 비웠습니다. 이전 달 데이터는 그대로 보관됩니다.'
-                  } else {
-                    const blank = createZeroedInventoryStatusFrom(cloneInventoryStatusState(closed))
-                    nextActive = {
-                      ...blank,
-                      referenceDate: nextRef,
-                      physicalCountDate: defaultPhysicalCountDateFromReference(nextRef),
-                      surveyMarkedDays: [],
-                      skipAutoStockDisplay: false,
-                    }
-                    nextActive = applyPhysicalCountDateWhenEnablingAuto(nextActive)
-                    msg = `${newYm}에 저장된 표가 없어 숫자는 비운 표로 시작했습니다. 품목 구조는 유지됩니다.`
+                  if (isInventoryForwardMonthRollover(closed, nextRef)) {
+                    const closingStock = computeEndingStockByBeanName(closed)
+                    nextActive = patchStartingStockFromPreviousMonth(nextActive, closingStock)
                   }
+                  msg = `${newYm}에 저장해 둔 표를 불러왔습니다.`
+                } else if (isInventoryForwardMonthRollover(closed, nextRef)) {
+                  nextActive = rolloverInventoryStateToNextCalendarMonth(closed, nextRef)!
+                  msg =
+                    '새 달 표를 열었습니다. 전월 말 재고만 이달 1일 시작 재고로 이월하고, 일별 입고·생산·출고·로스팅은 비웠습니다. 이전 달 데이터는 그대로 보관됩니다.'
+                } else {
+                  const blank = createZeroedInventoryStatusFrom(cloneInventoryStatusState(closed))
+                  nextActive = {
+                    ...blank,
+                    referenceDate: nextRef,
+                    physicalCountDate: defaultPhysicalCountDateFromReference(nextRef),
+                    surveyMarkedDays: [],
+                    skipAutoStockDisplay: false,
+                  }
+                  nextActive = applyPhysicalCountDateWhenEnablingAuto(nextActive)
+                  msg = `${newYm}에 저장된 표가 없어 숫자는 비운 표로 시작했습니다. 품목 구조는 유지됩니다.`
                 }
 
                 setInventoryByMonth({
