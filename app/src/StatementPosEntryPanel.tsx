@@ -49,7 +49,6 @@ type Props = {
   masterItems: PosMasterItem[]
   defaultDeliveryDate: string
   defaultNote: string
-  noteOptions: readonly string[]
   existingRecords: PosStatementRecord[]
   favoriteClientsStorageKey: string
   allItemOptions: string[]
@@ -120,7 +119,6 @@ function StatementPosEntryPanel({
   masterItems,
   defaultDeliveryDate,
   defaultNote,
-  noteOptions,
   existingRecords,
   favoriteClientsStorageKey,
   allItemOptions,
@@ -429,9 +427,7 @@ function StatementPosEntryPanel({
         const existingIndex = current.findIndex(
           (line) =>
             normalize(line.itemName) === normalize(catalogItem.itemName) &&
-            normalize(line.specUnit) === normalize(catalogItem.specUnit) &&
-            line.note === note &&
-            line.isCashHandled === isCashHandled,
+            normalize(line.specUnit) === normalize(catalogItem.specUnit),
         )
         if (existingIndex >= 0) {
           const updated = [...current]
@@ -617,7 +613,23 @@ function StatementPosEntryPanel({
     setKeypadBuffer(null)
   }, [cart, deliveryDate, existingRecords, onCommit, selectedClient])
 
+  const handleTaxToggle = useCallback(() => {
+    const next = isTaxFreeNote(note) ? '부가세 별도' : '부가세 없음'
+    setNote(next)
+    setCart((current) => current.map((line) => ({ ...line, note: next })))
+  }, [note])
+
+  const handleCashToggle = useCallback(() => {
+    setIsCashHandled((current) => {
+      const next = !current
+      setCart((lines) => lines.map((line) => ({ ...line, isCashHandled: next })))
+      return next
+    })
+  }, [])
+
   const activeLine = cart.find((line) => line.id === activeLineId) ?? null
+  const isTaxSeparate = !isTaxFreeNote(note)
+  const checkoutDisabled = cart.length === 0
 
   const renderClientChip = (client: string) => {
     const isSelected = normalize(client) === normalize(selectedClient)
@@ -655,24 +667,6 @@ function StatementPosEntryPanel({
             onChange={(event) => setDeliveryDate(event.target.value)}
           />
         </label>
-        <label className="pos-field pos-field--note">
-          <span>과세</span>
-          <select value={note} onChange={(event) => setNote(event.target.value)}>
-            {noteOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className={`pos-toggle ${isCashHandled ? 'pos-toggle--on' : ''}`}
-          aria-pressed={isCashHandled}
-          onClick={() => setIsCashHandled((v) => !v)}
-        >
-          현금 {isCashHandled ? 'ON' : 'OFF'}
-        </button>
         <button
           type="button"
           className={`pos-toggle pos-toggle--admin${posAdminUnlocked ? ' pos-toggle--on' : ''}`}
@@ -1225,31 +1219,75 @@ function StatementPosEntryPanel({
               </span>
             </div>
             <div className="pos-keypad-grid">
-              {['7', '8', '9', '4', '5', '6', '1', '2', '3', '.', '0', '00'].map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  disabled={!activeLine}
-                  onClick={() => handleKeypadInput(key)}
-                >
-                  {key}
-                </button>
-              ))}
-              <button
-                type="button"
-                className="pos-keypad-back"
-                disabled={!activeLine}
-                onClick={() => handleKeypadInput('back')}
-              >
-                ←
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('7')}>
+                7
+              </button>
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('8')}>
+                8
+              </button>
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('9')}>
+                9
               </button>
               <button
                 type="button"
-                className="pos-keypad-clear"
+                className="pos-keypad-action pos-keypad-back"
+                disabled={!activeLine}
+                onClick={() => handleKeypadInput('back')}
+              >
+                ⌫
+              </button>
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('4')}>
+                4
+              </button>
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('5')}>
+                5
+              </button>
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('6')}>
+                6
+              </button>
+              <button
+                type="button"
+                className="pos-keypad-action pos-keypad-clear"
                 disabled={!activeLine}
                 onClick={() => handleKeypadInput('clear')}
               >
                 C
+              </button>
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('1')}>
+                1
+              </button>
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('2')}>
+                2
+              </button>
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('3')}>
+                3
+              </button>
+              <button
+                type="button"
+                className={`pos-keypad-option${isTaxSeparate ? ' pos-keypad-option--on' : ''}`}
+                disabled={checkoutDisabled}
+                aria-pressed={isTaxSeparate}
+                onClick={handleTaxToggle}
+              >
+                부가세 별도
+              </button>
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('.')}>
+                .
+              </button>
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('0')}>
+                0
+              </button>
+              <button type="button" disabled={!activeLine} onClick={() => handleKeypadInput('00')}>
+                00
+              </button>
+              <button
+                type="button"
+                className={`pos-keypad-option${isCashHandled ? ' pos-keypad-option--on' : ''}`}
+                disabled={checkoutDisabled}
+                aria-pressed={isCashHandled}
+                onClick={handleCashToggle}
+              >
+                현금
               </button>
             </div>
           </div>

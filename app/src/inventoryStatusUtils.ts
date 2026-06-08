@@ -32,11 +32,11 @@ export type BlendingDarkRecipe = BlendingRecipe
 
 export type InventoryStatusState = {
   referenceDate: string
-  /** 실사 반영일(해당 일자 재고는 수동·실사값 유지, 그 다음 일부터만 자동 연쇄) */
+  /** @deprecated 저장 호환용. `derivePhysicalCountDate`로 자동 맞춤 */
   physicalCountDate: string
   /**
    * 일자 헤더「실사」로 표시한 날(달력 일자 1–31). 해당 열 재고를 직접 맞출 수 있게 하는 핀.
-   * 비어 있으면 위쪽 `실사 기준일` 열만 월초와 함께 직접 입력 핀으로 쓴다.
+   * 월초(1일)도 항상 직접 입력 핀입니다.
    */
   surveyMarkedDays: number[]
   days: number[]
@@ -87,14 +87,39 @@ export const DEFAULT_BLENDING_DECAFFEINE_RECIPE: BlendingRecipe = {
 }
 
 /**
- * 실사 기준일 기본값 = 기준일(그날까지 직접 입력 재고 유지, 다음 날부터 자동 연쇄).
- * 예전에 `physicalCountDate` 필드가 없을 때만 쓰임(구버전 저장 호환).
+ * 구버전 저장 호환. 새 데이터는 `derivePhysicalCountDate`로 맞춥니다.
  */
-export const defaultPhysicalCountDateFromReference = (referenceDate: string): string => {
-  if (referenceDate.length >= 10) {
+export const defaultPhysicalCountDateFromReference = (referenceDate: string): string => referenceDate
+
+export const physicalCountDateForDayOfMonth = (referenceDate: string, dayOfMonth: number): string => {
+  if (referenceDate.length < 10) {
     return referenceDate
   }
-  return referenceDate
+  const d = Math.min(Math.max(Math.floor(dayOfMonth), 1), 31)
+  return `${referenceDate.slice(0, 8)}${String(d).padStart(2, '0')}`
+}
+
+/** 실사 ●·기준일에서 자동 산출 (별도 입력 UI 없음) */
+export const derivePhysicalCountDate = (
+  state: Pick<InventoryStatusState, 'referenceDate' | 'surveyMarkedDays'>,
+): string => {
+  const ref = state.referenceDate.trim()
+  if (ref.length < 10) {
+    return ref
+  }
+  if (state.surveyMarkedDays.length > 0) {
+    const latestDay = Math.max(...state.surveyMarkedDays)
+    return physicalCountDateForDayOfMonth(ref, latestDay)
+  }
+  return ref
+}
+
+export const withDerivedPhysicalCountDate = (state: InventoryStatusState): InventoryStatusState => {
+  const physicalCountDate = derivePhysicalCountDate(state)
+  if (physicalCountDate === state.physicalCountDate) {
+    return state
+  }
+  return { ...state, physicalCountDate }
 }
 
 /** `days`가 월의 각 일자일 때, 기준일 이하 중 가장 늦은 열(말일 초과 시 마지막 열) */
@@ -192,6 +217,12 @@ const formatLocalDate = (date: Date) => {
 
 /** 브라우저 로컬 기준 오늘 `YYYY-MM-DD` (기준일·실사일·요약 재고 열에 사용) */
 export const todayLocalIsoDateString = (): string => formatLocalDate(new Date())
+
+/** 월별 버킷·클라우드 복원 시 기준일: 이번 달이면 오늘, 과거·미래 월이면 그 달 1일 */
+export const referenceDateForInventoryMonthYm = (ym: string): string => {
+  const today = todayLocalIsoDateString()
+  return ym === today.slice(0, 7) ? today : `${ym}-01`
+}
 
 /** `YYYY-MM`에 대해 달력상 마지막 날 `YYYY-MM-DD` */
 export const lastCalendarDayIsoInMonth = (ym: string): string => {
@@ -405,20 +436,29 @@ export const CLOUD_REFERENCE_DATE_PLACEHOLDER = '2000-01-01'
  */
 export const withReferenceDateToday = (state: InventoryStatusState): InventoryStatusState => {
   const ref = state.referenceDate.trim()
+  const today = todayLocalIsoDateString()
+  const todayYm = today.slice(0, 7)
   const isUnsetOrCloudPlaceholder =
     ref.length < 10 || ref === CLOUD_REFERENCE_DATE_PLACEHOLDER || ref.startsWith('2000-')
-  if (!isUnsetOrCloudPlaceholder) {
-    return state
+  if (isUnsetOrCloudPlaceholder) {
+    if (state.referenceDate === today) {
+      return state
+    }
+    return {
+      ...state,
+      referenceDate: today,
+      physicalCountDate: defaultPhysicalCountDateFromReference(today),
+    }
   }
-  const today = todayLocalIsoDateString()
-  if (state.referenceDate === today) {
-    return state
+  /** 클라우드 복원 등으로 이번 달만 1일로 잡힌 경우 — 의도적으로 고른 다른 날은 유지 */
+  if (ref.slice(0, 7) === todayYm && ref === `${todayYm}-01`) {
+    return {
+      ...state,
+      referenceDate: today,
+      physicalCountDate: defaultPhysicalCountDateFromReference(today),
+    }
   }
-  return {
-    ...state,
-    referenceDate: today,
-    physicalCountDate: defaultPhysicalCountDateFromReference(today),
-  }
+  return state
 }
 
 export function stripReferenceDatesForCloudSync(state: InventoryStatusState): InventoryStatusState {
@@ -484,18 +524,10 @@ export const normalizeInventoryStatusState = (value: unknown): InventoryStatusSt
     const today = todayLocalIsoDateString()
     const refOk = typeof source.referenceDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(source.referenceDate)
     const referenceDate = refOk ? source.referenceDate : today
-    const physOk =
-      typeof source.physicalCountDate === 'string' &&
-      source.physicalCountDate.length >= 10 &&
-      /^\d{4}-\d{2}-\d{2}$/.test(source.physicalCountDate)
-    const physicalCountDate: string =
-      physOk && typeof source.physicalCountDate === 'string'
-        ? source.physicalCountDate
-        : defaultPhysicalCountDateFromReference(referenceDate)
 
-    return {
+    const draft: InventoryStatusState = {
       referenceDate,
-      physicalCountDate,
+      physicalCountDate: referenceDate,
       surveyMarkedDays,
       days: source.days.map((day) => toNumber(day)),
       beanRows: source.beanRows.map((bean) => ({
@@ -537,6 +569,7 @@ export const normalizeInventoryStatusState = (value: unknown): InventoryStatusSt
       ),
       skipAutoStockDisplay: source.skipAutoStockDisplay === true,
     }
+    return withDerivedPhysicalCountDate(draft)
   } catch {
     return null
   }

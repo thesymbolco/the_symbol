@@ -1914,9 +1914,21 @@ const createDefaultNotesByMonth = (months: string[]) =>
     return result
   }, {})
 
+const getCurrentMeetingMonthLabel = (months: string[]): string => {
+  const calendarMonthTab = `${new Date().getMonth() + 1}월`
+  if (months.includes(calendarMonthTab)) {
+    return calendarMonthTab
+  }
+  return months[months.length - 1] ?? calendarMonthTab
+}
+
+/** 페이지 진입 시 당월 탭 — 월별 입력 데이터는 그대로 두고 표시 월만 당월로 맞춤 */
+const resolveDefaultActiveMeetingMonth = (data: MonthlyMeetingData): string =>
+  getCurrentMeetingMonthLabel(data.months)
+
 const createDefaultState = (): MonthlyMeetingPageState => ({
   data: monthlyMeetingData,
-  activeMonth: monthlyMeetingData.monthLabel,
+  activeMonth: getCurrentMeetingMonthLabel(monthlyMeetingData.months),
   notesByMonth: createDefaultNotesByMonth(monthlyMeetingData.months),
   monthStatesByMonth: createMonthStates(monthlyMeetingData),
 })
@@ -2026,20 +2038,6 @@ const migrateMonthState = (s: MonthlyMeetingMonthState): MonthlyMeetingMonthStat
   beanSalesMaterialFrozen: typeof s.beanSalesMaterialFrozen === 'boolean' ? s.beanSalesMaterialFrozen : undefined,
 })
 
-/** 저장된 활성 월 우선 — 없거나 목록 밖이면 당월 등으로 폴백 (탭이 당월로 강제되는 문제 방지) */
-const resolveDefaultActiveMeetingMonth = (data: MonthlyMeetingData, parsedActiveMonth: unknown): string => {
-  const saved =
-    parsedActiveMonth !== undefined && parsedActiveMonth !== null ? String(parsedActiveMonth).trim() : ''
-  if (saved && data.months.includes(saved)) {
-    return saved
-  }
-  const calendarMonthTab = `${new Date().getMonth() + 1}월`
-  if (data.months.includes(calendarMonthTab)) {
-    return calendarMonthTab
-  }
-  return data.monthLabel
-}
-
 const normalizeMonthlyMeetingPageState = (raw: unknown): MonthlyMeetingPageState => {
   const parsed = (raw && typeof raw === 'object' ? raw : null) as Partial<MonthlyMeetingPageState> | null
   const parsedData = (parsed?.data as MonthlyMeetingData | undefined) ?? monthlyMeetingData
@@ -2051,7 +2049,7 @@ const normalizeMonthlyMeetingPageState = (raw: unknown): MonthlyMeetingPageState
   return migrateProductionHeaderToOutbound(
     stripInventoryTotalAmountColumn({
       data,
-      activeMonth: resolveDefaultActiveMeetingMonth(data, parsed?.activeMonth),
+      activeMonth: resolveDefaultActiveMeetingMonth(data),
       notesByMonth: {
         ...createDefaultNotesByMonth(data.months),
         ...(parsed?.notesByMonth ?? {}),

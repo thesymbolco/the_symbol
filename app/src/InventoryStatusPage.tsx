@@ -32,15 +32,16 @@ import {
   createDefaultInventoryStatusState,
   createZeroedInventoryStatusFrom,
   dayIndexForReferenceDate,
-  defaultPhysicalCountDateFromReference,
   lastCalendarDayIsoInMonth,
   INVENTORY_LOCAL_STORAGE_ENVELOPE_VERSION,
   normalizeInventoryStatusState,
   parseInventoryStatusStateFromLocalStorageJson,
   parseInventoryWorkbook,
+  referenceDateForInventoryMonthYm,
   resizeBlendingCyclesToDayCount,
   todayLocalIsoDateString,
   stripReferenceDatesForCloudSync,
+  withDerivedPhysicalCountDate,
   withReferenceDateToday,
   type BlendingRecipe,
   type BlendingRecipeComponent,
@@ -57,6 +58,9 @@ import {
   mergeKeepViewerReferenceDates,
 } from './inventoryEnvReferenceDates'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
+import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
+
+const STATEMENT_OUTBOUND_COMPARE_EPS = 0.0001
 
 export const INVENTORY_STATUS_STORAGE_KEY = 'inventory-status-v1'
 export const INVENTORY_STATUS_BASELINE_STORAGE_KEY = 'inventory-status-baseline-v1'
@@ -155,6 +159,10 @@ const formatTwoDecimals = (value: number) =>
   Number.isInteger(value)
     ? formatNumber(value)
     : value.toLocaleString('ko-KR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+
+/** 품목별 요약: 0은 대시, 나머지는 kg 단위 */
+const formatSummaryKg = (value: number) =>
+  Math.abs(value) < 0.0001 ? '—' : `${formatTwoDecimals(value)} kg`
 
 const normalizeNameKey = (value: string) => value.trim().toLowerCase()
 
@@ -348,12 +356,10 @@ const downloadBufferAsFile = (buffer: ArrayBuffer | Uint8Array, filename: string
 }
 
 /**
- * 재고 연쇄에 쓰는「직접 입력(핀)」열: 항상 1열(월초) + 실사로 표시한 날.
- * 실사 표시가 없으면 예전과 같이 `실사 기준일` 열만 추가 핀으로 둔다.
+ * 재고 연쇄에 쓰는「직접 입력(핀)」열: 항상 1열(월초) + 실사(●)로 표시한 날.
  *
- * 단, 기준일과 실사 기준일이 **같은 날**(ISO 문자열 동일)이면 해당 열은 연쇄로 채워야 하는
- * 종료 재고 역할이라 핀하지 않음. 그렇지 않으면 저장된 재고 칸이 0일 때 오늘이 6일이어도
- * 「6일 재고만 0」처럼 보이는 버그가 난다.
+ * `physicalCountDate`는 저장·호환용으로만 두며, 실사 ●가 없을 때 기준일과 같으면
+ * 추가 핀 없이 월초만 직접 입력합니다. 기준일과 같지 않으면(구 데이터) 해당 열도 핀.
  */
 export const buildStockPinnedDayIndices = (
   days: readonly number[],
@@ -655,6 +661,63 @@ const syncRoastingRowsFromBeanProduction = (state: InventoryStatusState): Invent
   return [...nextDailyRows, nextTotalsRow]
 }
 
+/** 선택한 일자 열의 입고·생산·출고를 0으로 비우고 재고·로스팅 표를 다시 맞춘다 */
+const clearInventoryDayTransactionValues = (
+  current: InventoryStatusState,
+  dayIndex: number,
+): InventoryStatusState => {
+  if (dayIndex < 0 || dayIndex >= current.days.length) {
+    return current
+  }
+
+  const previousRawByRow = current.beanRows.map((b) => [...b.production])
+  const nextBeanRows = current.beanRows.map((bean) => ({
+    ...bean,
+    inbound: bean.inbound.map((value, index) => (index === dayIndex ? 0 : value)),
+    production: bean.production.map((value, index) => (index === dayIndex ? 0 : value)),
+    outbound: bean.outbound.map((value, index) => (index === dayIndex ? 0 : value)),
+  }))
+
+  const interim: InventoryStatusState = {
+    ...current,
+    skipAutoStockDisplay: false,
+    beanRows: nextBeanRows,
+  }
+  const roastingRows = syncRoastingRowsFromBeanProduction(interim)
+  const withRoasting: InventoryStatusState = { ...interim, roastingRows }
+
+  const physIdx = dayIndexForReferenceDate(withRoasting.days, withRoasting.physicalCountDate)
+  const pins = buildStockPinnedDayIndices(
+    withRoasting.days,
+    withRoasting.surveyMarkedDays,
+    physIdx,
+    withRoasting.referenceDate,
+    withRoasting.physicalCountDate,
+  )
+
+  return {
+    ...withRoasting,
+    beanRows: withRoasting.beanRows.map((bean, bi) => ({
+      ...bean,
+      stock: resyncAutoStockForBeanRow(bean, pins, {
+        previousRawProduction: previousRawByRow[bi] ?? null,
+      }),
+    })),
+  }
+}
+
+const inventoryDayHasTransactionValues = (state: InventoryStatusState, dayIndex: number): boolean => {
+  if (dayIndex < 0) {
+    return false
+  }
+  return state.beanRows.some(
+    (bean) =>
+      (bean.inbound[dayIndex] ?? 0) !== 0 ||
+      (bean.production[dayIndex] ?? 0) !== 0 ||
+      (bean.outbound[dayIndex] ?? 0) !== 0,
+  )
+}
+
 /**
  * 기준일이 **바로 다음 달**로 넘어가는 경우(예: 4월 → 5월). 이때만 월 이월 롤오버를 적용한다.
  */
@@ -734,7 +797,7 @@ const rolloverInventoryStateToNextCalendarMonth = (
     ...next,
     roastingRows: syncRoastingRowsFromBeanProduction(next),
   }
-  return applyPhysicalCountDateWhenEnablingAuto(next)
+  return withDerivedPhysicalCountDate(next)
 }
 
 /**
@@ -808,40 +871,29 @@ const patchStartingStockFromPreviousMonth = (
   }
 }
 
-/** 직접 입력 → 자동 재고로 바꿀 때: 실사일이 같은 달 1일만 잡혀 있고 기준일이 1일이 아니면 기준일과 맞춤 */
-const applyPhysicalCountDateWhenEnablingAuto = (current: InventoryStatusState): InventoryStatusState => {
-  const ref = current.referenceDate
-  let physicalCountDate = current.physicalCountDate
-  if (
-    ref.length >= 10 &&
-    physicalCountDate.length >= 10 &&
-    physicalCountDate.slice(0, 8) === ref.slice(0, 8) &&
-    physicalCountDate.slice(8, 10) === '01' &&
-    ref.slice(8, 10) !== '01'
-  ) {
-    physicalCountDate = ref
+const MONTH_ROLLOVER_STOCK_EPS = 0.0001
+
+/** 전월 `inventoryByMonth` 버킷 말일 재고를 이번 달 1일 시작 재고에 맞춘다 (이미 같으면 그대로). */
+const patchStartingStockFromPriorMonthBucket = (
+  currentMonthState: InventoryStatusState,
+  buckets: Record<string, InventoryStatusState>,
+): InventoryStatusState => {
+  const currentYm = currentMonthState.referenceDate.slice(0, 7)
+  if (!/^\d{4}-\d{2}$/.test(currentYm)) {
+    return currentMonthState
   }
-  if (physicalCountDate === current.physicalCountDate) {
-    return current
+  const prevYm = calendarYmPlusMonths(currentYm, -1)
+  const prevState = buckets[prevYm]
+  if (!prevState || !inventoryStateHasFilledCells(prevState)) {
+    return currentMonthState
   }
-  return { ...current, physicalCountDate }
+  if (!isInventoryForwardMonthRollover(prevState, currentMonthState.referenceDate)) {
+    return currentMonthState
+  }
+  return patchStartingStockFromPreviousMonth(currentMonthState, computeEndingStockByBeanName(prevState))
 }
 
-const isoDateWithDayOfMonth = (referenceDate: string, dayOfMonth: number): string => {
-  if (referenceDate.length < 10) {
-    return referenceDate
-  }
-  const d = Math.min(Math.max(Math.floor(dayOfMonth), 1), 31)
-  return `${referenceDate.slice(0, 8)}${String(d).padStart(2, '0')}`
-}
-
-const withPhysicalCountDateFromSurveyMarks = (current: InventoryStatusState): InventoryStatusState => {
-  if (current.surveyMarkedDays.length === 0) {
-    return applyPhysicalCountDateWhenEnablingAuto(current)
-  }
-  const latestDay = Math.max(...current.surveyMarkedDays)
-  return { ...current, physicalCountDate: isoDateWithDayOfMonth(current.referenceDate, latestDay) }
-}
+/** 실사 ●가 켜진 날만 재고 칸 직접 편집 가능 (월초는 별도 규칙) */
 
 const isStockColumnEditable = (
   state: InventoryStatusState,
@@ -877,7 +929,260 @@ type InventoryStatementCalendarRecord = {
   deliveryDate: string
   itemName: string
   clientName: string
+  specUnit: string
+  quantity: number
   totalAmount: number
+}
+
+const formatStatementCalendarRecordLine = (record: InventoryStatementCalendarRecord) => {
+  const client = (record.clientName || '거래처 미지정').trim()
+  const item = (record.itemName || '품목 미지정').trim()
+  const qty = Number.isFinite(record.quantity) ? record.quantity : 0
+  const qtyLabel = Number.isInteger(qty) ? String(qty) : qty.toLocaleString('ko-KR')
+  return `${client} · ${item} ${qtyLabel}`
+}
+
+type QuickEntryDayStatementBean = {
+  beanIndex: number
+  beanName: string
+  label: string
+  statementQty: number
+  lines: InventoryStatementCalendarRecord[]
+}
+
+type QuickEntryDayStatementContext = {
+  date: string
+  hasStatements: boolean
+  lines: InventoryStatementCalendarRecord[]
+  beans: QuickEntryDayStatementBean[]
+  statementQtyByBeanName: Map<string, number>
+  unmapped: Array<{ itemName: string; quantity: number; clientName: string }>
+}
+
+const findBeanIndexByMappedLabel = (label: string, beanRows: readonly InventoryBeanRow[]): number => {
+  for (let i = 0; i < beanRows.length; i += 1) {
+    if (formatBeanRowLabel(beanRows[i]) === label) {
+      return i
+    }
+  }
+  return -1
+}
+
+/** 빠른 입력: 선택 날짜 명세를 생두 행에 매핑해 집계 */
+const buildQuickEntryDayStatementContext = (
+  date: string,
+  records: InventoryStatementCalendarRecord[],
+  inventory: InventoryStatusState,
+  mapOpts: { mode: 'local' | 'cloud'; companyId: string | null },
+): QuickEntryDayStatementContext => {
+  const empty: QuickEntryDayStatementContext = {
+    date,
+    hasStatements: false,
+    lines: [],
+    beans: [],
+    statementQtyByBeanName: new Map(),
+    unmapped: [],
+  }
+  if (!date || date.length < 10) {
+    return empty
+  }
+
+  const lines = records.filter((record) => record.deliveryDate === date)
+  if (lines.length === 0) {
+    return empty
+  }
+
+  const byBean = new Map<string, QuickEntryDayStatementBean>()
+  const unmapped: QuickEntryDayStatementContext['unmapped'] = []
+
+  for (const record of lines) {
+    const qty = Number.isFinite(record.quantity) ? record.quantity : 0
+    const mapped = mapStatementItemToInventoryLabel(record.itemName, inventory.beanRows, mapOpts)
+    if (!mapped.matched || mapped.label === '—') {
+      unmapped.push({
+        itemName: record.itemName,
+        quantity: qty,
+        clientName: record.clientName,
+      })
+      continue
+    }
+    const beanIndex = findBeanIndexByMappedLabel(mapped.label, inventory.beanRows)
+    if (beanIndex < 0) {
+      unmapped.push({
+        itemName: record.itemName,
+        quantity: qty,
+        clientName: record.clientName,
+      })
+      continue
+    }
+    const bean = inventory.beanRows[beanIndex]
+    const existing = byBean.get(bean.name) ?? {
+      beanIndex,
+      beanName: bean.name,
+      label: mapped.label,
+      statementQty: 0,
+      lines: [],
+    }
+    existing.statementQty += qty
+    existing.lines.push(record)
+    byBean.set(bean.name, existing)
+  }
+
+  const beans = [...byBean.values()].sort((a, b) => {
+    const noA = inventory.beanRows[a.beanIndex]?.no ?? 0
+    const noB = inventory.beanRows[b.beanIndex]?.no ?? 0
+    return (Number(noA) || 0) - (Number(noB) || 0)
+  })
+
+  return {
+    date,
+    hasStatements: lines.length > 0,
+    lines,
+    beans,
+    statementQtyByBeanName: new Map(beans.map((row) => [row.beanName, row.statementQty])),
+    unmapped,
+  }
+}
+
+type StatementOutboundCompareLine = {
+  key: string
+  date: string
+  label: string
+  statementQty: number
+  outboundKg: number
+  diff: number
+  matched: boolean
+}
+
+type StatementOutboundDaySummary = {
+  date: string
+  day: number
+  statementQty: number
+  outboundKg: number
+  hasDiff: boolean
+}
+
+const buildStatementOutboundCompare = (
+  records: InventoryStatementCalendarRecord[],
+  inventory: InventoryStatusState,
+  ym: string,
+  mapOpts: { mode: 'local' | 'cloud'; companyId: string | null },
+): {
+  canCompare: boolean
+  lines: StatementOutboundCompareLine[]
+  dayByDate: Map<string, StatementOutboundDaySummary>
+  monthStatementTotal: number
+  monthOutboundTotal: number
+  mismatchLineCount: number
+  unmapped: Array<{ date: string; itemName: string; quantity: number }>
+} => {
+  const canCompare = ym === inventory.referenceDate.slice(0, 7)
+  const agg = new Map<string, { statementQty: number; outboundKg: number; matched: boolean; label: string }>()
+  const unmapped: Array<{ date: string; itemName: string; quantity: number }> = []
+
+  if (canCompare) {
+    for (const record of records) {
+      if (!record.deliveryDate.startsWith(ym)) {
+        continue
+      }
+      const qty = Number.isFinite(record.quantity) ? record.quantity : 0
+      const mapped = mapStatementItemToInventoryLabel(record.itemName, inventory.beanRows, mapOpts)
+      if (!mapped.matched || mapped.label === '—') {
+        unmapped.push({ date: record.deliveryDate, itemName: record.itemName, quantity: qty })
+        continue
+      }
+      const key = `${record.deliveryDate}\0${mapped.label}`
+      const existing = agg.get(key) ?? {
+        statementQty: 0,
+        outboundKg: 0,
+        matched: true,
+        label: mapped.label,
+      }
+      existing.statementQty += qty
+      agg.set(key, existing)
+    }
+
+    inventory.beanRows.forEach((bean) => {
+      const label = formatBeanRowLabel(bean)
+      inventory.days.forEach((dayNum, dayIndex) => {
+        const date = `${ym}-${String(dayNum).padStart(2, '0')}`
+        const outbound = bean.outbound[dayIndex] ?? 0
+        if (Math.abs(outbound) < STATEMENT_OUTBOUND_COMPARE_EPS) {
+          return
+        }
+        const key = `${date}\0${label}`
+        const existing = agg.get(key) ?? {
+          statementQty: 0,
+          outboundKg: 0,
+          matched: true,
+          label,
+        }
+        existing.outboundKg += outbound
+        agg.set(key, existing)
+      })
+    })
+  }
+
+  const lines: StatementOutboundCompareLine[] = []
+  let monthStatementTotal = 0
+  let monthOutboundTotal = 0
+  let mismatchLineCount = 0
+
+  for (const [key, row] of agg.entries()) {
+    const [date] = key.split('\0')
+    const diff = row.statementQty - row.outboundKg
+    const hasDiff = Math.abs(diff) > STATEMENT_OUTBOUND_COMPARE_EPS
+    if (hasDiff) {
+      mismatchLineCount += 1
+    }
+    monthStatementTotal += row.statementQty
+    monthOutboundTotal += row.outboundKg
+    lines.push({
+      key,
+      date,
+      label: row.label,
+      statementQty: row.statementQty,
+      outboundKg: row.outboundKg,
+      diff,
+      matched: row.matched,
+    })
+  }
+
+  lines.sort((a, b) => {
+    const dateCmp = a.date.localeCompare(b.date)
+    if (dateCmp !== 0) {
+      return dateCmp
+    }
+    return a.label.localeCompare(b.label, 'ko')
+  })
+
+  const dayByDate = new Map<string, StatementOutboundDaySummary>()
+  for (const line of lines) {
+    const day = Number(line.date.slice(8, 10))
+    const existing = dayByDate.get(line.date) ?? {
+      date: line.date,
+      day: Number.isFinite(day) ? day : 0,
+      statementQty: 0,
+      outboundKg: 0,
+      hasDiff: false,
+    }
+    existing.statementQty += line.statementQty
+    existing.outboundKg += line.outboundKg
+    if (Math.abs(line.diff) > STATEMENT_OUTBOUND_COMPARE_EPS) {
+      existing.hasDiff = true
+    }
+    dayByDate.set(line.date, existing)
+  }
+
+  return {
+    canCompare,
+    lines,
+    dayByDate,
+    monthStatementTotal,
+    monthOutboundTotal,
+    mismatchLineCount,
+    unmapped: unmapped.sort((a, b) => a.date.localeCompare(b.date) || a.itemName.localeCompare(b.itemName, 'ko')),
+  }
 }
 
 type InventoryStatementPageDocumentLike = {
@@ -887,22 +1192,88 @@ type InventoryStatementPageDocumentLike = {
 const restoreMonthBucketAfterCloud = (ym: string, state: InventoryStatusState): InventoryStatusState => {
   const ref = state.referenceDate.trim()
   if (ref === CLOUD_REFERENCE_DATE_PLACEHOLDER || ref.startsWith('2000-')) {
-    const day1 = `${ym}-01`
-    return {
+    const nextRef = referenceDateForInventoryMonthYm(ym)
+    return withDerivedPhysicalCountDate({
       ...state,
-      referenceDate: day1,
-      physicalCountDate: defaultPhysicalCountDateFromReference(day1),
-    }
+      referenceDate: nextRef,
+    })
   }
   if (ref.length >= 10 && !ref.startsWith(ym)) {
-    const day1 = `${ym}-01`
-    return {
+    const nextRef = referenceDateForInventoryMonthYm(ym)
+    return withDerivedPhysicalCountDate({
       ...state,
-      referenceDate: day1,
-      physicalCountDate: defaultPhysicalCountDateFromReference(day1),
+      referenceDate: nextRef,
+    })
+  }
+  return withDerivedPhysicalCountDate(state)
+}
+
+const isCloudPlaceholderReferenceDate = (referenceDate: string) => {
+  const ref = referenceDate.trim()
+  return ref.length < 10 || ref === CLOUD_REFERENCE_DATE_PLACEHOLDER || ref.startsWith('2000-')
+}
+
+/** 입고·생산·출고·재고·로스팅에 0이 아닌 값이 하나라도 있으면 true */
+const inventoryStateHasFilledCells = (state: InventoryStatusState): boolean => {
+  for (const bean of state.beanRows) {
+    for (const values of [bean.inbound, bean.production, bean.outbound, bean.stock]) {
+      if (values.some((v) => Number(v) !== 0)) {
+        return true
+      }
     }
   }
-  return state
+  for (const row of state.roastingRows) {
+    if (row.values.some((v) => Number(v) !== 0)) {
+      return true
+    }
+  }
+  return false
+}
+
+/** 클라우드 placeholder·빈 top-level state가 월별 bucket 데이터를 덮지 않도록 복원 */
+const resolveInventoryDocumentForHydrate = (document: InventoryPageDocument): InventoryPageDocument => {
+  let inventoryByMonth = { ...document.inventoryByMonth }
+  let inventoryState = cloneInventoryStatusState(document.inventoryState)
+  const todayYm = todayLocalIsoDateString().slice(0, 7)
+
+  const pickBucketYm = (): string | null => {
+    const keys = Object.keys(inventoryByMonth).filter((ym) => /^\d{4}-\d{2}$/.test(ym))
+    if (inventoryByMonth[todayYm] && inventoryStateHasFilledCells(inventoryByMonth[todayYm])) {
+      return todayYm
+    }
+    const sorted = keys.sort((a, b) => b.localeCompare(a))
+    for (const ym of sorted) {
+      const bucket = inventoryByMonth[ym]
+      if (bucket && inventoryStateHasFilledCells(bucket)) {
+        return ym
+      }
+    }
+    return sorted[0] ?? null
+  }
+
+  if (isCloudPlaceholderReferenceDate(inventoryState.referenceDate) || !inventoryStateHasFilledCells(inventoryState)) {
+    const bucketYm = pickBucketYm()
+    if (bucketYm && inventoryByMonth[bucketYm]) {
+      inventoryState = cloneInventoryStatusState(inventoryByMonth[bucketYm])
+    }
+  }
+
+  inventoryState = withReferenceDateToday(inventoryState)
+  inventoryState = withDerivedPhysicalCountDate(inventoryState)
+  const activeYm = inventoryState.referenceDate.slice(0, 7)
+  inventoryByMonth = ensureCurrentYmInBuckets(inventoryState, inventoryByMonth)
+  if (/^\d{4}-\d{2}$/.test(activeYm)) {
+    inventoryByMonth = {
+      ...inventoryByMonth,
+      [activeYm]: cloneInventoryStatusState(inventoryState),
+    }
+  }
+
+  return {
+    ...document,
+    inventoryState,
+    inventoryByMonth,
+  }
 }
 
 const normalizeInventoryByMonthFromUnknown = (raw: unknown): Record<string, InventoryStatusState> => {
@@ -940,6 +1311,8 @@ const normalizeStatementCalendarRecords = (raw: unknown): InventoryStatementCale
       deliveryDate,
       itemName: String(src.itemName ?? '').trim(),
       clientName: String(src.clientName ?? '').trim(),
+      specUnit: String(src.specUnit ?? '').trim(),
+      quantity: Number.isFinite(Number(src.quantity)) ? Number(src.quantity) : 0,
       totalAmount: Number.isFinite(Number(src.totalAmount)) ? Number(src.totalAmount) : 0,
     })
   }
@@ -1076,7 +1449,7 @@ const readInventoryPageLocalDocument = (mode: 'local' | 'cloud', companyId: stri
     }
   }
 
-  return {
+  return resolveInventoryDocumentForHydrate({
     inventoryState,
     inventoryByMonth,
     baselineState,
@@ -1084,7 +1457,7 @@ const readInventoryPageLocalDocument = (mode: 'local' | 'cloud', companyId: stri
     templateFileName: savedTemplateName ?? '',
     historyNotes,
     quickEntryStepSettings,
-  }
+  })
 }
 
 const normalizeInventoryPageDocument = (value: unknown): InventoryPageDocument => {
@@ -1114,11 +1487,9 @@ const normalizeInventoryPageDocument = (value: unknown): InventoryPageDocument =
       : inventoryState
 
   let inventoryByMonth = normalizeInventoryByMonthFromUnknown(source.inventoryByMonth)
-  const ym = inventoryState.referenceDate.slice(0, 7)
   inventoryByMonth = ensureCurrentYmInBuckets(inventoryState, inventoryByMonth)
-  inventoryByMonth = { ...inventoryByMonth, [ym]: cloneInventoryStatusState(inventoryState) }
 
-  return {
+  return resolveInventoryDocumentForHydrate({
     inventoryState,
     inventoryByMonth,
     baselineState,
@@ -1129,7 +1500,7 @@ const normalizeInventoryPageDocument = (value: unknown): InventoryPageDocument =
     templateFileName: typeof source.templateFileName === 'string' ? source.templateFileName : '',
     historyNotes: normalizeInventoryHistoryNotes(source.historyNotes),
     quickEntryStepSettings: normalizeQuickEntryStepSettings(source.quickEntryStepSettings),
-  }
+  })
 }
 
 const getCellText = (cell: ExcelJS.Cell) => {
@@ -2113,7 +2484,6 @@ function InventoryStatusPage() {
   const beanDailyScrollRef = useRef<HTMLDivElement>(null)
   const [beanSearchTerm, setBeanSearchTerm] = useState('')
   const [showStockOnly, setShowStockOnly] = useState(false)
-  const [showActiveOnly, setShowActiveOnly] = useState(false)
   const [historyNotes, setHistoryNotes] = useState<InventoryHistoryNote[]>([])
   const [noteDate, setNoteDate] = useState(() => todayLocalIsoDateString())
   const [noteDraft, setNoteDraft] = useState('')
@@ -2194,6 +2564,22 @@ function InventoryStatusPage() {
     return cells
   }, [statementCalendarYm])
 
+  const statementMapOpts = useMemo(
+    () => ({ mode, companyId: activeCompanyId } as const),
+    [mode, activeCompanyId],
+  )
+
+  const statementOutboundCompare = useMemo(
+    () =>
+      buildStatementOutboundCompare(
+        statementCalendarRecords,
+        inventoryState,
+        statementCalendarYm,
+        statementMapOpts,
+      ),
+    [statementCalendarRecords, inventoryState, statementCalendarYm, statementMapOpts],
+  )
+
   useEffect(() => {
     if (statementCalendarOpen) {
       return
@@ -2246,6 +2632,7 @@ function InventoryStatusPage() {
   const [quickEntryKind, setQuickEntryKind] = useState<'inbound' | 'production' | 'outbound'>('inbound')
   const [quickEntryKg, setQuickEntryKg] = useState('')
   const [quickEntryBatchSearch, setQuickEntryBatchSearch] = useState('')
+  const [quickEntryStatementOnly, setQuickEntryStatementOnly] = useState(true)
   const [quickEntryDraftState, setQuickEntryDraftState] = useState<InventoryStatusState | null>(null)
   const [quickEntryDirty, setQuickEntryDirty] = useState(false)
   const [quickEntryStepSettings, setQuickEntryStepSettings] = useState<QuickEntryStepSettings>(() => ({
@@ -2254,14 +2641,16 @@ function InventoryStatusPage() {
   const [quickEntryStepDraft, setQuickEntryStepDraft] = useState<Record<QuickEntryStepKey, string>>(() =>
     quickEntryStepSettingsToDraft(DEFAULT_QUICK_ENTRY_STEP_SETTINGS),
   )
-  const [quickEntryStepsPanelOpen, setQuickEntryStepsPanelOpen] = useState(false)
+  const [monthRolloverPanelOpen, setMonthRolloverPanelOpen] = useState(false)
   const quickEntryKgInputRef = useRef<HTMLInputElement>(null)
 
   const openQuickEntryModal = useCallback(() => {
     setQuickEntryDraftState(cloneInventoryStatusState(inventoryStateRef.current))
     setQuickEntryDirty(false)
+    setQuickEntryStatementOnly(true)
     setQuickEntryModalOpen(true)
-  }, [])
+    void refreshStatementCalendarRecords()
+  }, [refreshStatementCalendarRecords])
 
   const closeQuickEntryModal = useCallback(() => {
     if (quickEntryDirty && quickEntryDraftState) {
@@ -2348,17 +2737,88 @@ function InventoryStatusPage() {
     return quickEntrySourceState.days.findIndex((day) => day === dayNum)
   }, [quickEntryDate, quickEntrySourceState.days, quickEntrySourceState.referenceDate])
 
-  const quickEntryBatchRows = useMemo(() => {
+  const quickEntryStatementContext = useMemo(
+    () =>
+      buildQuickEntryDayStatementContext(
+        quickEntryDate,
+        statementCalendarRecords,
+        quickEntrySourceState,
+        statementMapOpts,
+      ),
+    [quickEntryDate, quickEntrySourceState, statementCalendarRecords, statementMapOpts],
+  )
+
+  const quickEntryStatementBeanNames = useMemo(
+    () => new Set(quickEntryStatementContext.beans.map((row) => row.beanName)),
+    [quickEntryStatementContext.beans],
+  )
+
+  const quickEntryFilteredBeanRows = useMemo(() => {
     const needle = normalizeNameKey(quickEntryBatchSearch)
+    const useStatementFilter =
+      quickEntryStatementOnly &&
+      quickEntryStatementContext.beans.length > 0 &&
+      quickEntryDayIndex >= 0
     return quickEntrySourceState.beanRows
       .map((bean, beanIndex) => ({ bean, beanIndex }))
       .filter(({ bean }) => {
+        if (useStatementFilter && !quickEntryStatementBeanNames.has(bean.name)) {
+          return false
+        }
         if (!needle) {
           return true
         }
         return normalizeNameKey(`${bean.no} ${bean.name}`).includes(needle)
       })
-  }, [quickEntryBatchSearch, quickEntrySourceState.beanRows])
+  }, [
+    quickEntryBatchSearch,
+    quickEntryDayIndex,
+    quickEntrySourceState.beanRows,
+    quickEntryStatementBeanNames,
+    quickEntryStatementContext.beans.length,
+    quickEntryStatementOnly,
+  ])
+
+  const quickEntryProductOptions = useMemo(() => {
+    if (
+      quickEntryStatementOnly &&
+      quickEntryStatementContext.beans.length > 0 &&
+      quickEntryDayIndex >= 0
+    ) {
+      return quickEntryStatementContext.beans
+        .map((row) => quickEntrySourceState.beanRows[row.beanIndex])
+        .filter((bean): bean is InventoryBeanRow => bean != null)
+    }
+    return quickEntrySourceState.beanRows
+  }, [
+    quickEntryDayIndex,
+    quickEntrySourceState.beanRows,
+    quickEntryStatementContext.beans,
+    quickEntryStatementOnly,
+  ])
+
+  const quickEntryBatchRows = quickEntryFilteredBeanRows
+
+  useEffect(() => {
+    if (!quickEntryModalOpen || quickEntryProductOptions.length === 0) {
+      return
+    }
+    if (!quickEntryBeanName || !quickEntryProductOptions.some((b) => b.name === quickEntryBeanName)) {
+      setQuickEntryBeanName(quickEntryProductOptions[0]?.name ?? '')
+    }
+  }, [quickEntryBeanName, quickEntryModalOpen, quickEntryProductOptions])
+
+  useEffect(() => {
+    if (!quickEntryModalOpen || quickEntryStatementContext.beans.length === 0) {
+      return
+    }
+    setQuickEntryKind('outbound')
+  }, [quickEntryDate, quickEntryModalOpen, quickEntryStatementContext.beans.length])
+
+  const quickEntrySelectedDayHasValues = useMemo(
+    () => inventoryDayHasTransactionValues(quickEntrySourceState, quickEntryDayIndex),
+    [quickEntryDayIndex, quickEntrySourceState],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -2366,25 +2826,26 @@ function InventoryStatusPage() {
     setIsStorageReady(false)
     setIsCloudReady(mode === 'local')
     resetDocumentSaveUi()
-    initialRoastingSyncDoneRef.current = false
 
     const applyDocument = (
       document: InventoryPageDocument,
       source: 'local' | 'cloud',
       hasRemoteDocument: boolean,
     ) => {
+      const hydrated = resolveInventoryDocumentForHydrate(document)
       const wasManualStockMode =
         window.localStorage.getItem(
           inventoryPageScopedKey(INVENTORY_AUTO_STOCK_MODE_KEY, mode, activeCompanyId),
         ) === 'false'
-      let next = document.inventoryState
-      let nextBaseline = document.baselineState
+      let next = hydrated.inventoryState
+      let nextBaseline = hydrated.baselineState
+      let buckets = hydrated.inventoryByMonth
       let migratedFromManual = false
 
       if (wasManualStockMode && next.surveyMarkedDays.length === 0 && next.days.length > 0) {
         migratedFromManual = true
         next = { ...next, surveyMarkedDays: [...next.days] }
-        next = withPhysicalCountDateFromSurveyMarks(next)
+        next = withDerivedPhysicalCountDate(next)
         const physIdx = dayIndexForReferenceDate(next.days, next.physicalCountDate)
         const pins = buildStockPinnedDayIndices(
           next.days,
@@ -2409,7 +2870,7 @@ function InventoryStatusPage() {
       }
 
       const originalYm = next.referenceDate.slice(0, 7)
-      const originalSnapshot = cloneInventoryStatusState(next)
+      const originalSnapshot = cloneInventoryStatusState(buckets[originalYm] ?? next)
       next = withReferenceDateToday(next)
       nextBaseline = migratedFromManual ? next : withReferenceDateToday(nextBaseline)
 
@@ -2418,51 +2879,66 @@ function InventoryStatusPage() {
       }
 
       const todayYm = next.referenceDate.slice(0, 7)
-      const monthChanged = originalYm !== todayYm && /^\d{4}-\d{2}$/.test(originalYm) && /^\d{4}-\d{2}$/.test(todayYm)
+      const monthChanged =
+        originalYm !== todayYm && /^\d{4}-\d{2}$/.test(originalYm) && /^\d{4}-\d{2}$/.test(todayYm)
+
+      let activeState = next
+      let nextByMonth = { ...buckets, [todayYm]: cloneInventoryStatusState(next) }
 
       if (monthChanged) {
-        const rolled = todayYm === calendarYmPlusMonths(originalYm, 1)
-          ? rolloverInventoryStateToNextCalendarMonth(originalSnapshot, next.referenceDate)
-          : null
-        if (rolled) {
-          setInventoryByMonth({
-            ...document.inventoryByMonth,
-            [originalYm]: cloneInventoryStatusState(originalSnapshot),
-            [todayYm]: cloneInventoryStatusState(rolled),
-          })
-          setInventoryState(rolled)
-        } else {
-          const blank = createZeroedInventoryStatusFrom(cloneInventoryStatusState(next))
-          const blanked: InventoryStatusState = {
-            ...blank,
-            referenceDate: next.referenceDate,
-            physicalCountDate: defaultPhysicalCountDateFromReference(next.referenceDate),
-            surveyMarkedDays: [],
-            skipAutoStockDisplay: false,
+        const existingToday = buckets[todayYm]
+        if (existingToday && inventoryStateHasFilledCells(existingToday)) {
+          activeState = patchStartingStockFromPriorMonthBucket(
+            withReferenceDateToday(cloneInventoryStatusState(existingToday)),
+            buckets,
+          )
+          nextByMonth = {
+            ...buckets,
+            [originalYm]: originalSnapshot,
+            [todayYm]: cloneInventoryStatusState(activeState),
           }
-          setInventoryByMonth({
-            ...document.inventoryByMonth,
-            [originalYm]: cloneInventoryStatusState(originalSnapshot),
-            [todayYm]: cloneInventoryStatusState(blanked),
-          })
-          setInventoryState(blanked)
+        } else {
+          const rolled =
+            todayYm === calendarYmPlusMonths(originalYm, 1)
+              ? rolloverInventoryStateToNextCalendarMonth(originalSnapshot, next.referenceDate)
+              : null
+          if (rolled) {
+            activeState = rolled
+            nextByMonth = {
+              ...buckets,
+              [originalYm]: cloneInventoryStatusState(originalSnapshot),
+              [todayYm]: cloneInventoryStatusState(rolled),
+            }
+          } else {
+            activeState = patchStartingStockFromPriorMonthBucket(
+              withDerivedPhysicalCountDate({
+                ...createZeroedInventoryStatusFrom(cloneInventoryStatusState(next)),
+                referenceDate: next.referenceDate,
+                surveyMarkedDays: [],
+                skipAutoStockDisplay: false,
+              }),
+              { ...buckets, [originalYm]: originalSnapshot },
+            )
+            nextByMonth = {
+              ...buckets,
+              [originalYm]: cloneInventoryStatusState(originalSnapshot),
+              [todayYm]: cloneInventoryStatusState(activeState),
+            }
+          }
         }
-      } else {
-        setInventoryByMonth({
-          ...document.inventoryByMonth,
-          [todayYm]: cloneInventoryStatusState(next),
-        })
-        setInventoryState(next)
       }
+
+      setInventoryByMonth(nextByMonth)
+      setInventoryState(activeState)
       setBaselineState(migratedFromManual ? next : nextBaseline)
-      setTemplateBase64(document.templateBase64)
-      setTemplateFileName(document.templateFileName)
-      setHistoryNotes(document.historyNotes)
-      setQuickEntryStepSettings(document.quickEntryStepSettings ?? { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS })
+      setTemplateBase64(hydrated.templateBase64)
+      setTemplateFileName(hydrated.templateFileName)
+      setHistoryNotes(hydrated.historyNotes)
+      setQuickEntryStepSettings(hydrated.quickEntryStepSettings ?? { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS })
       setQuickEntryStepDraft(
-        quickEntryStepSettingsToDraft(document.quickEntryStepSettings ?? DEFAULT_QUICK_ENTRY_STEP_SETTINGS),
+        quickEntryStepSettingsToDraft(hydrated.quickEntryStepSettings ?? DEFAULT_QUICK_ENTRY_STEP_SETTINGS),
       )
-      setSelectedBeanName(next.beanRows[0]?.name ?? '')
+      setSelectedBeanName(activeState.beanRows[0]?.name ?? '')
       setStatusMessage(
         migratedFromManual
           ? '예전「직접 입력」재고를 유지하도록 모든 날에 실사 표시를 켰습니다. 필요 없는 날은 늦은 날부터 순서대로 해제해 주세요.'
@@ -2879,14 +3355,133 @@ function InventoryStatusPage() {
       if (showStockOnly && bean.endingStock <= 0) {
         return false
       }
-      const useSum = bean.productionUsageTotal
-      if (showActiveOnly && useSum <= 0 && bean.inboundTotal <= 0 && bean.outboundTotal <= 0) {
-        return false
-      }
       return true
     })
     return [...filtered].sort((a, b) => (Number(a.no) || 0) - (Number(b.no) || 0))
-  }, [beanSearchTerm, beanSummaryRows, showActiveOnly, showStockOnly])
+  }, [beanSearchTerm, beanSummaryRows, showStockOnly])
+
+  const beanSummaryTotals = useMemo(
+    () =>
+      filteredBeanSummaryRows.reduce(
+        (acc, bean) => ({
+          inbound: acc.inbound + bean.inboundTotal,
+          production: acc.production + bean.productionUsageTotal,
+          outbound: acc.outbound + bean.outboundTotal,
+          endingStock: acc.endingStock + bean.endingStock,
+        }),
+        { inbound: 0, production: 0, outbound: 0, endingStock: 0 },
+      ),
+    [filteredBeanSummaryRows],
+  )
+
+  const beanRowByName = useMemo(
+    () => new Map(displayedBeanRows.map((bean) => [bean.name, bean])),
+    [displayedBeanRows],
+  )
+
+  const monthRolloverCompare = useMemo(() => {
+    const compareState = quickEntryModalOpen ? quickEntrySourceState : inventoryState
+    const currentYm = compareState.referenceDate.slice(0, 7)
+    if (!/^\d{4}-\d{2}$/.test(currentYm)) {
+      return {
+        canCompare: false,
+        prevYm: '',
+        currentYm,
+        hasPrevBucket: false,
+        rows: [] as Array<{
+          no: number
+          name: string
+          prevEnd: number
+          currentStart: number
+          diff: number
+          hasDiff: boolean
+        }>,
+        mismatchCount: 0,
+      }
+    }
+    const prevYm = calendarYmPlusMonths(currentYm, -1)
+    const prevState = inventoryByMonth[prevYm]
+    const hasPrevBucket = Boolean(prevState && inventoryStateHasFilledCells(prevState))
+    if (!hasPrevBucket || !prevState) {
+      return {
+        canCompare: false,
+        prevYm,
+        currentYm,
+        hasPrevBucket: false,
+        rows: [],
+        mismatchCount: 0,
+      }
+    }
+
+    const physIdx = dayIndexForReferenceDate(compareState.days, compareState.physicalCountDate)
+    const currentPins = buildStockPinnedDayIndices(
+      compareState.days,
+      compareState.surveyMarkedDays,
+      physIdx,
+      compareState.referenceDate,
+      compareState.physicalCountDate,
+    )
+    const closingStock = computeEndingStockByBeanName(prevState)
+    const rows = compareState.beanRows
+      .map((bean) => {
+        const key = normalizeNameKey(bean.name)
+        const prevEnd = closingStock.get(key) ?? 0
+        const resynced = compareState.skipAutoStockDisplay
+          ? bean.stock
+          : resyncAutoStockForBeanRow(bean, currentPins)
+        const currentStart = resynced[0] ?? 0
+        const diff = currentStart - prevEnd
+        const hasDiff = Math.abs(diff) > MONTH_ROLLOVER_STOCK_EPS
+        return { no: bean.no, name: bean.name, prevEnd, currentStart, diff, hasDiff }
+      })
+      .filter((row) => row.prevEnd > 0 || row.currentStart > 0 || row.hasDiff)
+      .sort((a, b) => (Number(a.no) || 0) - (Number(b.no) || 0))
+
+    return {
+      canCompare: true,
+      prevYm,
+      currentYm,
+      hasPrevBucket: true,
+      rows,
+      mismatchCount: rows.filter((row) => row.hasDiff).length,
+    }
+  }, [inventoryByMonth, inventoryState, quickEntryModalOpen, quickEntrySourceState])
+
+  const applyPreviousMonthClosingStockToDay1 = useCallback(() => {
+    const currentYm = inventoryState.referenceDate.slice(0, 7)
+    const prevYm = monthRolloverCompare.prevYm
+    const prevState = inventoryByMonth[prevYm]
+    if (!prevState || !monthRolloverCompare.canCompare) {
+      setStatusMessage(
+        prevYm
+          ? `${prevYm}에 저장된 입출고 표가 없어 전월 말 재고를 가져올 수 없습니다.`
+          : '전월 말 재고를 비교할 수 없습니다.',
+      )
+      return
+    }
+    if (
+      !window.confirm(
+        `${prevYm} 말일 재고를 ${currentYm} 1일 시작 재고에 반영할까요?\n입고·생산·출고 등 일별 값은 그대로 두고, 1일 재고와 이후 연쇄만 다시 계산합니다.`,
+      )
+    ) {
+      return
+    }
+    const patch = (cur: InventoryStatusState) => patchStartingStockFromPriorMonthBucket(cur, inventoryByMonth)
+    setInventoryState((cur) => {
+      const patched = patch(cur)
+      if (/^\d{4}-\d{2}$/.test(currentYm)) {
+        setInventoryByMonth((months) => ({
+          ...months,
+          [currentYm]: cloneInventoryStatusState(patched),
+        }))
+      }
+      return patched
+    })
+    setQuickEntryDraftState((draft) => (draft ? patch(draft) : null))
+    setQuickEntryDirty(true)
+    setStatusMessage(`${prevYm} 말 재고를 ${currentYm} 1일 시작 재고에 반영했습니다.`)
+    setMonthRolloverPanelOpen(false)
+  }, [inventoryByMonth, inventoryState.referenceDate, monthRolloverCompare.canCompare, monthRolloverCompare.prevYm])
 
   const filteredBeanNames = useMemo(
     () => new Set(filteredBeanSummaryRows.map((bean) => bean.name)),
@@ -3269,7 +3864,7 @@ function InventoryStatusPage() {
       const wasMarked = marks.includes(calendarDay)
 
       const resyncAll = (next: InventoryStatusState): InventoryStatusState => {
-        const synced = withPhysicalCountDateFromSurveyMarks(next)
+        const synced = withDerivedPhysicalCountDate(next)
         const physIdx = dayIndexForReferenceDate(synced.days, synced.physicalCountDate)
         const pins = buildStockPinnedDayIndices(
           synced.days,
@@ -3598,6 +4193,48 @@ function InventoryStatusPage() {
     setQuickEntryDirty(true)
   }
 
+  const applyQuickEntryStatementToOutbound = () => {
+    if (quickEntryDayIndex < 0) {
+      setStatusMessage('날짜를 선택해 주세요.')
+      return
+    }
+    if (quickEntryStatementContext.beans.length === 0) {
+      setStatusMessage('이 날짜에 매핑된 명세 품목이 없습니다.')
+      return
+    }
+    for (const row of quickEntryStatementContext.beans) {
+      updateQuickBatchValue(row.beanIndex, 'outbound', String(row.statementQty))
+    }
+    setStatusMessage(
+      `${quickEntryDate.slice(8, 10)}일 명세 수량을 출고 칸에 반영했습니다. 생산은 필요 시 직접 수정해 주세요.`,
+    )
+  }
+
+  const resetQuickEntrySelectedDay = () => {
+    if (quickEntryDayIndex < 0) {
+      setStatusMessage('현재 기준월 안의 날짜를 선택해 주세요.')
+      return
+    }
+    if (!quickEntrySelectedDayHasValues) {
+      setStatusMessage('선택한 날짜에 초기화할 입고·생산·출고 값이 없습니다.')
+      return
+    }
+    const dayNum = quickEntrySourceState.days[quickEntryDayIndex]
+    if (
+      !window.confirm(
+        `${dayNum}일 모든 품목의 입고·생산·출고를 0으로 초기화할까요?\n재고는 자동으로 다시 계산됩니다. (실사 ●로 직접 넣은 재고는 유지)`,
+      )
+    ) {
+      return
+    }
+    setQuickEntryDraftState((current) => {
+      const base = current ?? cloneInventoryStatusState(inventoryStateRef.current)
+      return clearInventoryDayTransactionValues(base, quickEntryDayIndex)
+    })
+    setQuickEntryDirty(true)
+    setStatusMessage(`${dayNum}일 입고·생산·출고를 초기화했습니다.`)
+  }
+
   const applyQuickEntryStepSettingsFromDraft = useCallback(() => {
     const next = normalizeQuickEntryStepSettings({
       inbound: quickEntryStepDraft.inbound,
@@ -3610,13 +4247,6 @@ function InventoryStatusPage() {
       `빠른 입력 증감 단위: 입고 ${next.inbound}kg · 생산 ${next.production}kg · 출고 ${next.outbound}kg`,
     )
   }, [quickEntryStepDraft])
-
-  useEffect(() => {
-    if (!quickEntryStepsPanelOpen) {
-      return
-    }
-    setQuickEntryStepDraft(quickEntryStepSettingsToDraft(quickEntryStepSettings))
-  }, [quickEntryStepsPanelOpen, quickEntryStepSettings])
 
   const nudgeQuickEntryKgDraft = (direction: 1 | -1) => {
     const step = quickEntryStepSettings[quickEntryKind]
@@ -4186,11 +4816,10 @@ function InventoryStatusPage() {
     if (o.uiFilters) {
       setBeanSearchTerm('')
       setShowStockOnly(false)
-      setShowActiveOnly(false)
     }
     if (o.stockInputMode) {
       setInventoryState((cur) => {
-        const next = applyPhysicalCountDateWhenEnablingAuto({ ...cur, surveyMarkedDays: [] })
+        const next = withDerivedPhysicalCountDate({ ...cur, surveyMarkedDays: [] })
         const physIdx = dayIndexForReferenceDate(next.days, next.physicalCountDate)
         const pins = buildStockPinnedDayIndices(
           next.days,
@@ -4415,41 +5044,36 @@ function InventoryStatusPage() {
     <>
       {isStorageReady ? (
     <div className="meeting-layout">
-      <section className="panel inventory-top-controls-panel">
-        <div className="inventory-page-snapshot-metrics no-print" aria-label="현황 요약">
-          <div className="hero-metrics inventory-hero-metrics-inline">
+      <section className="panel inventory-top-controls-panel inventory-top-controls-panel--compact">
+        <div className="inventory-top-toolbar no-print">
+          <div className="hero-metrics inventory-hero-metrics-inline inventory-page-snapshot-metrics">
             <div className="metric-card">
               <span>기준일</span>
               <strong>{formatReferenceDate(inventoryState.referenceDate)}</strong>
             </div>
             <div className="metric-card">
-              <span>기준일 재고 합계</span>
+              <span>재고 합</span>
               <strong>{formatNumber(inventoryMetric.totalEndingStock)}kg</strong>
             </div>
             <div className="metric-card">
-              <span>월 누적 생산(사용) 합</span>
+              <span>생산 합</span>
               <strong>{formatNumber(roastingMetrics.grandTotal)}kg</strong>
             </div>
           </div>
-        </div>
-        <div className="inventory-quick-entry-launch no-print">
-          <button
-            type="button"
-            className="primary-button inventory-quick-entry-open-btn"
-            onClick={openQuickEntryModal}
-          >
-            빠른 입력 열기
-          </button>
-          <span className="inventory-quick-entry-launch-hint">
-            {quickEntryDate ? `${Number(quickEntryDate.slice(8, 10))}일` : '날짜 선택'} · 입고/생산/출고를 한 번에 입력
-          </span>
-        </div>
-        <div className="inventory-statement-calendar-panel no-print">
-          <div className="inventory-statement-calendar-panel-head">
+          <div className="inventory-top-toolbar-actions">
             <button
               type="button"
-              className="ghost-button small"
+              className="primary-button small-hit inventory-toolbar-main-btn"
+              onClick={openQuickEntryModal}
+              title="날짜별 입고·생산·출고를 한 번에 입력"
+            >
+              빠른 입력
+            </button>
+            <button
+              type="button"
+              className={`ghost-button small-hit inventory-toolbar-main-btn${statementCalendarOpen ? ' active' : ''}`}
               aria-expanded={statementCalendarOpen}
+              title="거래명세 납품 건수·금액 캘린더. 월 이동 후 「기준월」로 입출고 기준월로 복귀"
               onClick={() => {
                 const nextOpen = !statementCalendarOpen
                 setStatementCalendarOpen(nextOpen)
@@ -4459,13 +5083,12 @@ function InventoryStatusPage() {
                 }
               }}
             >
-              거래명세 캘린더 {statementCalendarOpen ? '숨기기' : '보기'}
+              캘린더 {statementCalendarOpen ? '▲' : '▼'}
             </button>
-            <span className="inventory-statement-calendar-panel-hint">
-              화살표로 월 이동, 「기준월」으로 입출고 기준월({inventoryReferenceYm})로 돌아옵니다.
-            </span>
           </div>
-          {statementCalendarOpen ? (
+        </div>
+        {statementCalendarOpen ? (
+          <div className="inventory-statement-calendar-panel no-print">
             <div className="statements-calendar-viewport inventory-statement-calendar-viewport">
               <div className="statements-calendar-toolbar">
                 <button
@@ -4504,23 +5127,55 @@ function InventoryStatusPage() {
                     return <div key={cell.key} className="statements-calendar-cell is-blank" />
                   }
                   const entry = statementCalendarEntries.get(cell.date)
+                  const dayCompare = statementOutboundCompare.dayByDate.get(cell.date)
+                  const showDayCompare =
+                    statementOutboundCompare.canCompare &&
+                    dayCompare &&
+                    (dayCompare.statementQty > 0 || dayCompare.outboundKg > 0)
                   return (
-                    <div key={cell.key} className={`statements-calendar-cell${entry ? ' has-records' : ''}`}>
+                    <div
+                      key={cell.key}
+                      className={`statements-calendar-cell${entry ? ' has-records' : ''}${
+                        dayCompare?.hasDiff ? ' has-compare-warn' : ''
+                      }`}
+                    >
                       <div className="statements-calendar-cell-head">
                         <span>{cell.day}일</span>
                         {entry ? <em>{entry.count}건</em> : null}
                       </div>
+                      {showDayCompare ? (
+                        <div
+                          className={`inventory-cal-compare-strip${dayCompare.hasDiff ? ' is-warn' : ' is-ok'}`}
+                          title="거래명세 수량 합계 ↔ 입출고 출고(kg) 합계"
+                        >
+                          <span>명세 {formatTwoDecimals(dayCompare.statementQty)}</span>
+                          <span>출고 {formatTwoDecimals(dayCompare.outboundKg)}</span>
+                          {dayCompare.hasDiff ? <span className="inventory-cal-compare-flag">차이</span> : null}
+                        </div>
+                      ) : null}
                       {entry ? (
                         <div className="statements-calendar-cell-body">
                           <strong>{new Intl.NumberFormat('ko-KR').format(Math.round(entry.totalAmount))}원</strong>
                           <ul>
-                            {entry.records.slice(0, 2).map((record, idx) => (
-                              <li key={`${cell.key}-${idx}`}>
-                                {(record.clientName || '거래처 미지정').trim()} · {(record.itemName || '품목 미지정').trim()}
+                            {entry.records.slice(0, 3).map((record, idx) => {
+                              const line = formatStatementCalendarRecordLine(record)
+                              return (
+                                <li key={`${cell.key}-${idx}`} title={line}>
+                                  {line}
+                                </li>
+                              )
+                            })}
+                            {entry.records.length > 3 ? (
+                              <li className="statements-calendar-more">
+                                +{entry.records.length - 3}건
+                                <div className="statements-calendar-more-tooltip" role="tooltip">
+                                  {entry.records.slice(3).map((record, idx) => (
+                                    <div key={`${cell.key}-more-${idx}`}>
+                                      {formatStatementCalendarRecordLine(record)}
+                                    </div>
+                                  ))}
+                                </div>
                               </li>
-                            ))}
-                            {entry.records.length > 2 ? (
-                              <li className="statements-calendar-more">+{entry.records.length - 2}건 더 있음</li>
                             ) : null}
                           </ul>
                         </div>
@@ -4529,9 +5184,88 @@ function InventoryStatusPage() {
                   )
                 })}
               </div>
+              <div className="inventory-statement-compare-panel">
+                {!statementOutboundCompare.canCompare ? (
+                  <p className="inventory-statement-compare-hint muted tiny">
+                    출고 대조는 캘린더 월과 입출고 <strong>기준월({inventoryReferenceYm})</strong>이 같을 때만
+                    가능합니다. 「기준월」을 누르거나 기준일을 맞춰 주세요.
+                  </p>
+                ) : (
+                  <>
+                    <div className="inventory-statement-compare-summary">
+                      <span>
+                        월 합계 · 명세 <strong>{formatTwoDecimals(statementOutboundCompare.monthStatementTotal)}</strong>
+                      </span>
+                      <span>
+                        출고 <strong>{formatTwoDecimals(statementOutboundCompare.monthOutboundTotal)}</strong>
+                      </span>
+                      <span
+                        className={
+                          statementOutboundCompare.mismatchLineCount > 0
+                            ? 'inventory-statement-compare-summary-warn'
+                            : 'inventory-statement-compare-summary-ok'
+                        }
+                      >
+                        {statementOutboundCompare.mismatchLineCount > 0
+                          ? `불일치 ${statementOutboundCompare.mismatchLineCount}건(품목·일)`
+                          : '품목·일 기준 일치'}
+                      </span>
+                    </div>
+                    {statementOutboundCompare.mismatchLineCount > 0 ? (
+                      <div className="table-wrapper inventory-statement-compare-table-wrap">
+                        <table className="meeting-table inventory-table inventory-statement-compare-table">
+                          <thead>
+                            <tr>
+                              <th>납품일</th>
+                              <th>생두(매핑)</th>
+                              <th>명세 수량</th>
+                              <th>출고(kg)</th>
+                              <th>차이</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {statementOutboundCompare.lines
+                              .filter((line) => Math.abs(line.diff) > STATEMENT_OUTBOUND_COMPARE_EPS)
+                              .map((line) => (
+                                <tr key={line.key}>
+                                  <td>{line.date.slice(8, 10)}일</td>
+                                  <td className="inventory-text-left">{line.label}</td>
+                                  <td>{formatTwoDecimals(line.statementQty)}</td>
+                                  <td>{formatTwoDecimals(line.outboundKg)}</td>
+                                  <td className="inventory-statement-compare-diff">
+                                    {line.diff > 0 ? '+' : ''}
+                                    {formatTwoDecimals(line.diff)}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null}
+                    {statementOutboundCompare.unmapped.length > 0 ? (
+                      <details className="inventory-statement-compare-unmapped">
+                        <summary>매핑 안 된 명세 품목 ({statementOutboundCompare.unmapped.length}줄)</summary>
+                        <p className="muted tiny">
+                          아래 품목은 출고 대조에서 제외됩니다. 원두별 매출 분석·명세↔입고 매핑에서 생두를 연결해 주세요.
+                        </p>
+                        <ul>
+                          {statementOutboundCompare.unmapped.slice(0, 12).map((row, idx) => (
+                            <li key={`${row.date}-${row.itemName}-${idx}`}>
+                              {row.date.slice(8, 10)}일 · {row.itemName} · {formatTwoDecimals(row.quantity)}
+                            </li>
+                          ))}
+                          {statementOutboundCompare.unmapped.length > 12 ? (
+                            <li className="muted tiny">외 {statementOutboundCompare.unmapped.length - 12}줄</li>
+                          ) : null}
+                        </ul>
+                      </details>
+                    ) : null}
+                  </>
+                )}
+              </div>
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
         {quickEntryModalOpen ? createPortal(
           (
           <div
@@ -4549,15 +5283,12 @@ function InventoryStatusPage() {
               <div className="inventory-quick-entry-modal-top">
                 <div>
                   <h3 id="inventory-quick-entry-modal-title">빠른 입력</h3>
-                  <p>
-                    날짜를 고정하고, 품목별 입고·생산·출고를 빠르게 입력합니다. 입력값은 모달을 닫을 때 한 번에
-                    저장됩니다.
-                  </p>
                 </div>
                 <button type="button" className="ghost-button small-hit" onClick={closeQuickEntryModal}>
                   닫기
                 </button>
               </div>
+              <div className="inventory-quick-entry-modal-body">
               <div className="inventory-quick-entry no-print" aria-label="빠른 입력">
                 <form
                   className="inventory-quick-entry-form inventory-quick-entry-form--compact"
@@ -4582,7 +5313,7 @@ function InventoryStatusPage() {
                       value={quickEntryBeanName}
                       onChange={(event) => setQuickEntryBeanName(event.target.value)}
                     >
-                      {quickEntrySourceState.beanRows.map((b) => (
+                      {quickEntryProductOptions.map((b) => (
                         <option key={`${b.no}-${b.name}`} value={b.name}>
                           {b.no}. {b.name}
                         </option>
@@ -4590,7 +5321,7 @@ function InventoryStatusPage() {
                     </select>
                   </label>
                   <div className="inventory-quick-entry-field">
-                    <span className="inventory-quick-entry-field-label">누적</span>
+                    <span className="inventory-quick-entry-field-label">구분</span>
                     <div className="inventory-quick-entry-kind" role="group" aria-label="입력 구분">
                       {(
                         [
@@ -4622,7 +5353,7 @@ function InventoryStatusPage() {
                       inputMode="decimal"
                       autoComplete="off"
                       enterKeyHint="done"
-                      placeholder="+kg"
+                      placeholder="0"
                       value={quickEntryKg}
                       onChange={(event) => setQuickEntryKg(event.target.value)}
                       onKeyDown={(event) => {
@@ -4637,102 +5368,202 @@ function InventoryStatusPage() {
                     />
                   </label>
                   <button type="submit" className="primary-button inventory-quick-entry-submit">
-                    누적
+                    +누적
                   </button>
                 </form>
-                <div className="inventory-quick-entry-steps-panel">
-                  <button
-                    type="button"
-                    className="ghost-button small inventory-quick-entry-steps-toggle"
-                    aria-expanded={quickEntryStepsPanelOpen}
-                    onClick={() => setQuickEntryStepsPanelOpen((open) => !open)}
-                  >
-                    증감 단위 설정 {quickEntryStepsPanelOpen ? '▾' : '▸'}
-                  </button>
-                  {quickEntryStepsPanelOpen ? (
-                    <div className="inventory-quick-entry-steps-form" role="group" aria-label="빠른 입력 증감 단위">
-                      <p className="inventory-quick-entry-steps-hint">
-                        일괄 입력 칸의 위·아래 화살표(또는 키보드 ↑↓)로 더하거나 뺄 때 쓰는 kg 단위입니다.
-                      </p>
-                      <div className="inventory-quick-entry-steps-grid">
-                        {(
-                          [
-                            ['inbound', '입고'],
-                            ['production', '생산'],
-                            ['outbound', '출고'],
-                          ] as const
-                        ).map(([key, label]) => (
-                          <label key={key} className="inventory-quick-entry-steps-field">
-                            {label}
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={quickEntryStepDraft[key]}
-                              onChange={(event) =>
-                                setQuickEntryStepDraft((current) => ({
-                                  ...current,
-                                  [key]: event.target.value,
-                                }))
+                <details className="inventory-quick-entry-steps-panel">
+                  <summary className="inventory-quick-entry-steps-toggle">±단위</summary>
+                  <div className="inventory-quick-entry-steps-form" role="group" aria-label="빠른 입력 증감 단위">
+                    <div className="inventory-quick-entry-steps-grid">
+                      {(
+                        [
+                          ['inbound', '입고'],
+                          ['production', '생산'],
+                          ['outbound', '출고'],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <label key={key} className="inventory-quick-entry-steps-field">
+                          {label}
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={quickEntryStepDraft[key]}
+                            onChange={(event) =>
+                              setQuickEntryStepDraft((current) => ({
+                                ...current,
+                                [key]: event.target.value,
+                              }))
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') {
+                                event.preventDefault()
+                                applyQuickEntryStepSettingsFromDraft()
                               }
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter') {
-                                  event.preventDefault()
-                                  applyQuickEntryStepSettingsFromDraft()
-                                }
-                              }}
-                              aria-label={`${label} 증감 kg`}
-                            />
-                            <span className="inventory-quick-entry-steps-unit">kg</span>
-                          </label>
-                        ))}
+                            }}
+                            aria-label={`${label} 증감 kg`}
+                          />
+                          <span className="inventory-quick-entry-steps-unit">kg</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="inventory-quick-entry-steps-actions">
+                      <button
+                        type="button"
+                        className="primary-button small"
+                        onClick={applyQuickEntryStepSettingsFromDraft}
+                      >
+                        적용
+                      </button>
+                    </div>
+                  </div>
+                </details>
+                {monthRolloverCompare.canCompare && monthRolloverCompare.mismatchCount > 0 ? (
+                  <div className="inventory-quick-rollover-strip">
+                    <div className="inventory-quick-rollover-strip-row">
+                      <span className="inventory-quick-rollover-strip-label">
+                        {monthRolloverCompare.prevYm}말 ↔ 1일 · 불일치 {monthRolloverCompare.mismatchCount}
+                      </span>
+                      <div className="inventory-quick-rollover-strip-actions">
+                      <button
+                        type="button"
+                        className="ghost-button small-hit"
+                        aria-expanded={monthRolloverPanelOpen}
+                        onClick={() => setMonthRolloverPanelOpen((open) => !open)}
+                      >
+                        {monthRolloverPanelOpen ? '접기' : '비교'}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-button small-hit inventory-month-rollover-apply"
+                        onClick={applyPreviousMonthClosingStockToDay1}
+                      >
+                        1일 반영
+                      </button>
                       </div>
-                      <div className="inventory-quick-entry-steps-actions">
+                    </div>
+                    {monthRolloverPanelOpen ? (
+                      <div className="inventory-quick-rollover-table-wrap">
+                        <table className="inventory-quick-rollover-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">품목</th>
+                              <th scope="col">말</th>
+                              <th scope="col">1일</th>
+                              <th scope="col">차이</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {monthRolloverCompare.rows
+                              .filter((row) => row.hasDiff)
+                              .map((row) => (
+                                <tr key={row.name}>
+                                  <td className="inventory-text-left">
+                                    {row.no}. {row.name}
+                                  </td>
+                                  <td>{formatTwoDecimals(row.prevEnd)}</td>
+                                  <td>{formatTwoDecimals(row.currentStart)}</td>
+                                  <td className="inventory-month-rollover-diff">
+                                    {row.diff > 0 ? '+' : ''}
+                                    {formatTwoDecimals(row.diff)}
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                {quickEntryDayIndex >= 0 && quickEntryStatementContext.hasStatements ? (
+                  <div className="inventory-quick-statement-day">
+                    <div className="inventory-quick-statement-day-head">
+                      <span className="inventory-quick-statement-day-title">
+                        명세 {quickEntryStatementContext.lines.length}건
+                      </span>
+                      <div className="inventory-quick-statement-day-actions">
                         <button
                           type="button"
-                          className="primary-button small"
-                          onClick={applyQuickEntryStepSettingsFromDraft}
+                          className={`ghost-button small-hit inventory-quick-statement-only-btn${
+                            quickEntryStatementOnly ? ' active' : ''
+                          }`}
+                          aria-pressed={quickEntryStatementOnly}
+                          onClick={() => setQuickEntryStatementOnly((v) => !v)}
+                          title="명세에 매핑된 품목만 표·목록에 표시"
                         >
-                          적용
+                          명세 품목만
                         </button>
-                        <span className="inventory-quick-entry-steps-current">
-                          현재: 입고 {quickEntryStepSettings.inbound} · 생산 {quickEntryStepSettings.production} · 출고{' '}
-                          {quickEntryStepSettings.outbound}
-                        </span>
+                        <button
+                          type="button"
+                          className="ghost-button small-hit inventory-quick-statement-apply-btn"
+                          onClick={applyQuickEntryStatementToOutbound}
+                          disabled={quickEntryStatementContext.beans.length === 0}
+                        >
+                          출고←명세
+                        </button>
                       </div>
                     </div>
-                  ) : null}
-                </div>
+                    <ul className="inventory-quick-statement-day-lines">
+                      {quickEntryStatementContext.lines.map((record, idx) => (
+                        <li key={`${record.deliveryDate}-${record.itemName}-${idx}`}>
+                          {formatStatementCalendarRecordLine(record)}
+                        </li>
+                      ))}
+                    </ul>
+                    {quickEntryStatementContext.unmapped.length > 0 ? (
+                      <p className="inventory-quick-statement-unmapped muted tiny">
+                        매핑 안 됨:{' '}
+                        {quickEntryStatementContext.unmapped
+                          .slice(0, 4)
+                          .map((u) => `${u.itemName} ${formatTwoDecimals(u.quantity)}`)
+                          .join(' · ')}
+                        {quickEntryStatementContext.unmapped.length > 4
+                          ? ` 외 ${quickEntryStatementContext.unmapped.length - 4}건`
+                          : ''}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div className="inventory-quick-batch">
-                  <div className="inventory-quick-batch-header">
-                    <div>
-                      <h4>선택 날짜 일괄 입력</h4>
-                      <p>값은 누적이 아니라 해당 날짜의 칸 값으로 바로 저장됩니다.</p>
-                    </div>
+                  <div className="inventory-quick-batch-toolbar">
+                    <strong className="inventory-quick-batch-title">
+                      {quickEntryDayIndex >= 0
+                        ? `${quickEntrySourceState.days[quickEntryDayIndex]}일 일괄`
+                        : '일괄 입력'}
+                      {quickEntryStatementOnly && quickEntryStatementContext.beans.length > 0
+                        ? ' · 명세'
+                        : ''}
+                    </strong>
                     <label className="inventory-quick-batch-search">
-                      품목 찾기
                       <input
                         type="search"
                         value={quickEntryBatchSearch}
                         onChange={(event) => setQuickEntryBatchSearch(event.target.value)}
-                        placeholder="번호·원두명"
+                        placeholder="품목 검색"
+                        aria-label="품목 검색"
                       />
                     </label>
-                  </div>
-                  <div className="inventory-quick-batch-stock-legend" aria-hidden="true">
-                    <span className="inventory-quick-batch-stock-legend-item is-ok">충분</span>
-                    <span className="inventory-quick-batch-stock-legend-item is-low">부족</span>
-                    <span className="inventory-quick-batch-stock-legend-item is-zero">없음</span>
-                    <span className="inventory-quick-batch-stock-legend-note">
-                      브라질·나리뇨·시다모 {LOW_STOCK_LOSSTING_BASE_BEANS_KG}kg 미만, 그 외{' '}
-                      {LOW_STOCK_OTHER_BEANS_KG}kg 미만
-                    </span>
+                    {quickEntryDayIndex >= 0 ? (
+                      <button
+                        type="button"
+                        className="ghost-button small-hit inventory-quick-batch-clear-day"
+                        disabled={!quickEntrySelectedDayHasValues}
+                        onClick={resetQuickEntrySelectedDay}
+                        title="해당 날 입고·생산·출고 0으로"
+                      >
+                        초기화
+                      </button>
+                    ) : null}
                   </div>
                   {quickEntryDayIndex < 0 ? (
                     <p className="inventory-quick-batch-empty">
                       현재 기준월 안의 날짜를 선택하면 일괄 입력 표가 열립니다.
                     </p>
                   ) : quickEntryBatchRows.length === 0 ? (
-                    <p className="inventory-quick-batch-empty">검색된 품목이 없습니다.</p>
+                    <p className="inventory-quick-batch-empty">
+                      {quickEntryStatementOnly && quickEntryStatementContext.beans.length > 0
+                        ? '이 날 명세에 매핑된 품목이 없습니다. 「명세 품목만」을 끄면 전체 품목이 보입니다.'
+                        : '검색된 품목이 없습니다.'}
+                    </p>
                   ) : (
                     <div className="inventory-quick-batch-table-wrap">
                       <table className="inventory-quick-batch-table">
@@ -4741,6 +5572,11 @@ function InventoryStatusPage() {
                             <th scope="col">품목</th>
                             <th scope="col">입고</th>
                             <th scope="col">생산</th>
+                            {quickEntryStatementContext.beans.length > 0 ? (
+                              <th scope="col" className="inventory-quick-batch-statement-th">
+                                명세
+                              </th>
+                            ) : null}
                             <th scope="col">출고</th>
                             <th scope="col">재고</th>
                           </tr>
@@ -4749,6 +5585,11 @@ function InventoryStatusPage() {
                           {quickEntryBatchRows.map(({ bean, beanIndex }) => {
                             const stockKg = bean.stock[quickEntryDayIndex] ?? 0
                             const stockTone = quickEntryStockTone(bean, stockKg)
+                            const statementQty = quickEntryStatementContext.statementQtyByBeanName.get(bean.name)
+                            const outboundKg = bean.outbound[quickEntryDayIndex] ?? 0
+                            const outboundDiff =
+                              statementQty != null &&
+                              Math.abs(outboundKg - statementQty) > STATEMENT_OUTBOUND_COMPARE_EPS
                             return (
                             <tr key={`${bean.no}-${bean.name}`}>
                               <th scope="row">
@@ -4759,7 +5600,6 @@ function InventoryStatusPage() {
                                 [
                                   ['inbound', '입고'],
                                   ['production', '생산'],
-                                  ['outbound', '출고'],
                                 ] as const
                               ).map(([key, label]) => (
                                 <td key={key}>
@@ -4778,6 +5618,30 @@ function InventoryStatusPage() {
                                   />
                                 </td>
                               ))}
+                              {quickEntryStatementContext.beans.length > 0 ? (
+                                <td className="inventory-quick-batch-statement-cell">
+                                  {statementQty != null ? formatTwoDecimals(statementQty) : '—'}
+                                </td>
+                              ) : null}
+                              <td className={outboundDiff ? 'inventory-quick-batch-outbound-warn' : ''}>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={quickEntryStepSettings.outbound}
+                                  inputMode="decimal"
+                                  className={`inventory-quick-batch-input${outboundDiff ? ' is-warn' : ''}`}
+                                  aria-label={`${bean.name} 출고`}
+                                  title={
+                                    outboundDiff && statementQty != null
+                                      ? `명세 ${formatTwoDecimals(statementQty)}kg · 출고 ${formatTwoDecimals(outboundKg)}kg`
+                                      : `↑↓ ${quickEntryStepSettings.outbound}kg씩 조정`
+                                  }
+                                  value={inventoryNumericInputValue(outboundKg)}
+                                  onFocus={(event) => event.currentTarget.select()}
+                                  onKeyDown={(event) => handleQuickBatchInputKeyDown(event, beanIndex, 'outbound')}
+                                  onChange={(event) => updateQuickBatchValue(beanIndex, 'outbound', event.target.value)}
+                                />
+                              </td>
                               <td
                                 className={`inventory-quick-batch-stock-cell inventory-quick-batch-stock-cell--${stockTone}`}
                                 title={quickEntryStockTitle(bean, stockKg)}
@@ -4793,12 +5657,13 @@ function InventoryStatusPage() {
                   )}
                 </div>
               </div>
+              </div>
             </div>
           </div>
           ),
           document.body,
         ) : null}
-        <div className="meeting-config-row inventory-config-row inventory-config-row--single-line">
+        <div className="meeting-config-row inventory-config-row inventory-config-row--single-line inventory-config-row--compact">
           <label className="meeting-inline-field">
             기준일
             <input
@@ -4813,12 +5678,13 @@ function InventoryStatusPage() {
                 const oldYm = inventoryState.referenceDate.slice(0, 7)
                 const newYm = nextRef.slice(0, 7)
                 if (oldYm === newYm) {
-                  setInventoryState((cur) => ({
-                    ...cur,
-                    skipAutoStockDisplay: false,
-                    referenceDate: nextRef,
-                    physicalCountDate: `${nextRef.slice(0, 8)}${cur.physicalCountDate.slice(8, 10)}`,
-                  }))
+                  setInventoryState((cur) =>
+                    withDerivedPhysicalCountDate({
+                      ...cur,
+                      skipAutoStockDisplay: false,
+                      referenceDate: nextRef,
+                    }),
+                  )
                   return
                 }
 
@@ -4832,18 +5698,11 @@ function InventoryStatusPage() {
                 let msg: string
 
                 if (existingNew) {
-                  nextActive = cloneInventoryStatusState(existingNew)
-                  const physDay =
-                    existingNew.physicalCountDate.length >= 10 &&
-                    existingNew.physicalCountDate.slice(0, 7) === newYm
-                      ? existingNew.physicalCountDate.slice(8, 10)
-                      : closed.physicalCountDate.slice(8, 10)
-                  nextActive = {
-                    ...nextActive,
+                  nextActive = withDerivedPhysicalCountDate({
+                    ...cloneInventoryStatusState(existingNew),
                     referenceDate: nextRef,
-                    physicalCountDate: `${nextRef.slice(0, 8)}${physDay}`,
                     skipAutoStockDisplay: false,
-                  }
+                  })
                   if (isInventoryForwardMonthRollover(closed, nextRef)) {
                     const closingStock = computeEndingStockByBeanName(closed)
                     nextActive = patchStartingStockFromPreviousMonth(nextActive, closingStock)
@@ -4854,17 +5713,16 @@ function InventoryStatusPage() {
                   msg =
                     '새 달 표를 열었습니다. 전월 말 재고만 이달 1일 시작 재고로 이월하고, 일별 입고·생산·출고·로스팅은 비웠습니다. 이전 달 데이터는 그대로 보관됩니다.'
                 } else {
-                  const blank = createZeroedInventoryStatusFrom(cloneInventoryStatusState(closed))
-                  nextActive = {
-                    ...blank,
+                  nextActive = withDerivedPhysicalCountDate({
+                    ...createZeroedInventoryStatusFrom(cloneInventoryStatusState(closed)),
                     referenceDate: nextRef,
-                    physicalCountDate: defaultPhysicalCountDateFromReference(nextRef),
                     surveyMarkedDays: [],
                     skipAutoStockDisplay: false,
-                  }
-                  nextActive = applyPhysicalCountDateWhenEnablingAuto(nextActive)
+                  })
                   msg = `${newYm}에 저장된 표가 없어 숫자는 비운 표로 시작했습니다. 품목 구조는 유지됩니다.`
                 }
+
+                nextActive = withDerivedPhysicalCountDate(nextActive)
 
                 setInventoryByMonth({
                   ...merged,
@@ -4876,77 +5734,33 @@ function InventoryStatusPage() {
             />
           </label>
           <label className="meeting-inline-field">
-            실사 기준일
-            <input
-              type="date"
-              value={inventoryState.physicalCountDate}
-              onChange={(event) =>
-                setInventoryState((current) => ({
-                  ...current,
-                  skipAutoStockDisplay: false,
-                  physicalCountDate: `${current.referenceDate.slice(0, 8)}${event.target.value.slice(8, 10)}`,
-                }))
-              }
-            />
-          </label>
-          <label className="meeting-inline-field">
             재고 보유 품목
             <input value={`${inventoryMetric.activeBeans}개`} readOnly />
           </label>
-          <label className="meeting-inline-field">
-            품목 검색
-            <input
-              value={beanSearchTerm}
-              onChange={(event) => setBeanSearchTerm(event.target.value)}
-              placeholder="생두명 검색"
-            />
-          </label>
         </div>
-        <div className="inventory-actions inventory-actions--under-config">
-          <button
-            type="button"
-            className={
-              showStockOnly
-                ? 'inventory-toggle-button inventory-actions-toggle-button active'
-                : 'inventory-toggle-button inventory-actions-toggle-button'
-            }
-            onClick={() => setShowStockOnly((current) => !current)}
-          >
-            {showStockOnly ? '전체 재고 보기' : '재고 있는 품목만'}
-          </button>
-          <button
-            type="button"
-            className={
-              showActiveOnly
-                ? 'inventory-toggle-button inventory-actions-toggle-button active'
-                : 'inventory-toggle-button inventory-actions-toggle-button'
-            }
-            onClick={() => setShowActiveOnly((current) => !current)}
-          >
-            {showActiveOnly ? '전체 활동 보기' : '사용 이력 품목만'}
-          </button>
-          <label className="upload-button secondary">
-            자료 엑셀 업로드
+        <div className="inventory-actions inventory-actions--under-config inventory-actions--compact">
+          <label className="upload-button secondary small-hit inventory-toolbar-main-btn" title="엑셀 파일로 표 가져오기">
+            업로드
             <input type="file" accept=".xlsx,.xls" onChange={handleWorkbookUpload} />
           </label>
-          <button type="button" className="ghost-button" onClick={handleExportWorkbook}>
-            엑셀 저장
+          <button type="button" className="ghost-button small-hit inventory-toolbar-main-btn" onClick={handleExportWorkbook}>
+            저장
           </button>
           <button
             type="button"
-            className="ghost-button"
+            className="ghost-button small-hit inventory-toolbar-main-btn"
             onClick={handleResetDefault}
             disabled={!templateBase64}
             title={
               templateBase64
-                ? '마지막으로 업로드한 엑셀 기준으로 표를 되돌립니다.'
-                : '엑셀 자료를 업로드한 뒤에만 사용할 수 있습니다.'
+                ? '마지막 업로드 엑셀 기준으로 복원'
+                : '엑셀 업로드 후 사용 가능'
             }
           >
-            기본값 복원
+            복원
           </button>
         </div>
-        <div className="page-status-bar">
+        <div className="page-status-bar page-status-bar--compact">
           <div className="page-status-inline inventory-status-inline">
             <p className="page-status-message" role="status" aria-live="polite">
               {statusMessage}
@@ -4955,7 +5769,7 @@ function InventoryStatusPage() {
               className="inventory-info-tooltip-trigger"
               role="img"
               aria-label="재고 연쇄·실사 설명"
-              title="같은 달 안에서는 기준일만 바뀌고, 다른 달로 바꾸면 그 달에 마지막으로 저장해 둔 표가 열립니다(없으면 전월 말 재고만 이월한 새 달이거나, 저장 본이 없으면 숫자만 비운 표로 시작). 이전 달 데이터는 브라우저·클라우드에 월별로 남습니다. 입고·생산·출고는 날짜별로 모두 적을 수 있고, 재고는 그에 맞춰 자동으로 이어집니다. 재고를 직접 맞출 수 있는 칸은 월초(1일)와, 일자 헤더에서「실사」를 켠 날, 그리고 실사 표시가 없을 때는 위쪽「실사 기준일」열입니다. 여러 날에 실사를 켜면 그 사이도 연쇄로 계산됩니다. 일자 옆 ●는 재고를 직접 넣는 칸입니다. 실사 해제는 달력상 가장 늦게 켠 날부터만 가능합니다."
+              title="같은 달 안에서는 기준일만 바뀌고, 다른 달로 바꾸면 그 달에 마지막으로 저장해 둔 표가 열립니다(없으면 전월 말 재고만 이월한 새 달이거나, 저장 본이 없으면 숫자만 비운 표로 시작). 이전 달 데이터는 브라우저·클라우드에 월별로 남습니다. 입고·생산·출고는 날짜별로 모두 적을 수 있고, 재고는 그에 맞춰 자동으로 이어집니다. 재고를 직접 맞출 수 있는 칸은 월초(1일)와, 일자 헤더에서「실사」를 켠 날입니다. 여러 날에 실사를 켜면 그 사이도 연쇄로 계산됩니다. 일자 옆 ●는 재고를 직접 넣는 칸입니다. 실사 해제는 달력상 가장 늦게 켠 날부터만 가능합니다."
             >
               i
             </span>
@@ -4967,60 +5781,100 @@ function InventoryStatusPage() {
       <>
         <section className="meeting-grid">
           <div className="meeting-card">
-            <div className="meeting-card-header inventory-bean-summary-card-header">
+            <div className="meeting-card-header inventory-bean-summary-card-header inventory-bean-summary-card-header--compact">
               <h3>품목별 요약</h3>
               <div className="inventory-bean-summary-header-actions">
-                <span className="inventory-filter-summary">
-                  {filteredBeanSummaryRows.length} / {beanSummaryRows.length}개 표시
+                <label className="inventory-bean-summary-search">
+                  <input
+                    type="search"
+                    value={beanSearchTerm}
+                    onChange={(event) => setBeanSearchTerm(event.target.value)}
+                    placeholder="생두명 검색"
+                    aria-label="품목별 요약 검색"
+                  />
+                </label>
+                <span className="inventory-filter-summary inventory-filter-summary--compact">
+                  {filteredBeanSummaryRows.length}/{beanSummaryRows.length}
                 </span>
                 <div className="inventory-bean-summary-action-buttons">
                   <button
                     type="button"
-                    className={`ghost-button small-hit inventory-bean-summary-name-edit-button${
+                    className={`ghost-button small-hit inventory-bean-summary-action-btn${
                       inventoryNameEditMode ? ' active' : ''
                     }`}
                     onClick={handleInventoryNameEditToggle}
                     title={
                       inventoryNameEditMode
-                        ? '품목명 편집을 마칩니다. 로스팅 열·품목별 요약에서 이름을 더 바꾸려면 다시 켜세요.'
-                        : '관리자 비밀번호(0402) 확인 후 품목명을 바꿀 수 있습니다. 생두 행과 로스팅 열 이름이 함께 바뀝니다.'
+                        ? '품목명 편집 종료'
+                        : '관리자 비밀번호(0402) 후 품목명 수정 (로스팅 열 연동)'
                     }
                   >
-                    {inventoryNameEditMode ? '이름 수정 끝' : '이름 수정'}
+                    {inventoryNameEditMode ? '완료' : '수정'}
                   </button>
                   <button
                     type="button"
-                    className="ghost-button small-hit inventory-bean-summary-reset-button"
+                    className={`ghost-button small-hit inventory-bean-summary-action-btn${
+                      showStockOnly ? ' active' : ''
+                    }`}
+                    aria-pressed={showStockOnly}
+                    onClick={() => setShowStockOnly((current) => !current)}
+                    title={showStockOnly ? '재고 없는 품목도 표시' : '기준일 재고가 있는 품목만'}
+                  >
+                    재고 품목
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-button small-hit inventory-bean-summary-action-btn inventory-bean-summary-reset-button"
                     onClick={openFullResetDialog}
+                    title="표·메모·필터 등 선택 초기화"
                   >
                     초기화
                   </button>
                 </div>
               </div>
             </div>
-            <div className="table-wrapper">
+            <div className="table-wrapper inventory-bean-summary-table-wrap">
               <table className="meeting-table inventory-table inventory-bean-summary-table">
                 <colgroup>
                   <col className="inventory-summary-col-name inventory-summary-col-no-name" />
                   <col className="inventory-summary-col-num" />
                   <col className="inventory-summary-col-num" />
                   <col className="inventory-summary-col-num" />
-                  <col className="inventory-summary-col-num" />
+                  <col className="inventory-summary-col-num inventory-summary-col-stock" />
                 </colgroup>
                 <thead>
                   <tr>
                     <th className="inventory-sticky-column inventory-bean-summary-no-name-th" scope="col">
                       NO · 생두명
                     </th>
-                    <th scope="col">입고 합계</th>
-                    <th scope="col">생산(사용) 합계</th>
-                    <th scope="col">출고 합계</th>
-                    <th scope="col">기준일 재고</th>
+                    <th scope="col" className="inventory-summary-num-th" title="이번 달 입고 합계">
+                      입고
+                    </th>
+                    <th scope="col" className="inventory-summary-num-th" title="생산(사용) 합계">
+                      생산
+                    </th>
+                    <th scope="col" className="inventory-summary-num-th" title="출고 합계">
+                      출고
+                    </th>
+                    <th
+                      scope="col"
+                      className="inventory-summary-num-th inventory-summary-stock-th"
+                      title="기준일 재고"
+                    >
+                      재고
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredBeanSummaryRows.map((bean) => (
-                    <tr key={bean.name}>
+                  {filteredBeanSummaryRows.map((bean) => {
+                    const beanRow = beanRowByName.get(bean.name)
+                    const stockTone = beanRow
+                      ? quickEntryStockTone(beanRow, bean.endingStock)
+                      : bean.endingStock <= 0
+                        ? 'zero'
+                        : 'neutral'
+                    return (
+                    <tr key={bean.name} className={`inventory-bean-summary-row inventory-bean-summary-row--stock-${stockTone}`}>
                       <td className="inventory-sticky-column inventory-text-left inventory-bean-name-td inventory-bean-summary-no-name-td">
                         {inventoryNameEditMode ? (
                           <input
@@ -5045,17 +5899,36 @@ function InventoryStatusPage() {
                             type="button"
                             className="inventory-bean-name-cell-button"
                             onClick={() => openBeanDetailModal(bean.name)}
+                            title="일별 상세 보기"
                           >
                             <span className="inventory-bean-summary-no-prefix">{bean.no}.</span> {bean.name}
                           </button>
                         )}
                       </td>
-                      <td className="inventory-summary-num-cell">{formatNumber(bean.inboundTotal)}</td>
-                      <td className="inventory-summary-num-cell">{formatNumber(bean.productionUsageTotal)}</td>
-                      <td className="inventory-summary-num-cell">{formatNumber(bean.outboundTotal)}</td>
-                      <td className="inventory-summary-num-cell">{formatNumber(bean.endingStock)}</td>
+                      <td
+                        className={`inventory-summary-num-cell${Math.abs(bean.inboundTotal) < 0.0001 ? ' inventory-summary-num-cell--zero' : ''}`}
+                      >
+                        {formatSummaryKg(bean.inboundTotal)}
+                      </td>
+                      <td
+                        className={`inventory-summary-num-cell${Math.abs(bean.productionUsageTotal) < 0.0001 ? ' inventory-summary-num-cell--zero' : ''}`}
+                      >
+                        {formatSummaryKg(bean.productionUsageTotal)}
+                      </td>
+                      <td
+                        className={`inventory-summary-num-cell${Math.abs(bean.outboundTotal) < 0.0001 ? ' inventory-summary-num-cell--zero' : ''}`}
+                      >
+                        {formatSummaryKg(bean.outboundTotal)}
+                      </td>
+                      <td
+                        className={`inventory-summary-num-cell inventory-summary-stock-cell inventory-quick-batch-stock-cell inventory-quick-batch-stock-cell--${stockTone}`}
+                        title={beanRow ? quickEntryStockTitle(beanRow, bean.endingStock) : undefined}
+                      >
+                        {formatSummaryKg(bean.endingStock)}
+                      </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                   {filteredBeanSummaryRows.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="inventory-empty-cell">
@@ -5064,6 +5937,27 @@ function InventoryStatusPage() {
                     </tr>
                   ) : null}
                 </tbody>
+                {filteredBeanSummaryRows.length > 0 ? (
+                  <tfoot>
+                    <tr className="inventory-bean-summary-total-row">
+                      <th scope="row" className="inventory-sticky-column inventory-text-left">
+                        합계 ({filteredBeanSummaryRows.length}품목)
+                      </th>
+                      <td className="inventory-summary-num-cell inventory-summary-num-cell--total">
+                        {formatSummaryKg(beanSummaryTotals.inbound)}
+                      </td>
+                      <td className="inventory-summary-num-cell inventory-summary-num-cell--total">
+                        {formatSummaryKg(beanSummaryTotals.production)}
+                      </td>
+                      <td className="inventory-summary-num-cell inventory-summary-num-cell--total">
+                        {formatSummaryKg(beanSummaryTotals.outbound)}
+                      </td>
+                      <td className="inventory-summary-num-cell inventory-summary-num-cell--total inventory-summary-stock-cell">
+                        {formatSummaryKg(beanSummaryTotals.endingStock)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                ) : null}
               </table>
             </div>
           </div>
@@ -5302,6 +6196,146 @@ function InventoryStatusPage() {
 
           <div className="meeting-card">
             <div className="meeting-card-header">
+              <h3>{roastingViewMode === 'daily' ? '일자별 로스팅 현황' : '주단위 로스팅 현황'}</h3>
+              <div className="segmented">
+                <button
+                  type="button"
+                  className={roastingViewMode === 'daily' ? 'active' : ''}
+                  onClick={() => setRoastingViewMode('daily')}
+                >
+                  일별
+                </button>
+                <button
+                  type="button"
+                  className={roastingViewMode === 'weekly' ? 'active' : ''}
+                  onClick={() => setRoastingViewMode('weekly')}
+                >
+                  주별
+                </button>
+              </div>
+            </div>
+            {roastingViewMode === 'daily' ? (
+              <DailyRoastingJournal
+                days={inventoryState.days}
+                columnIndices={visibleRoastingColumnIndices}
+                columnNames={inventoryState.roastingColumns}
+                columnDisplayNo={roastingColumnIndexToDisplayNo}
+                dailyRows={roastingDailyRows}
+                columnTotals={computedRoastingTotals}
+                grandTotal={roastingMetrics.grandTotal}
+                latestActiveDay={roastingMetrics.latestActiveDay}
+                peakDay={roastingMetrics.peakDay}
+                daysWithRoasting={roastingMetrics.daysWithRoasting}
+                referenceDate={inventoryState.referenceDate}
+                onChangeCell={updateRoastingValue}
+                blendingDarkCycles={inventoryState.blendingDarkCycles}
+                blendingDarkRecipe={inventoryState.blendingDarkRecipe}
+                blendingLightCycles={inventoryState.blendingLightCycles}
+                blendingLightRecipe={inventoryState.blendingLightRecipe}
+                blendingDecaffeineCycles={inventoryState.blendingDecaffeineCycles}
+                blendingDecaffeineRecipe={inventoryState.blendingDecaffeineRecipe}
+                beanNameOptions={inventoryState.beanRows.map((b) => b.name)}
+                onChangeBlendingCycles={updateBlendingCyclesForDay}
+                onChangeRecipeComponent={updateBlendingRecipeComponent}
+                onChangeRoastedPerCycle={updateBlendingRoastedPerCycle}
+                onAddRecipeComponent={addBlendingRecipeComponent}
+                onRemoveRecipeComponent={removeBlendingRecipeComponent}
+              />
+            ) : (
+              <div className="table-wrapper">
+                <table className="meeting-table inventory-table">
+                  <thead>
+                    <tr>
+                      <th className="inventory-sticky-column">주차</th>
+                      {visibleRoastingColumnIndices.map((index) => {
+                        const headerNo = roastingColumnIndexToDisplayNo.get(index) ?? null
+                        return (
+                          <th key={`roast-col-h-${index}`} className="inventory-roasting-th-name">
+                            <div className="inventory-roasting-th-name-inner">
+                              {headerNo != null ? (
+                                <span className="inventory-roasting-col-no-prefix" aria-hidden>
+                                  {headerNo}.
+                                </span>
+                              ) : null}
+                              <span
+                                className="inventory-roasting-column-name-label"
+                                title="품목명은 생두 전체현황에서만 수정할 수 있습니다."
+                              >
+                                {inventoryState.roastingColumns[index] ?? ''}
+                              </span>
+                            </div>
+                          </th>
+                        )
+                      })}
+                      <th>주 합계</th>
+                      <th>전주 대비</th>
+                      <th>활동 품목</th>
+                      <th>Top 품목</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {roastingWeeklyRows.map((row) => (
+                      <tr
+                        key={row.key}
+                        className={row.isCurrentWeek ? 'inventory-week-current' : undefined}
+                      >
+                        <td className="inventory-sticky-column">{row.label}</td>
+                        {visibleRoastingColumnIndices.map((index) => (
+                          <td
+                            key={`${row.key}-col-${index}`}
+                            className={`inventory-heat-cell ${getHeatLevel(
+                              row.values[index] ?? 0,
+                              maxWeeklyRoastingCellValue,
+                            )}`}
+                          >
+                            {formatTwoDecimals(row.values[index] ?? 0)}
+                          </td>
+                        ))}
+                        <td>{formatTwoDecimals(row.total)}</td>
+                        <td
+                          className={
+                            row.deltaFromPrevious === null
+                              ? ''
+                              : row.deltaFromPrevious >= 0
+                                ? 'inventory-delta-positive'
+                                : 'inventory-delta-negative'
+                          }
+                        >
+                          {row.deltaFromPrevious === null
+                            ? '-'
+                            : `${row.deltaFromPrevious > 0 ? '▲ ' : row.deltaFromPrevious < 0 ? '▼ ' : '− '}${
+                                row.deltaFromPrevious > 0 ? '+' : ''
+                              }${formatTwoDecimals(row.deltaFromPrevious)}kg`}
+                        </td>
+                        <td>{row.activeItemCount}개</td>
+                        <td>
+                          {row.topItemTotal > 0
+                            ? `${row.topItemName} / ${formatTwoDecimals(row.topItemTotal)}kg`
+                            : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {inventoryState.roastingColumns.length > 0 ? (
+                    <tfoot>
+                      <tr>
+                        <td className="inventory-sticky-column">계</td>
+                        {visibleRoastingColumnIndices.map((index) => (
+                          <td key={`total-col-${index}`}>
+                            {formatTwoDecimals(computedRoastingTotals[index] ?? 0)}
+                          </td>
+                        ))}
+                        <td>{formatTwoDecimals(roastingMetrics.grandTotal)}</td>
+                      </tr>
+                    </tfoot>
+                  ) : null}
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="meeting-card">
+            <div className="meeting-card-header">
               <h3>수정 이력 메모</h3>
               <span className="inventory-filter-summary">{historyNotes.length}건 저장됨</span>
             </div>
@@ -5466,146 +6500,6 @@ function InventoryStatusPage() {
               </div>
             </div>
           </div>
-
-          <div className="meeting-card">
-            <div className="meeting-card-header">
-              <h3>{roastingViewMode === 'daily' ? '일자별 로스팅 현황' : '주단위 로스팅 현황'}</h3>
-              <div className="segmented">
-                <button
-                  type="button"
-                  className={roastingViewMode === 'daily' ? 'active' : ''}
-                  onClick={() => setRoastingViewMode('daily')}
-                >
-                  일별
-                </button>
-                <button
-                  type="button"
-                  className={roastingViewMode === 'weekly' ? 'active' : ''}
-                  onClick={() => setRoastingViewMode('weekly')}
-                >
-                  주별
-                </button>
-              </div>
-            </div>
-            {roastingViewMode === 'daily' ? (
-              <DailyRoastingJournal
-                days={inventoryState.days}
-                columnIndices={visibleRoastingColumnIndices}
-                columnNames={inventoryState.roastingColumns}
-                columnDisplayNo={roastingColumnIndexToDisplayNo}
-                dailyRows={roastingDailyRows}
-                columnTotals={computedRoastingTotals}
-                grandTotal={roastingMetrics.grandTotal}
-                latestActiveDay={roastingMetrics.latestActiveDay}
-                peakDay={roastingMetrics.peakDay}
-                daysWithRoasting={roastingMetrics.daysWithRoasting}
-                referenceDate={inventoryState.referenceDate}
-                onChangeCell={updateRoastingValue}
-                blendingDarkCycles={inventoryState.blendingDarkCycles}
-                blendingDarkRecipe={inventoryState.blendingDarkRecipe}
-                blendingLightCycles={inventoryState.blendingLightCycles}
-                blendingLightRecipe={inventoryState.blendingLightRecipe}
-                blendingDecaffeineCycles={inventoryState.blendingDecaffeineCycles}
-                blendingDecaffeineRecipe={inventoryState.blendingDecaffeineRecipe}
-                beanNameOptions={inventoryState.beanRows.map((b) => b.name)}
-                onChangeBlendingCycles={updateBlendingCyclesForDay}
-                onChangeRecipeComponent={updateBlendingRecipeComponent}
-                onChangeRoastedPerCycle={updateBlendingRoastedPerCycle}
-                onAddRecipeComponent={addBlendingRecipeComponent}
-                onRemoveRecipeComponent={removeBlendingRecipeComponent}
-              />
-            ) : (
-              <div className="table-wrapper">
-                <table className="meeting-table inventory-table">
-                  <thead>
-                    <tr>
-                      <th className="inventory-sticky-column">주차</th>
-                      {visibleRoastingColumnIndices.map((index) => {
-                        const headerNo = roastingColumnIndexToDisplayNo.get(index) ?? null
-                        return (
-                          <th key={`roast-col-h-${index}`} className="inventory-roasting-th-name">
-                            <div className="inventory-roasting-th-name-inner">
-                              {headerNo != null ? (
-                                <span className="inventory-roasting-col-no-prefix" aria-hidden>
-                                  {headerNo}.
-                                </span>
-                              ) : null}
-                              <span
-                                className="inventory-roasting-column-name-label"
-                                title="품목명은 생두 전체현황에서만 수정할 수 있습니다."
-                              >
-                                {inventoryState.roastingColumns[index] ?? ''}
-                              </span>
-                            </div>
-                          </th>
-                        )
-                      })}
-                      <th>주 합계</th>
-                      <th>전주 대비</th>
-                      <th>활성 품목</th>
-                      <th>Top 품목</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {roastingWeeklyRows.map((row) => (
-                      <tr
-                        key={row.key}
-                        className={row.isCurrentWeek ? 'inventory-week-current' : undefined}
-                      >
-                        <td className="inventory-sticky-column">{row.label}</td>
-                        {visibleRoastingColumnIndices.map((index) => (
-                          <td
-                            key={`${row.key}-col-${index}`}
-                            className={`inventory-heat-cell ${getHeatLevel(
-                              row.values[index] ?? 0,
-                              maxWeeklyRoastingCellValue,
-                            )}`}
-                          >
-                            {formatTwoDecimals(row.values[index] ?? 0)}
-                          </td>
-                        ))}
-                        <td>{formatTwoDecimals(row.total)}</td>
-                        <td
-                          className={
-                            row.deltaFromPrevious === null
-                              ? ''
-                              : row.deltaFromPrevious >= 0
-                                ? 'inventory-delta-positive'
-                                : 'inventory-delta-negative'
-                          }
-                        >
-                          {row.deltaFromPrevious === null
-                            ? '-'
-                            : `${row.deltaFromPrevious > 0 ? '▲ ' : row.deltaFromPrevious < 0 ? '▼ ' : '− '}${
-                                row.deltaFromPrevious > 0 ? '+' : ''
-                              }${formatTwoDecimals(row.deltaFromPrevious)}kg`}
-                        </td>
-                        <td>{row.activeItemCount}개</td>
-                        <td>
-                          {row.topItemTotal > 0
-                            ? `${row.topItemName} / ${formatTwoDecimals(row.topItemTotal)}kg`
-                            : '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  {inventoryState.roastingColumns.length > 0 ? (
-                    <tfoot>
-                      <tr>
-                        <td className="inventory-sticky-column">계</td>
-                        {visibleRoastingColumnIndices.map((index) => (
-                          <td key={`total-col-${index}`}>
-                            {formatTwoDecimals(computedRoastingTotals[index] ?? 0)}
-                          </td>
-                        ))}
-                        <td>{formatTwoDecimals(roastingMetrics.grandTotal)}</td>
-                      </tr>
-                    </tfoot>
-                  ) : null}
-                </table>
-              </div>
-            )}
-          </div>
         </section>
       </>
     </div>
@@ -5720,7 +6614,7 @@ function InventoryStatusPage() {
               <span>
                 <strong>실사 표시 전부 해제</strong>
                 <span className="inventory-reset-dialog-check-desc">
-                  일자 헤더에 켜 둔 실사 표시를 모두 끄고, 실사 기준일·월초만 재고 직접 입력 핀으로 두고 재고를 다시 연쇄 계산합니다.
+                  일자 헤더에 켜 둔 실사 표시를 모두 끄고, 월초(1일)만 재고 직접 입력 핀으로 두고 재고를 다시 연쇄 계산합니다.
                 </span>
               </span>
             </label>

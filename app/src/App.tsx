@@ -5,6 +5,7 @@ import BeanMarginCalcPage from './BeanMarginCalcPage'
 import ExpensePage, { EXPENSE_PAGE_STORAGE_KEY } from './ExpensePage'
 import MemoPage, { MEMO_PAGE_STORAGE_KEY } from './MemoPage'
 import TeamManagementPage from './TeamManagementPage'
+import WeeklyReminderPage from './WeeklyReminderPage'
 import GreenBeanOrderPage, { GREEN_BEAN_ORDER_STORAGE_KEY } from './GreenBeanOrderPage'
 import StaffPayrollPage, { STAFF_PAYROLL_STORAGE_KEY } from './StaffPayrollPage.tsx'
 import InventoryStatusPage, {
@@ -35,6 +36,11 @@ import {
 import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider.tsx'
+import { useWeeklyReminderScheduler } from './hooks/useWeeklyReminderScheduler'
+import {
+  WEEKLY_REMINDER_FIRED_EVENT,
+  type WeeklyReminderFiredDetail,
+} from './lib/weeklyReminders'
 import './App.css'
 
 const STORAGE_KEY = STATEMENT_RECORDS_STORAGE_KEY
@@ -60,6 +66,7 @@ type AppActivePage =
   | 'beanMarginCalc'
   | 'memo'
   | 'dailyMeeting'
+  | 'weeklyReminders'
   | 'team'
 
 type PageCategoryId = 'trade' | 'closing' | 'supply' | 'org'
@@ -91,6 +98,7 @@ const PAGE_CATEGORY_GROUPS: {
     label: '회의·마감',
     pages: [
       { page: 'dailyMeeting', label: '일일회의' },
+      { page: 'weeklyReminders', label: '주간 알림' },
       { page: 'meeting', label: '월 마감회의' },
       { page: 'expense', label: '지출표' },
     ],
@@ -145,6 +153,10 @@ const PAGE_HEADER_META: Record<AppActivePage, { title: string; description: stri
   dailyMeeting: {
     title: '일일회의',
     description: '당일 메모와 회의 정리를 빠르게 남기고 이어서 확인합니다.',
+  },
+  weeklyReminders: {
+    title: '주간 알림',
+    description: '요일·시간별로 반복되는 업무 알림을 등록하고 브라우저 알림으로 받습니다.',
   },
   team: {
     title: '팀 관리',
@@ -222,6 +234,13 @@ const WORKSPACE_SHELL_PAGE_HERO: Record<
     headline: '일일회의',
     copyLocal: `${PAGE_HEADER_META.dailyMeeting.description} 이 브라우저에만 저장될 수 있습니다.`,
     copyCloud: `${PAGE_HEADER_META.dailyMeeting.description} 회사 문서로 동기화되면 팀과 공유할 수 있습니다.`,
+  },
+  weeklyReminders: {
+    headline: '요일별 주간 알림',
+    copyLocal:
+      '매주 같은 요일·시간에 할 일 알림을 띄웁니다. 설정은 이 브라우저에 저장되며, 앱이 열려 있을 때 예약 시간에 알림이 울립니다.',
+    copyCloud:
+      '매주 같은 요일·시간에 할 일 알림을 띄웁니다. 설정은 이 브라우저에 저장되며, 앱이 열려 있을 때 예약 시간에 알림이 울립니다.',
   },
   team: {
     headline: '팀 관리',
@@ -1240,6 +1259,7 @@ const getBackupPayload = (
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'greenBeanOrder' ||
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'memo' ||
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'dailyMeeting' ||
+    window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'weeklyReminders' ||
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'team' ||
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'beanSalesAnalysis' ||
     window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY) === 'beanMarginCalc'
@@ -1305,6 +1325,7 @@ const readBackupFile = async (fileHandle: FileSystemFileHandle): Promise<AppBack
       parsed.activePage === 'greenBeanOrder' ||
       parsed.activePage === 'memo' ||
       parsed.activePage === 'dailyMeeting' ||
+      parsed.activePage === 'weeklyReminders' ||
       parsed.activePage === 'team' ||
       parsed.activePage === 'beanSalesAnalysis' ||
       parsed.activePage === 'beanMarginCalc'
@@ -1391,7 +1412,7 @@ const compareStatementRecordsNewestFirst = (a: StatementRecord, b: StatementReco
 }
 
 function App() {
-  const { mode, activeCompany, activeCompanyId, user, signOut } = useAppRuntime()
+  const { mode, activeCompany, activeCompanyId, user, signOut, isReady } = useAppRuntime()
   const [form, setForm] = useState<FormState>(() => defaultFormState())
   const [records, setRecords] = useState<StatementRecord[]>([])
   const [monthlyDateOverrides, setMonthlyDateOverrides] = useState<Record<string, StatementMonthlyDateOverride>>({})
@@ -1419,6 +1440,7 @@ function App() {
       savedPage === 'staffPayroll' ||
       savedPage === 'greenBeanOrder' ||
       savedPage === 'dailyMeeting' ||
+      savedPage === 'weeklyReminders' ||
       savedPage === 'team' ||
       savedPage === 'beanSalesAnalysis' ||
       savedPage === 'beanMarginCalc'
@@ -1458,6 +1480,31 @@ function App() {
     [lowGreenBeanWarningItems],
   )
   const [isLowGreenBeanPanelDismissed, setIsLowGreenBeanPanelDismissed] = useState(false)
+  const [firedWeeklyReminders, setFiredWeeklyReminders] = useState<WeeklyReminderFiredDetail[]>([])
+  useWeeklyReminderScheduler(mode, activeCompanyId, mode === 'local' || isReady)
+
+  useEffect(() => {
+    const onFired = (event: Event) => {
+      const detail = (event as CustomEvent<WeeklyReminderFiredDetail>).detail
+      if (!detail?.reminder) {
+        return
+      }
+      setFiredWeeklyReminders((current) => [...current, detail])
+    }
+    window.addEventListener(WEEKLY_REMINDER_FIRED_EVENT, onFired)
+    return () => window.removeEventListener(WEEKLY_REMINDER_FIRED_EVENT, onFired)
+  }, [])
+
+  useEffect(() => {
+    if (firedWeeklyReminders.length === 0) {
+      return
+    }
+    const id = window.setTimeout(() => {
+      setFiredWeeklyReminders([])
+    }, 45_000)
+    return () => window.clearTimeout(id)
+  }, [firedWeeklyReminders.length])
+
   useEffect(() => {
     setIsLowGreenBeanPanelDismissed(false)
   }, [lowGreenBeanWarningDigest])
@@ -5651,7 +5698,6 @@ function App() {
               masterItems={masterItems}
               defaultDeliveryDate={form.deliveryDate || today}
               defaultNote={form.note || '부가세 별도'}
-              noteOptions={NOTE_OPTIONS}
               existingRecords={records}
               favoriteClientsStorageKey={posFavoriteClientsStorageKey}
               allItemOptions={allItemOptions}
@@ -6847,6 +6893,8 @@ function App() {
         <BeanMarginCalcPage />
       ) : activePage === 'dailyMeeting' ? (
         <MemoPage mode="dailyOnly" />
+      ) : activePage === 'weeklyReminders' ? (
+        <WeeklyReminderPage />
       ) : activePage === 'team' ? (
         <TeamManagementPage />
       ) : (
@@ -6859,6 +6907,44 @@ function App() {
           aria-hidden={!statementStickyHScrollVisible}
         >
           <div ref={statementStickyHScrollInnerRef} className="statements-sticky-hscroll-inner" />
+        </div>
+      ) : null}
+
+      {firedWeeklyReminders.length > 0 ? (
+        <div
+          className="app-weekly-reminder-floating no-print"
+          role="status"
+          aria-live="polite"
+          aria-labelledby="app-weekly-reminder-floating-title"
+        >
+          <div className="app-weekly-reminder-floating-header">
+            <span id="app-weekly-reminder-floating-title" className="app-weekly-reminder-floating-title">
+              주간 알림
+            </span>
+            <button
+              type="button"
+              className="app-weekly-reminder-floating-close"
+              onClick={() => setFiredWeeklyReminders([])}
+              aria-label="알림 닫기"
+            >
+              ×
+            </button>
+          </div>
+          <ul className="app-weekly-reminder-floating-list">
+            {firedWeeklyReminders.map((item) => (
+              <li key={`${item.reminder.id}-${item.firedAt}`}>
+                <strong>{item.reminder.title}</strong>
+                {item.reminder.message ? <span>{item.reminder.message}</span> : null}
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            className="ghost-button small-hit app-weekly-reminder-floating-link"
+            onClick={() => setActivePage('weeklyReminders')}
+          >
+            알림 설정 보기
+          </button>
         </div>
       ) : null}
 
