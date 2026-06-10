@@ -2621,6 +2621,15 @@ function InventoryStatusPage() {
   const [nameEditUnlockPin, setNameEditUnlockPin] = useState('')
   const [nameEditUnlockError, setNameEditUnlockError] = useState('')
   const nameEditUnlockPinInputRef = useRef<HTMLInputElement>(null)
+  const [uploadUnlockDialogOpen, setUploadUnlockDialogOpen] = useState(false)
+  const [uploadUnlockPin, setUploadUnlockPin] = useState('')
+  const [uploadUnlockError, setUploadUnlockError] = useState('')
+  const uploadUnlockPinInputRef = useRef<HTMLInputElement>(null)
+  const uploadFileInputRef = useRef<HTMLInputElement>(null)
+  const [restoreUnlockDialogOpen, setRestoreUnlockDialogOpen] = useState(false)
+  const [restoreUnlockPin, setRestoreUnlockPin] = useState('')
+  const [restoreUnlockError, setRestoreUnlockError] = useState('')
+  const restoreUnlockPinInputRef = useRef<HTMLInputElement>(null)
   const [inventoryByMonth, setInventoryByMonth] = useState<Record<string, InventoryStatusState>>({})
   const inventoryByMonthRef = useRef(inventoryByMonth)
   inventoryByMonthRef.current = inventoryByMonth
@@ -4741,15 +4750,12 @@ function InventoryStatusPage() {
       setStatusMessage('엑셀 자료를 업로드한 뒤에만 기본값 복원을 사용할 수 있습니다.')
       return
     }
-    const shouldReset = window.confirm(
-      '입출고 현황을 마지막으로 업로드한 엑셀 기준 상태로 되돌릴까요?\n현재 페이지에서 수정한 내용은 사라집니다.',
-    )
+    setRestoreUnlockError('')
+    setRestoreUnlockPin('')
+    setRestoreUnlockDialogOpen(true)
+  }
 
-    if (!shouldReset) {
-      setStatusMessage('기본값 복원을 취소했습니다.')
-      return
-    }
-
+  const applyResetDefault = () => {
     setInventoryState(baselineState)
     setInventoryByMonth((prev) => ({
       ...prev,
@@ -4940,6 +4946,92 @@ function InventoryStatusPage() {
     closeNameEditUnlockDialog()
     setInventoryNameEditMode(true)
   }
+
+  const closeUploadUnlockDialog = useCallback(() => {
+    setUploadUnlockDialogOpen(false)
+    setUploadUnlockPin('')
+    setUploadUnlockError('')
+  }, [])
+
+  const openUploadUnlockDialog = () => {
+    setUploadUnlockError('')
+    setUploadUnlockPin('')
+    setUploadUnlockDialogOpen(true)
+  }
+
+  const confirmUploadUnlock = () => {
+    if (uploadUnlockPin !== ADMIN_FOUR_DIGIT_PIN) {
+      setUploadUnlockError('비밀번호가 올바르지 않습니다.')
+      return
+    }
+    closeUploadUnlockDialog()
+    window.requestAnimationFrame(() => uploadFileInputRef.current?.click())
+  }
+
+  const closeRestoreUnlockDialog = useCallback(() => {
+    setRestoreUnlockDialogOpen(false)
+    setRestoreUnlockPin('')
+    setRestoreUnlockError('')
+  }, [])
+
+  const confirmRestoreUnlock = () => {
+    if (restoreUnlockPin !== ADMIN_FOUR_DIGIT_PIN) {
+      setRestoreUnlockError('비밀번호가 올바르지 않습니다.')
+      return
+    }
+    closeRestoreUnlockDialog()
+    applyResetDefault()
+  }
+
+  useEffect(() => {
+    if (!uploadUnlockDialogOpen) {
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeUploadUnlockDialog()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [uploadUnlockDialogOpen, closeUploadUnlockDialog])
+
+  useEffect(() => {
+    if (!uploadUnlockDialogOpen) {
+      return
+    }
+    const id = window.requestAnimationFrame(() => {
+      uploadUnlockPinInputRef.current?.focus()
+      uploadUnlockPinInputRef.current?.select()
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [uploadUnlockDialogOpen])
+
+  useEffect(() => {
+    if (!restoreUnlockDialogOpen) {
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeRestoreUnlockDialog()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [restoreUnlockDialogOpen, closeRestoreUnlockDialog])
+
+  useEffect(() => {
+    if (!restoreUnlockDialogOpen) {
+      return
+    }
+    const id = window.requestAnimationFrame(() => {
+      restoreUnlockPinInputRef.current?.focus()
+      restoreUnlockPinInputRef.current?.select()
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [restoreUnlockDialogOpen])
 
   const handleExportWorkbook = async () => {
     /** 업로드한 원본 파일명(`templateFileName`)은 UI·서식 복원용만 쓰고, 저장 파일명은 항상 현재 기준일로 맞춤 */
@@ -5739,10 +5831,23 @@ function InventoryStatusPage() {
           </label>
         </div>
         <div className="inventory-actions inventory-actions--under-config inventory-actions--compact">
-          <label className="upload-button secondary small-hit inventory-toolbar-main-btn" title="엑셀 파일로 표 가져오기">
+          <button
+            type="button"
+            className="ghost-button small-hit inventory-toolbar-main-btn inventory-upload-trigger"
+            onClick={openUploadUnlockDialog}
+            title="엑셀 파일로 표 가져오기 (비밀번호 필요)"
+          >
             업로드
-            <input type="file" accept=".xlsx,.xls" onChange={handleWorkbookUpload} />
-          </label>
+          </button>
+          <input
+            ref={uploadFileInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="inventory-upload-file-input"
+            aria-hidden
+            tabIndex={-1}
+            onChange={handleWorkbookUpload}
+          />
           <button type="button" className="ghost-button small-hit inventory-toolbar-main-btn" onClick={handleExportWorkbook}>
             저장
           </button>
@@ -6710,6 +6815,130 @@ function InventoryStatusPage() {
             </button>
             <button type="button" className="ghost-button" onClick={confirmNameEditUnlock}>
               확인
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
+
+    {uploadUnlockDialogOpen ? (
+      <div
+        className="inventory-reset-dialog-backdrop"
+        role="presentation"
+        onClick={closeUploadUnlockDialog}
+      >
+        <div
+          className="inventory-reset-dialog inventory-upload-unlock-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="inventory-upload-unlock-title"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <h2 id="inventory-upload-unlock-title" className="inventory-reset-dialog-title">
+            엑셀 업로드
+          </h2>
+          <p className="inventory-reset-dialog-body">
+            엑셀 파일을 올리면 <strong>현재 표 내용이 파일 내용으로 덮어씌워집니다.</strong> 관리자 비밀번호(4자리)를
+            입력한 뒤 「파일 선택」을 누르세요.
+          </p>
+          <label className="inventory-reset-dialog-field">
+            <span className="inventory-reset-dialog-label">비밀번호 (4자리)</span>
+            <input
+              ref={uploadUnlockPinInputRef}
+              className="inventory-reset-dialog-pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={4}
+              placeholder="0000"
+              aria-invalid={uploadUnlockError ? true : undefined}
+              value={uploadUnlockPin}
+              onChange={(event) => {
+                setUploadUnlockError('')
+                const next = event.target.value.replace(/\D/g, '').slice(0, 4)
+                setUploadUnlockPin(next)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  confirmUploadUnlock()
+                }
+              }}
+            />
+          </label>
+          {uploadUnlockError ? (
+            <p className="inventory-reset-dialog-error" role="alert">
+              {uploadUnlockError}
+            </p>
+          ) : null}
+          <div className="inventory-reset-dialog-actions">
+            <button type="button" className="ghost-button" onClick={closeUploadUnlockDialog}>
+              취소
+            </button>
+            <button type="button" className="primary-button" onClick={confirmUploadUnlock}>
+              파일 선택
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
+
+    {restoreUnlockDialogOpen ? (
+      <div
+        className="inventory-reset-dialog-backdrop"
+        role="presentation"
+        onClick={closeRestoreUnlockDialog}
+      >
+        <div
+          className="inventory-reset-dialog inventory-restore-unlock-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="inventory-restore-unlock-title"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <h2 id="inventory-restore-unlock-title" className="inventory-reset-dialog-title">
+            기본값 복원
+          </h2>
+          <p className="inventory-reset-dialog-body">
+            입출고 현황을 <strong>마지막으로 업로드한 엑셀 기준</strong>으로 되돌립니다. 지금 페이지에서 수정한 내용은
+            사라집니다. 관리자 비밀번호(4자리)를 입력한 뒤 「복원 실행」을 누르세요.
+          </p>
+          <label className="inventory-reset-dialog-field">
+            <span className="inventory-reset-dialog-label">비밀번호 (4자리)</span>
+            <input
+              ref={restoreUnlockPinInputRef}
+              className="inventory-reset-dialog-pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={4}
+              placeholder="0000"
+              aria-invalid={restoreUnlockError ? true : undefined}
+              value={restoreUnlockPin}
+              onChange={(event) => {
+                setRestoreUnlockError('')
+                const next = event.target.value.replace(/\D/g, '').slice(0, 4)
+                setRestoreUnlockPin(next)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  confirmRestoreUnlock()
+                }
+              }}
+            />
+          </label>
+          {restoreUnlockError ? (
+            <p className="inventory-reset-dialog-error" role="alert">
+              {restoreUnlockError}
+            </p>
+          ) : null}
+          <div className="inventory-reset-dialog-actions">
+            <button type="button" className="ghost-button" onClick={closeRestoreUnlockDialog}>
+              취소
+            </button>
+            <button type="button" className="primary-button" onClick={confirmRestoreUnlock}>
+              복원 실행
             </button>
           </div>
         </div>
