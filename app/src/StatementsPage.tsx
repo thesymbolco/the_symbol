@@ -1218,7 +1218,7 @@ export default function StatementsPage({
   const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR))
   const [activeView, setActiveView] = useState<'records' | 'summary' | 'cards' | 'calendar'>('cards')
   const [showAllSummaryMonths, setShowAllSummaryMonths] = useState(false)
-  const [summaryTableMode, setSummaryTableMode] = useState<StatementSummaryTableMode>('amounts')
+  const [summaryTableMode, setSummaryTableMode] = useState<StatementSummaryTableMode>('dates')
   const [summaryHideEmptyClients, setSummaryHideEmptyClients] = useState(true)
   const [summaryEditingDateKey, setSummaryEditingDateKey] = useState<StatementSummaryDateEditKey | null>(
     null,
@@ -4456,17 +4456,17 @@ export default function StatementsPage({
               <div className="segmented statements-summary-mode-toggle">
                 <button
                   type="button"
-                  className={summaryTableMode === 'amounts' ? 'active' : ''}
-                  onClick={() => setSummaryTableMode('amounts')}
-                >
-                  금액 보기
-                </button>
-                <button
-                  type="button"
                   className={summaryTableMode === 'dates' ? 'active' : ''}
                   onClick={() => setSummaryTableMode('dates')}
                 >
                   발행·입금
+                </button>
+                <button
+                  type="button"
+                  className={summaryTableMode === 'amounts' ? 'active' : ''}
+                  onClick={() => setSummaryTableMode('amounts')}
+                >
+                  금액 보기
                 </button>
               </div>
               <label className="statements-summary-hide-empty">
@@ -4478,9 +4478,9 @@ export default function StatementsPage({
                 선택 월 납품 없는 거래처 숨기
               </label>
               <span className="statements-summary-toolbar-hint">
-                {summaryTableMode === 'amounts'
-                  ? '월별 금액만 표시합니다. 발행·입금은 「발행·입금」 모드에서 클릭해 수정하세요.'
-                  : '날짜 칸을 클릭하면 입력할 수 있습니다.'}
+                {summaryTableMode === 'dates'
+                  ? '발행·입금 칸을 클릭하면 달력이 열립니다. 날짜를 한 번에 선택할 수 있습니다.'
+                  : '월별 금액만 표시합니다. 발행·입금 입력은 「발행·입금」으로 돌아가세요.'}
               </span>
             </div>
           ) : null}
@@ -4737,6 +4737,7 @@ export default function StatementsPage({
                 visibleMonthIndexes={summaryVisibleMonthIndexes}
                 monthlyTotals={monthlyTotals}
                 yearlyTotal={yearlyTotal}
+                selectedYear={selectedYear}
                 mode={summaryTableMode}
                 hideEmptyRows={summaryHideEmptyClients}
                 singleMonthLayout={!showAllSummaryMonths}
@@ -6236,17 +6237,17 @@ export default function StatementsPage({
                   <div className="segmented statements-summary-mode-toggle statements-summary-mode-toggle--compact">
                     <button
                       type="button"
-                      className={summaryTableMode === 'amounts' ? 'active' : ''}
-                      onClick={() => setSummaryTableMode('amounts')}
-                    >
-                      금액
-                    </button>
-                    <button
-                      type="button"
                       className={summaryTableMode === 'dates' ? 'active' : ''}
                       onClick={() => setSummaryTableMode('dates')}
                     >
                       발행·입금
+                    </button>
+                    <button
+                      type="button"
+                      className={summaryTableMode === 'amounts' ? 'active' : ''}
+                      onClick={() => setSummaryTableMode('amounts')}
+                    >
+                      금액
                     </button>
                   </div>
                   <span className="statement-client-hub-hint">
@@ -6264,6 +6265,7 @@ export default function StatementsPage({
                       visibleMonthIndexes={clientHubModalMonthIndexes}
                       monthlyTotals={monthlyTotals}
                       yearlyTotal={yearlyTotal}
+                      selectedYear={selectedYear}
                       mode={summaryTableMode}
                       singleMonthLayout={!clientHubSummaryAllMonths}
                       emptyMessage={`${selectedYear}년에 해당하는 데이터가 없습니다.`}

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const MONTH_LABELS = Array.from({ length: 12 }, (_, index) => `${index + 1}월`)
 const currencyFormatter = new Intl.NumberFormat('ko-KR')
@@ -34,11 +34,44 @@ const formatDateLabel = (value: string) => (value ? value.replaceAll('-', '.') :
 
 const monthGroupTone = (monthIndex: number) => (monthIndex % 2 === 0 ? 'even' : 'odd')
 
+const DATE_FIELD_LABEL: Record<DateField, string> = {
+  issueDate: '발행일자',
+  paymentDate: '입금일자',
+}
+
+const parseSummaryDateEditKey = (key: StatementSummaryDateEditKey) => {
+  const [clientName, monthIndexText, field] = key.split('\0') as [string, string, DateField]
+  return {
+    clientName,
+    monthIndex: Number(monthIndexText),
+    field,
+  }
+}
+
+type CalendarCell = { key: string; date?: string; day?: number }
+
+const buildCalendarCells = (year: number, monthIndex: number): CalendarCell[] => {
+  const month = monthIndex + 1
+  const firstDay = new Date(year, monthIndex, 1)
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const leadingBlanks = firstDay.getDay()
+  const cells: CalendarCell[] = []
+  for (let i = 0; i < leadingBlanks; i += 1) {
+    cells.push({ key: `blank-${i}` })
+  }
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const dateIso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    cells.push({ key: dateIso, date: dateIso, day })
+  }
+  return cells
+}
+
 type Props = {
   rows: StatementSummaryTableRow[]
   visibleMonthIndexes: number[]
   monthlyTotals: number[]
   yearlyTotal: number
+  selectedYear: string
   mode: StatementSummaryTableMode
   hideEmptyRows?: boolean
   singleMonthLayout?: boolean
@@ -53,6 +86,131 @@ type Props = {
   ) => void
 }
 
+type DatePickerModalProps = {
+  selectedYear: string
+  clientName: string
+  monthIndex: number
+  field: DateField
+  value: string
+  onClose: () => void
+  onMonthDateChange: Props['onMonthDateChange']
+}
+
+function StatementSummaryDatePickerModal({
+  selectedYear,
+  clientName,
+  monthIndex,
+  field,
+  value,
+  onClose,
+  onMonthDateChange,
+}: DatePickerModalProps) {
+  const year = Number(selectedYear)
+  const [viewMonthIndex, setViewMonthIndex] = useState(monthIndex)
+  const todayIso = new Date().toISOString().slice(0, 10)
+  const calendarCells = useMemo(() => buildCalendarCells(year, viewMonthIndex), [year, viewMonthIndex])
+
+  useEffect(() => {
+    setViewMonthIndex(monthIndex)
+  }, [monthIndex, clientName, field])
+
+  const handleSelectDate = (dateIso: string) => {
+    onMonthDateChange(clientName, monthIndex, field, dateIso)
+    onClose()
+  }
+
+  const handleClearDate = () => {
+    onMonthDateChange(clientName, monthIndex, field, '')
+    onClose()
+  }
+
+  return (
+    <div
+      className="inventory-reset-dialog-backdrop statement-summary-date-picker-backdrop"
+      role="presentation"
+      onClick={onClose}
+    >
+      <div
+        className="statement-summary-date-picker-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="statement-summary-date-picker-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="statement-summary-date-picker-title" className="statement-summary-date-picker-title">
+          {DATE_FIELD_LABEL[field]} 선택
+        </h2>
+        <p className="statement-summary-date-picker-meta">
+          <strong>{clientName}</strong>
+          <span>·</span>
+          <span>{selectedYear}년 {MONTH_LABELS[monthIndex]}</span>
+        </p>
+        <div className="statement-summary-date-picker-toolbar">
+          <button
+            type="button"
+            className="ghost-button small"
+            disabled={viewMonthIndex <= 0}
+            onClick={() => setViewMonthIndex((current) => Math.max(0, current - 1))}
+            aria-label="이전 달"
+          >
+            ◀
+          </button>
+          <strong>{selectedYear}년 {MONTH_LABELS[viewMonthIndex]}</strong>
+          <button
+            type="button"
+            className="ghost-button small"
+            disabled={viewMonthIndex >= 11}
+            onClick={() => setViewMonthIndex((current) => Math.min(11, current + 1))}
+            aria-label="다음 달"
+          >
+            ▶
+          </button>
+        </div>
+        <div className="statement-summary-date-picker-grid" role="grid" aria-label={`${selectedYear}년 ${MONTH_LABELS[viewMonthIndex]} 달력`}>
+          {['일', '월', '화', '수', '목', '금', '토'].map((dow) => (
+            <div key={dow} className="statement-summary-date-picker-dow">
+              {dow}
+            </div>
+          ))}
+          {calendarCells.map((cell) => {
+            if (!cell.date || cell.day == null) {
+              return <div key={cell.key} className="statement-summary-date-picker-day is-blank" aria-hidden />
+            }
+            const isSelected = value === cell.date
+            const isToday = cell.date === todayIso
+            return (
+              <button
+                key={cell.key}
+                type="button"
+                className={[
+                  'statement-summary-date-picker-day',
+                  isSelected ? 'is-selected' : '',
+                  isToday ? 'is-today' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => handleSelectDate(cell.date!)}
+                aria-pressed={isSelected}
+                aria-label={`${cell.day}일${isSelected ? ' 선택됨' : ''}`}
+              >
+                {cell.day}
+              </button>
+            )
+          })}
+        </div>
+        <div className="statement-summary-date-picker-actions">
+          <button type="button" className="ghost-button" onClick={onClose}>
+            취소
+          </button>
+          <button type="button" className="ghost-button" onClick={handleClearDate} disabled={!value}>
+            날짜 지우기
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SummaryAmountCell({ amount }: { amount: number }) {
   if (!amount) {
     return <span className="summary-amount-empty">—</span>
@@ -65,39 +223,21 @@ function SummaryDateCell({
   monthIndex,
   field,
   value,
-  editingDateKey,
   onEditingDateKeyChange,
-  onMonthDateChange,
 }: {
   clientName: string
   monthIndex: number
   field: DateField
   value: string
-  editingDateKey: StatementSummaryDateEditKey | null
   onEditingDateKeyChange: (key: StatementSummaryDateEditKey | null) => void
-  onMonthDateChange: Props['onMonthDateChange']
 }) {
   const editKey = buildSummaryDateEditKey(clientName, monthIndex, field)
-  const isEditing = editingDateKey === editKey
-
-  if (isEditing) {
-    return (
-      <input
-        type="date"
-        className="statement-summary-date-input"
-        value={value}
-        autoFocus
-        onChange={(event) => onMonthDateChange(clientName, monthIndex, field, event.target.value)}
-        onBlur={() => onEditingDateKeyChange(null)}
-      />
-    )
-  }
 
   return (
     <button
       type="button"
       className={`summary-date-read${value ? '' : ' summary-date-read--empty'}`}
-      title="클릭하면 날짜를 입력·수정합니다"
+      title="클릭하면 달력에서 날짜를 선택합니다"
       onClick={() => onEditingDateKeyChange(editKey)}
     >
       {value ? formatDateLabel(value) : '—'}
@@ -110,6 +250,7 @@ export default function StatementSummaryTable({
   visibleMonthIndexes,
   monthlyTotals,
   yearlyTotal,
+  selectedYear,
   mode,
   hideEmptyRows = false,
   singleMonthLayout = false,
@@ -118,6 +259,16 @@ export default function StatementSummaryTable({
   onEditingDateKeyChange,
   onMonthDateChange,
 }: Props) {
+  const editingDateContext = useMemo(() => {
+    if (!editingDateKey) {
+      return null
+    }
+    const parsed = parseSummaryDateEditKey(editingDateKey)
+    const row = rows.find((entry) => entry.clientName === parsed.clientName)
+    const value = row?.months[parsed.monthIndex]?.[parsed.field] ?? ''
+    return { ...parsed, value }
+  }, [editingDateKey, rows])
+
   useEffect(() => {
     if (!editingDateKey) {
       return
@@ -147,6 +298,7 @@ export default function StatementSummaryTable({
     .join(' ')
 
   return (
+    <>
     <table className={tableClassName}>
       <thead>
         {mode === 'amounts' ? (
@@ -283,9 +435,7 @@ export default function StatementSummaryTable({
                           monthIndex={monthIndex}
                           field="issueDate"
                           value={month.issueDate}
-                          editingDateKey={editingDateKey}
                           onEditingDateKeyChange={onEditingDateKeyChange}
-                          onMonthDateChange={onMonthDateChange}
                         />
                       </td>,
                       <td
@@ -297,9 +447,7 @@ export default function StatementSummaryTable({
                           monthIndex={monthIndex}
                           field="paymentDate"
                           value={month.paymentDate}
-                          editingDateKey={editingDateKey}
                           onEditingDateKeyChange={onEditingDateKeyChange}
-                          onMonthDateChange={onMonthDateChange}
                         />
                       </td>,
                     ]
@@ -348,5 +496,17 @@ export default function StatementSummaryTable({
         </tr>
       </tfoot>
     </table>
+    {editingDateContext ? (
+      <StatementSummaryDatePickerModal
+        selectedYear={selectedYear}
+        clientName={editingDateContext.clientName}
+        monthIndex={editingDateContext.monthIndex}
+        field={editingDateContext.field}
+        value={editingDateContext.value}
+        onClose={() => onEditingDateKeyChange(null)}
+        onMonthDateChange={onMonthDateChange}
+      />
+    ) : null}
+    </>
   )
 }
