@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
+import { statementNameKey } from './statementNameKey'
 
 export type PosStatementRecord = {
   id: string
@@ -78,7 +79,8 @@ type PosCartLine = {
 
 type KeypadField = 'quantity' | 'unitPrice'
 
-const normalize = (value: string) => value.trim().toLowerCase().replace(/\s+/g, '')
+// 거래처/품목 동일성 판정은 입력 폼·집계와 같은 공유 키를 사용한다
+const normalize = statementNameKey
 
 const isTaxFreeNote = (note: string) => normalize(note) === normalize('부가세 없음')
 

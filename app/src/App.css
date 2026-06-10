@@ -10227,6 +10227,13 @@ tbody td:nth-child(4),
   text-align: center;
 }
 
+.summary-table .summary-sticky-client,
+.summary-table .summary-col-total,
+.summary-table .summary-amount-cell,
+.summary-table .summary-col-share {
+  text-align: inherit;
+}
+
 .summary-table .statement-summary-date-input {
   text-align: center;
 }
@@ -10273,7 +10280,23 @@ tfoot td {
   min-width: 1800px;
 }
 
+.summary-table.summary-table--amounts {
+  min-width: 880px;
+}
+
+.summary-table.summary-table--amounts.summary-table--all-months {
+  min-width: 1120px;
+}
+
+.summary-table.summary-table--dates.summary-table--single-month {
+  min-width: 720px;
+}
+
 .table-wrapper.statements-main-table-hscroll-single-month {
+  overflow-x: hidden;
+}
+
+.table-wrapper.statements-main-table-hscroll-amounts.statements-main-table-hscroll-single-month {
   overflow-x: hidden;
 }
 
@@ -10290,8 +10313,217 @@ tfoot td {
   min-width: 118px;
 }
 
-.summary-table td:has(.statement-summary-date-input) {
-  padding: 8px 6px;
+.summary-table td:has(.statement-summary-date-input),
+.summary-table td.summary-date-cell {
+  padding: 6px 4px;
+}
+
+/* 월별 납품현황: 고정 열·월 그룹·숫자 정렬 */
+.summary-table .summary-sticky-col {
+  position: sticky;
+  z-index: 2;
+}
+
+.summary-table thead .summary-sticky-col,
+.summary-table tfoot .summary-sticky-col {
+  z-index: 4;
+}
+
+.summary-table .summary-sticky-no {
+  left: 0;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  text-align: center;
+}
+
+.summary-table .summary-sticky-client {
+  left: 2.75rem;
+  min-width: 9.5rem;
+  max-width: 12rem;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summary-table thead .summary-sticky-col {
+  background: #f1f5f9;
+}
+
+.summary-table tbody tr:nth-child(even) .summary-sticky-col {
+  background: rgba(248, 250, 252, 0.98);
+}
+
+.summary-table tbody tr:hover .summary-sticky-col {
+  background: #eff6ff;
+}
+
+.summary-table tfoot .summary-sticky-col {
+  background: #eff6ff;
+}
+
+.summary-table .summary-col-total,
+.summary-table .summary-amount-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.summary-table .summary-col-total {
+  min-width: 6.5rem;
+}
+
+.summary-table .summary-col-share {
+  min-width: 5.5rem;
+  text-align: center;
+}
+
+.summary-table .summary-amount-value {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.summary-table .summary-amount-empty {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.summary-table .summary-month-head--even,
+.summary-table .summary-month-subhead--even,
+.summary-table .summary-month-cell--even {
+  background: rgba(241, 245, 249, 0.72);
+}
+
+.summary-table .summary-month-head--odd,
+.summary-table .summary-month-subhead--odd,
+.summary-table .summary-month-cell--odd {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.summary-table thead .summary-month-head {
+  font-size: 13px;
+}
+
+.summary-table .summary-month-subhead {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.summary-table .summary-month-boundary-start {
+  border-left: 2px solid #cbd5e1;
+}
+
+.summary-table tbody tr:hover .summary-month-cell--even,
+.summary-table tbody tr:hover .summary-month-cell--odd {
+  background: #eff6ff;
+}
+
+.summary-table .summary-share-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 3.5rem;
+}
+
+.summary-table .summary-share-track {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.summary-table .summary-share-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #818cf8, #6366f1);
+}
+
+.summary-table .summary-share-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-table tfoot .summary-total-row td {
+  background: #eff6ff;
+}
+
+.summary-date-read {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px dashed transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease;
+}
+
+.summary-date-read:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.summary-date-read--empty {
+  color: #94a3b8;
+}
+
+.statements-summary-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.statements-summary-mode-toggle--compact button {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.statements-summary-hide-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+}
+
+.statements-summary-hide-empty input {
+  width: 15px;
+  height: 15px;
+  accent-color: #6366f1;
+}
+
+.statements-summary-toolbar-hint {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
 }
 
 .statement-summary-date-input {
