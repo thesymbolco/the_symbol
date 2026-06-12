@@ -38,8 +38,32 @@ import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
 export const GREEN_BEAN_ORDER_STORAGE_KEY = 'green-bean-order-v2'
+/** normalize 실패·덮어쓰기 전에 보관하는 원본 JSON 백업 */
+export const GREEN_BEAN_ORDER_STORAGE_BACKUP_KEY = 'green-bean-order-v2-backup'
+/** 최근 저장본 히스토리(최대 12건) — 단일 백업이 비었을 때 복구용 */
+export const GREEN_BEAN_ORDER_STORAGE_HISTORY_KEY = 'green-bean-order-v2-history'
+
+export type GreenBeanRecoveryCandidate = {
+  id: string
+  label: string
+  source: 'backup' | 'history' | 'localStorage' | 'cloud'
+  score: number
+  snapshotCount: number
+  rowCount: number
+  raw: string
+}
 /** 알마 단가 갱신 직후 UI(강조·단가 목록) 복원 및 재갱신 쿨다운 */
 const GREEN_BEAN_ALMA_REFRESH_CACHE_KEY = 'green-bean-alma-refresh-cache-v1'
+const GREEN_BEAN_TABLE_LOOK_KEY = 'green-bean-table-look-v1'
+
+type GreenBeanTableLook = 'airy' | 'lined'
+
+const readGreenBeanTableLook = (): GreenBeanTableLook => {
+  if (typeof window === 'undefined') {
+    return 'airy'
+  }
+  return window.localStorage.getItem(GREEN_BEAN_TABLE_LOOK_KEY) === 'lined' ? 'lined' : 'airy'
+}
 /**
  * 알마 단가 JSON/갱신 API를 다시 호출하기 전 최소 대기 시간.
  * (성공 갱신 후 UI 캐시 유지 구간과 동일)
@@ -305,14 +329,14 @@ export const GREEN_BEAN_ORDER_SAVED_EVENT = 'green-bean-order-saved'
 
 const defaultPersisted = (): GreenBeanOrderPersisted => ({
   title: '■ 생두 주문',
-  supplierLabels: ['GSC', '알마씨엘로'],
+  supplierLabels: [ALMA_SUPPLIER_LABEL, DEFAULT_SECONDARY_SUPPLIER_LABEL],
   rows: [
     {
       id: crypto.randomUUID(),
       itemName: '',
       supplierPrices: ['', ''],
       quantityKg: 0,
-      priceSource: 'auto',
+      priceSource: ALMA_SUPPLIER_INDEX,
       lineTotal: 0,
     },
   ],
@@ -608,15 +632,113 @@ function findMatchedAlmaForRow(
   return best
 }
 
+const ALMA_SUPPLIER_LABEL = '알마씨엘로'
+const DEFAULT_SECONDARY_SUPPLIER_LABEL = 'GSC'
+const ALMA_SUPPLIER_INDEX = 0
+const SECONDARY_SUPPLIER_INDEX = 1
+
+const isAlmaSupplierLabel = (label: string) => /알마/.test(label.trim())
+
+const normalizeSupplierLabelPair = (rawLabels: string[]): [string, string] => {
+  const trimmed = rawLabels.map((label) => String(label ?? '').trim()).filter(Boolean)
+  const almaIdx = trimmed.findIndex((label) => isAlmaSupplierLabel(label))
+  const gscIdx = trimmed.findIndex((label) => /^gsc$/i.test(label.trim()))
+  const almaLabel = almaIdx >= 0 ? trimmed[almaIdx]! : ALMA_SUPPLIER_LABEL
+  let secondaryLabel = DEFAULT_SECONDARY_SUPPLIER_LABEL
+  if (gscIdx >= 0) {
+    secondaryLabel = trimmed[gscIdx]!
+  } else {
+    const otherIdx = trimmed.findIndex((label, index) => index !== almaIdx)
+    if (otherIdx >= 0) {
+      secondaryLabel = trimmed[otherIdx]!
+    }
+  }
+  return [almaLabel, secondaryLabel]
+}
+
+const remapSupplierPricesToLabelPair = (
+  oldLabels: string[],
+  oldPrices: PriceCell[],
+): PriceCell[] => {
+  const [almaLabel, secondaryLabel] = normalizeSupplierLabelPair(oldLabels)
+  const pickPrice = (label: string) => {
+    const idx = oldLabels.findIndex((entry) => entry.trim() === label.trim())
+    return idx >= 0 ? (oldPrices[idx] ?? '') : ''
+  }
+  if (
+    oldLabels.length === 2 &&
+    oldLabels[0]?.trim() === almaLabel &&
+    oldLabels[1]?.trim() === secondaryLabel
+  ) {
+    return [oldPrices[0] ?? '', oldPrices[1] ?? '']
+  }
+  return [pickPrice(almaLabel), pickPrice(secondaryLabel)]
+}
+
+const remapPriceSourceToLabelPair = (
+  oldLabels: string[],
+  priceSource: GreenBeanPriceSource | undefined,
+): GreenBeanPriceSource => {
+  const [almaLabel, secondaryLabel] = normalizeSupplierLabelPair(oldLabels)
+  if (priceSource === 'auto') {
+    return ALMA_SUPPLIER_INDEX
+  }
+  if (typeof priceSource !== 'number' || !Number.isInteger(priceSource)) {
+    return ALMA_SUPPLIER_INDEX
+  }
+  const picked = oldLabels[priceSource]?.trim()
+  if (!picked) {
+    return ALMA_SUPPLIER_INDEX
+  }
+  if (picked === almaLabel) {
+    return ALMA_SUPPLIER_INDEX
+  }
+  if (picked === secondaryLabel) {
+    return SECONDARY_SUPPLIER_INDEX
+  }
+  if (isAlmaSupplierLabel(picked)) {
+    return ALMA_SUPPLIER_INDEX
+  }
+  return SECONDARY_SUPPLIER_INDEX
+}
+
+const migrateRowSupplierLayout = (
+  row: GreenBeanOrderRow,
+  oldLabels: string[],
+): GreenBeanOrderRow => {
+  const supplierPrices = remapSupplierPricesToLabelPair(oldLabels, row.supplierPrices)
+  const priceSource = remapPriceSourceToLabelPair(oldLabels, row.priceSource)
+  return applyLineTotal({ ...row, supplierPrices, priceSource })
+}
+
+const migrateSupplierLayout = (
+  labels: string[],
+  rows: GreenBeanOrderRow[],
+): { supplierLabels: [string, string]; rows: GreenBeanOrderRow[] } => {
+  const supplierLabels = normalizeSupplierLabelPair(labels)
+  return {
+    supplierLabels,
+    rows: rows.map((row) => migrateRowSupplierLayout(row, labels)),
+  }
+}
+
 const normalizePriceSource = (value: unknown, supplierCount: number): GreenBeanPriceSource => {
   if (value === 'auto') {
-    return 'auto'
+    return ALMA_SUPPLIER_INDEX
   }
   const n = Number(value)
   if (Number.isInteger(n) && n >= 0 && n < supplierCount) {
     return n
   }
-  return 'auto'
+  return ALMA_SUPPLIER_INDEX
+}
+
+const isRowPriceSourceIndex = (row: GreenBeanOrderRow, supplierIndex: number): boolean => {
+  const source = row.priceSource ?? ALMA_SUPPLIER_INDEX
+  if (source === 'auto') {
+    return resolveUnitPriceIndex(row.supplierPrices, 'auto') === supplierIndex
+  }
+  return source === supplierIndex
 }
 
 const parseNumber = (value: unknown) => {
@@ -715,6 +837,149 @@ const netMoneyFromGrossAndDeductions = (gross: number, d: GreenBeanOrderDeductio
   return Math.max(0, Math.round(g - cut))
 }
 
+const buildSnapshotItemsFromRows = (
+  rows: GreenBeanOrderRow[],
+  rowIds?: ReadonlySet<string>,
+): GreenBeanMonthlyItemSnapshot[] =>
+  rows
+    .filter((row) => {
+      if (!row.itemName.trim() || row.quantityKg <= 0) {
+        return false
+      }
+      if (rowIds && !rowIds.has(row.id)) {
+        return false
+      }
+      return true
+    })
+    .map((row) => ({
+      itemName: row.itemName.trim(),
+      quantityKg: row.quantityKg,
+      lineTotal: row.lineTotal,
+    }))
+
+const buildSnapshotSupplierTotalsFromRows = (
+  rows: GreenBeanOrderRow[],
+  supplierLabels: string[],
+  rowIds?: ReadonlySet<string>,
+): GreenBeanSnapshotSupplierTotal[] =>
+  supplierLabels.map((label, supplierIndex) => {
+    const amount = rows.reduce((sum, row) => {
+      if (!row.itemName.trim() || row.quantityKg <= 0) {
+        return sum
+      }
+      if (rowIds && !rowIds.has(row.id)) {
+        return sum
+      }
+      const pickedIndex = resolveUnitPriceIndex(row.supplierPrices, row.priceSource ?? 'auto')
+      if (pickedIndex !== supplierIndex || row.lineTotal <= 0) {
+        return sum
+      }
+      return sum + row.lineTotal
+    }, 0)
+    return {
+      supplierLabel: label.trim() || `열 ${supplierIndex + 1}`,
+      amount,
+    }
+  })
+
+const mergeSnapshotItems = (
+  existing: GreenBeanMonthlyItemSnapshot[] | undefined,
+  incoming: GreenBeanMonthlyItemSnapshot[],
+): GreenBeanMonthlyItemSnapshot[] => {
+  const itemMap = new Map<string, GreenBeanMonthlyItemSnapshot>()
+  for (const item of [...(existing ?? []), ...incoming]) {
+    const key = normalizeItemKey(item.itemName)
+    if (!key) {
+      continue
+    }
+    const prev = itemMap.get(key)
+    if (prev) {
+      itemMap.set(key, {
+        itemName: prev.itemName,
+        quantityKg: prev.quantityKg + item.quantityKg,
+        lineTotal: prev.lineTotal + item.lineTotal,
+      })
+    } else {
+      itemMap.set(key, {
+        itemName: item.itemName.trim(),
+        quantityKg: item.quantityKg,
+        lineTotal: item.lineTotal,
+      })
+    }
+  }
+  return [...itemMap.values()].filter((item) => item.itemName.trim() && item.quantityKg > 0)
+}
+
+const mergeSnapshotSupplierTotals = (
+  existing: GreenBeanSnapshotSupplierTotal[] | undefined,
+  incoming: GreenBeanSnapshotSupplierTotal[],
+): GreenBeanSnapshotSupplierTotal[] => {
+  const totalsByLabel = new Map<string, number>()
+  for (const entry of [...(existing ?? []), ...incoming]) {
+    const label = entry.supplierLabel.trim() || '열'
+    totalsByLabel.set(label, (totalsByLabel.get(label) ?? 0) + entry.amount)
+  }
+  return [...totalsByLabel.entries()].map(([supplierLabel, amount]) => ({ supplierLabel, amount }))
+}
+
+const buildOrderSnapshotFromParts = (
+  orderDate: string,
+  items: GreenBeanMonthlyItemSnapshot[],
+  supplierTotals: GreenBeanSnapshotSupplierTotal[],
+  deductions: GreenBeanOrderDeductions,
+  options?: { memo?: string; existingId?: string },
+): GreenBeanOrderDatedSnapshot | null => {
+  if (items.length === 0) {
+    return null
+  }
+  const sumQty = items.reduce((sum, item) => sum + item.quantityKg, 0)
+  const sumMoneyGross = items.reduce((sum, item) => sum + item.lineTotal, 0)
+  const snap: GreenBeanOrderDatedSnapshot = {
+    id: options?.existingId ?? crypto.randomUUID(),
+    orderDate,
+    savedAt: new Date().toISOString(),
+    sumQty,
+    sumMoney: netMoneyFromGrossAndDeductions(sumMoneyGross, deductions),
+    sumMoneyGross,
+    itemCount: items.length,
+    items,
+    supplierTotals,
+  }
+  if (deductions.almaWon > 0 || deductions.gscWon > 0 || deductions.otherWon > 0) {
+    snap.deductions = { ...deductions }
+  }
+  const memoTrimmed = options?.memo?.trim()
+  if (memoTrimmed) {
+    snap.memo = memoTrimmed.slice(0, 500)
+  }
+  return snap
+}
+
+const mergeOrderSnapshotForDate = (
+  existing: GreenBeanOrderDatedSnapshot,
+  incomingItems: GreenBeanMonthlyItemSnapshot[],
+  incomingSupplierTotals: GreenBeanSnapshotSupplierTotal[],
+  options: {
+    deductions: GreenBeanOrderDeductions
+    applyPanelDeductions: boolean
+    memo?: string
+  },
+): GreenBeanOrderDatedSnapshot | null => {
+  const items = mergeSnapshotItems(existing.items, incomingItems)
+  if (items.length === 0) {
+    return null
+  }
+  const supplierTotals = mergeSnapshotSupplierTotals(existing.supplierTotals, incomingSupplierTotals)
+  const deductions = options.applyPanelDeductions
+    ? options.deductions
+    : parseOrderDeductions(existing.deductions)
+  const memo = options.memo?.trim() || existing.memo
+  return buildOrderSnapshotFromParts(existing.orderDate, items, supplierTotals, deductions, {
+    memo,
+    existingId: existing.id,
+  })
+}
+
 const normalizeText = (value: unknown) => String(value ?? '').trim()
 
 const parsePriceCell = (value: unknown): PriceCell => {
@@ -743,24 +1008,6 @@ const parsePriceCell = (value: unknown): PriceCell => {
 
 const formatMoney = (value: number) => `${currencyFormatter.format(Math.round(value))}원`
 const formatKg = (value: number) => `${currencyFormatter.format(value)} kg`
-
-/** 단가 기준 버튼용 짧은 라벨 (GSC→G, 알마씨엘로 등→알) */
-function formatSupplierSourceButtonLabel(label: string, columnIndex: number): string {
-  const t = label.trim()
-  if (!t) {
-    return `${columnIndex + 1}`
-  }
-  if (/^gsc$/i.test(t)) {
-    return 'G'
-  }
-  if (/알마/.test(t)) {
-    return '알'
-  }
-  if (t.length <= 2) {
-    return t
-  }
-  return t.slice(0, 2)
-}
 
 const formatDelta = (delta: number, suffix: string) => {
   if (delta === 0) {
@@ -1103,7 +1350,7 @@ function parseGreenBeanOrderFromMatrix(matrix: unknown[][]): GreenBeanOrderPersi
       itemName: name,
       supplierPrices,
       quantityKg,
-      priceSource: 'auto',
+      priceSource: ALMA_SUPPLIER_INDEX,
       lineTotal,
     }))
   }
@@ -1131,34 +1378,33 @@ function parseGreenBeanOrderFromMatrix(matrix: unknown[][]): GreenBeanOrderPersi
 
   return {
     title,
-    supplierLabels,
-    rows,
+    ...migrateSupplierLayout(supplierLabels, rows),
     baseline: null,
     orderSnapshots: [],
     orderDeductions,
   }
 }
 
-function normalizePersisted(raw: unknown): GreenBeanOrderPersisted {
+export function normalizePersisted(raw: unknown): GreenBeanOrderPersisted {
   const base = defaultPersisted()
   if (!raw || typeof raw !== 'object') {
     return base
   }
   const o = raw as Record<string, unknown>
   const title = typeof o.title === 'string' && o.title.trim() ? o.title.trim() : base.title
-  const supplierLabels = Array.isArray(o.supplierLabels)
+  const supplierLabelsRaw = Array.isArray(o.supplierLabels)
     ? o.supplierLabels.map((x) => String(x ?? '').trim()).filter(Boolean)
     : base.supplierLabels
-  const labels = supplierLabels.length > 0 ? supplierLabels : base.supplierLabels
+  const labelsBeforeMigrate = supplierLabelsRaw.length > 0 ? supplierLabelsRaw : base.supplierLabels
 
   const rowsIn = Array.isArray(o.rows) ? o.rows : []
-  const rows: GreenBeanOrderRow[] = rowsIn.map((item) => {
+  const rowsParsed: GreenBeanOrderRow[] = rowsIn.map((item) => {
     const row = item as Record<string, unknown>
     const supplierPricesRaw = Array.isArray(row.supplierPrices) ? row.supplierPrices : []
-    const supplierPrices = labels.map((_, i) =>
+    const supplierPrices = labelsBeforeMigrate.map((_, i) =>
       i < supplierPricesRaw.length ? parsePriceCell(supplierPricesRaw[i]) : '',
     )
-    const priceSource = normalizePriceSource(row.priceSource, labels.length)
+    const priceSource = normalizePriceSource(row.priceSource, 2)
     return applyLineTotal({
       id: typeof row.id === 'string' && row.id ? row.id : crypto.randomUUID(),
       itemName: String(row.itemName ?? ''),
@@ -1177,20 +1423,25 @@ function normalizePersisted(raw: unknown): GreenBeanOrderPersisted {
     })
   })
 
+  const migrated = migrateSupplierLayout(labelsBeforeMigrate, rowsParsed)
+  const supplierLabels = migrated.supplierLabels
+  const rows = migrated.rows
+
   let baseline: GreenBeanOrderBaseline | null = null
   if (o.baseline && typeof o.baseline === 'object') {
     const b = o.baseline as Record<string, unknown>
     const bRowsIn = Array.isArray(b.rows) ? b.rows : []
-    const bLabels = Array.isArray(b.supplierLabels)
+    const bLabelsRaw = Array.isArray(b.supplierLabels)
       ? b.supplierLabels.map((x) => String(x ?? '').trim()).filter(Boolean)
-      : labels
-    const bRows: GreenBeanOrderRow[] = bRowsIn.map((item) => {
+      : labelsBeforeMigrate
+    const bLabelsBeforeMigrate = bLabelsRaw.length > 0 ? bLabelsRaw : labelsBeforeMigrate
+    const bRowsParsed: GreenBeanOrderRow[] = bRowsIn.map((item) => {
       const row = item as Record<string, unknown>
       const supplierPricesRaw = Array.isArray(row.supplierPrices) ? row.supplierPrices : []
-      const supplierPrices = bLabels.map((_, i) =>
+      const supplierPrices = bLabelsBeforeMigrate.map((_, i) =>
         i < supplierPricesRaw.length ? parsePriceCell(supplierPricesRaw[i]) : '',
       )
-      const priceSource = normalizePriceSource(row.priceSource, bLabels.length)
+      const priceSource = normalizePriceSource(row.priceSource, 2)
       return applyLineTotal({
         id: typeof row.id === 'string' && row.id ? row.id : crypto.randomUUID(),
         itemName: String(row.itemName ?? ''),
@@ -1208,11 +1459,12 @@ function normalizePersisted(raw: unknown): GreenBeanOrderPersisted {
             : undefined,
       })
     })
+    const bMigrated = migrateSupplierLayout(bLabelsBeforeMigrate, bRowsParsed)
     baseline = {
       savedAt: typeof b.savedAt === 'string' ? b.savedAt : new Date().toISOString(),
       title: typeof b.title === 'string' ? b.title : title,
-      supplierLabels: bLabels.length > 0 ? bLabels : labels,
-      rows: bRows,
+      supplierLabels: bMigrated.supplierLabels,
+      rows: bMigrated.rows,
     }
   }
 
@@ -1270,9 +1522,14 @@ function normalizePersisted(raw: unknown): GreenBeanOrderPersisted {
         return null
       }
       const row = item as Record<string, unknown>
-      const orderDate = typeof row.orderDate === 'string' ? row.orderDate.trim() : ''
+      let orderDate = typeof row.orderDate === 'string' ? row.orderDate.trim() : ''
       if (!/^\d{4}-\d{2}-\d{2}$/.test(orderDate)) {
-        return null
+        const monthKey = typeof row.monthKey === 'string' ? row.monthKey.trim() : ''
+        if (/^\d{4}-\d{2}$/.test(monthKey)) {
+          orderDate = `${monthKey}-01`
+        } else {
+          return null
+        }
       }
       const items = parseSnapshotItems(row.items)
       const supplierTotals = parseSnapshotSupplierTotals(row.supplierTotals)
@@ -1346,12 +1603,236 @@ function normalizePersisted(raw: unknown): GreenBeanOrderPersisted {
 
   return {
     title,
-    supplierLabels: labels,
-    rows: rows.length > 0 ? rows : base.rows,
+    supplierLabels,
+    rows: rows.length > 0 ? rows : rowsParsed.length > 0 ? migrated.rows : base.rows,
     baseline,
     orderSnapshots,
     orderDeductions: parseOrderDeductions(o.orderDeductions),
   }
+}
+
+const rawPersistedDataScore = (raw: unknown): number => {
+  if (!raw || typeof raw !== 'object') {
+    return 0
+  }
+  const o = raw as Record<string, unknown>
+  const snapshotCount = Array.isArray(o.orderSnapshots) ? o.orderSnapshots.length : 0
+  const monthlyCount = Array.isArray(o.monthlyHistory) ? o.monthlyHistory.length : 0
+  const rowCount = Array.isArray(o.rows) ? o.rows.length : 0
+  const namedRows = Array.isArray(o.rows)
+    ? o.rows.filter((row) => {
+        if (!row || typeof row !== 'object') {
+          return false
+        }
+        return String((row as Record<string, unknown>).itemName ?? '').trim().length > 0
+      }).length
+    : 0
+  return (snapshotCount || monthlyCount) * 1000 + namedRows * 20 + rowCount * 5
+}
+
+export const persistedDataScore = (persisted: GreenBeanOrderPersisted): number => {
+  const snapshotCount = persisted.orderSnapshots.length
+  const namedRows = persisted.rows.filter((row) => row.itemName.trim()).length
+  return snapshotCount * 1000 + namedRows * 20 + persisted.rows.length * 5
+}
+
+export const mergeGreenBeanPersisted = (
+  local: GreenBeanOrderPersisted,
+  remote: GreenBeanOrderPersisted,
+): GreenBeanOrderPersisted => {
+  const localScore = persistedDataScore(local)
+  const remoteScore = persistedDataScore(remote)
+  const primary = remoteScore > localScore ? remote : local
+  const secondary = primary === remote ? local : remote
+
+  const orderSnapshots =
+    primary.orderSnapshots.length >= secondary.orderSnapshots.length
+      ? primary.orderSnapshots
+      : secondary.orderSnapshots
+  const rows =
+    persistedDataScore({ ...primary, rows: primary.rows, orderSnapshots: [] }) >=
+    persistedDataScore({ ...secondary, rows: secondary.rows, orderSnapshots: [] })
+      ? primary.rows
+      : secondary.rows
+
+  return {
+    ...primary,
+    title: primary.title.trim() || secondary.title,
+    supplierLabels:
+      primary.supplierLabels.length >= secondary.supplierLabels.length
+        ? primary.supplierLabels
+        : secondary.supplierLabels,
+    rows: rows.length > 0 ? rows : secondary.rows.length > 0 ? secondary.rows : primary.rows,
+    orderSnapshots,
+    baseline: primary.baseline ?? secondary.baseline,
+    orderDeductions:
+      persistedDataScore({ ...primary, orderSnapshots: [], rows: [], baseline: null, orderDeductions: primary.orderDeductions }) >=
+      persistedDataScore({ ...secondary, orderSnapshots: [], rows: [], baseline: null, orderDeductions: secondary.orderDeductions })
+        ? primary.orderDeductions
+        : secondary.orderDeductions,
+  }
+}
+
+const backupGreenBeanOrderRaw = (raw: string) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    const score = rawPersistedDataScore(JSON.parse(raw))
+    if (score >= 10) {
+      window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_BACKUP_KEY, raw)
+      pushGreenBeanBackupHistory(raw, score)
+    }
+  } catch {
+    /* ignore invalid backup source */
+  }
+}
+
+const pushGreenBeanBackupHistory = (raw: string, score?: number) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    const resolvedScore = score ?? rawPersistedDataScore(JSON.parse(raw))
+    if (resolvedScore < 10) {
+      return
+    }
+    const prevRaw = window.localStorage.getItem(GREEN_BEAN_ORDER_STORAGE_HISTORY_KEY)
+    const prev = prevRaw ? (JSON.parse(prevRaw) as unknown) : []
+    const list = Array.isArray(prev) ? prev : []
+    const entry = { savedAt: new Date().toISOString(), score: resolvedScore, raw }
+    const next = [
+      entry,
+      ...list.filter((item) => {
+        if (!item || typeof item !== 'object') {
+          return false
+        }
+        return String((item as Record<string, unknown>).raw ?? '') !== raw
+      }),
+    ].slice(0, 12)
+    window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_HISTORY_KEY, JSON.stringify(next))
+  } catch {
+    /* ignore history write errors */
+  }
+}
+
+const buildRecoveryCandidate = (
+  id: string,
+  label: string,
+  source: GreenBeanRecoveryCandidate['source'],
+  raw: string,
+): GreenBeanRecoveryCandidate | null => {
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    const score = rawPersistedDataScore(parsed)
+    if (score < 5) {
+      return null
+    }
+    const o = parsed as Record<string, unknown>
+    const snapshotCount = Array.isArray(o.orderSnapshots)
+      ? o.orderSnapshots.length
+      : Array.isArray(o.monthlyHistory)
+        ? o.monthlyHistory.length
+        : 0
+    const rowCount = Array.isArray(o.rows) ? o.rows.length : 0
+    return { id, label, source, score, snapshotCount, rowCount, raw }
+  } catch {
+    return null
+  }
+}
+
+/** 브라우저·백업·히스토리에서 복구 후보를 모읍니다. */
+export function scanGreenBeanRecoveryCandidates(): GreenBeanRecoveryCandidate[] {
+  if (typeof window === 'undefined') {
+    return []
+  }
+  const seenRaw = new Set<string>()
+  const candidates: GreenBeanRecoveryCandidate[] = []
+
+  const pushRaw = (id: string, label: string, source: GreenBeanRecoveryCandidate['source'], raw: string | null) => {
+    if (!raw || seenRaw.has(raw)) {
+      return
+    }
+    const candidate = buildRecoveryCandidate(id, label, source, raw)
+    if (!candidate) {
+      return
+    }
+    seenRaw.add(raw)
+    candidates.push(candidate)
+  }
+
+  pushRaw('main', '현재 저장소', 'localStorage', window.localStorage.getItem(GREEN_BEAN_ORDER_STORAGE_KEY))
+  pushRaw('backup', '자동 백업', 'backup', window.localStorage.getItem(GREEN_BEAN_ORDER_STORAGE_BACKUP_KEY))
+
+  try {
+    const historyRaw = window.localStorage.getItem(GREEN_BEAN_ORDER_STORAGE_HISTORY_KEY)
+    if (historyRaw) {
+      const history = JSON.parse(historyRaw) as unknown
+      if (Array.isArray(history)) {
+        history.forEach((entry, index) => {
+          if (!entry || typeof entry !== 'object') {
+            return
+          }
+          const raw = String((entry as Record<string, unknown>).raw ?? '')
+          const savedAt = String((entry as Record<string, unknown>).savedAt ?? '')
+          const label = savedAt
+            ? `저장 히스토리 ${index + 1} (${new Date(savedAt).toLocaleString('ko-KR')})`
+            : `저장 히스토리 ${index + 1}`
+          pushRaw(`history-${index}`, label, 'history', raw)
+        })
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  for (let i = 0; i < window.localStorage.length; i++) {
+    const key = window.localStorage.key(i)
+    if (!key || key === GREEN_BEAN_ORDER_STORAGE_KEY || key === GREEN_BEAN_ORDER_STORAGE_BACKUP_KEY) {
+      continue
+    }
+    if (!/green[-_]?bean/i.test(key)) {
+      continue
+    }
+    pushRaw(`ls-${key}`, `localStorage · ${key}`, 'localStorage', window.localStorage.getItem(key))
+  }
+
+  return candidates.sort((a, b) => b.score - a.score)
+}
+
+const shouldBlockGreenBeanPersistSave = (next: GreenBeanOrderPersisted): boolean => {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  const existingRaw = window.localStorage.getItem(GREEN_BEAN_ORDER_STORAGE_KEY)
+  if (!existingRaw) {
+    return false
+  }
+  try {
+    const existingScore = rawPersistedDataScore(JSON.parse(existingRaw))
+    const nextScore = persistedDataScore(next)
+    return existingScore >= 25 && nextScore < existingScore * 0.45
+  } catch {
+    return false
+  }
+}
+
+const writeGreenBeanOrderToStorage = (persisted: GreenBeanOrderPersisted) => {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  if (shouldBlockGreenBeanPersistSave(persisted)) {
+    console.warn('생두 주문: 기존 데이터보다 비어 있는 상태로 덮어쓰지 않았습니다.')
+    return false
+  }
+  const json = JSON.stringify(persisted)
+  const existingRaw = window.localStorage.getItem(GREEN_BEAN_ORDER_STORAGE_KEY)
+  if (existingRaw) {
+    backupGreenBeanOrderRaw(existingRaw)
+  }
+  window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, json)
+  window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
+  return true
 }
 
 /** 월 마감 회의 등 — 저장된 생두 주문 JSON을 읽어 정규화 */
@@ -1359,14 +1840,48 @@ export function readGreenBeanOrderPersistedFromStorage(): GreenBeanOrderPersiste
   if (typeof window === 'undefined') {
     return defaultPersisted()
   }
-  try {
-    const raw = window.localStorage.getItem(GREEN_BEAN_ORDER_STORAGE_KEY)
-    if (!raw) {
-      return defaultPersisted()
-    }
-    return normalizePersisted(JSON.parse(raw))
-  } catch {
+  const raw = window.localStorage.getItem(GREEN_BEAN_ORDER_STORAGE_KEY)
+  if (!raw) {
     return defaultPersisted()
+  }
+  backupGreenBeanOrderRaw(raw)
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    const normalized = normalizePersisted(parsed)
+    const rawScore = rawPersistedDataScore(parsed)
+    const normScore = persistedDataScore(normalized)
+    if (rawScore > normScore + 50) {
+      console.warn(
+        '생두 주문: 저장 파일에 기록이 있으나 읽기 형식이 맞지 않아 일부가 빠졌을 수 있습니다. 복구 패널을 확인하세요.',
+      )
+    }
+    return normalized
+  } catch (error) {
+    console.error('생두 주문 저장 데이터를 읽지 못했습니다.', error)
+    const backupRaw = window.localStorage.getItem(GREEN_BEAN_ORDER_STORAGE_BACKUP_KEY)
+    if (backupRaw) {
+      try {
+        return normalizePersisted(JSON.parse(backupRaw))
+      } catch (backupError) {
+        console.error('생두 주문 백업 데이터를 읽지 못했습니다.', backupError)
+      }
+    }
+    return defaultPersisted()
+  }
+}
+
+export function readGreenBeanOrderBackupFromStorage(): GreenBeanOrderPersisted | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  const backupRaw = window.localStorage.getItem(GREEN_BEAN_ORDER_STORAGE_BACKUP_KEY)
+  if (!backupRaw) {
+    return null
+  }
+  try {
+    return normalizePersisted(JSON.parse(backupRaw))
+  } catch {
+    return null
   }
 }
 
@@ -1482,6 +1997,7 @@ export default function GreenBeanOrderPage() {
     skipInitialDocumentSave,
   } = useDocumentSaveUi(mode)
   const [compareMode, setCompareMode] = useState(true)
+  const [tableLook, setTableLook] = useState<GreenBeanTableLook>(() => readGreenBeanTableLook())
   const [recordDate, setRecordDate] = useState(() => new Date().toISOString().slice(0, 10))
   /** 선택한 주문 일자로 저장할 때 붙이는 메모(로컬 입력) */
   const [snapshotMemoDraft, setSnapshotMemoDraft] = useState('')
@@ -1492,7 +2008,6 @@ export default function GreenBeanOrderPage() {
   const [almaRefreshChanges, setAlmaRefreshChanges] = useState<Record<string, AlmaRefreshRowChange>>({})
   const [almaRefreshUnchangedIds, setAlmaRefreshUnchangedIds] = useState<Record<string, true>>({})
   const [almaRefreshGlobalSameHint, setAlmaRefreshGlobalSameHint] = useState(false)
-  const [editingSupplierHeaderNames, setEditingSupplierHeaderNames] = useState(false)
   const [perItemMetric, setPerItemMetric] = useState<'qty' | 'money'>('qty')
   const [visibleItemKeys, setVisibleItemKeys] = useState<string[]>([])
   /** 구분(품목명): null이면 모두 잠금, 해당 행 id만 편집 가능(트리플클릭으로 잠금 해제) */
@@ -1503,6 +2018,13 @@ export default function GreenBeanOrderPage() {
   >({})
   /** 입출고 저장소와 동기화할 때마다 증가(다른 탭·다시 보기 시 재조회) */
   const [inventoryHintsTick, setInventoryHintsTick] = useState(0)
+  const [recoveryCandidates, setRecoveryCandidates] = useState<GreenBeanRecoveryCandidate[]>([])
+  const [recoveryPanelOpen, setRecoveryPanelOpen] = useState(false)
+  const [cloudRecoveryCandidate, setCloudRecoveryCandidate] = useState<GreenBeanRecoveryCandidate | null>(null)
+  const [isLoadingCloudRecovery, setIsLoadingCloudRecovery] = useState(false)
+  const recoveryJsonInputRef = useRef<HTMLInputElement>(null)
+  const isPersistHydratedRef = useRef(false)
+  const bestKnownRemoteScoreRef = useRef(0)
   const [aliasDraftOpen, setAliasDraftOpen] = useState(false)
   const [aliasDraftRows, setAliasDraftRows] = useState<BeanNameAliasEntry[]>(() => readCustomBeanNameAliases())
   const [aliasRevision, setAliasRevision] = useState(0)
@@ -1513,6 +2035,7 @@ export default function GreenBeanOrderPage() {
   useEffect(() => {
     let cancelled = false
 
+    isPersistHydratedRef.current = false
     setIsCloudReady(mode === 'local')
     resetDocumentSaveUi()
 
@@ -1520,6 +2043,7 @@ export default function GreenBeanOrderPage() {
       if (cancelled) {
         return
       }
+      isPersistHydratedRef.current = true
       setPersisted(nextPersisted)
       setStatusMessage(
         source === 'cloud'
@@ -1544,7 +2068,12 @@ export default function GreenBeanOrderPage() {
           COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
         )
         if (remotePersisted) {
-          applyPersisted(normalizePersisted(remotePersisted), 'cloud', true)
+          const remoteNormalized = normalizePersisted(remotePersisted)
+          bestKnownRemoteScoreRef.current = Math.max(
+            bestKnownRemoteScoreRef.current,
+            persistedDataScore(remoteNormalized),
+          )
+          applyPersisted(mergeGreenBeanPersisted(localPersisted, remoteNormalized), 'cloud', true)
         } else {
           applyPersisted(localPersisted, 'local', false)
         }
@@ -1599,6 +2128,12 @@ export default function GreenBeanOrderPage() {
       cancelled = true
     }
   }, [activeCompanyId, mode])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(GREEN_BEAN_TABLE_LOOK_KEY, tableLook)
+    }
+  }, [tableLook])
 
   useEffect(() => {
     itemNameUnlockedRowIdRef.current = itemNameUnlockedRowId
@@ -1692,9 +2227,69 @@ export default function GreenBeanOrderPage() {
   }, [])
 
   useEffect(() => {
-    window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(persisted))
-    window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
+    if (!isPersistHydratedRef.current) {
+      return
+    }
+    writeGreenBeanOrderToStorage(persisted)
   }, [persisted])
+
+  const refreshRecoveryCandidates = useCallback(() => {
+    const currentScore = persistedDataScore(persisted)
+    const candidates = scanGreenBeanRecoveryCandidates().filter((candidate) => candidate.score > currentScore + 2)
+    setRecoveryCandidates(candidates)
+    return candidates
+  }, [persisted])
+
+  const refreshCloudRecoveryCandidate = useCallback(async () => {
+    if (mode !== 'cloud' || !activeCompanyId) {
+      setCloudRecoveryCandidate(null)
+      return null
+    }
+    setIsLoadingCloudRecovery(true)
+    try {
+      const remote = await loadCompanyDocument<GreenBeanOrderPersisted>(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
+      )
+      if (!remote) {
+        setCloudRecoveryCandidate(null)
+        return null
+      }
+      const normalized = normalizePersisted(remote)
+      const score = persistedDataScore(normalized)
+      if (score < 5) {
+        setCloudRecoveryCandidate(null)
+        return null
+      }
+      const candidate: GreenBeanRecoveryCandidate = {
+        id: 'cloud-preview',
+        label: '클라우드 서버',
+        source: 'cloud',
+        score,
+        snapshotCount: normalized.orderSnapshots.length,
+        rowCount: normalized.rows.length,
+        raw: JSON.stringify(remote),
+      }
+      setCloudRecoveryCandidate(candidate)
+      return candidate
+    } catch (error) {
+      console.error(error)
+      setCloudRecoveryCandidate(null)
+      return null
+    } finally {
+      setIsLoadingCloudRecovery(false)
+    }
+  }, [activeCompanyId, mode])
+
+  const openRecoveryPanel = useCallback(() => {
+    setRecoveryPanelOpen(true)
+    refreshRecoveryCandidates()
+    void refreshCloudRecoveryCandidate()
+  }, [refreshCloudRecoveryCandidate, refreshRecoveryCandidates])
+
+  useEffect(() => {
+    refreshRecoveryCandidates()
+  }, [refreshRecoveryCandidates])
 
   useEffect(() => {
     if (!isCloudReady) {
@@ -1704,6 +2299,13 @@ export default function GreenBeanOrderPage() {
       return
     }
     if (skipInitialDocumentSave()) {
+      return
+    }
+    const currentScore = persistedDataScore(persisted)
+    if (
+      bestKnownRemoteScoreRef.current >= 25 &&
+      currentScore < bestKnownRemoteScoreRef.current * 0.45
+    ) {
       return
     }
     const currentJson = JSON.stringify(persisted)
@@ -1775,11 +2377,15 @@ export default function GreenBeanOrderPage() {
 
         if (remoteDoc) {
           const normalized = normalizePersisted(remoteDoc)
+          bestKnownRemoteScoreRef.current = Math.max(
+            bestKnownRemoteScoreRef.current,
+            persistedDataScore(normalized),
+          )
           const nextJson = JSON.stringify(normalized)
           if (nextJson !== lastJson) {
             lastJson = nextJson
             lastCloudPollJsonRef.current = nextJson
-            setPersisted(normalized)
+            setPersisted((prev) => mergeGreenBeanPersisted(prev, normalized))
           }
         }
 
@@ -1943,6 +2549,11 @@ export default function GreenBeanOrderPage() {
     const sumMoney = netMoneyFromGrossAndDeductions(grossMoney, d)
     return { sumQty, grossMoney, sumMoney, almaD, gscD, otherD, sumDeductions }
   }, [persisted.rows, persisted.orderDeductions])
+
+  const recordableRows = useMemo(
+    () => persisted.rows.filter((row) => row.itemName.trim() && row.quantityKg > 0),
+    [persisted.rows],
+  )
 
 
   const baselineTotals = useMemo(() => {
@@ -2242,69 +2853,92 @@ export default function GreenBeanOrderPage() {
     setStatusMessage('비교 기준을 지웠습니다.')
   }
 
-  const handleAddOrderSnapshot = () => {
+  const commitOrderSnapshot = (
+    options: {
+      rowIds?: ReadonlySet<string>
+      applyPanelDeductions: boolean
+      clearRecordedRows: boolean
+    },
+  ) => {
     const orderDate = recordDate
     if (!/^\d{4}-\d{2}-\d{2}$/.test(orderDate)) {
       setStatusMessage('주문 일자를 올바르게 선택해 주세요.')
       return
     }
-    const existing = persisted.orderSnapshots.find((p) => p.orderDate === orderDate)
-    if (
-      existing &&
-      !window.confirm(
-        `${formatOrderDateLabel(orderDate)}에 이미 기록이 있습니다. 지금 표로 덮어쓸까요?`,
-      )
-    ) {
+
+    const rowIds = options.rowIds
+    const items = buildSnapshotItemsFromRows(persisted.rows, rowIds)
+    if (items.length === 0) {
+      setStatusMessage('기록할 품목이 없습니다. 수량(kg)을 입력해 주세요.')
       return
     }
-    const itemCount = persisted.rows.filter((r) => r.itemName.trim()).length
-    const items: GreenBeanMonthlyItemSnapshot[] = persisted.rows
-      .filter((r) => r.itemName.trim())
-      .map((r) => ({
-        itemName: r.itemName.trim(),
-        quantityKg: r.quantityKg,
-        lineTotal: r.lineTotal,
-      }))
-    const supplierTotals: GreenBeanSnapshotSupplierTotal[] = persisted.supplierLabels.map((label, si) => {
-      const amount = persisted.rows.reduce((sum, row) => {
-        const pickedIndex = resolveUnitPriceIndex(row.supplierPrices, row.priceSource ?? 'auto')
-        if (pickedIndex !== si || row.lineTotal <= 0) {
-          return sum
-        }
-        return sum + row.lineTotal
-      }, 0)
-      return {
-        supplierLabel: label.trim() || `열 ${si + 1}`,
-        amount,
-      }
-    })
-    const dSnap = parseOrderDeductions(persisted.orderDeductions)
-    const snap: GreenBeanOrderDatedSnapshot = {
-      id: crypto.randomUUID(),
-      orderDate,
-      savedAt: new Date().toISOString(),
-      sumQty: totals.sumQty,
-      sumMoney: totals.sumMoney,
-      sumMoneyGross: totals.grossMoney,
-      itemCount,
-      items: items.length > 0 ? items : undefined,
-      supplierTotals,
-    }
-    if (dSnap.almaWon > 0 || dSnap.gscWon > 0 || dSnap.otherWon > 0) {
-      snap.deductions = { ...dSnap }
-    }
-    const memoTrimmed = snapshotMemoDraft.trim()
-    if (memoTrimmed) {
-      snap.memo = memoTrimmed.slice(0, 500)
-    }
-    setPersisted((prev) => {
-      const rest = prev.orderSnapshots.filter((p) => p.orderDate !== orderDate)
-      return { ...prev, orderSnapshots: [...rest, snap] }
-    })
-    const mk = monthKeyFromOrderDate(orderDate)
-    setStatusMessage(
-      `${formatOrderDateLabel(orderDate)} 기록했습니다. (${formatMonthLabel(mk)} 월별 합계에 반영됩니다.)`,
+
+    const supplierTotals = buildSnapshotSupplierTotalsFromRows(
+      persisted.rows,
+      persisted.supplierLabels,
+      rowIds,
     )
+    const panelDeductions = parseOrderDeductions(persisted.orderDeductions)
+    const existing = persisted.orderSnapshots.find((snapshot) => snapshot.orderDate === orderDate)
+    const snap = existing
+      ? mergeOrderSnapshotForDate(existing, items, supplierTotals, {
+          deductions: panelDeductions,
+          applyPanelDeductions: options.applyPanelDeductions,
+          memo: snapshotMemoDraft,
+        })
+      : buildOrderSnapshotFromParts(
+          orderDate,
+          items,
+          supplierTotals,
+          options.applyPanelDeductions ? panelDeductions : defaultOrderDeductions(),
+          { memo: snapshotMemoDraft },
+        )
+
+    if (!snap) {
+      setStatusMessage('기록할 품목이 없습니다. 수량(kg)을 입력해 주세요.')
+      return
+    }
+
+    const recordedQty = items.reduce((sum, item) => sum + item.quantityKg, 0)
+    const recordedItemCount = items.length
+    const mergeNote = existing ? ' (같은 날 기록에 누적)' : ''
+
+    setPersisted((prev) => ({
+      ...prev,
+      orderSnapshots: [...prev.orderSnapshots.filter((snapshot) => snapshot.orderDate !== orderDate), snap],
+      rows: options.clearRecordedRows
+        ? prev.rows.map((row) => {
+            const shouldClear = rowIds
+              ? rowIds.has(row.id)
+              : row.itemName.trim() && row.quantityKg > 0
+            if (!shouldClear) {
+              return row
+            }
+            return applyLineTotal({ ...row, quantityKg: 0 })
+          })
+        : prev.rows,
+    }))
+
+    const mk = monthKeyFromOrderDate(orderDate)
+    const scopeLabel = rowIds ? `${recordedItemCount}품목` : `${recordedItemCount}품목 일괄`
+    setStatusMessage(
+      `${formatOrderDateLabel(orderDate)} · ${scopeLabel} ${formatKg(recordedQty)} 기록했습니다${mergeNote}. (${formatMonthLabel(mk)} 월별 합계 반영 · 표 수량 초기화)`,
+    )
+  }
+
+  const handleAddOrderSnapshot = () => {
+    commitOrderSnapshot({
+      applyPanelDeductions: true,
+      clearRecordedRows: true,
+    })
+  }
+
+  const handleRecordRowSnapshot = (rowId: string) => {
+    commitOrderSnapshot({
+      rowIds: new Set([rowId]),
+      applyPanelDeductions: false,
+      clearRecordedRows: true,
+    })
   }
 
   const handleRemoveOrderSnapshot = (id: string) => {
@@ -2483,7 +3117,7 @@ export default function GreenBeanOrderPage() {
           inventoryLinkKey: initialInventoryLinkKey,
           supplierPrices: prev.supplierLabels.map(() => ''),
           quantityKg: 0,
-          priceSource: 'auto',
+          priceSource: ALMA_SUPPLIER_INDEX,
           lineTotal: 0,
         }),
       ],
@@ -2491,11 +3125,8 @@ export default function GreenBeanOrderPage() {
     setItemNameUnlockedRowId(newId)
   }
 
-  const setRowPriceSource = (id: string, value: string) => {
-    const nextSource = value === 'auto' ? 'auto' : Number(value)
-    updateRow(id, {
-      priceSource: nextSource === 'auto' ? 'auto' : Number.isInteger(nextSource) ? nextSource : 'auto',
-    })
+  const selectRowPriceSource = (id: string, supplierIndex: number) => {
+    updateRow(id, { priceSource: supplierIndex })
   }
 
   const loadAlmaPrices = async () => {
@@ -2680,14 +3311,8 @@ export default function GreenBeanOrderPage() {
     }
   }
 
-  const gscIndex = useMemo(
-    () => persisted.supplierLabels.findIndex((label) => label.toLowerCase().includes('gsc')),
-    [persisted.supplierLabels],
-  )
-  const almaIndex = useMemo(
-    () => persisted.supplierLabels.findIndex((label) => label.includes('알마')),
-    [persisted.supplierLabels],
-  )
+  const almaIndex = ALMA_SUPPLIER_INDEX
+  const secondarySupplierIndex = SECONDARY_SUPPLIER_INDEX
 
   const almaRefreshAnyRowChanged = useMemo(
     () => Object.keys(almaRefreshChanges).length > 0,
@@ -2704,6 +3329,92 @@ export default function GreenBeanOrderPage() {
       ...prev,
       rows: prev.rows.filter((row) => row.id !== id),
     }))
+  }
+
+  const applyRecoveryRaw = (candidate: GreenBeanRecoveryCandidate) => {
+    try {
+      const restored = normalizePersisted(JSON.parse(candidate.raw))
+      isPersistHydratedRef.current = true
+      setPersisted(restored)
+      window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, candidate.raw)
+      pushGreenBeanBackupHistory(candidate.raw)
+      window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
+      setRecoveryPanelOpen(false)
+      setStatusMessage(
+        `「${candidate.label}」에서 복원했습니다. (기록 ${restored.orderSnapshots.length}건 · 품목 ${restored.rows.length}행)`,
+      )
+    } catch (error) {
+      console.error(error)
+      setStatusMessage('선택한 복구본을 읽지 못했습니다.')
+    }
+  }
+
+  const handleRestoreCandidate = (candidate: GreenBeanRecoveryCandidate) => {
+    if (
+      !window.confirm(
+        `「${candidate.label}」 데이터로 되돌릴까요?\n기록 ${candidate.snapshotCount}건 · 품목 ${candidate.rowCount}행\n지금 화면 내용은 덮어씁니다.`,
+      )
+    ) {
+      return
+    }
+    applyRecoveryRaw(candidate)
+  }
+
+  const handleMergeFromCloud = async () => {
+    const candidate = cloudRecoveryCandidate ?? (await refreshCloudRecoveryCandidate())
+    if (!candidate) {
+      setStatusMessage('클라우드에 불러올 생두 주문 기록이 없습니다.')
+      return
+    }
+    const remote = normalizePersisted(JSON.parse(candidate.raw))
+    const merged = mergeGreenBeanPersisted(persisted, remote)
+    if (
+      !window.confirm(
+        `클라우드 기록 ${candidate.snapshotCount}건 · 품목 ${candidate.rowCount}행을\n지금 화면(기록 ${persisted.orderSnapshots.length}건)과 합칠까요?\n더 많은 쪽이 우선됩니다.`,
+      )
+    ) {
+      return
+    }
+    isPersistHydratedRef.current = true
+    setPersisted(merged)
+    writeGreenBeanOrderToStorage(merged)
+    setRecoveryPanelOpen(false)
+    setStatusMessage(
+      `클라우드와 합쳤습니다. (기록 ${merged.orderSnapshots.length}건 · 품목 ${merged.rows.length}행)`,
+    )
+  }
+
+  const handleReloadFromCloud = async () => {
+    const candidate = cloudRecoveryCandidate ?? (await refreshCloudRecoveryCandidate())
+    if (!candidate) {
+      if (mode !== 'cloud' || !activeCompanyId) {
+        setStatusMessage('클라우드 모드에서만 서버에서 다시 불러올 수 있습니다.')
+      } else {
+        setStatusMessage('클라우드에 저장된 생두 주문 문서가 없거나 비어 있습니다.')
+      }
+      return
+    }
+    handleRestoreCandidate(candidate)
+  }
+
+  const handleImportRecoveryJson = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+    try {
+      const text = await file.text()
+      const candidate = buildRecoveryCandidate('file-import', `파일 · ${file.name}`, 'localStorage', text)
+      if (!candidate) {
+        setStatusMessage('파일에 복구할 생두 주문 기록이 없습니다.')
+        return
+      }
+      handleRestoreCandidate(candidate)
+    } catch (error) {
+      console.error(error)
+      setStatusMessage('JSON 파일을 읽지 못했습니다.')
+    }
   }
 
   const renderPriceDelta = (current: PriceCell, previous: PriceCell | undefined) => {
@@ -2757,7 +3468,7 @@ export default function GreenBeanOrderPage() {
         <div className="panel-header">
           <div>
             <h2>주문표</h2>
-            <p className="muted">표 제목·공급처 열 이름은 아래 표 상단에서 수정합니다.</p>
+            <p className="muted">알마씨엘로 단가는 고정, 오른쪽 공급처 이름은 바꿀 수 있습니다. 단가 칸을 클릭하면 총계 기준이 바뀝니다.</p>
           </div>
         </div>
 
@@ -2773,6 +3484,23 @@ export default function GreenBeanOrderPage() {
               </label>
               <button type="button" className="ghost-button green-bean-toolbar-control" onClick={handleExport}>
                 엑셀보내기
+              </button>
+              <button
+                type="button"
+                className={
+                  recoveryPanelOpen
+                    ? 'inventory-toggle-button active green-bean-toolbar-control'
+                    : 'ghost-button green-bean-toolbar-control'
+                }
+                onClick={() => {
+                  if (recoveryPanelOpen) {
+                    setRecoveryPanelOpen(false)
+                    return
+                  }
+                  openRecoveryPanel()
+                }}
+              >
+                데이터 불러오기
               </button>
               <span className="green-bean-toolbar-sep" aria-hidden>
                 |
@@ -2815,7 +3543,127 @@ export default function GreenBeanOrderPage() {
               </button>
             </div>
           </div>
+          <div className="green-bean-toolbar-row">
+            <span className="green-bean-toolbar-label" aria-hidden>
+              표 보기
+            </span>
+            <div className="green-bean-toolbar-actions green-bean-table-look-toggle">
+              <button
+                type="button"
+                className={
+                  tableLook === 'airy'
+                    ? 'inventory-toggle-button active green-bean-toolbar-toggle'
+                    : 'inventory-toggle-button green-bean-toolbar-toggle'
+                }
+                onClick={() => setTableLook('airy')}
+                title="색 구역선 없이 줄 간격·줄무늬로 구분합니다"
+              >
+                여백
+              </button>
+              <button
+                type="button"
+                className={
+                  tableLook === 'lined'
+                    ? 'inventory-toggle-button active green-bean-toolbar-toggle'
+                    : 'inventory-toggle-button green-bean-toolbar-toggle'
+                }
+                onClick={() => setTableLook('lined')}
+                title="단가·주문 구역을 세로선으로 나눕니다"
+              >
+                구역선
+              </button>
+            </div>
+          </div>
         </div>
+        {recoveryPanelOpen ? (
+          <div className="green-bean-backup-restore-banner" role="region" aria-label="데이터 불러오기">
+            <div className="green-bean-recovery-banner-copy">
+              <p>
+                클라우드·백업 파일·브라우저에 남은 이전 데이터를 다시 불러올 수 있습니다. 지금 화면: 기록{' '}
+                {persisted.orderSnapshots.length}건 · 품목 {persisted.rows.filter((r) => r.itemName.trim()).length}개
+              </p>
+              <button
+                type="button"
+                className="ghost-button small"
+                onClick={() => {
+                  refreshRecoveryCandidates()
+                  void refreshCloudRecoveryCandidate()
+                }}
+              >
+                목록 새로고침
+              </button>
+            </div>
+            <div className="green-bean-recovery-banner-actions">
+              {mode === 'cloud' && activeCompanyId ? (
+                <>
+                  <button
+                    type="button"
+                    className="primary-button small"
+                    disabled={isLoadingCloudRecovery}
+                    onClick={() => void handleMergeFromCloud()}
+                  >
+                    {isLoadingCloudRecovery
+                      ? '클라우드 확인 중…'
+                      : cloudRecoveryCandidate
+                        ? `클라우드 합치기 (${cloudRecoveryCandidate.snapshotCount}건)`
+                        : '클라우드 합치기'}
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-button small"
+                    disabled={isLoadingCloudRecovery}
+                    onClick={() => void handleReloadFromCloud()}
+                  >
+                    클라우드로 덮어쓰기
+                  </button>
+                </>
+              ) : (
+                <span className="muted tiny">클라우드 불러오기는 팀(클라우드) 모드에서 사용할 수 있습니다.</span>
+              )}
+              <button
+                type="button"
+                className="ghost-button small"
+                onClick={() => recoveryJsonInputRef.current?.click()}
+              >
+                JSON 파일 가져오기
+              </button>
+              <input
+                ref={recoveryJsonInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="sr-only"
+                onChange={(event) => void handleImportRecoveryJson(event)}
+              />
+            </div>
+            {recoveryCandidates.length > 0 ? (
+              <ul className="green-bean-recovery-candidate-list">
+                {recoveryCandidates.map((candidate) => (
+                  <li key={candidate.id}>
+                    <span>
+                      {candidate.label} · 기록 {candidate.snapshotCount}건 · 품목 {candidate.rowCount}행
+                    </span>
+                    <button
+                      type="button"
+                      className="primary-button small"
+                      onClick={() => handleRestoreCandidate(candidate)}
+                    >
+                      이 버전으로 복원
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted tiny green-bean-recovery-empty-hint">
+                브라우저에 더 많은 이전 복구본이 없습니다. 거래명세 자동 백업 JSON의{' '}
+                <code>greenBeanOrderState</code> 필드가 있으면 「JSON 파일 가져오기」로 넣을 수 있습니다.
+              </p>
+            )}
+          </div>
+        ) : persisted.orderSnapshots.length === 0 ? (
+          <p className="muted tiny green-bean-recovery-inline-hint">
+            월별 기록이 비어 있습니다. 위 「데이터 불러오기」에서 클라우드·백업 파일을 다시 시도해 보세요.
+          </p>
+        ) : null}
         <div className="page-status-bar">
           <p className="page-status-message green-bean-status" role="status" aria-live="polite">
             {statusMessage}
@@ -2960,74 +3808,102 @@ export default function GreenBeanOrderPage() {
                   </span>
                 ) : null}
               </div>
-              <button
-                type="button"
-                className={`ghost-button small-hit${editingSupplierHeaderNames ? ' active' : ''}`}
-                onClick={() => {
-                  if (editingSupplierHeaderNames) {
-                    setPersisted((prev) => ({
-                      ...prev,
-                      supplierLabels: prev.supplierLabels.map((x) => String(x).trim()),
-                    }))
-                    setEditingSupplierHeaderNames(false)
-                  } else {
-                    setEditingSupplierHeaderNames(true)
-                  }
-                }}
-              >
-                {editingSupplierHeaderNames ? '이름 편집 끝' : '공급처 이름 편집'}
-              </button>
             </div>
           </div>
+          <p className="green-bean-table-scroll-hint">
+            {tableLook === 'airy'
+              ? '여백 모드 — 구역선 없이 줄만 구분 · 단가 클릭 → 총계 · kg 입력 후 「기록」'
+              : '구역선 모드 — 단가·주문 구역 세로선 · 단가 클릭 → 총계 · kg 입력 후 「기록」'}
+          </p>
           <table
-            className={`inventory-table green-bean-table${almaItems.length > 0 ? ' green-bean-table--with-alma-ref' : ''}`}
+            className={`inventory-table green-bean-table green-bean-table--grouped green-bean-table--look-${tableLook}${almaItems.length > 0 ? ' green-bean-table--with-alma-ref' : ''}`}
           >
             <thead>
-              <tr>
-                <th className="inventory-sticky-column green-bean-th-item" scope="col">
-                  구분
-                </th>
+              {tableLook === 'lined' ? (
+                <tr className="green-bean-head-group-row">
+                  <th
+                    rowSpan={2}
+                    className="inventory-sticky-column green-bean-th-item"
+                    scope="col"
+                  >
+                    구분
+                  </th>
+                  <th
+                    colSpan={persisted.supplierLabels.length + (almaItems.length > 0 ? 1 : 0)}
+                    className="green-bean-head-group green-bean-head-group--prices"
+                    scope="colgroup"
+                  >
+                    단가
+                  </th>
+                  <th colSpan={4} className="green-bean-head-group green-bean-head-group--order" scope="colgroup">
+                    주문
+                  </th>
+                </tr>
+              ) : null}
+              <tr
+                className={
+                  tableLook === 'airy'
+                    ? 'green-bean-head-sub-row green-bean-head-sub-row--flat'
+                    : 'green-bean-head-sub-row'
+                }
+              >
+                {tableLook === 'airy' ? (
+                  <th className="inventory-sticky-column green-bean-th-item" scope="col">
+                    구분
+                  </th>
+                ) : null}
                 {persisted.supplierLabels.map((label, i) => (
-                  <th key={i} className="green-bean-th-price" scope="col">
-                    {editingSupplierHeaderNames ? (
+                  <th key={i} className="green-bean-th-price green-bean-col-band-price" scope="col">
+                    {i === ALMA_SUPPLIER_INDEX ? (
+                      <span className="green-bean-header-label green-bean-header-label--alma">
+                        {ALMA_SUPPLIER_LABEL}
+                      </span>
+                    ) : (
                       <input
-                        className="inventory-cell-input green-bean-header-input"
+                        className="inventory-cell-input green-bean-header-input green-bean-header-input--secondary"
                         value={label}
-                        aria-label={`공급처 ${i + 1} 열 이름`}
+                        aria-label="두 번째 공급처 이름"
+                        placeholder="예: GSC"
                         onChange={(e) => {
-                          const v = e.target.value
+                          const value = e.target.value
                           setPersisted((prev) => {
                             const nextLabels = [...prev.supplierLabels]
-                            nextLabels[i] = v
-                            return { ...prev, supplierLabels: nextLabels }
+                            nextLabels[SECONDARY_SUPPLIER_INDEX] = value
+                            return { ...prev, supplierLabels: normalizeSupplierLabelPair(nextLabels) }
                           })
                         }}
                       />
-                    ) : (
-                      <span className="green-bean-header-label">{label.trim() || `열 ${i + 1}`}</span>
                     )}
                   </th>
                 ))}
                 {almaItems.length > 0 && (
-                  <th className="green-bean-th-alma-ref" scope="col" title="알마 단가와 GSC 단가의 차이(원/kg)">
+                  <th
+                    className="green-bean-th-alma-ref green-bean-col-band-price"
+                    scope="col"
+                    title={`알마 단가와 ${persisted.supplierLabels[SECONDARY_SUPPLIER_INDEX]?.trim() || '두 번째 공급처'} 단가의 차이(원/kg)`}
+                  >
                     차이
                   </th>
                 )}
                 <th
-                  className="green-bean-th-num green-bean-th-inv-hint"
+                  className="green-bean-th-num green-bean-th-inv-hint green-bean-col-band-order"
                   scope="col"
                   title="입출고와 품목명이 같을 때만 표시. 입출고 기준일 열의 기말 재고(kg)입니다."
                 >
                   재고
                   <span className="green-bean-th-inv-hint-unit">kg</span>
                 </th>
-                <th className="green-bean-th-num" scope="col" title="수량(kg)">
+                <th className="green-bean-th-num green-bean-col-band-order" scope="col" title="수량(kg)">
                   kg
                 </th>
-                <th className="green-bean-th-source" scope="col">
-                  단가 기준
+                <th
+                  className="green-bean-th-record green-bean-col-band-order"
+                  scope="col"
+                  title="선택한 주문 일자로 이 품목만 저장합니다"
+                >
+                  기록
                 </th>
-                <th className="green-bean-th-num" scope="col">
+                <th className="green-bean-th-num green-bean-col-band-order" scope="col">
                   총계
                 </th>
               </tr>
@@ -3037,12 +3913,6 @@ export default function GreenBeanOrderPage() {
                 const keyName = normalizeItemKey(row.itemName)
                 const baseRow = keyName ? baselineMap.get(keyName) : undefined
                 const isNew = compareMode && !!persisted.baseline && !!keyName && !baseRow
-                const autoMode = (row.priceSource ?? 'auto') === 'auto'
-                const autoPickedIdx = autoMode ? resolveUnitPriceIndex(row.supplierPrices, 'auto') : -1
-                const autoPickedLabel =
-                  autoPickedIdx >= 0
-                    ? persisted.supplierLabels[autoPickedIdx]?.trim() || `열 ${autoPickedIdx + 1}`
-                    : null
                 const almaRefChanged = !!almaRefreshChanges[row.id]
                 const almaRefreshSummary = almaRefChanged ? summarizeAlmaRefreshChange(almaRefreshChanges[row.id]) : null
                 const almaRefSamePartial =
@@ -3061,7 +3931,15 @@ export default function GreenBeanOrderPage() {
                       : ''
 
                 return (
-                  <tr key={row.id} className={isNew ? 'green-bean-row-new' : undefined}>
+                  <tr
+                    key={row.id}
+                    className={[
+                      isNew ? 'green-bean-row-new' : '',
+                      row.itemName.trim() && row.quantityKg > 0 ? 'green-bean-row-has-qty' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ') || undefined}
+                  >
                     <td className="inventory-sticky-column green-bean-td-item">
                       <div className="green-bean-item-cell">
                         <button
@@ -3127,26 +4005,38 @@ export default function GreenBeanOrderPage() {
                         </div>
                       </div>
                     </td>
-                    {persisted.supplierLabels.map((_, si) => {
+                    {persisted.supplierLabels.map((supplierLabel, si) => {
                       const cell = row.supplierPrices[si] ?? ''
                       const display = cell === '' ? '' : typeof cell === 'number' ? String(cell) : cell
                       const prevCell = baseRow?.supplierPrices[si]
+                      const priceSelected = isRowPriceSourceIndex(row, si)
+                      const labelText = supplierLabel.trim() || `열 ${si + 1}`
                       return (
                         <td
                           key={si}
-                          className={`green-bean-td-price${
+                          className={`green-bean-td-price green-bean-col-band-price green-bean-price-pick-cell${
+                            priceSelected ? ' is-selected' : ''
+                          }${
                             si === almaIndex && almaRefChanged
                               ? ' green-bean-alma-refresh-changed'
                               : si === almaIndex && almaRefSamePartial
                                 ? ' green-bean-alma-refresh-same'
                                 : ''
                           }`}
+                          onClick={() => selectRowPriceSource(row.id, si)}
+                          title={
+                            priceSelected
+                              ? `${labelText} 단가로 총계 반영 중`
+                              : `${labelText} 단가를 클릭해 총계 기준으로 선택`
+                          }
                         >
                           <div className="green-bean-cell-stack green-bean-cell-stack--num">
                             <input
                               className="inventory-cell-input green-bean-input-price"
                               value={display}
                               onChange={(e) => updatePrice(row.id, si, e.target.value)}
+                              onClick={(event) => event.stopPropagation()}
+                              onFocus={(event) => event.stopPropagation()}
                               placeholder="원"
                               inputMode="decimal"
                             />
@@ -3187,10 +4077,10 @@ export default function GreenBeanOrderPage() {
                     })}
                     {almaItems.length > 0 &&
                       (() => {
-                        if (gscIndex < 0 || almaIndex < 0) {
+                        if (almaIndex < 0 || secondarySupplierIndex < 0) {
                           return (
                             <td
-                              className={`green-bean-td-alma-ref muted${
+                              className={`green-bean-td-alma-ref muted green-bean-col-band-price${
                                 almaRefChanged
                                   ? ' green-bean-alma-diff-cell--refresh-changed'
                                   : almaRefSamePartial
@@ -3204,11 +4094,11 @@ export default function GreenBeanOrderPage() {
                           )
                         }
                         const almaVal = unitPriceForAutoPick(row.supplierPrices[almaIndex] ?? '')
-                        const gscVal = unitPriceForAutoPick(row.supplierPrices[gscIndex] ?? '')
+                        const gscVal = unitPriceForAutoPick(row.supplierPrices[secondarySupplierIndex] ?? '')
                         if (almaVal === null || gscVal === null) {
                           return (
                             <td
-                              className={`green-bean-td-alma-ref green-bean-alma-diff-cell green-bean-alma-diff--na${
+                              className={`green-bean-td-alma-ref green-bean-alma-diff-cell green-bean-alma-diff--na green-bean-col-band-price${
                                 almaRefChanged
                                   ? ' green-bean-alma-diff-cell--refresh-changed'
                                   : almaRefSamePartial
@@ -3223,10 +4113,10 @@ export default function GreenBeanOrderPage() {
                         const diff = almaVal - gscVal
                         const diffCellClass =
                           diff === 0
-                            ? 'green-bean-td-alma-ref green-bean-alma-diff-cell green-bean-alma-diff--same'
+                            ? 'green-bean-td-alma-ref green-bean-alma-diff-cell green-bean-alma-diff--same green-bean-col-band-price'
                             : diff < 0
-                              ? 'green-bean-td-alma-ref green-bean-alma-diff-cell green-bean-alma-diff--cheaper'
-                              : 'green-bean-td-alma-ref green-bean-alma-diff-cell green-bean-alma-diff--pricier'
+                              ? 'green-bean-td-alma-ref green-bean-alma-diff-cell green-bean-alma-diff--cheaper green-bean-col-band-price'
+                              : 'green-bean-td-alma-ref green-bean-alma-diff-cell green-bean-alma-diff--pricier green-bean-col-band-price'
                         return (
                           <td
                             className={`${diffCellClass}${
@@ -3249,7 +4139,7 @@ export default function GreenBeanOrderPage() {
                           </td>
                         )
                       })()}
-                    <td className="green-bean-td-num green-bean-td-inv-hint">
+                    <td className="green-bean-td-num green-bean-td-inv-hint green-bean-col-band-order">
                       {!inventoryOrderHints.hasStoredPayload || inventoryOrderHints.loadError ? (
                         <span className="muted" title={inventoryHintBanner}>
                           —
@@ -3269,7 +4159,7 @@ export default function GreenBeanOrderPage() {
                         </span>
                       )}
                     </td>
-                    <td className="green-bean-td-num">
+                    <td className="green-bean-td-num green-bean-col-band-order">
                       <div className="green-bean-cell-stack green-bean-cell-stack--num">
                         <input
                           className="inventory-cell-input green-bean-input-num"
@@ -3295,51 +4185,25 @@ export default function GreenBeanOrderPage() {
                         )}
                       </div>
                     </td>
-                    <td className="green-bean-td-source">
-                      <div className="green-bean-source-buttons">
+                    <td className="green-bean-td-record green-bean-col-band-order">
+                      {row.itemName.trim() && row.quantityKg > 0 ? (
                         <button
                           type="button"
-                          className={
-                            (row.priceSource ?? 'auto') === 'auto'
-                              ? 'green-bean-source-button green-bean-source-button--compact active'
-                              : 'green-bean-source-button green-bean-source-button--compact'
-                          }
-                          title="공급처 열 중 숫자 단가가 가장 낮은 곳으로 총액을 맞춥니다. 같으면 왼쪽 열을 씁니다."
-                          onClick={() => setRowPriceSource(row.id, 'auto')}
+                          className="green-bean-row-record-btn green-bean-row-record-btn--cell"
+                          title={`${formatOrderDateLabel(recordDate)}에 이 품목만 기록합니다. 기록 후 수량은 0으로 비웁니다.`}
+                          onClick={() => handleRecordRowSnapshot(row.id)}
                         >
-                          자동
+                          기록
                         </button>
-                        {persisted.supplierLabels.map((label, si) => {
-                          const fullLabel = label.trim() || `열 ${si + 1}`
-                          return (
-                            <button
-                              key={si}
-                              type="button"
-                              className={
-                                (row.priceSource ?? 'auto') === si
-                                  ? 'green-bean-source-button green-bean-source-button--compact active'
-                                  : 'green-bean-source-button green-bean-source-button--compact'
-                              }
-                              title={`${fullLabel} 단가 기준`}
-                              onClick={() => setRowPriceSource(row.id, String(si))}
-                            >
-                              {formatSupplierSourceButtonLabel(label, si)}
-                            </button>
-                          )
-                        })}
-                      </div>
+                      ) : (
+                        <span className="green-bean-record-empty muted" aria-hidden>
+                          —
+                        </span>
+                      )}
                     </td>
-                    <td className="green-bean-td-num">
+                    <td className="green-bean-td-num green-bean-col-band-order">
                       <div className="green-bean-cell-stack green-bean-cell-stack--num">
                         <span className="green-bean-line-total-value">{formatMoney(row.lineTotal)}</span>
-                        {autoMode && (
-                          <span
-                            className="green-bean-auto-total-hint muted tiny"
-                            title="자동: 숫자 단가가 가장 낮은 공급처 열을 씁니다. 같으면 왼쪽 열을 씁니다."
-                          >
-                            {autoPickedLabel ?? '단가 없음'}
-                          </span>
-                        )}
                         {compareMode && persisted.baseline && baseRow && (
                           <span
                             className={
@@ -3372,9 +4236,14 @@ export default function GreenBeanOrderPage() {
                 {persisted.supplierLabels.map((_, i) => (
                   <td key={i} className="green-bean-td-price green-bean-tfoot-muted" aria-hidden />
                 ))}
-                {almaItems.length > 0 && <td className="green-bean-td-alma-ref green-bean-tfoot-muted" aria-hidden />}
-                <td className="green-bean-td-num green-bean-td-inv-hint green-bean-tfoot-muted" aria-hidden />
-                <td className="green-bean-td-num green-bean-tfoot-num green-bean-tfoot-qty-cell">
+                {almaItems.length > 0 && (
+                  <td className="green-bean-td-alma-ref green-bean-tfoot-muted green-bean-col-band-price" aria-hidden />
+                )}
+                <td
+                  className="green-bean-td-num green-bean-td-inv-hint green-bean-tfoot-muted green-bean-col-band-order"
+                  aria-hidden
+                />
+                <td className="green-bean-td-num green-bean-tfoot-num green-bean-tfoot-qty-cell green-bean-col-band-order">
                   <strong className="green-bean-tfoot-qty-value">{formatKg(totals.sumQty)}</strong>
                   {baselineTotals && compareMode && persisted.baseline && (
                     <div className="green-bean-tfoot-delta muted tiny">
@@ -3382,8 +4251,8 @@ export default function GreenBeanOrderPage() {
                     </div>
                   )}
                 </td>
-                <td className="green-bean-td-source green-bean-tfoot-muted" aria-hidden />
-                <td className="green-bean-td-num green-bean-tfoot-num green-bean-tfoot-money-cell">
+                <td className="green-bean-td-record green-bean-tfoot-muted green-bean-col-band-order" aria-hidden />
+                <td className="green-bean-td-num green-bean-tfoot-num green-bean-tfoot-money-cell green-bean-col-band-order">
                   <div className="green-bean-tfoot-money-stack">
                     <div className="green-bean-tfoot-money-line" title="쿠폰·감면을 뺀 금액입니다.">
                       반영 {formatMoney(totals.sumMoney)}
@@ -3468,9 +4337,13 @@ export default function GreenBeanOrderPage() {
             ) : null}
             <div
               className="green-bean-deduction-snapshot-block"
-              title="주문이 있었던 날짜를 고르고 저장합니다. 같은 날짜에 다시 저장하면 덮어씁니다. 월별 그래프는 같은 달의 일자별 기록을 합산합니다."
+              title="수량이 있는 품목만 저장됩니다. 같은 날 다시 저장하면 기존 기록에 누적됩니다."
             >
               <h4 className="green-bean-snapshot-section-title">일자 기록</h4>
+              <p className="green-bean-snapshot-section-hint">
+                품목마다 kg 입력 후 줄의 「기록」으로 개별 저장하거나, 아래에서 한 번에 저장할 수 있습니다. 기록 후 표
+                수량은 자동으로 비워 다음 주문을 이어갈 수 있습니다.
+              </p>
               <div className="green-bean-snapshot-controls-row">
                 <label className="green-bean-month-field green-bean-month-field--inline">
                   <span>주문 일자</span>
@@ -3486,9 +4359,15 @@ export default function GreenBeanOrderPage() {
                     type="button"
                     className="primary-button green-bean-month-primary"
                     onClick={handleAddOrderSnapshot}
-                    title="현재 주문표 합계를 선택한 일자로 저장합니다. 같은 날짜는 덮어씁니다."
+                    disabled={recordableRows.length === 0}
+                    title={
+                      recordableRows.length === 0
+                        ? '수량(kg)이 입력된 품목이 없습니다.'
+                        : `수량이 있는 ${recordableRows.length}품목을 선택한 일자로 저장합니다. 같은 날 기록은 누적됩니다.`
+                    }
                   >
-                    이 날짜로 기록
+                    수량 있는 품목 일괄 기록
+                    {recordableRows.length > 0 ? ` (${recordableRows.length})` : ''}
                   </button>
                   <button
                     type="button"
@@ -3540,7 +4419,7 @@ export default function GreenBeanOrderPage() {
 
         {chartRows.length === 0 ? (
           <p className="green-bean-chart-empty muted">
-            기록이 없습니다. 위 주문표의 「일자 기록」에서 날짜를 고른 뒤 「이 날짜로 기록」을 누르세요.
+            기록이 없습니다. 주문표에서 품목 kg을 입력한 뒤 줄의 「기록」 또는 「수량 있는 품목 일괄 기록」을 사용하세요.
           </p>
         ) : (
           <div className="green-bean-overview-grid">
@@ -3657,7 +4536,7 @@ export default function GreenBeanOrderPage() {
             <h3 className="green-bean-chart-title green-bean-per-item-section-title">원두별 추이</h3>
             {!hasPerItemSnapshots ? (
               <p className="muted green-bean-per-item-empty">
-                원별 선이 없으면 위 「일자 기록」에서 「이 날짜로 기록」을 다시 눌러 저장하세요.
+                원별 선이 없으면 품목별로 「기록」을 눌러 저장하세요. (수량 0인 품목은 저장되지 않습니다.)
               </p>
             ) : (
               <>

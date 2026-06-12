@@ -12,7 +12,14 @@ import {
   getGreenOrderWonPerKgByInventoryLabel,
   readStoredGreenOrderUnitPriceMode,
 } from './beanSalesGreenOrderUnitPrice'
-import { GREEN_BEAN_ORDER_SAVED_EVENT, GREEN_BEAN_ORDER_STORAGE_KEY } from './GreenBeanOrderPage'
+import {
+  GREEN_BEAN_ORDER_SAVED_EVENT,
+  GREEN_BEAN_ORDER_STORAGE_KEY,
+  mergeGreenBeanPersisted,
+  normalizePersisted,
+  persistedDataScore,
+  readGreenBeanOrderPersistedFromStorage,
+} from './GreenBeanOrderPage'
 import {
   BEAN_STATEMENT_MANUAL_MAPPINGS_EVENT,
   hasAnyStatementManualForItem,
@@ -302,13 +309,18 @@ function BeanSalesAnalysisPage() {
           }
         }
 
-        // 4) 생두 주문(최근 주문가 계산용)
+        // 4) 생두 주문(최근 주문가 계산용) — 비어 있는 클라우드가 로컬 기록을 덮지 않도록 병합
         if (greenOrderDoc) {
-          const nextJson = JSON.stringify(greenOrderDoc)
+          const local = readGreenBeanOrderPersistedFromStorage()
+          const remote = normalizePersisted(greenOrderDoc)
+          const merged = mergeGreenBeanPersisted(local, remote)
+          const nextJson = JSON.stringify(merged)
           if (nextJson !== lastGreenOrderDoc) {
             lastGreenOrderDoc = nextJson
-            window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(greenOrderDoc))
-            window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
+            if (persistedDataScore(merged) >= 5 || persistedDataScore(local) < 5) {
+              window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, nextJson)
+              window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
+            }
             setGreenOrderCloudSyncTick((n) => n + 1)
           }
         }
@@ -430,7 +442,13 @@ function BeanSalesAnalysisPage() {
           return
         }
         if (remote) {
-          window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(remote))
+          const local = readGreenBeanOrderPersistedFromStorage()
+          const normalized = normalizePersisted(remote)
+          const merged = mergeGreenBeanPersisted(local, normalized)
+          if (persistedDataScore(merged) >= 5 || persistedDataScore(local) < 5) {
+            window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, JSON.stringify(merged))
+            window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
+          }
         }
       } catch (error) {
         console.error('원두별 매출 분석: 생두 주문 클라우드 문서를 읽지 못했습니다.', error)

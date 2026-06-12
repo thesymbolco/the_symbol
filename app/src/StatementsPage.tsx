@@ -1100,8 +1100,7 @@ const readBackupFile = async (fileHandle: FileSystemFileHandle): Promise<AppBack
     inventoryAutoStockMode: parsed.inventoryAutoStockMode === true,
     expenseState: String(parsed.expenseState ?? ''),
     staffPayrollState: String(parsed.staffPayrollState ?? ''),
-    // 생두 주문은 이전 백업값을 자동 복원하지 않음(기본 초기 상태 유지)
-    greenBeanOrderState: '',
+    greenBeanOrderState: String(parsed.greenBeanOrderState ?? ''),
     statementTemplateBase64: String(parsed.statementTemplateBase64 ?? ''),
     statementTemplateFileName: String(parsed.statementTemplateFileName ?? ''),
     statementTemplateUpdatedAt: String(parsed.statementTemplateUpdatedAt ?? ''),
