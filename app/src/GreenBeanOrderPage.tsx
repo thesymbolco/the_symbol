@@ -648,7 +648,7 @@ const normalizeSupplierLabelPair = (rawLabels: string[]): [string, string] => {
   if (gscIdx >= 0) {
     secondaryLabel = trimmed[gscIdx]!
   } else {
-    const otherIdx = trimmed.findIndex((label, index) => index !== almaIdx)
+    const otherIdx = trimmed.findIndex((_label, index) => index !== almaIdx)
     if (otherIdx >= 0) {
       secondaryLabel = trimmed[otherIdx]!
     }
