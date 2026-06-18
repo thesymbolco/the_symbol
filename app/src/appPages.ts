@@ -32,3 +32,22 @@ const APP_ACTIVE_PAGES: readonly AppActivePage[] = [
 
 export const parseAppActivePage = (value: unknown): AppActivePage | undefined =>
   APP_ACTIVE_PAGES.includes(value as AppActivePage) ? (value as AppActivePage) : undefined
+
+/** 배포 클라우드에서는 숨김 — dev 서버·로컬 모드에서만 노출 (클라우드 egress 절감). */
+export function isBeanSalesAnalysisPageAvailable(mode: 'local' | 'cloud'): boolean {
+  return import.meta.env.DEV || mode === 'local'
+}
+
+export function coerceAppActivePage(
+  value: unknown,
+  mode: 'local' | 'cloud',
+): AppActivePage | undefined {
+  const page = parseAppActivePage(value)
+  if (!page) {
+    return undefined
+  }
+  if (page === 'beanSalesAnalysis' && !isBeanSalesAnalysisPageAvailable(mode)) {
+    return undefined
+  }
+  return page
+}

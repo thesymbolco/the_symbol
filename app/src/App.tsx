@@ -20,7 +20,13 @@ import MonthlyMeetingPage, {
   STATEMENT_RECORDS_STORAGE_KEY,
 } from './MonthlyMeetingPage'
 import StatementsPage, { type StatementsHeroSummary } from './StatementsPage'
-import { ACTIVE_PAGE_STORAGE_KEY, type AppActivePage } from './appPages'
+import {
+  ACTIVE_PAGE_STORAGE_KEY,
+  coerceAppActivePage,
+  isBeanSalesAnalysisPageAvailable,
+  type AppActivePage,
+} from './appPages'
+import { runtimeMode } from './lib/supabase'
 import PageSaveStatus from './components/PageSaveStatus'
 import { useAppRuntime } from './providers/AppRuntimeProvider.tsx'
 import { useWeeklyReminderScheduler } from './hooks/useWeeklyReminderScheduler'
@@ -234,20 +240,9 @@ function App() {
   const { mode, activeCompany, activeCompanyId, user, signOut, isReady } = useAppRuntime()
   const [activePage, setActivePage] = useState<AppActivePage>(() => {
     const savedPage = window.localStorage.getItem(ACTIVE_PAGE_STORAGE_KEY)
-    if (
-      savedPage === 'meeting' ||
-      savedPage === 'inventory' ||
-      savedPage === 'statements' ||
-      savedPage === 'expense' ||
-      savedPage === 'staffPayroll' ||
-      savedPage === 'greenBeanOrder' ||
-      savedPage === 'dailyMeeting' ||
-      savedPage === 'weeklyReminders' ||
-      savedPage === 'team' ||
-      savedPage === 'beanSalesAnalysis' ||
-      savedPage === 'beanMarginCalc'
-    ) {
-      return savedPage
+    const resolved = coerceAppActivePage(savedPage, runtimeMode)
+    if (resolved) {
+      return resolved
     }
     if (savedPage === 'memo') {
       return 'dailyMeeting'
@@ -257,6 +252,34 @@ function App() {
   })
   const [isHomeRailOpen, setIsHomeRailOpen] = useState(false)
 
+  const visiblePageCategoryGroups = useMemo(
+    () =>
+      PAGE_CATEGORY_GROUPS.map((group) => ({
+        ...group,
+        pages: group.pages.filter(
+          (p) => p.page !== 'beanSalesAnalysis' || isBeanSalesAnalysisPageAvailable(mode),
+        ),
+      })).filter((group) => group.pages.length > 0),
+    [mode],
+  )
+
+  const navigateToPage = useCallback(
+    (page: AppActivePage) => {
+      if (page === 'beanSalesAnalysis' && !isBeanSalesAnalysisPageAvailable(mode)) {
+        setActivePage('statements')
+        return
+      }
+      setActivePage(page)
+    },
+    [mode],
+  )
+
+  useEffect(() => {
+    if (activePage === 'beanSalesAnalysis' && !isBeanSalesAnalysisPageAvailable(mode)) {
+      setActivePage('statements')
+    }
+  }, [activePage, mode])
+
   const activeCategoryId = useMemo(() => categoryIdForPage(activePage), [activePage])
   const activeCategoryLabel = useMemo(
     () => PAGE_CATEGORY_GROUPS.find((g) => g.id === activeCategoryId)?.label ?? '업무',
@@ -264,12 +287,12 @@ function App() {
   )
   const activePageMeta = useMemo(() => PAGE_HEADER_META[activePage], [activePage])
   const activeCategoryGroup = useMemo(
-    () => PAGE_CATEGORY_GROUPS.find((g) => g.id === activeCategoryId) ?? PAGE_CATEGORY_GROUPS[0],
-    [activeCategoryId],
+    () => visiblePageCategoryGroups.find((g) => g.id === activeCategoryId) ?? visiblePageCategoryGroups[0],
+    [activeCategoryId, visiblePageCategoryGroups],
   )
   const totalWorkspacePages = useMemo(
-    () => PAGE_CATEGORY_GROUPS.reduce((sum, group) => sum + group.pages.length, 0),
-    [],
+    () => visiblePageCategoryGroups.reduce((sum, group) => sum + group.pages.length, 0),
+    [visiblePageCategoryGroups],
   )
 
   const [lowGreenBeanWarningItems, setLowGreenBeanWarningItems] = useState<LowGreenBeanWarningItem[]>([])
@@ -426,7 +449,7 @@ function App() {
           </div>
 
           <nav className="app-home-rail-nav" aria-label="상위 구역">
-            {PAGE_CATEGORY_GROUPS.map((group) => {
+            {visiblePageCategoryGroups.map((group) => {
               const isActiveGroup = group.id === activeCategoryId
               return (
                 <button
@@ -435,7 +458,7 @@ function App() {
                   className={`app-home-rail-link${isActiveGroup ? ' active' : ''}`}
                   onClick={() => {
                     if (group.pages[0]) {
-                      setActivePage(group.pages[0].page)
+                      navigateToPage(group.pages[0].page)
                     }
                   }}
                 >
@@ -454,7 +477,7 @@ function App() {
                 type="button"
                 className={`app-home-rail-subnav-link${activePage === p.page ? ' active' : ''}`}
                 onClick={() => {
-                  setActivePage(p.page)
+                  navigateToPage(p.page)
                   setIsHomeRailOpen(false)
                 }}
               >
@@ -583,9 +606,9 @@ function App() {
         <StatementsPage
           onHeroSummaryChange={setStatementsHeroSummary}
           onStickyHScrollVisibleChange={setStatementStickyHScrollVisible}
-          onRestoreActivePage={setActivePage}
+          onRestoreActivePage={navigateToPage}
         />
-      ) : activePage === 'beanSalesAnalysis' ? (
+      ) : activePage === 'beanSalesAnalysis' && isBeanSalesAnalysisPageAvailable(mode) ? (
         <BeanSalesAnalysisPage />
       ) : activePage === 'meeting' ? (
         <MonthlyMeetingPage />
