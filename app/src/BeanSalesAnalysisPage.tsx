@@ -51,7 +51,7 @@ import {
 import {
   CLOUD_DOCUMENT_POLL_INTERVAL_SLOW_MS,
   shouldRunCloudDocumentPoll,
-  startCloudDocumentPoll,
+  startCloudDocumentSync,
 } from './lib/cloudDocumentPolling'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 import StatementInventoryLinkModal from './StatementInventoryLinkModal'
@@ -181,7 +181,7 @@ function useBeanSalesPlotWidth(fallbackW = 360) {
 }
 
 function BeanSalesAnalysisPage() {
-  const { mode, activeCompanyId } = useAppRuntime()
+  const { mode, activeCompanyId, user } = useAppRuntime()
   const [inventoryReadTick, setInventoryReadTick] = useState(0)
   const [greenOrderReadTick, setGreenOrderReadTick] = useState(0)
   const [manualMappingTick, setManualMappingTick] = useState(0)
@@ -376,9 +376,15 @@ function BeanSalesAnalysisPage() {
       }
     }
 
-    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_SLOW_MS)
+    const controller = startCloudDocumentSync({
+      poll,
+      intervalMs: CLOUD_DOCUMENT_POLL_INTERVAL_SLOW_MS,
+      companyId: activeCompanyId,
+      docKeys: pollKeys,
+      currentUserId: user?.id ?? null,
+    })
     return () => controller.stop()
-  }, [mode, activeCompanyId])
+  }, [mode, activeCompanyId, user?.id])
 
   useEffect(() => {
     let cancelled = false

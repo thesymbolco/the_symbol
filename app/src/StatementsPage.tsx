@@ -34,7 +34,7 @@ import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, loadCompanyDocumentUpdatedA
 import {
   CLOUD_DOCUMENT_POLL_INTERVAL_MS,
   shouldRunCloudDocumentPoll,
-  startCloudDocumentPoll,
+  startCloudDocumentSync,
 } from './lib/cloudDocumentPolling'
 import { useDocumentSaveUi, type DocumentSaveState } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider.tsx'
@@ -1633,9 +1633,15 @@ export default function StatementsPage({
       }
     }
 
-    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_MS)
+    const controller = startCloudDocumentSync({
+      poll,
+      intervalMs: CLOUD_DOCUMENT_POLL_INTERVAL_MS,
+      companyId: activeCompanyId,
+      docKeys: [COMPANY_DOCUMENT_KEYS.statementPage],
+      currentUserId: user?.id ?? null,
+    })
     return () => controller.stop()
-  }, [mode, activeCompanyId])
+  }, [mode, activeCompanyId, user?.id])
 
   useEffect(() => {
     let isMounted = true

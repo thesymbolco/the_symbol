@@ -12,7 +12,7 @@ import {
 import {
   CLOUD_DOCUMENT_POLL_INTERVAL_MS,
   shouldRunCloudDocumentPoll,
-  startCloudDocumentPoll,
+  startCloudDocumentSync,
 } from './lib/cloudDocumentPolling'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
@@ -400,9 +400,15 @@ function StaffPayrollPage() {
       }
     }
 
-    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_MS)
+    const controller = startCloudDocumentSync({
+      poll,
+      intervalMs: CLOUD_DOCUMENT_POLL_INTERVAL_MS,
+      companyId: activeCompanyId,
+      docKeys: [COMPANY_DOCUMENT_KEYS.staffPayrollPage],
+      currentUserId: user?.id ?? null,
+    })
     return () => controller.stop()
-  }, [mode, activeCompanyId])
+  }, [mode, activeCompanyId, user?.id])
 
   const activeRecords = useMemo(() => pageState.records.filter((r) => r.isActive), [pageState.records])
   const monthlyInputTotalActive = useMemo(

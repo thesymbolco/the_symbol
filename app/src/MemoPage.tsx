@@ -17,7 +17,7 @@ import {
 import {
   CLOUD_DOCUMENT_POLL_INTERVAL_MS,
   shouldRunCloudDocumentPoll,
-  startCloudDocumentPoll,
+  startCloudDocumentSync,
 } from './lib/cloudDocumentPolling'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
@@ -587,9 +587,15 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
       }
     }
 
-    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_MS)
+    const controller = startCloudDocumentSync({
+      poll,
+      intervalMs: CLOUD_DOCUMENT_POLL_INTERVAL_MS,
+      companyId: activeCompanyId,
+      docKeys: [COMPANY_DOCUMENT_KEYS.memoPage],
+      currentUserId: user?.id ?? null,
+    })
     return () => controller.stop()
-  }, [runtimeMode, activeCompanyId])
+  }, [runtimeMode, activeCompanyId, user?.id])
 
   useEffect(() => {
     return () => {
