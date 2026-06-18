@@ -33,7 +33,18 @@ import {
   type BeanNameAliasEntry,
 } from './beanNameAliasStore'
 import { GREEN_BEAN_ORDER_INVENTORY_ALIASES } from './greenBeanOrderInventoryAliases'
-import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
+import {
+  COMPANY_DOCUMENT_KEYS,
+  isCompanyDocumentUpdatedAtUnchanged,
+  loadCompanyDocument,
+  loadCompanyDocumentsUpdatedAt,
+  saveCompanyDocument,
+} from './lib/companyDocuments'
+import {
+  CLOUD_DOCUMENT_POLL_INTERVAL_MS,
+  shouldRunCloudDocumentPoll,
+  startCloudDocumentPoll,
+} from './lib/cloudDocumentPolling'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
@@ -2350,69 +2361,73 @@ export default function GreenBeanOrderPage() {
     if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
-    let cancelled = false
-    let inFlight = false
+    let lastOrderUpdatedAt: string | null = null
+    let lastAliasUpdatedAt: string | null = null
     let lastJson = ''
     let lastAliasJson = ''
 
     const poll = async () => {
-      if (cancelled || inFlight) {
+      if (!shouldRunCloudDocumentPoll()) {
         return
       }
-      inFlight = true
-      try {
-        const [remoteDoc, remoteAliases] = await Promise.all([
-          loadCompanyDocument<GreenBeanOrderPersisted>(
-            activeCompanyId,
-            COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
-          ),
-          loadCompanyDocument<BeanNameAliasEntry[]>(
-            activeCompanyId,
-            COMPANY_DOCUMENT_KEYS.beanNameAliases,
-          ),
-        ])
-        if (cancelled) {
-          return
-        }
+      const updatedAtMap = await loadCompanyDocumentsUpdatedAt(activeCompanyId, [
+        COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
+        COMPANY_DOCUMENT_KEYS.beanNameAliases,
+      ])
+      const orderUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.greenBeanOrderPage] ?? null
+      const aliasUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.beanNameAliases] ?? null
+      const orderUnchanged = isCompanyDocumentUpdatedAtUnchanged(orderUpdatedAt, lastOrderUpdatedAt)
+      const aliasUnchanged = isCompanyDocumentUpdatedAtUnchanged(aliasUpdatedAt, lastAliasUpdatedAt)
+      if (orderUnchanged && aliasUnchanged) {
+        return
+      }
 
-        if (remoteDoc) {
-          const normalized = normalizePersisted(remoteDoc)
-          bestKnownRemoteScoreRef.current = Math.max(
-            bestKnownRemoteScoreRef.current,
-            persistedDataScore(normalized),
-          )
-          const nextJson = JSON.stringify(normalized)
-          if (nextJson !== lastJson) {
-            lastJson = nextJson
-            lastCloudPollJsonRef.current = nextJson
-            setPersisted((prev) => mergeGreenBeanPersisted(prev, normalized))
-          }
-        }
+      const [remoteDoc, remoteAliases] = await Promise.all([
+        orderUnchanged
+          ? Promise.resolve(null)
+          : loadCompanyDocument<GreenBeanOrderPersisted>(
+              activeCompanyId,
+              COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
+            ),
+        aliasUnchanged
+          ? Promise.resolve(null)
+          : loadCompanyDocument<BeanNameAliasEntry[]>(
+              activeCompanyId,
+              COMPANY_DOCUMENT_KEYS.beanNameAliases,
+            ),
+      ])
 
-        if (Array.isArray(remoteAliases)) {
-          const nextAliasJson = JSON.stringify(remoteAliases)
-          if (nextAliasJson !== lastAliasJson) {
-            lastAliasJson = nextAliasJson
-            lastCloudPollAliasJsonRef.current = nextAliasJson
-            writeCustomBeanNameAliases(remoteAliases)
-            setAliasDraftRows(readCustomBeanNameAliases())
-            setAliasRevision((n) => n + 1)
-            setInventoryHintsTick((n) => n + 1)
-          }
+      if (remoteDoc) {
+        lastOrderUpdatedAt = orderUpdatedAt ?? lastOrderUpdatedAt
+        const normalized = normalizePersisted(remoteDoc)
+        bestKnownRemoteScoreRef.current = Math.max(
+          bestKnownRemoteScoreRef.current,
+          persistedDataScore(normalized),
+        )
+        const nextJson = JSON.stringify(normalized)
+        if (nextJson !== lastJson) {
+          lastJson = nextJson
+          lastCloudPollJsonRef.current = nextJson
+          setPersisted((prev) => mergeGreenBeanPersisted(prev, normalized))
         }
-      } catch {
-        /* retry next cycle */
-      } finally {
-        inFlight = false
+      }
+
+      if (Array.isArray(remoteAliases)) {
+        lastAliasUpdatedAt = aliasUpdatedAt ?? lastAliasUpdatedAt
+        const nextAliasJson = JSON.stringify(remoteAliases)
+        if (nextAliasJson !== lastAliasJson) {
+          lastAliasJson = nextAliasJson
+          lastCloudPollAliasJsonRef.current = nextAliasJson
+          writeCustomBeanNameAliases(remoteAliases)
+          setAliasDraftRows(readCustomBeanNameAliases())
+          setAliasRevision((n) => n + 1)
+          setInventoryHintsTick((n) => n + 1)
+        }
       }
     }
 
-    void poll()
-    const id = window.setInterval(() => void poll(), 2500)
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
+    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_MS)
+    return () => controller.stop()
   }, [mode, activeCompanyId])
 
   useEffect(() => {

@@ -7,7 +7,18 @@ import {
   updateLinkedMemo,
 } from './memoLinkedSources'
 import PageSaveStatus from './components/PageSaveStatus'
-import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
+import {
+  COMPANY_DOCUMENT_KEYS,
+  isCompanyDocumentUpdatedAtUnchanged,
+  loadCompanyDocument,
+  loadCompanyDocumentUpdatedAt,
+  saveCompanyDocument,
+} from './lib/companyDocuments'
+import {
+  CLOUD_DOCUMENT_POLL_INTERVAL_MS,
+  shouldRunCloudDocumentPoll,
+  startCloudDocumentPoll,
+} from './lib/cloudDocumentPolling'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
 export const MEMO_PAGE_STORAGE_KEY = 'memo-page-data-v1'
@@ -531,57 +542,53 @@ export default function MemoPage({ mode = 'all' }: MemoPageProps) {
     if (runtimeMode !== 'cloud' || !activeCompanyId) {
       return
     }
-    let cancelled = false
-    let inFlight = false
+    let lastRemoteUpdatedAt: string | null = null
     let lastJson = ''
 
     const poll = async () => {
-      if (cancelled || inFlight) {
+      if (!shouldRunCloudDocumentPoll()) {
         return
       }
-      inFlight = true
-      try {
-        const remote = await loadCompanyDocument<MemoPagePersisted>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.memoPage,
-        )
-        if (cancelled || !remote) {
-          return
-        }
-        const normalized = normalizePersisted(remote)
-        const nextJson = JSON.stringify(normalized)
-        if (nextJson !== lastJson) {
-          lastJson = nextJson
-          const sortedItems = [...normalized.items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-          const sortedTodos = [...normalized.todos].sort((a, b) => {
-            if (a.done !== b.done) {
-              return a.done ? 1 : -1
-            }
-            return b.createdAt.localeCompare(a.createdAt)
-          })
-          const payload: MemoPagePersisted = {
-            items: sortedItems,
-            todos: sortedTodos,
-            dailyByDate: pruneDailyByDate(normalized.dailyByDate),
+      const remoteUpdatedAt = await loadCompanyDocumentUpdatedAt(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.memoPage,
+      )
+      if (isCompanyDocumentUpdatedAtUnchanged(remoteUpdatedAt, lastRemoteUpdatedAt)) {
+        return
+      }
+      const remote = await loadCompanyDocument<MemoPagePersisted>(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.memoPage,
+      )
+      if (!remote) {
+        return
+      }
+      lastRemoteUpdatedAt = remoteUpdatedAt ?? lastRemoteUpdatedAt
+      const normalized = normalizePersisted(remote)
+      const nextJson = JSON.stringify(normalized)
+      if (nextJson !== lastJson) {
+        lastJson = nextJson
+        const sortedItems = [...normalized.items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        const sortedTodos = [...normalized.todos].sort((a, b) => {
+          if (a.done !== b.done) {
+            return a.done ? 1 : -1
           }
-          lastSyncedPayloadRef.current = JSON.stringify(payload)
-          setItems(sortedItems)
-          setTodos(sortedTodos)
-          setDailyByDate(normalized.dailyByDate)
+          return b.createdAt.localeCompare(a.createdAt)
+        })
+        const payload: MemoPagePersisted = {
+          items: sortedItems,
+          todos: sortedTodos,
+          dailyByDate: pruneDailyByDate(normalized.dailyByDate),
         }
-      } catch {
-        /* retry next cycle */
-      } finally {
-        inFlight = false
+        lastSyncedPayloadRef.current = JSON.stringify(payload)
+        setItems(sortedItems)
+        setTodos(sortedTodos)
+        setDailyByDate(normalized.dailyByDate)
       }
     }
 
-    void poll()
-    const id = window.setInterval(() => void poll(), 2500)
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
+    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_MS)
+    return () => controller.stop()
   }, [runtimeMode, activeCompanyId])
 
   useEffect(() => {

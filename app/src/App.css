@@ -2009,6 +2009,13 @@
   white-space: nowrap;
 }
 
+.pos-client-chip--new {
+  border-style: dashed;
+  border-color: #818cf8;
+  color: #4338ca;
+  background: #fafaff;
+}
+
 .pos-client-fav {
   width: 24px;
   height: 24px;

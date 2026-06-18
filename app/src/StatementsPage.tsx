@@ -30,7 +30,12 @@ import {
 } from './statementExcelStyledExport.ts'
 import { migrateStatementMonthlyOverrideKeys, statementNameKey } from './statementNameKey'
 import { ACTIVE_PAGE_STORAGE_KEY, parseAppActivePage, type AppActivePage } from './appPages'
-import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
+import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, loadCompanyDocumentUpdatedAt, saveCompanyDocument, isCompanyDocumentUpdatedAtUnchanged } from './lib/companyDocuments'
+import {
+  CLOUD_DOCUMENT_POLL_INTERVAL_MS,
+  shouldRunCloudDocumentPoll,
+  startCloudDocumentPoll,
+} from './lib/cloudDocumentPolling'
 import { useDocumentSaveUi, type DocumentSaveState } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider.tsx'
 
@@ -1581,59 +1586,55 @@ export default function StatementsPage({
     if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
-    let cancelled = false
-    let inFlight = false
+    let lastRemoteUpdatedAt: string | null = null
     let lastJson = ''
 
     const poll = async () => {
-      if (cancelled || inFlight) {
+      if (!shouldRunCloudDocumentPoll()) {
         return
       }
-      inFlight = true
-      try {
-        const remote = await loadCompanyDocument<StatementPageDocument>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.statementPage,
-        )
-        if (cancelled || !remote) {
-          return
-        }
-        const normalized = normalizeStatementPageDocument(remote)
-        const nextJson = JSON.stringify({
-          records: normalized.records,
-          pricingRules: normalized.pricingRules,
-          masterItems: normalized.masterItems,
-          monthlyDateOverrides: normalized.monthlyDateOverrides,
-          statementTemplateBase64: normalized.statementTemplateBase64,
-          statementTemplateFileName: normalized.statementTemplateFileName,
-          statementTemplateUpdatedAt: normalized.statementTemplateUpdatedAt,
-          statementTemplateSettings: normalized.statementTemplateSettings,
-        })
-        if (nextJson !== lastJson) {
-          lastJson = nextJson
-          lastCloudPollJsonRef.current = nextJson
-          setRecords(normalized.records)
-          setPricingRules(normalized.pricingRules)
-          setMasterItems(normalized.masterItems)
-          setMonthlyDateOverrides(normalized.monthlyDateOverrides)
-          setStatementTemplateBase64(normalized.statementTemplateBase64)
-          setStatementTemplateFileName(normalized.statementTemplateFileName)
-          setStatementTemplateUpdatedAt(normalized.statementTemplateUpdatedAt)
-          setStatementTemplateSettings(normalized.statementTemplateSettings)
-        }
-      } catch {
-        /* retry next cycle */
-      } finally {
-        inFlight = false
+      const remoteUpdatedAt = await loadCompanyDocumentUpdatedAt(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.statementPage,
+      )
+      if (isCompanyDocumentUpdatedAtUnchanged(remoteUpdatedAt, lastRemoteUpdatedAt)) {
+        return
+      }
+      const remote = await loadCompanyDocument<StatementPageDocument>(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.statementPage,
+      )
+      if (!remote) {
+        return
+      }
+      lastRemoteUpdatedAt = remoteUpdatedAt ?? lastRemoteUpdatedAt
+      const normalized = normalizeStatementPageDocument(remote)
+      const nextJson = JSON.stringify({
+        records: normalized.records,
+        pricingRules: normalized.pricingRules,
+        masterItems: normalized.masterItems,
+        monthlyDateOverrides: normalized.monthlyDateOverrides,
+        statementTemplateBase64: normalized.statementTemplateBase64,
+        statementTemplateFileName: normalized.statementTemplateFileName,
+        statementTemplateUpdatedAt: normalized.statementTemplateUpdatedAt,
+        statementTemplateSettings: normalized.statementTemplateSettings,
+      })
+      if (nextJson !== lastJson) {
+        lastJson = nextJson
+        lastCloudPollJsonRef.current = nextJson
+        setRecords(normalized.records)
+        setPricingRules(normalized.pricingRules)
+        setMasterItems(normalized.masterItems)
+        setMonthlyDateOverrides(normalized.monthlyDateOverrides)
+        setStatementTemplateBase64(normalized.statementTemplateBase64)
+        setStatementTemplateFileName(normalized.statementTemplateFileName)
+        setStatementTemplateUpdatedAt(normalized.statementTemplateUpdatedAt)
+        setStatementTemplateSettings(normalized.statementTemplateSettings)
       }
     }
 
-    void poll()
-    const id = window.setInterval(() => void poll(), 2500)
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
+    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_MS)
+    return () => controller.stop()
   }, [mode, activeCompanyId])
 
   useEffect(() => {
@@ -2749,6 +2750,22 @@ export default function StatementsPage({
     if (master.specUnit) {
       setIsCustomSpec(false)
     }
+  }
+
+  const handleClientNameInputChange = (value: string) => {
+    const trimmed = value.trim()
+    const matchedClient =
+      trimmed.length > 0
+        ? clientOptions.find((client) => normalizeName(client) === normalizeName(trimmed))
+        : undefined
+
+    if (matchedClient) {
+      handleClientSelectionChange(matchedClient)
+      return
+    }
+
+    setIsCustomClient(trimmed.length > 0)
+    setForm((current) => ({ ...current, clientName: value }))
   }
 
   const handleClientSelectionChange = (value: string) => {
@@ -5564,25 +5581,20 @@ export default function StatementsPage({
               </label>
               <label className="statement-form-field statement-form-field--client">
                 거래처명
-                <select
-                  value={isCustomClient ? CUSTOM_CLIENT_OPTION : form.clientName}
-                  onChange={(event) => handleClientSelectionChange(event.target.value)}
-                >
-                  <option value="">거래처를 선택하세요</option>
+                <input
+                  type="text"
+                  list="statement-client-datalist"
+                  value={form.clientName}
+                  onChange={(event) => handleClientNameInputChange(event.target.value)}
+                  placeholder="거래처명 입력 (목록에서 고르거나 새 이름)"
+                />
+                <datalist id="statement-client-datalist">
                   {clientOptions.map((client) => (
-                    <option key={client} value={client}>
-                      {client}
-                    </option>
+                    <option key={client} value={client} />
                   ))}
-                  <option value={CUSTOM_CLIENT_OPTION}>직접 입력</option>
-                </select>
-                {isCustomClient ? (
-                  <input
-                    type="text"
-                    value={form.clientName}
-                    onChange={(event) => handleFieldChange('clientName', event.target.value)}
-                    placeholder="예: 길 인천점"
-                  />
+                </datalist>
+                {isCustomClient && form.clientName.trim() ? (
+                  <span className="field-help">신규 거래처로 저장됩니다.</span>
                 ) : null}
               </label>
               <label className="statement-form-field statement-form-field--item">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
 import { statementNameKey } from './statementNameKey'
 
@@ -633,6 +633,28 @@ function StatementPosEntryPanel({
   const isTaxSeparate = !isTaxFreeNote(note)
   const checkoutDisabled = cart.length === 0
 
+  const selectClientFromSearch = useCallback((name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) {
+      return
+    }
+    setSelectedClient(trimmed)
+    setClientSearch('')
+  }, [])
+
+  const handleClientSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== 'Enter') {
+      return
+    }
+    const trimmed = clientSearch.trim()
+    if (!trimmed) {
+      return
+    }
+    event.preventDefault()
+    const exact = clientOptions.find((client) => normalize(client) === normalize(trimmed))
+    selectClientFromSearch(exact ?? trimmed)
+  }
+
   const renderClientChip = (client: string) => {
     const isSelected = normalize(client) === normalize(selectedClient)
     const isFavorite = favoriteSet.has(normalize(client))
@@ -688,16 +710,27 @@ function StatementPosEntryPanel({
             <input
               type="search"
               className="pos-search pos-search--full"
-              placeholder="거래처 검색 (이름 일부 입력)"
+              placeholder="거래처 검색 또는 신규 이름 입력"
               value={clientSearch}
               onChange={(event) => setClientSearch(event.target.value)}
+              onKeyDown={handleClientSearchKeyDown}
             />
             {isClientSearchMode ? (
               <div className="pos-client-section">
                 <div className="pos-client-section-label">검색 결과</div>
                 <div className="pos-client-chips">
                   {searchResults.length === 0 ? (
-                    <span className="pos-empty">일치하는 거래처가 없습니다.</span>
+                    clientSearch.trim() ? (
+                      <button
+                        type="button"
+                        className="pos-client-chip pos-client-chip--new"
+                        onClick={() => selectClientFromSearch(clientSearch)}
+                      >
+                        「{clientSearch.trim()}」 새 거래처로 사용
+                      </button>
+                    ) : (
+                      <span className="pos-empty">거래처 이름을 입력하세요.</span>
+                    )
                   ) : (
                     searchResults.map((client) => renderClientChip(client))
                   )}

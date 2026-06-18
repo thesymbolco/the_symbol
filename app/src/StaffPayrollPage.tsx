@@ -2,7 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import PageSaveStatus from './components/PageSaveStatus'
 import { exportStyledStaffPayrollExcel } from './staffPayrollExcelStyledExport'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
-import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
+import {
+  COMPANY_DOCUMENT_KEYS,
+  isCompanyDocumentUpdatedAtUnchanged,
+  loadCompanyDocument,
+  loadCompanyDocumentUpdatedAt,
+  saveCompanyDocument,
+} from './lib/companyDocuments'
+import {
+  CLOUD_DOCUMENT_POLL_INTERVAL_MS,
+  shouldRunCloudDocumentPoll,
+  startCloudDocumentPoll,
+} from './lib/cloudDocumentPolling'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
@@ -355,46 +366,42 @@ function StaffPayrollPage() {
     if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
-    let cancelled = false
-    let inFlight = false
+    let lastRemoteUpdatedAt: string | null = null
     let lastJson = ''
 
     const poll = async () => {
-      if (cancelled || inFlight) {
+      if (!shouldRunCloudDocumentPoll()) {
         return
       }
-      inFlight = true
-      try {
-        const remote = await loadCompanyDocument<StaffPayrollPageState>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.staffPayrollPage,
-        )
-        if (cancelled || !remote) {
-          return
-        }
-        const normalized = normalizePageState(remote)
-        const nextJson = JSON.stringify(normalized)
-        if (JSON.stringify(pageStateRef.current) !== lastCloudSyncedJsonRef.current) {
-          return
-        }
-        if (nextJson !== lastJson) {
-          lastJson = nextJson
-          syncLastCloudRefFromState(normalized)
-          setPageState(normalized)
-        }
-      } catch {
-        /* retry next cycle */
-      } finally {
-        inFlight = false
+      const remoteUpdatedAt = await loadCompanyDocumentUpdatedAt(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.staffPayrollPage,
+      )
+      if (isCompanyDocumentUpdatedAtUnchanged(remoteUpdatedAt, lastRemoteUpdatedAt)) {
+        return
+      }
+      const remote = await loadCompanyDocument<StaffPayrollPageState>(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.staffPayrollPage,
+      )
+      if (!remote) {
+        return
+      }
+      lastRemoteUpdatedAt = remoteUpdatedAt ?? lastRemoteUpdatedAt
+      const normalized = normalizePageState(remote)
+      const nextJson = JSON.stringify(normalized)
+      if (JSON.stringify(pageStateRef.current) !== lastCloudSyncedJsonRef.current) {
+        return
+      }
+      if (nextJson !== lastJson) {
+        lastJson = nextJson
+        syncLastCloudRefFromState(normalized)
+        setPageState(normalized)
       }
     }
 
-    void poll()
-    const id = window.setInterval(() => void poll(), 8000)
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
+    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_MS)
+    return () => controller.stop()
   }, [mode, activeCompanyId])
 
   const activeRecords = useMemo(() => pageState.records.filter((r) => r.isActive), [pageState.records])

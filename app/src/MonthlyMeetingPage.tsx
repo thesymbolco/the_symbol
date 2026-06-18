@@ -61,7 +61,19 @@ import {
   type MeetingValueRow,
   type MonthlyMeetingData,
 } from './monthlyMeetingData'
-import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
+import {
+  COMPANY_DOCUMENT_KEYS,
+  isCompanyDocumentUpdatedAtUnchanged,
+  loadCompanyDocument,
+  loadCompanyDocumentUpdatedAt,
+  saveCompanyDocument,
+} from './lib/companyDocuments'
+import {
+  CLOUD_DOCUMENT_POLL_INTERVAL_AUX_MS,
+  CLOUD_DOCUMENT_POLL_INTERVAL_MS,
+  shouldRunCloudDocumentPoll,
+  startCloudDocumentPoll,
+} from './lib/cloudDocumentPolling'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 import { canonicalBlendDisplayName } from './inventoryBlendRecipes'
@@ -2398,17 +2410,25 @@ function MonthlyMeetingPage() {
       return
     }
 
-    let cancelled = false
+    let lastRemoteUpdatedAt: string | null = null
 
     const pullExpenseFromCloud = async () => {
+      if (!shouldRunCloudDocumentPoll()) {
+        return
+      }
       try {
+        const remoteUpdatedAt = await loadCompanyDocumentUpdatedAt(
+          activeCompanyId,
+          COMPANY_DOCUMENT_KEYS.expensePage,
+        )
+        if (isCompanyDocumentUpdatedAtUnchanged(remoteUpdatedAt, lastRemoteUpdatedAt)) {
+          return
+        }
         const remote = await loadCompanyDocument<ExpensePageState>(
           activeCompanyId,
           COMPANY_DOCUMENT_KEYS.expensePage,
         )
-        if (cancelled) {
-          return
-        }
+        lastRemoteUpdatedAt = remoteUpdatedAt ?? lastRemoteUpdatedAt
         const records = remote ? normalizeExpensePageState(remote).records : []
         setCompanyExpenseRecordsCached(records)
       } catch (error) {
@@ -2416,12 +2436,8 @@ function MonthlyMeetingPage() {
       }
     }
 
-    void pullExpenseFromCloud()
-    const id = window.setInterval(() => void pullExpenseFromCloud(), 8_000)
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
+    const controller = startCloudDocumentPoll(pullExpenseFromCloud, CLOUD_DOCUMENT_POLL_INTERVAL_AUX_MS)
+    return () => controller.stop()
   }, [activeCompanyId, mode])
 
   const lsExpenseRecordsForMeetingLink = useMemo(
@@ -2744,52 +2760,47 @@ function MonthlyMeetingPage() {
     if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
-    let cancelled = false
-    let inFlight = false
+    let lastRemoteUpdatedAt: string | null = null
     let lastJson = ''
 
     const poll = async () => {
-      if (cancelled || inFlight) {
+      if (!shouldRunCloudDocumentPoll()) {
         return
       }
-      inFlight = true
-      try {
-        const remote = await loadCompanyDocument<MonthlyMeetingPageState>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
-        )
-        if (cancelled || !remote) {
+      const remoteUpdatedAt = await loadCompanyDocumentUpdatedAt(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
+      )
+      if (isCompanyDocumentUpdatedAtUnchanged(remoteUpdatedAt, lastRemoteUpdatedAt)) {
+        return
+      }
+      const remote = await loadCompanyDocument<MonthlyMeetingPageState>(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.monthlyMeetingPage,
+      )
+      if (!remote) {
+        return
+      }
+      lastRemoteUpdatedAt = remoteUpdatedAt ?? lastRemoteUpdatedAt
+      const normalized = normalizeMonthlyMeetingPageState(remote)
+      const nextJson = JSON.stringify(normalized)
+      if (nextJson !== lastJson) {
+        if (saveStateRef.current !== 'saved') {
           return
         }
-        const normalized = normalizeMonthlyMeetingPageState(remote)
-        const nextJson = JSON.stringify(normalized)
-        if (nextJson !== lastJson) {
-          // 미저장/저장 중/오류 중에는 원격 스냅샷 적용 안 함(lastJson 미갱신 → 저장 후 같은 원격 버전 재시도 가능)
-          if (saveStateRef.current !== 'saved') {
-            return
-          }
-          lastJson = nextJson
-          lastCloudPollJsonRef.current = nextJson
-          window.localStorage.setItem(MONTHLY_MEETING_LAST_SYNCED_JSON_KEY, nextJson)
-          setPageState((prev) =>
-            normalized.data.months.includes(prev.activeMonth)
-              ? { ...normalized, activeMonth: prev.activeMonth }
-              : normalized,
-          )
-        }
-      } catch {
-        /* retry next cycle */
-      } finally {
-        inFlight = false
+        lastJson = nextJson
+        lastCloudPollJsonRef.current = nextJson
+        window.localStorage.setItem(MONTHLY_MEETING_LAST_SYNCED_JSON_KEY, nextJson)
+        setPageState((prev) =>
+          normalized.data.months.includes(prev.activeMonth)
+            ? { ...normalized, activeMonth: prev.activeMonth }
+            : normalized,
+        )
       }
     }
 
-    void poll()
-    const id = window.setInterval(() => void poll(), 2500)
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
+    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_MS)
+    return () => controller.stop()
   }, [mode, activeCompanyId])
 
   useEffect(() => {

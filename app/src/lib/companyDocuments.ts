@@ -16,6 +16,68 @@ export type CompanyDocumentKey = (typeof COMPANY_DOCUMENT_KEYS)[keyof typeof COM
 
 type CompanyDocumentRow<T> = {
   payload: T
+  updated_at?: string | null
+}
+
+export async function loadCompanyDocumentUpdatedAt(
+  companyId: string,
+  docKey: CompanyDocumentKey,
+): Promise<string | null> {
+  if (!supabase) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('company_documents')
+    .select('updated_at')
+    .eq('company_id', companyId)
+    .eq('doc_key', docKey)
+    .maybeSingle<{ updated_at: string | null }>()
+
+  if (error) {
+    throw error
+  }
+  return data?.updated_at ?? null
+}
+
+export type CompanyDocumentUpdatedAtMap = Partial<Record<CompanyDocumentKey, string | null>>
+
+export async function loadCompanyDocumentsUpdatedAt(
+  companyId: string,
+  docKeys: readonly CompanyDocumentKey[],
+): Promise<CompanyDocumentUpdatedAtMap> {
+  if (!supabase || docKeys.length === 0) {
+    return {}
+  }
+
+  const { data, error } = await supabase
+    .from('company_documents')
+    .select('doc_key, updated_at')
+    .eq('company_id', companyId)
+    .in('doc_key', [...docKeys])
+
+  if (error) {
+    throw error
+  }
+
+  const out: CompanyDocumentUpdatedAtMap = {}
+  for (const row of data ?? []) {
+    const key = String((row as { doc_key?: unknown }).doc_key ?? '') as CompanyDocumentKey
+    if (docKeys.includes(key)) {
+      out[key] = ((row as { updated_at?: string | null }).updated_at ?? null) as string | null
+    }
+  }
+  return out
+}
+
+export function isCompanyDocumentUpdatedAtUnchanged(
+  remoteUpdatedAt: string | null | undefined,
+  lastRemoteUpdatedAt: string | null | undefined,
+): boolean {
+  if (!remoteUpdatedAt || !lastRemoteUpdatedAt) {
+    return false
+  }
+  return remoteUpdatedAt === lastRemoteUpdatedAt
 }
 
 export async function loadCompanyDocument<T>(

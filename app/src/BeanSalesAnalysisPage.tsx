@@ -42,7 +42,17 @@ import {
 import { exportStyledBeanSalesAnalysisExcel } from './beanSalesAnalysisExcelExport'
 import { roastedBeanCost1KgFromGreenWonPerKg, roastedBeanCost200gFrom1KgCost } from './beanSalesRoastedCost'
 import { STATEMENT_RECORDS_SAVED_EVENT } from './MonthlyMeetingPage'
-import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument } from './lib/companyDocuments'
+import {
+  COMPANY_DOCUMENT_KEYS,
+  isCompanyDocumentUpdatedAtUnchanged,
+  loadCompanyDocument,
+  loadCompanyDocumentsUpdatedAt,
+} from './lib/companyDocuments'
+import {
+  CLOUD_DOCUMENT_POLL_INTERVAL_SLOW_MS,
+  shouldRunCloudDocumentPoll,
+  startCloudDocumentPoll,
+} from './lib/cloudDocumentPolling'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 import StatementInventoryLinkModal from './StatementInventoryLinkModal'
 
@@ -239,106 +249,135 @@ function BeanSalesAnalysisPage() {
       return
     }
 
-    let cancelled = false
-    let inFlight = false
+    let lastManualUpdatedAt: string | null = null
+    let lastStatementUpdatedAt: string | null = null
+    let lastInventoryUpdatedAt: string | null = null
+    let lastGreenOrderUpdatedAt: string | null = null
 
     let lastManualMappings = ''
     let lastStatementRecords = ''
     let lastInventoryDoc = ''
     let lastGreenOrderDoc = ''
 
-    const CLOUD_SYNC_INTERVAL_MS = 10_000
+    const pollKeys = [
+      COMPANY_DOCUMENT_KEYS.statementInventoryMappings,
+      COMPANY_DOCUMENT_KEYS.statementPage,
+      COMPANY_DOCUMENT_KEYS.inventoryPage,
+      COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
+    ] as const
 
     const poll = async () => {
-      if (cancelled || inFlight) {
+      if (!shouldRunCloudDocumentPoll()) {
         return
       }
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      const updatedAtMap = await loadCompanyDocumentsUpdatedAt(activeCompanyId, pollKeys)
+      const manualUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.statementInventoryMappings] ?? null
+      const statementUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.statementPage] ?? null
+      const inventoryUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.inventoryPage] ?? null
+      const greenOrderUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.greenBeanOrderPage] ?? null
+
+      const manualUnchanged = isCompanyDocumentUpdatedAtUnchanged(manualUpdatedAt, lastManualUpdatedAt)
+      const statementUnchanged = isCompanyDocumentUpdatedAtUnchanged(
+        statementUpdatedAt,
+        lastStatementUpdatedAt,
+      )
+      const inventoryUnchanged = isCompanyDocumentUpdatedAtUnchanged(
+        inventoryUpdatedAt,
+        lastInventoryUpdatedAt,
+      )
+      const greenOrderUnchanged = isCompanyDocumentUpdatedAtUnchanged(
+        greenOrderUpdatedAt,
+        lastGreenOrderUpdatedAt,
+      )
+
+      if (manualUnchanged && statementUnchanged && inventoryUnchanged && greenOrderUnchanged) {
         return
       }
-      inFlight = true
-      try {
-        const [manualDoc, statementDoc, inventoryDoc, greenOrderDoc] = await Promise.all([
-          loadCompanyDocument<StatementInventoryManualEntry[]>(
-            activeCompanyId,
-            COMPANY_DOCUMENT_KEYS.statementInventoryMappings,
-          ),
-          loadCompanyDocument<StatementPageDocumentLike>(activeCompanyId, COMPANY_DOCUMENT_KEYS.statementPage),
-          loadCompanyDocument<InventoryPageDocumentLike>(activeCompanyId, COMPANY_DOCUMENT_KEYS.inventoryPage),
-          loadCompanyDocument<unknown>(activeCompanyId, COMPANY_DOCUMENT_KEYS.greenBeanOrderPage),
-        ])
-        if (cancelled) {
-          return
-        }
 
-        // 1) 수동 매핑
-        if (Array.isArray(manualDoc)) {
-          const sorted = [...manualDoc].sort((a, b) => a.from.localeCompare(b.from, 'ko'))
-          const nextJson = JSON.stringify(sorted)
-          if (nextJson !== lastManualMappings) {
-            lastManualMappings = nextJson
-            writeStatementInventoryManuals('cloud', activeCompanyId, sorted)
+      const [manualDoc, statementDoc, inventoryDoc, greenOrderDoc] = await Promise.all([
+        manualUnchanged
+          ? Promise.resolve(null)
+          : loadCompanyDocument<StatementInventoryManualEntry[]>(
+              activeCompanyId,
+              COMPANY_DOCUMENT_KEYS.statementInventoryMappings,
+            ),
+        statementUnchanged
+          ? Promise.resolve(null)
+          : loadCompanyDocument<StatementPageDocumentLike>(
+              activeCompanyId,
+              COMPANY_DOCUMENT_KEYS.statementPage,
+            ),
+        inventoryUnchanged
+          ? Promise.resolve(null)
+          : loadCompanyDocument<InventoryPageDocumentLike>(
+              activeCompanyId,
+              COMPANY_DOCUMENT_KEYS.inventoryPage,
+            ),
+        greenOrderUnchanged
+          ? Promise.resolve(null)
+          : loadCompanyDocument<unknown>(
+              activeCompanyId,
+              COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
+            ),
+      ])
+
+      if (Array.isArray(manualDoc)) {
+        lastManualUpdatedAt = manualUpdatedAt ?? lastManualUpdatedAt
+        const sorted = [...manualDoc].sort((a, b) => a.from.localeCompare(b.from, 'ko'))
+        const nextJson = JSON.stringify(sorted)
+        if (nextJson !== lastManualMappings) {
+          lastManualMappings = nextJson
+          writeStatementInventoryManuals('cloud', activeCompanyId, sorted)
+        }
+      }
+
+      if (statementDoc && Array.isArray(statementDoc.records)) {
+        lastStatementUpdatedAt = statementUpdatedAt ?? lastStatementUpdatedAt
+        const nextJson = JSON.stringify(statementDoc.records)
+        if (nextJson !== lastStatementRecords) {
+          lastStatementRecords = nextJson
+          window.localStorage.setItem(STATEMENT_RECORDS_KEY, JSON.stringify(statementDoc.records))
+          window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
+          setStatementRecordsRaw(statementDoc.records)
+        }
+      }
+
+      if (inventoryDoc) {
+        lastInventoryUpdatedAt = inventoryUpdatedAt ?? lastInventoryUpdatedAt
+        const candidate = (inventoryDoc as { inventoryState?: unknown }).inventoryState ?? inventoryDoc
+        const normalized = normalizeInventoryStatusState(candidate)
+        if (normalized) {
+          const forUi = withReferenceDateToday(normalized)
+          const nextJson = JSON.stringify(forUi)
+          if (nextJson !== lastInventoryDoc) {
+            lastInventoryDoc = nextJson
+            const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, 'cloud', activeCompanyId)
+            window.localStorage.setItem(key, JSON.stringify(forUi))
+            window.dispatchEvent(new Event(INVENTORY_STATUS_CACHE_EVENT))
+            setInventoryStateRaw(forUi)
           }
         }
+      }
 
-        // 2) 거래명세
-        if (statementDoc && Array.isArray(statementDoc.records)) {
-          const nextJson = JSON.stringify(statementDoc.records)
-          if (nextJson !== lastStatementRecords) {
-            lastStatementRecords = nextJson
-            window.localStorage.setItem(STATEMENT_RECORDS_KEY, JSON.stringify(statementDoc.records))
-            window.dispatchEvent(new Event(STATEMENT_RECORDS_SAVED_EVENT))
-            setStatementRecordsRaw(statementDoc.records)
+      if (greenOrderDoc) {
+        lastGreenOrderUpdatedAt = greenOrderUpdatedAt ?? lastGreenOrderUpdatedAt
+        const local = readGreenBeanOrderPersistedFromStorage()
+        const remote = normalizePersisted(greenOrderDoc)
+        const merged = mergeGreenBeanPersisted(local, remote)
+        const nextJson = JSON.stringify(merged)
+        if (nextJson !== lastGreenOrderDoc) {
+          lastGreenOrderDoc = nextJson
+          if (persistedDataScore(merged) >= 5 || persistedDataScore(local) < 5) {
+            window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, nextJson)
+            window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
           }
+          setGreenOrderCloudSyncTick((n) => n + 1)
         }
-
-        // 3) 입출고
-        if (inventoryDoc) {
-          const candidate = (inventoryDoc as any)?.inventoryState ?? inventoryDoc
-          const normalized = normalizeInventoryStatusState(candidate)
-          if (normalized) {
-            const forUi = withReferenceDateToday(normalized)
-            const nextJson = JSON.stringify(forUi)
-            if (nextJson !== lastInventoryDoc) {
-              lastInventoryDoc = nextJson
-              const key = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, 'cloud', activeCompanyId)
-              window.localStorage.setItem(key, JSON.stringify(forUi))
-              window.dispatchEvent(new Event(INVENTORY_STATUS_CACHE_EVENT))
-              setInventoryStateRaw(forUi)
-            }
-          }
-        }
-
-        // 4) 생두 주문(최근 주문가 계산용) — 비어 있는 클라우드가 로컬 기록을 덮지 않도록 병합
-        if (greenOrderDoc) {
-          const local = readGreenBeanOrderPersistedFromStorage()
-          const remote = normalizePersisted(greenOrderDoc)
-          const merged = mergeGreenBeanPersisted(local, remote)
-          const nextJson = JSON.stringify(merged)
-          if (nextJson !== lastGreenOrderDoc) {
-            lastGreenOrderDoc = nextJson
-            if (persistedDataScore(merged) >= 5 || persistedDataScore(local) < 5) {
-              window.localStorage.setItem(GREEN_BEAN_ORDER_STORAGE_KEY, nextJson)
-              window.dispatchEvent(new Event(GREEN_BEAN_ORDER_SAVED_EVENT))
-            }
-            setGreenOrderCloudSyncTick((n) => n + 1)
-          }
-        }
-      } catch {
-        // ignore: 폴링 중 실패는 다음 주기에 재시도
-      } finally {
-        inFlight = false
       }
     }
 
-    // 초기 1회 즉시 + 이후 폴링(배포 환경 부하·네트워트 완화: 간격 늘림, 탭 비활성 시 생략)
-    void poll()
-    const id = window.setInterval(() => void poll(), CLOUD_SYNC_INTERVAL_MS)
-
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
+    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_SLOW_MS)
+    return () => controller.stop()
   }, [mode, activeCompanyId])
 
   useEffect(() => {

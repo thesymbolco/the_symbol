@@ -11,7 +11,18 @@ import {
 import PageSaveStatus from './components/PageSaveStatus'
 import * as XLSX from 'xlsx'
 import { exportStyledExpenseWorkbook } from './expenseExcelStyledExport'
-import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
+import {
+  COMPANY_DOCUMENT_KEYS,
+  isCompanyDocumentUpdatedAtUnchanged,
+  loadCompanyDocument,
+  loadCompanyDocumentUpdatedAt,
+  saveCompanyDocument,
+} from './lib/companyDocuments'
+import {
+  CLOUD_DOCUMENT_POLL_INTERVAL_MS,
+  shouldRunCloudDocumentPoll,
+  startCloudDocumentPoll,
+} from './lib/cloudDocumentPolling'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
 
@@ -1224,50 +1235,43 @@ function ExpensePage() {
     if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
-    let cancelled = false
-    let inFlight = false
+    let lastRemoteUpdatedAt: string | null = null
     let lastJson = ''
 
     const poll = async () => {
-      if (cancelled || inFlight) {
+      if (!shouldRunCloudDocumentPoll()) {
         return
       }
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      const remoteUpdatedAt = await loadCompanyDocumentUpdatedAt(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.expensePage,
+      )
+      if (isCompanyDocumentUpdatedAtUnchanged(remoteUpdatedAt, lastRemoteUpdatedAt)) {
         return
       }
-      inFlight = true
-      try {
-        const remote = await loadCompanyDocument<ExpensePageState>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.expensePage,
-        )
-        if (cancelled || !remote) {
-          return
-        }
-        const normalized = normalizeExpensePageState(remote)
-        const nextJson = JSON.stringify(normalized)
-        if (nextJson === lastJson) {
-          return
-        }
-        if (JSON.stringify(pageStateRef.current) !== lastCloudSyncedJsonRef.current) {
-          return
-        }
-        lastJson = nextJson
-        syncLastCloudRefFromState(normalized)
-        setPageState(normalized)
-      } catch {
-        /* retry next cycle */
-      } finally {
-        inFlight = false
+      const remote = await loadCompanyDocument<ExpensePageState>(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.expensePage,
+      )
+      if (!remote) {
+        return
       }
+      lastRemoteUpdatedAt = remoteUpdatedAt ?? lastRemoteUpdatedAt
+      const normalized = normalizeExpensePageState(remote)
+      const nextJson = JSON.stringify(normalized)
+      if (nextJson === lastJson) {
+        return
+      }
+      if (JSON.stringify(pageStateRef.current) !== lastCloudSyncedJsonRef.current) {
+        return
+      }
+      lastJson = nextJson
+      syncLastCloudRefFromState(normalized)
+      setPageState(normalized)
     }
 
-    void poll()
-    const id = window.setInterval(() => void poll(), 8_000)
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
+    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_MS)
+    return () => controller.stop()
   }, [mode, activeCompanyId])
 
   const monthOptions = useMemo(() => {

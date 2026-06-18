@@ -51,7 +51,18 @@ import {
 
 type BlendTarget = 'dark' | 'light' | 'decaf'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
-import { COMPANY_DOCUMENT_KEYS, loadCompanyDocument, saveCompanyDocument } from './lib/companyDocuments'
+import {
+  COMPANY_DOCUMENT_KEYS,
+  isCompanyDocumentUpdatedAtUnchanged,
+  loadCompanyDocument,
+  loadCompanyDocumentUpdatedAt,
+  saveCompanyDocument,
+} from './lib/companyDocuments'
+import {
+  CLOUD_DOCUMENT_POLL_INTERVAL_MS,
+  shouldRunCloudDocumentPoll,
+  startCloudDocumentPoll,
+} from './lib/cloudDocumentPolling'
 import { useDocumentSaveUi } from './lib/documentSaveUi'
 import {
   clearLegacyViewerReferenceOverlayLocalStorage,
@@ -3196,100 +3207,96 @@ function InventoryStatusPage() {
     if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
-    let cancelled = false
-    let inFlight = false
+    let lastRemoteUpdatedAt: string | null = null
     let lastJson = ''
 
     const poll = async () => {
-      if (cancelled || inFlight) {
+      if (!shouldRunCloudDocumentPoll()) {
         return
       }
-      inFlight = true
-      try {
-        const remote = await loadCompanyDocument<InventoryPageDocument>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.inventoryPage,
-        )
-        if (cancelled || !remote) {
-          return
+      const remoteUpdatedAt = await loadCompanyDocumentUpdatedAt(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.inventoryPage,
+      )
+      if (isCompanyDocumentUpdatedAtUnchanged(remoteUpdatedAt, lastRemoteUpdatedAt)) {
+        return
+      }
+      const remote = await loadCompanyDocument<InventoryPageDocument>(
+        activeCompanyId,
+        COMPANY_DOCUMENT_KEYS.inventoryPage,
+      )
+      if (!remote) {
+        return
+      }
+      lastRemoteUpdatedAt = remoteUpdatedAt ?? lastRemoteUpdatedAt
+      const normalized = normalizeInventoryPageDocument(remote)
+      const viewerState = inventoryStateRef.current
+      const viewerYm = viewerState.referenceDate.slice(0, 7)
+      const inventoryForUi = mergeKeepViewerReferenceDates(
+        normalized.inventoryState,
+        viewerState,
+      )
+      const baselineForUi = mergeKeepViewerReferenceDates(
+        normalized.baselineState,
+        baselineStateRef.current,
+      )
+      const mergedMonths: Record<string, InventoryStatusState> = { ...inventoryByMonthRef.current }
+      for (const [ym, bucketState] of Object.entries(normalized.inventoryByMonth)) {
+        const normalizedBucket = normalizeInventoryStatusState(bucketState)
+        if (!normalizedBucket) {
+          continue
         }
-        const normalized = normalizeInventoryPageDocument(remote)
-        const viewerState = inventoryStateRef.current
-        const viewerYm = viewerState.referenceDate.slice(0, 7)
-        const inventoryForUi = mergeKeepViewerReferenceDates(
-          normalized.inventoryState,
-          viewerState,
-        )
-        const baselineForUi = mergeKeepViewerReferenceDates(
-          normalized.baselineState,
-          baselineStateRef.current,
-        )
-        const mergedMonths: Record<string, InventoryStatusState> = { ...inventoryByMonthRef.current }
-        for (const [ym, bucketState] of Object.entries(normalized.inventoryByMonth)) {
-          const normalizedBucket = normalizeInventoryStatusState(bucketState)
-          if (!normalizedBucket) {
-            continue
-          }
-          const restored = restoreMonthBucketAfterCloud(ym, normalizedBucket)
-          mergedMonths[ym] =
-            ym === viewerYm ? mergeKeepViewerReferenceDates(restored, viewerState) : restored
-        }
-        mergedMonths[viewerYm] = cloneInventoryStatusState(inventoryForUi)
+        const restored = restoreMonthBucketAfterCloud(ym, normalizedBucket)
+        mergedMonths[ym] =
+          ym === viewerYm ? mergeKeepViewerReferenceDates(restored, viewerState) : restored
+      }
+      mergedMonths[viewerYm] = cloneInventoryStatusState(inventoryForUi)
 
-        const pollPayload = {
-          inventoryState: stripReferenceDatesForCloudSync(normalized.inventoryState),
-          inventoryByMonth: Object.fromEntries(
-            Object.entries(normalized.inventoryByMonth).map(([ym, s]) => {
-              const row = normalizeInventoryStatusState(s) ?? createDefaultInventoryStatusState()
-              return [ym, stripReferenceDatesForCloudSync(row)]
-            }),
+      const pollPayload = {
+        inventoryState: stripReferenceDatesForCloudSync(normalized.inventoryState),
+        inventoryByMonth: Object.fromEntries(
+          Object.entries(normalized.inventoryByMonth).map(([ym, s]) => {
+            const row = normalizeInventoryStatusState(s) ?? createDefaultInventoryStatusState()
+            return [ym, stripReferenceDatesForCloudSync(row)]
+          }),
+        ),
+        baselineState: stripReferenceDatesForCloudSync(normalized.baselineState),
+        templateBase64: normalized.templateBase64,
+        templateFileName: normalized.templateFileName,
+        historyNotes: normalized.historyNotes,
+        quickEntryStepSettings: normalized.quickEntryStepSettings,
+      }
+      const nextJson = JSON.stringify(pollPayload)
+      if (nextJson !== lastJson) {
+        lastJson = nextJson
+        lastCloudPollJsonRef.current = nextJson
+        setInventoryByMonth(mergedMonths)
+        setInventoryState(inventoryForUi)
+        setBaselineState(baselineForUi)
+        setTemplateBase64(normalized.templateBase64)
+        setTemplateFileName(normalized.templateFileName)
+        setHistoryNotes(normalized.historyNotes)
+        setQuickEntryStepSettings(
+          normalized.quickEntryStepSettings ?? { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS },
+        )
+        setQuickEntryStepDraft(
+          quickEntryStepSettingsToDraft(
+            normalized.quickEntryStepSettings ?? DEFAULT_QUICK_ENTRY_STEP_SETTINGS,
           ),
-          baselineState: stripReferenceDatesForCloudSync(normalized.baselineState),
-          templateBase64: normalized.templateBase64,
-          templateFileName: normalized.templateFileName,
-          historyNotes: normalized.historyNotes,
-          quickEntryStepSettings: normalized.quickEntryStepSettings,
+        )
+        if (inventoryForUi.beanRows[0]) {
+          setSelectedBeanName((prev) => {
+            if (inventoryForUi.beanRows.some((b) => b.name === prev)) {
+              return prev
+            }
+            return inventoryForUi.beanRows[0]?.name ?? ''
+          })
         }
-        const nextJson = JSON.stringify(pollPayload)
-        if (nextJson !== lastJson) {
-          lastJson = nextJson
-          lastCloudPollJsonRef.current = nextJson
-          setInventoryByMonth(mergedMonths)
-          setInventoryState(inventoryForUi)
-          setBaselineState(baselineForUi)
-          setTemplateBase64(normalized.templateBase64)
-          setTemplateFileName(normalized.templateFileName)
-          setHistoryNotes(normalized.historyNotes)
-          setQuickEntryStepSettings(
-            normalized.quickEntryStepSettings ?? { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS },
-          )
-          setQuickEntryStepDraft(
-            quickEntryStepSettingsToDraft(
-              normalized.quickEntryStepSettings ?? DEFAULT_QUICK_ENTRY_STEP_SETTINGS,
-            ),
-          )
-          if (inventoryForUi.beanRows[0]) {
-            setSelectedBeanName((prev) => {
-              if (inventoryForUi.beanRows.some((b) => b.name === prev)) {
-                return prev
-              }
-              return inventoryForUi.beanRows[0]?.name ?? ''
-            })
-          }
-        }
-      } catch {
-        /* retry next cycle */
-      } finally {
-        inFlight = false
       }
     }
 
-    void poll()
-    const id = window.setInterval(() => void poll(), 2500)
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
+    const controller = startCloudDocumentPoll(poll, CLOUD_DOCUMENT_POLL_INTERVAL_MS)
+    return () => controller.stop()
   }, [mode, activeCompanyId])
 
   const endingStockDayIndex = useMemo(
