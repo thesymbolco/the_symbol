@@ -55,7 +55,7 @@ import {
   COMPANY_DOCUMENT_KEYS,
   isCompanyDocumentUpdatedAtUnchanged,
   loadCompanyDocument,
-  loadCompanyDocumentUpdatedAt,
+  loadCompanyDocumentsUpdatedAt,
   saveCompanyDocument,
 } from './lib/companyDocuments'
 import {
@@ -73,6 +73,20 @@ import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSale
 
 const STATEMENT_OUTBOUND_COMPARE_EPS = 0.0001
 
+type InventoryCloudPayloadHashes = {
+  core: string
+  months: string
+  template: string
+  history: string
+}
+
+const createEmptyInventoryCloudPayloadHashes = (): InventoryCloudPayloadHashes => ({
+  core: '',
+  months: '',
+  template: '',
+  history: '',
+})
+
 export const INVENTORY_STATUS_STORAGE_KEY = 'inventory-status-v1'
 export const INVENTORY_STATUS_BASELINE_STORAGE_KEY = 'inventory-status-baseline-v1'
 export const INVENTORY_STATUS_TEMPLATE_STORAGE_KEY = 'inventory-status-template-v1'
@@ -80,6 +94,7 @@ export const INVENTORY_STATUS_TEMPLATE_NAME_STORAGE_KEY = 'inventory-status-temp
 export const INVENTORY_AUTO_STOCK_MODE_KEY = 'inventory-auto-stock-mode-v1'
 const INVENTORY_HISTORY_NOTES_STORAGE_KEY = 'inventory-history-notes-v1'
 export const INVENTORY_QUICK_ENTRY_STEPS_STORAGE_KEY = 'inventory-quick-entry-steps-v1'
+const INVENTORY_CLOUD_MIGRATION_BACKUP_STORAGE_KEY = 'inventory-cloud-migration-backup-v1'
 const STATEMENT_RECORDS_KEY = 'statement-records-v1'
 const STATEMENT_RECORDS_SAVED_EVENT = 'statement-records-saved'
 
@@ -936,6 +951,32 @@ type InventoryPageDocument = {
   quickEntryStepSettings?: QuickEntryStepSettings
 }
 
+type InventoryPageCoreDocument = {
+  inventoryState: InventoryStatusState
+  baselineState: InventoryStatusState
+  quickEntryStepSettings?: QuickEntryStepSettings
+}
+
+type InventoryPageMonthsDocument = {
+  inventoryByMonth: Record<string, InventoryStatusState>
+}
+
+type InventoryPageTemplateDocument = {
+  templateBase64: string | null
+  templateFileName: string
+}
+
+type InventoryPageHistoryDocument = {
+  historyNotes: InventoryHistoryNote[]
+}
+
+const INVENTORY_CLOUD_SPLIT_DOC_KEYS = [
+  COMPANY_DOCUMENT_KEYS.inventoryPageCore,
+  COMPANY_DOCUMENT_KEYS.inventoryPageMonths,
+  COMPANY_DOCUMENT_KEYS.inventoryPageTemplate,
+  COMPANY_DOCUMENT_KEYS.inventoryPageHistory,
+] as const
+
 type InventoryStatementCalendarRecord = {
   deliveryDate: string
   itemName: string
@@ -1512,6 +1553,152 @@ const normalizeInventoryPageDocument = (value: unknown): InventoryPageDocument =
     historyNotes: normalizeInventoryHistoryNotes(source.historyNotes),
     quickEntryStepSettings: normalizeQuickEntryStepSettings(source.quickEntryStepSettings),
   })
+}
+
+const normalizeInventoryPageCoreDocument = (value: unknown): InventoryPageCoreDocument | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  const source = value as Partial<InventoryPageCoreDocument>
+  const normalized = normalizeInventoryPageDocument({
+    inventoryState: source.inventoryState,
+    baselineState: source.baselineState,
+    quickEntryStepSettings: source.quickEntryStepSettings,
+  })
+  return {
+    inventoryState: normalized.inventoryState,
+    baselineState: normalized.baselineState,
+    quickEntryStepSettings: normalized.quickEntryStepSettings,
+  }
+}
+
+const normalizeInventoryPageMonthsDocument = (value: unknown): InventoryPageMonthsDocument | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  const source = value as { inventoryByMonth?: unknown }
+  return {
+    inventoryByMonth: normalizeInventoryByMonthFromUnknown(source.inventoryByMonth),
+  }
+}
+
+const normalizeInventoryPageTemplateDocument = (value: unknown): InventoryPageTemplateDocument | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  const source = value as Partial<InventoryPageTemplateDocument>
+  return {
+    templateBase64:
+      typeof source.templateBase64 === 'string' && source.templateBase64.length > 0
+        ? source.templateBase64
+        : null,
+    templateFileName: typeof source.templateFileName === 'string' ? source.templateFileName : '',
+  }
+}
+
+const normalizeInventoryPageHistoryDocument = (value: unknown): InventoryPageHistoryDocument | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  const source = value as Partial<InventoryPageHistoryDocument>
+  return {
+    historyNotes: normalizeInventoryHistoryNotes(source.historyNotes),
+  }
+}
+
+const buildInventoryPageSplitPayloads = (document: InventoryPageDocument) => ({
+  core: {
+    inventoryState: stripReferenceDatesForCloudSync(document.inventoryState),
+    baselineState: stripReferenceDatesForCloudSync(document.baselineState),
+    quickEntryStepSettings: document.quickEntryStepSettings ?? { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS },
+  } satisfies InventoryPageCoreDocument,
+  months: {
+    inventoryByMonth: Object.fromEntries(
+      Object.entries(document.inventoryByMonth).map(([ym, state]) => [ym, stripReferenceDatesForCloudSync(state)]),
+    ),
+  } satisfies InventoryPageMonthsDocument,
+  template: {
+    templateBase64: document.templateBase64,
+    templateFileName: document.templateFileName,
+  } satisfies InventoryPageTemplateDocument,
+  history: {
+    historyNotes: document.historyNotes,
+  } satisfies InventoryPageHistoryDocument,
+})
+
+const composeInventoryCloudDocument = (parts: {
+  legacy?: unknown | null
+  core?: unknown | null
+  months?: unknown | null
+  template?: unknown | null
+  history?: unknown | null
+}): InventoryPageDocument | null => {
+  const hasAny =
+    parts.legacy != null ||
+    parts.core != null ||
+    parts.months != null ||
+    parts.template != null ||
+    parts.history != null
+  if (!hasAny) {
+    return null
+  }
+
+  let document = parts.legacy ? normalizeInventoryPageDocument(parts.legacy) : normalizeInventoryPageDocument(null)
+  const core = normalizeInventoryPageCoreDocument(parts.core)
+  const months = normalizeInventoryPageMonthsDocument(parts.months)
+  const template = normalizeInventoryPageTemplateDocument(parts.template)
+  const history = normalizeInventoryPageHistoryDocument(parts.history)
+
+  if (core) {
+    document = {
+      ...document,
+      inventoryState: core.inventoryState,
+      baselineState: core.baselineState,
+      quickEntryStepSettings: core.quickEntryStepSettings,
+    }
+  }
+  if (months) {
+    document = {
+      ...document,
+      inventoryByMonth: months.inventoryByMonth,
+    }
+  }
+  if (template) {
+    document = {
+      ...document,
+      templateBase64: template.templateBase64,
+      templateFileName: template.templateFileName,
+    }
+  }
+  if (history) {
+    document = {
+      ...document,
+      historyNotes: history.historyNotes,
+    }
+  }
+
+  return resolveInventoryDocumentForHydrate(document)
+}
+
+const writeInventoryCloudMigrationBackup = (
+  mode: 'local' | 'cloud',
+  companyId: string | null,
+  legacyDocument: InventoryPageDocument,
+) => {
+  if (mode !== 'cloud' || !companyId) {
+    return
+  }
+  try {
+    window.localStorage.setItem(
+      inventoryPageScopedKey(INVENTORY_CLOUD_MIGRATION_BACKUP_STORAGE_KEY, mode, companyId),
+      JSON.stringify({
+        savedAt: new Date().toISOString(),
+        legacyDocument,
+      }),
+    )
+  } catch {
+    /* local backup best-effort */
+  }
 }
 
 const getCellText = (cell: ExcelJS.Cell) => {
@@ -2644,7 +2831,8 @@ function InventoryStatusPage() {
   const [inventoryByMonth, setInventoryByMonth] = useState<Record<string, InventoryStatusState>>({})
   const inventoryByMonthRef = useRef(inventoryByMonth)
   inventoryByMonthRef.current = inventoryByMonth
-  const lastCloudPollJsonRef = useRef('')
+  const lastCloudPayloadHashesRef = useRef<InventoryCloudPayloadHashes>(createEmptyInventoryCloudPayloadHashes())
+  const needsInventoryCloudSplitMigrationRef = useRef(false)
   /** POS 스타일 빠른 입력: 일·품목·구분·kg → 해당 일 셀에 누적 */
   const [quickEntryModalOpen, setQuickEntryModalOpen] = useState(false)
   const [quickEntryDate, setQuickEntryDate] = useState('')
@@ -2975,22 +3163,61 @@ function InventoryStatusPage() {
     const loadDocument = async () => {
       const localDocument = readInventoryPageLocalDocument(mode, activeCompanyId)
       if (mode !== 'cloud' || !activeCompanyId) {
+        needsInventoryCloudSplitMigrationRef.current = false
+        lastCloudPayloadHashesRef.current = createEmptyInventoryCloudPayloadHashes()
         applyDocument(localDocument, 'local', true)
         return
       }
 
       try {
-        const remoteDocument = await loadCompanyDocument<InventoryPageDocument>(
-          activeCompanyId,
-          COMPANY_DOCUMENT_KEYS.inventoryPage,
-        )
+        const [remoteLegacy, remoteCore, remoteMonths, remoteTemplate, remoteHistory] = await Promise.all([
+          loadCompanyDocument<InventoryPageDocument>(activeCompanyId, COMPANY_DOCUMENT_KEYS.inventoryPage),
+          loadCompanyDocument<InventoryPageCoreDocument>(activeCompanyId, COMPANY_DOCUMENT_KEYS.inventoryPageCore),
+          loadCompanyDocument<InventoryPageMonthsDocument>(activeCompanyId, COMPANY_DOCUMENT_KEYS.inventoryPageMonths),
+          loadCompanyDocument<InventoryPageTemplateDocument>(
+            activeCompanyId,
+            COMPANY_DOCUMENT_KEYS.inventoryPageTemplate,
+          ),
+          loadCompanyDocument<InventoryPageHistoryDocument>(activeCompanyId, COMPANY_DOCUMENT_KEYS.inventoryPageHistory),
+        ])
+        const remoteDocument = composeInventoryCloudDocument({
+          legacy: remoteLegacy,
+          core: remoteCore,
+          months: remoteMonths,
+          template: remoteTemplate,
+          history: remoteHistory,
+        })
         if (remoteDocument) {
-          applyDocument(normalizeInventoryPageDocument(remoteDocument), 'cloud', true)
+          const splitDocCount = [remoteCore, remoteMonths, remoteTemplate, remoteHistory].filter(
+            (doc) => doc != null,
+          ).length
+          const needsMigration =
+            splitDocCount < INVENTORY_CLOUD_SPLIT_DOC_KEYS.length || (remoteLegacy != null && splitDocCount === 0)
+          needsInventoryCloudSplitMigrationRef.current = needsMigration
+          if (remoteLegacy) {
+            writeInventoryCloudMigrationBackup(mode, activeCompanyId, normalizeInventoryPageDocument(remoteLegacy))
+          }
+          lastCloudPayloadHashesRef.current = needsMigration
+            ? createEmptyInventoryCloudPayloadHashes()
+            : (() => {
+                const payloads = buildInventoryPageSplitPayloads(remoteDocument)
+                return {
+                  core: JSON.stringify(payloads.core),
+                  months: JSON.stringify(payloads.months),
+                  template: JSON.stringify(payloads.template),
+                  history: JSON.stringify(payloads.history),
+                }
+              })()
+          applyDocument(remoteDocument, 'cloud', true)
         } else {
+          needsInventoryCloudSplitMigrationRef.current = false
+          lastCloudPayloadHashesRef.current = createEmptyInventoryCloudPayloadHashes()
           applyDocument(localDocument, 'local', false)
         }
       } catch (error) {
         console.error('입출고 현황 클라우드 문서를 읽지 못했습니다.', error)
+        needsInventoryCloudSplitMigrationRef.current = false
+        lastCloudPayloadHashesRef.current = createEmptyInventoryCloudPayloadHashes()
         applyDocument(localDocument, 'local', true)
       }
     }
@@ -3144,22 +3371,59 @@ function InventoryStatusPage() {
     if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
-    if (skipInitialDocumentSave()) {
+    if (skipInitialDocumentSave() && !needsInventoryCloudSplitMigrationRef.current) {
       return
     }
-    const cloudPayload = {
-      inventoryState: stripReferenceDatesForCloudSync(inventoryState),
-      inventoryByMonth: Object.fromEntries(
-        Object.entries(inventoryByMonth).map(([ym, state]) => [ym, stripReferenceDatesForCloudSync(state)]),
-      ),
-      baselineState: stripReferenceDatesForCloudSync(baselineState),
+    const payloads = buildInventoryPageSplitPayloads({
+      inventoryState,
+      inventoryByMonth,
+      baselineState,
       templateBase64,
       templateFileName,
       historyNotes,
       quickEntryStepSettings,
+    })
+    const nextHashes: InventoryCloudPayloadHashes = {
+      core: JSON.stringify(payloads.core),
+      months: JSON.stringify(payloads.months),
+      template: JSON.stringify(payloads.template),
+      history: JSON.stringify(payloads.history),
     }
-    const currentJson = JSON.stringify(cloudPayload)
-    if (currentJson === lastCloudPollJsonRef.current) {
+    const prevHashes = lastCloudPayloadHashesRef.current
+    const changedDocs: Array<{
+      key:
+        | typeof COMPANY_DOCUMENT_KEYS.inventoryPageCore
+        | typeof COMPANY_DOCUMENT_KEYS.inventoryPageMonths
+        | typeof COMPANY_DOCUMENT_KEYS.inventoryPageTemplate
+        | typeof COMPANY_DOCUMENT_KEYS.inventoryPageHistory
+      payload: unknown
+    }> = []
+    if (nextHashes.core !== prevHashes.core) {
+      changedDocs.push({
+        key: COMPANY_DOCUMENT_KEYS.inventoryPageCore,
+        payload: payloads.core,
+      })
+    }
+    if (nextHashes.months !== prevHashes.months) {
+      changedDocs.push({
+        key: COMPANY_DOCUMENT_KEYS.inventoryPageMonths,
+        payload: payloads.months,
+      })
+    }
+    if (nextHashes.template !== prevHashes.template) {
+      changedDocs.push({
+        key: COMPANY_DOCUMENT_KEYS.inventoryPageTemplate,
+        payload: payloads.template,
+      })
+    }
+    if (nextHashes.history !== prevHashes.history) {
+      changedDocs.push({
+        key: COMPANY_DOCUMENT_KEYS.inventoryPageHistory,
+        payload: payloads.history,
+      })
+    }
+    if (changedDocs.length === 0) {
+      needsInventoryCloudSplitMigrationRef.current = false
       return
     }
 
@@ -3167,13 +3431,12 @@ function InventoryStatusPage() {
 
     const timeoutId = window.setTimeout(() => {
       markDocumentSaving()
-      void saveCompanyDocument(
-        activeCompanyId,
-        COMPANY_DOCUMENT_KEYS.inventoryPage,
-        cloudPayload,
-        user?.id,
+      void Promise.all(
+        changedDocs.map(({ key, payload }) => saveCompanyDocument(activeCompanyId, key, payload, user?.id)),
       )
         .then(() => {
+          lastCloudPayloadHashesRef.current = nextHashes
+          needsInventoryCloudSplitMigrationRef.current = false
           markDocumentSaved()
         })
         .catch((error) => {
@@ -3207,29 +3470,72 @@ function InventoryStatusPage() {
     if (mode !== 'cloud' || !activeCompanyId) {
       return
     }
-    let lastRemoteUpdatedAt: string | null = null
-    let lastJson = ''
+    let lastUpdatedAtByDoc: Partial<Record<(typeof INVENTORY_CLOUD_SPLIT_DOC_KEYS)[number] | typeof COMPANY_DOCUMENT_KEYS.inventoryPage, string | null>> = {}
+    let remoteParts: {
+      legacy: InventoryPageDocument | null
+      core: InventoryPageCoreDocument | null
+      months: InventoryPageMonthsDocument | null
+      template: InventoryPageTemplateDocument | null
+      history: InventoryPageHistoryDocument | null
+    } = {
+      legacy: null,
+      core: null,
+      months: null,
+      template: null,
+      history: null,
+    }
+    let lastHashes = createEmptyInventoryCloudPayloadHashes()
 
     const poll = async () => {
       if (!shouldRunCloudDocumentPoll()) {
         return
       }
-      const remoteUpdatedAt = await loadCompanyDocumentUpdatedAt(
-        activeCompanyId,
+      const pollKeys = [
         COMPANY_DOCUMENT_KEYS.inventoryPage,
-      )
-      if (isCompanyDocumentUpdatedAtUnchanged(remoteUpdatedAt, lastRemoteUpdatedAt)) {
+        ...INVENTORY_CLOUD_SPLIT_DOC_KEYS,
+      ] as const
+      const updatedAtMap = await loadCompanyDocumentsUpdatedAt(activeCompanyId, pollKeys)
+      const changedKeys = pollKeys.filter((docKey) => {
+        const remoteUpdatedAt = updatedAtMap[docKey] ?? null
+        return !isCompanyDocumentUpdatedAtUnchanged(remoteUpdatedAt, lastUpdatedAtByDoc[docKey])
+      })
+      if (changedKeys.length === 0) {
         return
       }
-      const remote = await loadCompanyDocument<InventoryPageDocument>(
-        activeCompanyId,
-        COMPANY_DOCUMENT_KEYS.inventoryPage,
+      const fetchedEntries = await Promise.all(
+        changedKeys.map(async (docKey) => {
+          const payload = await loadCompanyDocument<unknown>(activeCompanyId, docKey)
+          return [docKey, payload] as const
+        }),
       )
+      for (const docKey of changedKeys) {
+        lastUpdatedAtByDoc[docKey] = updatedAtMap[docKey] ?? null
+      }
+      for (const [docKey, payload] of fetchedEntries) {
+        if (docKey === COMPANY_DOCUMENT_KEYS.inventoryPage) {
+          remoteParts.legacy = payload ? normalizeInventoryPageDocument(payload) : null
+        } else if (docKey === COMPANY_DOCUMENT_KEYS.inventoryPageCore) {
+          remoteParts.core = normalizeInventoryPageCoreDocument(payload)
+        } else if (docKey === COMPANY_DOCUMENT_KEYS.inventoryPageMonths) {
+          remoteParts.months = normalizeInventoryPageMonthsDocument(payload)
+        } else if (docKey === COMPANY_DOCUMENT_KEYS.inventoryPageTemplate) {
+          remoteParts.template = normalizeInventoryPageTemplateDocument(payload)
+        } else if (docKey === COMPANY_DOCUMENT_KEYS.inventoryPageHistory) {
+          remoteParts.history = normalizeInventoryPageHistoryDocument(payload)
+        }
+      }
+
+      const remote = composeInventoryCloudDocument({
+        legacy: remoteParts.legacy,
+        core: remoteParts.core,
+        months: remoteParts.months,
+        template: remoteParts.template,
+        history: remoteParts.history,
+      })
       if (!remote) {
         return
       }
-      lastRemoteUpdatedAt = remoteUpdatedAt ?? lastRemoteUpdatedAt
-      const normalized = normalizeInventoryPageDocument(remote)
+      const normalized = remote
       const viewerState = inventoryStateRef.current
       const viewerYm = viewerState.referenceDate.slice(0, 7)
       const inventoryForUi = mergeKeepViewerReferenceDates(
@@ -3252,24 +3558,21 @@ function InventoryStatusPage() {
       }
       mergedMonths[viewerYm] = cloneInventoryStatusState(inventoryForUi)
 
-      const pollPayload = {
-        inventoryState: stripReferenceDatesForCloudSync(normalized.inventoryState),
-        inventoryByMonth: Object.fromEntries(
-          Object.entries(normalized.inventoryByMonth).map(([ym, s]) => {
-            const row = normalizeInventoryStatusState(s) ?? createDefaultInventoryStatusState()
-            return [ym, stripReferenceDatesForCloudSync(row)]
-          }),
-        ),
-        baselineState: stripReferenceDatesForCloudSync(normalized.baselineState),
-        templateBase64: normalized.templateBase64,
-        templateFileName: normalized.templateFileName,
-        historyNotes: normalized.historyNotes,
-        quickEntryStepSettings: normalized.quickEntryStepSettings,
+      const splitPayloads = buildInventoryPageSplitPayloads(normalized)
+      const nextHashes: InventoryCloudPayloadHashes = {
+        core: JSON.stringify(splitPayloads.core),
+        months: JSON.stringify(splitPayloads.months),
+        template: JSON.stringify(splitPayloads.template),
+        history: JSON.stringify(splitPayloads.history),
       }
-      const nextJson = JSON.stringify(pollPayload)
-      if (nextJson !== lastJson) {
-        lastJson = nextJson
-        lastCloudPollJsonRef.current = nextJson
+      if (
+        nextHashes.core !== lastHashes.core ||
+        nextHashes.months !== lastHashes.months ||
+        nextHashes.template !== lastHashes.template ||
+        nextHashes.history !== lastHashes.history
+      ) {
+        lastHashes = nextHashes
+        lastCloudPayloadHashesRef.current = nextHashes
         setInventoryByMonth(mergedMonths)
         setInventoryState(inventoryForUi)
         setBaselineState(baselineForUi)
@@ -3299,7 +3602,8 @@ function InventoryStatusPage() {
       poll,
       intervalMs: CLOUD_DOCUMENT_POLL_INTERVAL_MS,
       companyId: activeCompanyId,
-      docKeys: [COMPANY_DOCUMENT_KEYS.inventoryPage],
+      docKeys: [COMPANY_DOCUMENT_KEYS.inventoryPage, ...INVENTORY_CLOUD_SPLIT_DOC_KEYS],
+      realtimeSelect: ['company_id', 'doc_key', 'updated_at', 'updated_by'],
       currentUserId: user?.id ?? null,
     })
     return () => controller.stop()

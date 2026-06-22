@@ -5,6 +5,10 @@ export const COMPANY_DOCUMENT_KEYS = {
   statementPage: 'statement-page',
   statementInventoryMappings: 'statement-inventory-mappings',
   inventoryPage: 'inventory-page',
+  inventoryPageCore: 'inventory-page-core',
+  inventoryPageMonths: 'inventory-page-months',
+  inventoryPageTemplate: 'inventory-page-template',
+  inventoryPageHistory: 'inventory-page-history',
   beanNameAliases: 'bean-name-aliases',
   greenBeanOrderPage: 'green-bean-order-page',
   staffPayrollPage: 'staff-payroll-page',
@@ -74,6 +78,9 @@ export function isCompanyDocumentUpdatedAtUnchanged(
   remoteUpdatedAt: string | null | undefined,
   lastRemoteUpdatedAt: string | null | undefined,
 ): boolean {
+  if (remoteUpdatedAt == null && lastRemoteUpdatedAt == null) {
+    return true
+  }
   if (!remoteUpdatedAt || !lastRemoteUpdatedAt) {
     return false
   }

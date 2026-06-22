@@ -251,7 +251,8 @@ function BeanSalesAnalysisPage() {
 
     let lastManualUpdatedAt: string | null = null
     let lastStatementUpdatedAt: string | null = null
-    let lastInventoryUpdatedAt: string | null = null
+    let lastInventoryCoreUpdatedAt: string | null = null
+    let lastInventoryLegacyUpdatedAt: string | null = null
     let lastGreenOrderUpdatedAt: string | null = null
 
     let lastManualMappings = ''
@@ -262,6 +263,7 @@ function BeanSalesAnalysisPage() {
     const pollKeys = [
       COMPANY_DOCUMENT_KEYS.statementInventoryMappings,
       COMPANY_DOCUMENT_KEYS.statementPage,
+      COMPANY_DOCUMENT_KEYS.inventoryPageCore,
       COMPANY_DOCUMENT_KEYS.inventoryPage,
       COMPANY_DOCUMENT_KEYS.greenBeanOrderPage,
     ] as const
@@ -273,7 +275,8 @@ function BeanSalesAnalysisPage() {
       const updatedAtMap = await loadCompanyDocumentsUpdatedAt(activeCompanyId, pollKeys)
       const manualUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.statementInventoryMappings] ?? null
       const statementUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.statementPage] ?? null
-      const inventoryUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.inventoryPage] ?? null
+      const inventoryCoreUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.inventoryPageCore] ?? null
+      const inventoryLegacyUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.inventoryPage] ?? null
       const greenOrderUpdatedAt = updatedAtMap[COMPANY_DOCUMENT_KEYS.greenBeanOrderPage] ?? null
 
       const manualUnchanged = isCompanyDocumentUpdatedAtUnchanged(manualUpdatedAt, lastManualUpdatedAt)
@@ -281,10 +284,9 @@ function BeanSalesAnalysisPage() {
         statementUpdatedAt,
         lastStatementUpdatedAt,
       )
-      const inventoryUnchanged = isCompanyDocumentUpdatedAtUnchanged(
-        inventoryUpdatedAt,
-        lastInventoryUpdatedAt,
-      )
+      const inventoryUnchanged =
+        isCompanyDocumentUpdatedAtUnchanged(inventoryCoreUpdatedAt, lastInventoryCoreUpdatedAt) &&
+        isCompanyDocumentUpdatedAtUnchanged(inventoryLegacyUpdatedAt, lastInventoryLegacyUpdatedAt)
       const greenOrderUnchanged = isCompanyDocumentUpdatedAtUnchanged(
         greenOrderUpdatedAt,
         lastGreenOrderUpdatedAt,
@@ -308,11 +310,17 @@ function BeanSalesAnalysisPage() {
               COMPANY_DOCUMENT_KEYS.statementPage,
             ),
         inventoryUnchanged
-          ? Promise.resolve(null)
-          : loadCompanyDocument<InventoryPageDocumentLike>(
-              activeCompanyId,
-              COMPANY_DOCUMENT_KEYS.inventoryPage,
-            ),
+          ? Promise.resolve<[InventoryPageDocumentLike | null, InventoryPageDocumentLike | null]>([null, null])
+          : Promise.all([
+              loadCompanyDocument<InventoryPageDocumentLike>(
+                activeCompanyId,
+                COMPANY_DOCUMENT_KEYS.inventoryPageCore,
+              ),
+              loadCompanyDocument<InventoryPageDocumentLike>(
+                activeCompanyId,
+                COMPANY_DOCUMENT_KEYS.inventoryPage,
+              ),
+            ]),
         greenOrderUnchanged
           ? Promise.resolve(null)
           : loadCompanyDocument<unknown>(
@@ -342,9 +350,15 @@ function BeanSalesAnalysisPage() {
         }
       }
 
-      if (inventoryDoc) {
-        lastInventoryUpdatedAt = inventoryUpdatedAt ?? lastInventoryUpdatedAt
-        const candidate = (inventoryDoc as { inventoryState?: unknown }).inventoryState ?? inventoryDoc
+      const [inventoryCoreDoc, inventoryLegacyDoc] = inventoryDoc
+      if (inventoryCoreDoc || inventoryLegacyDoc) {
+        lastInventoryCoreUpdatedAt = inventoryCoreUpdatedAt ?? lastInventoryCoreUpdatedAt
+        lastInventoryLegacyUpdatedAt = inventoryLegacyUpdatedAt ?? lastInventoryLegacyUpdatedAt
+        const candidate =
+          inventoryCoreDoc?.inventoryState ??
+          inventoryLegacyDoc?.inventoryState ??
+          inventoryCoreDoc ??
+          inventoryLegacyDoc
         const normalized = normalizeInventoryStatusState(candidate)
         if (normalized) {
           const forUi = withReferenceDateToday(normalized)
@@ -381,6 +395,7 @@ function BeanSalesAnalysisPage() {
       intervalMs: CLOUD_DOCUMENT_POLL_INTERVAL_SLOW_MS,
       companyId: activeCompanyId,
       docKeys: pollKeys,
+      realtimeSelect: ['company_id', 'doc_key', 'updated_at', 'updated_by'],
       currentUserId: user?.id ?? null,
     })
     return () => controller.stop()
@@ -446,14 +461,21 @@ function BeanSalesAnalysisPage() {
     const loadInventoryState = async () => {
       if (mode === 'cloud' && activeCompanyId) {
         try {
-          const remote = await loadCompanyDocument<InventoryPageDocumentLike>(
-            activeCompanyId,
-            COMPANY_DOCUMENT_KEYS.inventoryPage,
-          )
+          const [remoteCore, remoteLegacy] = await Promise.all([
+            loadCompanyDocument<InventoryPageDocumentLike>(
+              activeCompanyId,
+              COMPANY_DOCUMENT_KEYS.inventoryPageCore,
+            ),
+            loadCompanyDocument<InventoryPageDocumentLike>(
+              activeCompanyId,
+              COMPANY_DOCUMENT_KEYS.inventoryPage,
+            ),
+          ])
           if (cancelled) {
             return
           }
-          const candidate = remote?.inventoryState ?? remote
+          const candidate =
+            remoteCore?.inventoryState ?? remoteLegacy?.inventoryState ?? remoteCore ?? remoteLegacy
           const normalized = normalizeInventoryStatusState(candidate)
           if (normalized) {
             setInventoryStateRaw(withReferenceDateToday(normalized))
