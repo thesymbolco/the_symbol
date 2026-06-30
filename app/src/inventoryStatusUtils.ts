@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import { canonicalBlendDisplayName } from './inventoryBlendRecipes'
+import { canonicalBlendDisplayName, isBlendingDecaffeineBeanRow, isBlendingLightBeanRow } from './inventoryBlendRecipes'
 import { inventoryStatusData } from './inventoryStatusData'
 
 export type InventoryBeanRow = {
@@ -342,21 +342,38 @@ export const cloneInventoryStatusState = (state: InventoryStatusState): Inventor
   skipAutoStockDisplay: state.skipAutoStockDisplay ?? false,
 })
 
-const ensureExpectedBeanRows = (beanRows: InventoryBeanRow[]) => {
-  const nextRows = [...beanRows]
+const resizeNumberArray = (values: readonly number[], dayCount: number) =>
+  Array.from({ length: dayCount }, (_, index) => (index < values.length ? toNumber(values[index]) : 0))
 
-  for (const extraRow of EXTRA_BEAN_ROWS) {
-    const exists = nextRows.some((bean) => bean.no === extraRow.no || bean.name === extraRow.name)
-    if (!exists) {
-      nextRows.push({
-        no: extraRow.no,
-        name: extraRow.name,
-        inbound: [...extraRow.inbound],
-        production: [...extraRow.production],
-        outbound: [...extraRow.outbound],
-        stock: [...extraRow.stock],
-      })
+const resizeInventoryBeanRow = (bean: InventoryBeanRow, dayCount: number): InventoryBeanRow => ({
+  ...bean,
+  inbound: resizeNumberArray(bean.inbound, dayCount),
+  production: resizeNumberArray(bean.production, dayCount),
+  outbound: resizeNumberArray(bean.outbound, dayCount),
+  stock: resizeNumberArray(bean.stock, dayCount),
+})
+
+/** LIGHT·DECAFFEINE 블렌드 행이 빠져 있으면 추가한다. 품목명·번호 표기가 달라도 블렌드 코어로 중복 추가하지 않는다. */
+export const ensureExpectedBeanRows = (beanRows: InventoryBeanRow[], dayCount?: number): InventoryBeanRow[] => {
+  const len = dayCount ?? beanRows[0]?.inbound.length ?? INVENTORY_VALUE_ROW_LENGTH
+  const nextRows = beanRows.map((bean) => resizeInventoryBeanRow(bean, len))
+
+  const extraMatchers: Array<{ row: InventoryBeanRow; exists: (bean: InventoryBeanRow) => boolean }> = [
+    {
+      row: EXTRA_BEAN_ROWS[0],
+      exists: (bean) => isBlendingLightBeanRow(bean),
+    },
+    {
+      row: EXTRA_BEAN_ROWS[1],
+      exists: (bean) => isBlendingDecaffeineBeanRow(bean),
+    },
+  ]
+
+  for (const { row: extraRow, exists } of extraMatchers) {
+    if (nextRows.some(exists)) {
+      continue
     }
+    nextRows.push(resizeInventoryBeanRow(extraRow, len))
   }
 
   return nextRows.sort((left, right) => left.no - right.no)
@@ -402,6 +419,7 @@ export const createDefaultInventoryStatusState = (): InventoryStatusState => {
         outbound: [...bean.outbound],
         stock: [...bean.stock],
       })),
+      inventoryStatusData.days.length,
     ),
     roastingColumns: [...inventoryStatusData.roastingColumns],
     roastingRows: inventoryStatusData.roastingRows.map((row) => ({
@@ -530,14 +548,17 @@ export const normalizeInventoryStatusState = (value: unknown): InventoryStatusSt
       physicalCountDate: referenceDate,
       surveyMarkedDays,
       days: source.days.map((day) => toNumber(day)),
-      beanRows: source.beanRows.map((bean) => ({
-        no: toNumber(bean.no),
-        name: canonicalInventoryBeanName(String(bean.name ?? '')),
-        inbound: Array.isArray(bean.inbound) ? bean.inbound.map(toNumber) : [],
-        production: Array.isArray(bean.production) ? bean.production.map(toNumber) : [],
-        outbound: Array.isArray(bean.outbound) ? bean.outbound.map(toNumber) : [],
-        stock: Array.isArray(bean.stock) ? bean.stock.map(toNumber) : [],
-      })),
+      beanRows: ensureExpectedBeanRows(
+        source.beanRows.map((bean) => ({
+          no: toNumber(bean.no),
+          name: canonicalInventoryBeanName(String(bean.name ?? '')),
+          inbound: Array.isArray(bean.inbound) ? bean.inbound.map(toNumber) : [],
+          production: Array.isArray(bean.production) ? bean.production.map(toNumber) : [],
+          outbound: Array.isArray(bean.outbound) ? bean.outbound.map(toNumber) : [],
+          stock: Array.isArray(bean.stock) ? bean.stock.map(toNumber) : [],
+        })),
+        source.days.length,
+      ),
       roastingColumns: source.roastingColumns.map((column) => canonicalInventoryBeanName(String(column))),
       roastingRows: source.roastingRows.map((row) => ({
         day: row.day === '계' ? '계' : toNumber(row.day),
@@ -799,7 +820,10 @@ export const parseInventoryWorkbook = (workbook: XLSX.WorkBook): InventoryStatus
     physicalCountDate: referenceDate,
     surveyMarkedDays: [],
     days: defaultState.days,
-    beanRows: beanRows.length > 0 ? beanRows : defaultState.beanRows,
+    beanRows: ensureExpectedBeanRows(
+      beanRows.length > 0 ? beanRows : defaultState.beanRows,
+      defaultState.days.length,
+    ),
     roastingColumns: roastingColumns.length > 0 ? roastingColumns : defaultState.roastingColumns,
     roastingRows: roastingRows.length > 0 ? roastingRows : defaultState.roastingRows,
     blendingDarkCycles: Array.from({ length: defaultState.days.length }, () => 0),

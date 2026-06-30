@@ -12,6 +12,7 @@ import {
   INVENTORY_STATUS_TEMPLATE_STORAGE_KEY,
   inventoryPageScopedKey,
 } from './InventoryStatusPage'
+import { computeStatementLineAmounts } from './lib/statementAmounts'
 import StatementPosEntryPanel, { POS_FAVORITE_CLIENTS_STORAGE_KEY } from './StatementPosEntryPanel'
 import StatementSummaryTable, {
   type StatementSummaryDateEditKey,
@@ -878,17 +879,6 @@ const formatLongDateLabel = (value: string) => {
 }
 
 const formatStatementAmountText = (value: number) => `일금 ${formatCurrency(value)}원정`
-
-const isTaxFreeNote = (note: string) => normalizeName(note) === '부가세 없음'
-const calculateTaxAmount = (supplyAmount: number, note: string) => {
-  if (isTaxFreeNote(note)) {
-    return 0
-  }
-  const baseTax = Math.floor(supplyAmount * 0.1)
-  const totalAmount = supplyAmount + baseTax
-  // 실무상 1원 청구를 피하기 위해 계가 1원으로 끝나면 1원 내림 보정
-  return totalAmount % 10 === 1 ? Math.max(0, baseTax - 1) : baseTax
-}
 
 /** 거래처별 단가표 우선, 없으면 품목 마스터 단가 (단건 입력과 동일). */
 const resolveStatementPricingForClientItem = (
@@ -1845,11 +1835,7 @@ export default function StatementsPage({
   const calculatedAmounts = useMemo(() => {
     const quantity = parseNumber(form.quantity)
     const unitPrice = parseNumber(form.unitPrice)
-    const supplyAmount = quantity * unitPrice
-    const taxAmount = calculateTaxAmount(supplyAmount, form.note)
-    const totalAmount = supplyAmount + taxAmount
-
-    return { quantity, unitPrice, supplyAmount, taxAmount, totalAmount }
+    return computeStatementLineAmounts(quantity, unitPrice, form.note)
   }, [form.note, form.quantity, form.unitPrice])
 
   const grandTotal = useMemo(
@@ -2979,8 +2965,11 @@ export default function StatementsPage({
           unresolved.push(itemLabel || '(품목 없음)')
           continue
         }
-        const supplyAmount = quantity * unitPrice
-        const taxAmount = calculateTaxAmount(supplyAmount, form.note)
+        const { supplyAmount, taxAmount, totalAmount } = computeStatementLineAmounts(
+          quantity,
+          unitPrice,
+          form.note,
+        )
         const specTrim = row.specUnit.trim()
         newRecords.push({
           id: crypto.randomUUID(),
@@ -2997,7 +2986,7 @@ export default function StatementsPage({
           isCashHandled: form.isCashHandled,
           supplyAmount,
           taxAmount,
-          totalAmount: supplyAmount + taxAmount,
+          totalAmount,
           createdAt: new Date().toISOString(),
         })
       }
@@ -3066,8 +3055,11 @@ export default function StatementsPage({
       if (!Number.isFinite(quantity) || quantity <= 0) {
         quantity = 1
       }
-      const supplyAmount = quantity * resolved.unitPrice
-      const taxAmount = calculateTaxAmount(supplyAmount, form.note)
+      const { supplyAmount, taxAmount, totalAmount } = computeStatementLineAmounts(
+        quantity,
+        resolved.unitPrice,
+        form.note,
+      )
       newRecords.push({
         id: crypto.randomUUID(),
         deliveryDate: form.deliveryDate,
@@ -3083,7 +3075,7 @@ export default function StatementsPage({
         isCashHandled: form.isCashHandled,
         supplyAmount,
         taxAmount,
-        totalAmount: supplyAmount + taxAmount,
+        totalAmount,
         createdAt: new Date().toISOString(),
       })
     }
@@ -3702,9 +3694,11 @@ export default function StatementsPage({
       window.alert('수량과 단가는 0보다 커야 합니다.')
       return
     }
-    const supplyAmount = quantity * unitPrice
-    const taxAmount = calculateTaxAmount(supplyAmount, inlineEditDraft.note)
-    const totalAmount = supplyAmount + taxAmount
+    const { supplyAmount, taxAmount, totalAmount } = computeStatementLineAmounts(
+      quantity,
+      unitPrice,
+      inlineEditDraft.note,
+    )
     setRecords((current) =>
       current
         .map((record) =>
@@ -4167,9 +4161,8 @@ export default function StatementsPage({
               {(() => {
                 const q = parseNumber(inlineEditDraft.quantity)
                 const p = parseNumber(inlineEditDraft.unitPrice)
-                const supply = q * p
-                const tax = calculateTaxAmount(supply, inlineEditDraft.note)
-                return `공급 ${formatCurrency(supply)} · 세액 ${formatCurrency(tax)} · 계 ${formatCurrency(supply + tax)}`
+                const amounts = computeStatementLineAmounts(q, p, inlineEditDraft.note)
+                return `공급 ${formatCurrency(amounts.supplyAmount)} · 세액 ${formatCurrency(amounts.taxAmount)} · 계 ${formatCurrency(amounts.totalAmount)}`
               })()}
             </td>
             <td className="statement-record-actions">
@@ -4367,20 +4360,22 @@ export default function StatementsPage({
                   {showAllSummaryMonths ? '해당 월만 보기' : '전체 월 보기'}
                 </button>
               ) : null}
-              <button
-                type="button"
-                className="ghost-button statements-records-excel-btn"
-                onClick={exportStatementsToExcel}
-              >
-                입력목록 엑셀 저장
-              </button>
-              <button
-                type="button"
-                className="ghost-button statements-records-excel-btn"
-                onClick={exportSummaryToExcel}
-              >
-                월별현황 엑셀 저장
-              </button>
+              <div className="app-file-actions">
+                <button
+                  type="button"
+                  className="ghost-button statements-records-excel-btn"
+                  onClick={exportStatementsToExcel}
+                >
+                  입력목록 엑셀 저장
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button statements-records-excel-btn"
+                  onClick={exportSummaryToExcel}
+                >
+                  월별현황 엑셀 저장
+                </button>
+              </div>
             </div>
           </div>
 

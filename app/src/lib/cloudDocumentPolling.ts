@@ -29,7 +29,6 @@ type CloudDocumentSyncOptions = {
   intervalMs?: number
   companyId?: string
   docKeys?: readonly CompanyDocumentKey[]
-  realtimeSelect?: string[]
   /** 본인 저장 Realtime 이벤트는 스킵 (이미 로컬 반영됨) */
   currentUserId?: string | null
 }
@@ -38,7 +37,6 @@ function subscribeCompanyDocumentChanges(
   companyId: string,
   docKeys: readonly CompanyDocumentKey[],
   onRemoteChange: () => void,
-  realtimeSelect: string[] | undefined,
   currentUserId?: string | null,
 ): () => void {
   if (!supabase || docKeys.length === 0) {
@@ -59,27 +57,16 @@ function subscribeCompanyDocumentChanges(
     }, REALTIME_POLL_DEBOUNCE_MS)
   }
 
-  const changeConfig: {
-    event: '*'
-    schema: 'public'
-    table: 'company_documents'
-    filter: string
-    select?: string[]
-  } = {
-    event: '*',
-    schema: 'public',
-    table: 'company_documents',
-    filter: `company_id=eq.${companyId}`,
-  }
-  if (realtimeSelect && realtimeSelect.length > 0) {
-    changeConfig.select = realtimeSelect
-  }
-
   channel = supabase
     .channel(`company-documents:${companyId}:${docKeys.join('|')}`)
     .on(
       'postgres_changes',
-      changeConfig,
+      {
+        event: '*',
+        schema: 'public',
+        table: 'company_documents',
+        filter: `company_id=eq.${companyId}`,
+      },
       (payload) => {
         const row = payload.new as { doc_key?: unknown; updated_by?: unknown } | null | undefined
         const docKey = typeof row?.doc_key === 'string' ? row.doc_key : ''
@@ -114,7 +101,6 @@ export function startCloudDocumentSync({
   intervalMs = CLOUD_DOCUMENT_POLL_INTERVAL_MS,
   companyId,
   docKeys = [],
-  realtimeSelect,
   currentUserId,
 }: CloudDocumentSyncOptions): CloudPollController {
   let cancelled = false
@@ -150,7 +136,7 @@ export function startCloudDocumentSync({
           if (!cancelled) {
             void run()
           }
-        }, realtimeSelect, currentUserId)
+        }, currentUserId)
       : () => {}
 
   return {

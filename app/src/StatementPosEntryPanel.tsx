@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { ADMIN_FOUR_DIGIT_PIN } from './adminPin'
+import {
+  computeStatementLineAmounts,
+  isTaxFreeNote,
+  supplyUnitFromTaxIncludedUnit,
+} from './lib/statementAmounts'
 import { statementNameKey } from './statementNameKey'
 
 export type PosStatementRecord = {
@@ -82,15 +87,6 @@ type KeypadField = 'quantity' | 'unitPrice'
 // 거래처/품목 동일성 판정은 입력 폼·집계와 같은 공유 키를 사용한다
 const normalize = statementNameKey
 
-const isTaxFreeNote = (note: string) => normalize(note) === normalize('부가세 없음')
-
-const calcTax = (supply: number, note: string) => {
-  if (isTaxFreeNote(note)) return 0
-  const base = Math.floor(supply * 0.1)
-  const total = supply + base
-  return total % 10 === 1 ? Math.max(0, base - 1) : base
-}
-
 const formatNumber = (value: number) =>
   Number.isFinite(value) ? value.toLocaleString('ko-KR') : '0'
 
@@ -140,6 +136,7 @@ function StatementPosEntryPanel({
   const [cart, setCart] = useState<PosCartLine[]>([])
   const [activeLineId, setActiveLineId] = useState<string | null>(null)
   const [keypadField, setKeypadField] = useState<KeypadField>('quantity')
+  const [unitPriceIncludesTax, setUnitPriceIncludesTax] = useState(false)
   const [customItemDraft, setCustomItemDraft] = useState({
     itemName: '',
     specUnit: '',
@@ -405,11 +402,10 @@ function StatementPosEntryPanel({
   const totals = useMemo(() => {
     return cart.reduce(
       (acc, line) => {
-        const supply = Math.round(line.quantity * line.unitPrice)
-        const tax = calcTax(supply, line.note)
-        acc.supply += supply
-        acc.tax += tax
-        acc.total += supply + tax
+        const amounts = computeStatementLineAmounts(line.quantity, line.unitPrice, line.note)
+        acc.supply += amounts.supplyAmount
+        acc.tax += amounts.taxAmount
+        acc.total += amounts.totalAmount
         acc.qty += line.quantity
         return acc
       },
@@ -545,10 +541,17 @@ function StatementPosEntryPanel({
 
       const numeric = Number(buffer)
       const safe = Number.isFinite(numeric) ? numeric : 0
-      updateLine(activeLineId, keypadField === 'quantity' ? { quantity: safe } : { unitPrice: safe })
+      const storedUnitPrice =
+        keypadField === 'unitPrice' && unitPriceIncludesTax && !isTaxFreeNote(note)
+          ? supplyUnitFromTaxIncludedUnit(safe)
+          : safe
+      updateLine(
+        activeLineId,
+        keypadField === 'quantity' ? { quantity: safe } : { unitPrice: storedUnitPrice },
+      )
       setKeypadBuffer(buffer)
     },
-    [activeLineId, cart, keypadBuffer, keypadField, updateLine],
+    [activeLineId, cart, keypadBuffer, keypadField, note, unitPriceIncludesTax, updateLine],
   )
 
   // 활성 줄/필드가 바뀌면 버퍼 초기화 (다음 키 입력 시 덮어쓰기)
@@ -572,8 +575,7 @@ function StatementPosEntryPanel({
     }
 
     const newRecords: PosStatementRecord[] = validLines.map((line) => {
-      const supply = Math.round(line.quantity * line.unitPrice)
-      const tax = calcTax(supply, line.note)
+      const amounts = computeStatementLineAmounts(line.quantity, line.unitPrice, line.note)
       return {
         id: crypto.randomUUID(),
         deliveryDate,
@@ -586,9 +588,9 @@ function StatementPosEntryPanel({
         quantity: line.quantity,
         unitPrice: line.unitPrice,
         note: line.note,
-        supplyAmount: supply,
-        taxAmount: tax,
-        totalAmount: supply + tax,
+        supplyAmount: amounts.supplyAmount,
+        taxAmount: amounts.taxAmount,
+        totalAmount: amounts.totalAmount,
         createdAt: new Date().toISOString(),
         isCashHandled: line.isCashHandled,
       }
@@ -618,6 +620,9 @@ function StatementPosEntryPanel({
   const handleTaxToggle = useCallback(() => {
     const next = isTaxFreeNote(note) ? '부가세 별도' : '부가세 없음'
     setNote(next)
+    if (isTaxFreeNote(next)) {
+      setUnitPriceIncludesTax(false)
+    }
     setCart((current) => current.map((line) => ({ ...line, note: next })))
   }, [note])
 
@@ -1123,9 +1128,7 @@ function StatementPosEntryPanel({
               <div className="pos-empty pos-empty--block">좌측 품목을 탭해 담아보세요.</div>
             ) : (
               cart.map((line) => {
-                const supply = Math.round(line.quantity * line.unitPrice)
-                const tax = calcTax(supply, line.note)
-                const total = supply + tax
+                const amounts = computeStatementLineAmounts(line.quantity, line.unitPrice, line.note)
                 const isActive = line.id === activeLineId
                 return (
                   <div
@@ -1184,7 +1187,7 @@ function StatementPosEntryPanel({
                     >
                       {formatNumber(line.unitPrice)}원
                     </button>
-                    <span className="pos-cart-line-total">{formatNumber(total)}원</span>
+                    <span className="pos-cart-line-total">{formatNumber(amounts.totalAmount)}원</span>
                     <button
                       type="button"
                       className="pos-cart-line-remove"
@@ -1242,6 +1245,15 @@ function StatementPosEntryPanel({
                 disabled={!activeLine}
               >
                 단가
+              </button>
+              <button
+                type="button"
+                className={unitPriceIncludesTax ? 'on' : ''}
+                onClick={() => setUnitPriceIncludesTax((current) => !current)}
+                disabled={!activeLine || !isTaxSeparate}
+                title="단가 키패드에 세액 포함 금액을 입력합니다 (공급가로 자동 변환)"
+              >
+                세액포함
               </button>
               <span className="pos-keypad-target">
                 {activeLine

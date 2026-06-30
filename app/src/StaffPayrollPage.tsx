@@ -588,7 +588,7 @@ function StaffPayrollPage() {
           </div>
         </div>
 
-        <div className="inventory-actions">
+        <div className="inventory-actions app-file-actions">
           <button type="button" className="ghost-button expense-toolbar-btn" onClick={addRow}>
             행 추가
           </button>

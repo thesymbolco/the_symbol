@@ -2018,7 +2018,7 @@ export default function GreenBeanOrderPage() {
   const [isRefreshingAlmaJson, setIsRefreshingAlmaJson] = useState(false)
   const [almaRefreshChanges, setAlmaRefreshChanges] = useState<Record<string, AlmaRefreshRowChange>>({})
   const [almaRefreshUnchangedIds, setAlmaRefreshUnchangedIds] = useState<Record<string, true>>({})
-  const [almaRefreshGlobalSameHint, setAlmaRefreshGlobalSameHint] = useState(false)
+  const [, setAlmaRefreshGlobalSameHint] = useState(false)
   const [perItemMetric, setPerItemMetric] = useState<'qty' | 'money'>('qty')
   const [visibleItemKeys, setVisibleItemKeys] = useState<string[]>([])
   /** 구분(품목명): null이면 모두 잠금, 해당 행 id만 편집 가능(트리플클릭으로 잠금 해제) */
@@ -2037,6 +2037,7 @@ export default function GreenBeanOrderPage() {
   const isPersistHydratedRef = useRef(false)
   const bestKnownRemoteScoreRef = useRef(0)
   const [aliasDraftOpen, setAliasDraftOpen] = useState(false)
+  const [toolsOpen, setToolsOpen] = useState(false)
   const [aliasDraftRows, setAliasDraftRows] = useState<BeanNameAliasEntry[]>(() => readCustomBeanNameAliases())
   const [aliasRevision, setAliasRevision] = useState(0)
   const lastCloudPollJsonRef = useRef('')
@@ -3471,7 +3472,7 @@ export default function GreenBeanOrderPage() {
               </strong>
               {totals.sumDeductions > 0 ? (
                 <p className="muted tiny green-bean-hero-deduction-hint">
-                  품목 소계 {formatMoney(totals.grossMoney)} − 감면 합계 {formatMoney(totals.sumDeductions)}
+                  {formatMoney(totals.grossMoney)} − {formatMoney(totals.sumDeductions)}
                 </p>
               ) : null}
             </div>
@@ -3487,88 +3488,28 @@ export default function GreenBeanOrderPage() {
           </div>
         </div>
         <div className="panel-header">
-          <div>
-            <h2>주문표</h2>
-            <p className="muted">알마씨엘로 단가는 고정, 오른쪽 공급처 이름은 바꿀 수 있습니다. 단가 칸을 클릭하면 총계 기준이 바뀝니다.</p>
-          </div>
+          <h2>주문표</h2>
         </div>
 
-        <div className="green-bean-toolbar">
-          <div className="green-bean-toolbar-row">
-            <span className="green-bean-toolbar-label" aria-hidden>
-              파일
-            </span>
-            <div className="green-bean-toolbar-actions">
-              <label className="upload-button secondary green-bean-toolbar-control">
-                엑셀 불러오기
-                <input type="file" accept=".xlsx,.xls" onChange={handleFile} />
-              </label>
-              <button type="button" className="ghost-button green-bean-toolbar-control" onClick={handleExport}>
-                엑셀보내기
-              </button>
-              <button
-                type="button"
-                className={
-                  recoveryPanelOpen
-                    ? 'inventory-toggle-button active green-bean-toolbar-control'
-                    : 'ghost-button green-bean-toolbar-control'
-                }
-                onClick={() => {
-                  if (recoveryPanelOpen) {
-                    setRecoveryPanelOpen(false)
-                    return
-                  }
-                  openRecoveryPanel()
-                }}
-              >
-                데이터 불러오기
-              </button>
-              <span className="green-bean-toolbar-sep" aria-hidden>
-                |
-              </span>
-              <a className="green-bean-toolbar-link" href="https://www.almacielo.com/" target="_blank" rel="noreferrer">
-                알마씨엘로
-              </a>
-              <button type="button" className="green-bean-toolbar-link" onClick={addRow}>
-                행 추가
-              </button>
-            </div>
-          </div>
-          <div className="green-bean-toolbar-row">
-            <span className="green-bean-toolbar-label" aria-hidden>
-              비교
-            </span>
-            <div className="green-bean-toolbar-actions">
-              <button type="button" className="ghost-button green-bean-toolbar-control" onClick={handleSetBaseline}>
-                기준 저장
-              </button>
-              <button
-                type="button"
-                className="green-bean-toolbar-link green-bean-toolbar-link--danger"
-                onClick={handleClearBaseline}
-                disabled={!persisted.baseline}
-              >
-                기준 지우기
-              </button>
-              <button
-                type="button"
-                className={
-                  compareMode
-                    ? 'inventory-toggle-button active green-bean-toolbar-toggle'
-                    : 'inventory-toggle-button green-bean-toolbar-toggle'
-                }
-                onClick={() => setCompareMode((v) => !v)}
-                disabled={!persisted.baseline}
-              >
-                비교 {compareMode ? '켜짐' : '꺼짐'}
-              </button>
-            </div>
-          </div>
-          <div className="green-bean-toolbar-row">
-            <span className="green-bean-toolbar-label" aria-hidden>
-              표 보기
-            </span>
-            <div className="green-bean-toolbar-actions green-bean-table-look-toggle">
+        <div className="green-bean-toolbar green-bean-toolbar--slim">
+          <div className="green-bean-toolbar-actions">
+            <button type="button" className="primary-button green-bean-toolbar-control" onClick={addRow}>
+              행 추가
+            </button>
+            <button
+              type="button"
+              className={
+                compareMode
+                  ? 'inventory-toggle-button active green-bean-toolbar-toggle'
+                  : 'inventory-toggle-button green-bean-toolbar-toggle'
+              }
+              onClick={() => setCompareMode((v) => !v)}
+              disabled={!persisted.baseline}
+              title={persisted.baseline ? '기준 시점과 현재 표를 비교합니다' : '먼저 도구에서 기준을 저장하세요'}
+            >
+              비교 {compareMode ? '켜짐' : '꺼짐'}
+            </button>
+            <div className="green-bean-table-look-toggle" role="group" aria-label="표 보기">
               <button
                 type="button"
                 className={
@@ -3595,24 +3536,153 @@ export default function GreenBeanOrderPage() {
               </button>
             </div>
           </div>
+          <button
+            type="button"
+            className="ghost-button green-bean-toolbar-control green-bean-tools-button"
+            onClick={() => setToolsOpen(true)}
+            aria-haspopup="dialog"
+          >
+            도구 ▾
+          </button>
         </div>
+        {toolsOpen ? (
+          <div
+            className="green-bean-tools-overlay no-print"
+            role="presentation"
+            onClick={() => setToolsOpen(false)}
+          >
+            <div
+              className="green-bean-tools-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label="도구"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="green-bean-tools-header">
+                <h3>도구</h3>
+                <button
+                  type="button"
+                  className="green-bean-tools-close"
+                  onClick={() => setToolsOpen(false)}
+                  aria-label="닫기"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="green-bean-tools-body">
+                <section className="green-bean-tools-group">
+                  <h4>파일</h4>
+                  <div className="green-bean-tools-group-actions app-file-actions">
+                    <label className="upload-button secondary green-bean-tools-action">
+                      엑셀 불러오기
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={(e) => {
+                          void handleFile(e)
+                          setToolsOpen(false)
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="ghost-button green-bean-tools-action"
+                      onClick={() => {
+                        void handleExport()
+                        setToolsOpen(false)
+                      }}
+                    >
+                      엑셀 내보내기
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-button green-bean-tools-action"
+                      onClick={() => {
+                        openRecoveryPanel()
+                        setToolsOpen(false)
+                      }}
+                    >
+                      데이터 불러오기
+                    </button>
+                  </div>
+                </section>
+                <section className="green-bean-tools-group">
+                  <h4>비교 기준</h4>
+                  <div className="green-bean-tools-group-actions app-file-actions">
+                    <button
+                      type="button"
+                      className="ghost-button green-bean-tools-action"
+                      onClick={handleSetBaseline}
+                    >
+                      기준 저장
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-button green-bean-tools-action green-bean-tools-action--danger"
+                      onClick={handleClearBaseline}
+                      disabled={!persisted.baseline}
+                    >
+                      기준 지우기
+                    </button>
+                  </div>
+                </section>
+                <section className="green-bean-tools-group">
+                  <h4>원두명 별칭</h4>
+                  <div className="green-bean-tools-group-actions app-file-actions">
+                    <button
+                      type="button"
+                      className="ghost-button green-bean-tools-action"
+                      onClick={() => {
+                        setAliasDraftOpen(true)
+                        setToolsOpen(false)
+                      }}
+                    >
+                      원두명 별칭 관리
+                    </button>
+                  </div>
+                </section>
+                <section className="green-bean-tools-group">
+                  <h4>알마씨엘로</h4>
+                  <div className="green-bean-tools-group-actions app-file-actions">
+                    <a
+                      className="ghost-button green-bean-tools-action"
+                      href="https://www.almacielo.com/"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      알마씨엘로 사이트 열기
+                    </a>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {recoveryPanelOpen ? (
           <div className="green-bean-backup-restore-banner" role="region" aria-label="데이터 불러오기">
             <div className="green-bean-recovery-banner-copy">
               <p>
-                클라우드·백업 파일·브라우저에 남은 이전 데이터를 다시 불러올 수 있습니다. 지금 화면: 기록{' '}
-                {persisted.orderSnapshots.length}건 · 품목 {persisted.rows.filter((r) => r.itemName.trim()).length}개
+                기록 {persisted.orderSnapshots.length}건 · 품목 {persisted.rows.filter((r) => r.itemName.trim()).length}개
               </p>
-              <button
-                type="button"
-                className="ghost-button small"
-                onClick={() => {
-                  refreshRecoveryCandidates()
-                  void refreshCloudRecoveryCandidate()
-                }}
-              >
-                목록 새로고침
-              </button>
+              <div className="green-bean-recovery-banner-copy-actions">
+                <button
+                  type="button"
+                  className="ghost-button small"
+                  onClick={() => {
+                    refreshRecoveryCandidates()
+                    void refreshCloudRecoveryCandidate()
+                  }}
+                >
+                  목록 새로고침
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button small"
+                  onClick={() => setRecoveryPanelOpen(false)}
+                >
+                  닫기
+                </button>
+              </div>
             </div>
             <div className="green-bean-recovery-banner-actions">
               {mode === 'cloud' && activeCompanyId ? (
@@ -3638,9 +3708,7 @@ export default function GreenBeanOrderPage() {
                     클라우드로 덮어쓰기
                   </button>
                 </>
-              ) : (
-                <span className="muted tiny">클라우드 불러오기는 팀(클라우드) 모드에서 사용할 수 있습니다.</span>
-              )}
+              ) : null}
               <button
                 type="button"
                 className="ghost-button small"
@@ -3673,17 +3741,10 @@ export default function GreenBeanOrderPage() {
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className="muted tiny green-bean-recovery-empty-hint">
-                브라우저에 더 많은 이전 복구본이 없습니다. 거래명세 자동 백업 JSON의{' '}
-                <code>greenBeanOrderState</code> 필드가 있으면 「JSON 파일 가져오기」로 넣을 수 있습니다.
-              </p>
-            )}
+              ) : (
+                <p className="muted tiny green-bean-recovery-empty-hint">복구 가능한 이전 데이터가 없습니다.</p>
+              )}
           </div>
-        ) : persisted.orderSnapshots.length === 0 ? (
-          <p className="muted tiny green-bean-recovery-inline-hint">
-            월별 기록이 비어 있습니다. 위 「데이터 불러오기」에서 클라우드·백업 파일을 다시 시도해 보세요.
-          </p>
         ) : null}
         <div className="page-status-bar">
           <p className="page-status-message green-bean-status" role="status" aria-live="polite">
@@ -3691,25 +3752,20 @@ export default function GreenBeanOrderPage() {
           </p>
           <PageSaveStatus mode={mode} saveState={saveState} lastSavedAt={lastSavedAt} />
         </div>
-        <p className="muted tiny green-bean-inventory-hint-banner">{inventoryHintBanner}</p>
         <div className="green-bean-alias-admin no-print">
-          <button
-            type="button"
-            className="ghost-button small-hit green-bean-alias-admin-toggle"
-            onClick={() => setAliasDraftOpen((v) => !v)}
-          >
-            {aliasDraftOpen ? '원두명 별칭 관리 닫기' : '원두명 별칭 관리'}
-          </button>
           {aliasDraftOpen ? (
             <div className="green-bean-alias-admin-panel">
-              <p className="muted tiny">
-                주문표 품목명(왼쪽)과 입출고 생두명(오른쪽)이 다를 때 연결용으로 씁니다. 아래 첫 표는 기존 기본 별칭(코드),
-                두 번째 표는 직접 추가/수정하는 별칭입니다. 저장하면 이 화면과 거래명세 매핑에서 같이 사용됩니다.
-              </p>
+              <div className="green-bean-alias-admin-panel-header">
+                <h4 className="green-bean-alias-admin-panel-title">원두명 별칭 관리</h4>
+                <button
+                  type="button"
+                  className="ghost-button small-hit"
+                  onClick={() => setAliasDraftOpen(false)}
+                >
+                  닫기
+                </button>
+              </div>
               <div className="green-bean-alias-admin-default-block">
-                <div className="muted tiny green-bean-alias-admin-subtitle">
-                  기본 별칭(읽기 전용) {GREEN_BEAN_ORDER_INVENTORY_ALIASES.length}건
-                </div>
                 <table className="green-bean-alias-admin-table green-bean-alias-admin-table--readonly">
                   <thead>
                     <tr>
@@ -3727,7 +3783,6 @@ export default function GreenBeanOrderPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="muted tiny green-bean-alias-admin-subtitle">사용자 별칭(편집 가능)</div>
               <table className="green-bean-alias-admin-table">
                 <thead>
                   <tr>
@@ -3820,22 +3875,9 @@ export default function GreenBeanOrderPage() {
                     {new Date(almaFetchedAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 )}
-                {almaRefreshGlobalSameHint ? (
-                  <span
-                    className="green-bean-alma-refresh-same-pill"
-                    title="갱신한 JSON과 갱신 직전 표의 알마 단가·수급 안내가 모든 행에서 같습니다."
-                  >
-                    직전 표와 동일
-                  </span>
-                ) : null}
               </div>
             </div>
           </div>
-          <p className="green-bean-table-scroll-hint">
-            {tableLook === 'airy'
-              ? '여백 모드 — 구역선 없이 줄만 구분 · 단가 클릭 → 총계 · kg 입력 후 「기록」'
-              : '구역선 모드 — 단가·주문 구역 세로선 · 단가 클릭 → 총계 · kg 입력 후 「기록」'}
-          </p>
           <table
             className={`inventory-table green-bean-table green-bean-table--grouped green-bean-table--look-${tableLook}${almaItems.length > 0 ? ' green-bean-table--with-alma-ref' : ''}`}
           >
@@ -4285,7 +4327,6 @@ export default function GreenBeanOrderPage() {
                   {baselineTotals && compareMode && persisted.baseline && (
                     <div className="green-bean-tfoot-delta muted tiny">
                       {formatDelta(totals.grossMoney - baselineTotals.sumMoney, '원')}
-                      <span className="green-bean-tfoot-delta-caption"> (품목 소계 기준)</span>
                     </div>
                   )}
                 </td>
@@ -4356,15 +4397,8 @@ export default function GreenBeanOrderPage() {
                 반영 <strong>{formatMoney(totals.sumMoney)}</strong>
               </p>
             ) : null}
-            <div
-              className="green-bean-deduction-snapshot-block"
-              title="수량이 있는 품목만 저장됩니다. 같은 날 다시 저장하면 기존 기록에 누적됩니다."
-            >
+            <div className="green-bean-deduction-snapshot-block">
               <h4 className="green-bean-snapshot-section-title">일자 기록</h4>
-              <p className="green-bean-snapshot-section-hint">
-                품목마다 kg 입력 후 줄의 「기록」으로 개별 저장하거나, 아래에서 한 번에 저장할 수 있습니다. 기록 후 표
-                수량은 자동으로 비워 다음 주문을 이어갈 수 있습니다.
-              </p>
               <div className="green-bean-snapshot-controls-row">
                 <label className="green-bean-month-field green-bean-month-field--inline">
                   <span>주문 일자</span>
@@ -4439,9 +4473,7 @@ export default function GreenBeanOrderPage() {
         </div>
 
         {chartRows.length === 0 ? (
-          <p className="green-bean-chart-empty muted">
-            기록이 없습니다. 주문표에서 품목 kg을 입력한 뒤 줄의 「기록」 또는 「수량 있는 품목 일괄 기록」을 사용하세요.
-          </p>
+          <p className="green-bean-chart-empty muted">기록이 없습니다.</p>
         ) : (
           <div className="green-bean-overview-grid">
             {monthlyOverviewCards.map((card) => (
@@ -4556,9 +4588,7 @@ export default function GreenBeanOrderPage() {
           <div className="green-bean-per-item-section">
             <h3 className="green-bean-chart-title green-bean-per-item-section-title">원두별 추이</h3>
             {!hasPerItemSnapshots ? (
-              <p className="muted green-bean-per-item-empty">
-                원별 선이 없으면 품목별로 「기록」을 눌러 저장하세요. (수량 0인 품목은 저장되지 않습니다.)
-              </p>
+              <p className="muted green-bean-per-item-empty">품목별 기록이 없습니다.</p>
             ) : (
               <>
                 <div className="green-bean-per-item-toolbar">
@@ -4637,9 +4667,7 @@ export default function GreenBeanOrderPage() {
                       <span className="green-bean-per-item-count">{visibleItemSeries.length}개</span>
                     </div>
                     {perItemSparklineCards.length === 0 ? (
-                      <p className="muted green-bean-per-item-empty">
-                        좌측 목록에서 표시할 원두를 한 가지 이상 선택하세요.
-                      </p>
+                      <p className="muted green-bean-per-item-empty">선택된 품목 없음</p>
                     ) : (
                       <div className="green-bean-sparkline-grid">
                         {perItemSparklineCards.map((card) => (
@@ -4753,9 +4781,6 @@ export default function GreenBeanOrderPage() {
                 전부 삭제
               </button>
             </div>
-            <p className="muted tiny green-bean-history-hint">
-              아래는 날짜마다 저장한 건입니다. 위 월별 그래프·원두별 추이는 같은 달에 저장된 건을 합산한 값입니다.
-            </p>
             <div className="green-bean-history-scroll">
               <table className="meeting-table green-bean-history-table">
                 <thead>

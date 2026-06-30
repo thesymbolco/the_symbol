@@ -16,9 +16,6 @@ import {
   BLENDING_DARK_BEAN_NAME,
   BLENDING_DECAFFEINE_BEAN_NAME,
   BLENDING_LIGHT_BEAN_NAME,
-  isBlendingDarkBeanRow,
-  isBlendingDecaffeineBeanRow,
-  isBlendingLightBeanRow,
   isBlendingLineBeanRow,
   isBlendingOutboundAdjustsStockRow,
   productionForAutoStock,
@@ -32,6 +29,7 @@ import {
   createDefaultInventoryStatusState,
   createZeroedInventoryStatusFrom,
   dayIndexForReferenceDate,
+  ensureExpectedBeanRows,
   lastCalendarDayIsoInMonth,
   INVENTORY_LOCAL_STORAGE_ENVELOPE_VERSION,
   normalizeInventoryStatusState,
@@ -421,7 +419,7 @@ export const buildStockPinnedDayIndices = (
 /**
  * 자동 재고(일반 원두): 핀으로 찍은 열은 직접 입력값 유지. 생산(사용량)은 입력 kg을 그대로 재고에서 차감한다.
  * 그 외 일자는 전일재고+입고−생산(연쇄)이며 `production`은 `productionForAutoStock` 결과를 쓴다.
- * Blending-Dark/Light는 `resyncAutoStockForBeanRow`만 사용한다.
+ * Blending-Dark/Light/Decaffeine는 `resyncAutoStockForBeanRow`만 사용한다.
  */
 const computeAutoStockValues = (
   inbound: readonly number[],
@@ -463,7 +461,7 @@ const computeAutoStockValues = (
 }
 
 /**
- * Blending-Dark/Light 자동 재고: 핀으로 찍은 열(실사)은 직접 `stock`을 유지.
+ * Blending-Dark/Light/Decaffeine 자동 재고: 핀으로 찍은 열(실사)은 직접 `stock`을 유지.
  * 그 밖의 열은 `전일재고 + 생산(raw) − 출고` (입고는 연채에 넣지 않음·비워 둬도 됨).
  */
 const computeBlendingAutoStockWithPins = (
@@ -495,7 +493,7 @@ type ResyncAutoStockOptions = {
 
 /**
  * 자동 재고에서 품목별 재고 배열을 한곳에서 맞춘다.
- * Blending-Dark/Light는 항상 `computeBlendingAutoStockWithPins`만 사용한다.
+ * Blending-Dark/Light/Decaffeine는 항상 `computeBlendingAutoStockWithPins`만 사용한다.
  */
 export const resyncAutoStockForBeanRow = (
   bean: InventoryBeanRow,
@@ -518,6 +516,36 @@ export const resyncAutoStockForBeanRow = (
     useRawDelta ? prev : undefined,
   )
 }
+
+/** 저장·복원·월 버킷 로드 후 블렌드 포함 전 품목 재고 연쇄를 다시 맞춘다. */
+export const resyncAllBeanStockInInventoryState = (state: InventoryStatusState): InventoryStatusState => {
+  if (state.skipAutoStockDisplay) {
+    return state
+  }
+  const physIdx = dayIndexForReferenceDate(state.days, state.physicalCountDate)
+  const pins = buildStockPinnedDayIndices(
+    state.days,
+    state.surveyMarkedDays,
+    physIdx,
+    state.referenceDate,
+    state.physicalCountDate,
+  )
+  return {
+    ...state,
+    beanRows: state.beanRows.map((bean) => ({
+      ...bean,
+      stock: resyncAutoStockForBeanRow(bean, pins),
+    })),
+  }
+}
+
+const finalizeInventoryStatusState = (state: InventoryStatusState): InventoryStatusState =>
+  resyncAllBeanStockInInventoryState(withDerivedPhysicalCountDate(state))
+
+const ensureExpectedBeanRowsPresent = (state: InventoryStatusState): InventoryStatusState => ({
+  ...state,
+  beanRows: ensureExpectedBeanRows(state.beanRows, state.days.length),
+})
 
 const LOW_STOCK_LOSSTING_BASE_BEANS_KG = 40
 const LOW_STOCK_OTHER_BEANS_KG = 5
@@ -1339,7 +1367,7 @@ const normalizeInventoryByMonthFromUnknown = (raw: unknown): Record<string, Inve
     }
     const n = normalizeInventoryStatusState(val)
     if (n) {
-      out[ym] = restoreMonthBucketAfterCloud(ym, n)
+      out[ym] = finalizeInventoryStatusState(restoreMonthBucketAfterCloud(ym, n))
     }
   }
   return out
@@ -1381,6 +1409,30 @@ const readStatementCalendarRecordsFromStorage = (): InventoryStatementCalendarRe
   } catch {
     return []
   }
+}
+
+const loadStatementCalendarRecordsFresh = async (
+  mode: 'local' | 'cloud',
+  companyId: string | null,
+): Promise<InventoryStatementCalendarRecord[]> => {
+  const localRecords = readStatementCalendarRecordsFromStorage()
+  if (mode !== 'cloud' || !companyId) {
+    return localRecords
+  }
+  try {
+    const remote = await loadCompanyDocument<InventoryStatementPageDocumentLike>(
+      companyId,
+      COMPANY_DOCUMENT_KEYS.statementPage,
+    )
+    const remoteRecords = normalizeStatementCalendarRecords(remote?.records)
+    if (remoteRecords.length > 0) {
+      window.localStorage.setItem(STATEMENT_RECORDS_KEY, JSON.stringify(remoteRecords))
+      return remoteRecords
+    }
+  } catch {
+    /* local cache fallback */
+  }
+  return localRecords
 }
 
 const ensureCurrentYmInBuckets = (
@@ -1529,14 +1581,16 @@ const normalizeInventoryPageDocument = (value: unknown): InventoryPageDocument =
   }
 
   const source = value as Partial<InventoryPageDocument>
-  const inventoryState =
+  const inventoryState = finalizeInventoryStatusState(
     source.inventoryState && typeof source.inventoryState === 'object'
       ? normalizeInventoryStatusState(source.inventoryState) ?? defaultState
-      : defaultState
-  const baselineState =
+      : defaultState,
+  )
+  const baselineState = finalizeInventoryStatusState(
     source.baselineState && typeof source.baselineState === 'object'
       ? normalizeInventoryStatusState(source.baselineState) ?? inventoryState
-      : inventoryState
+      : inventoryState,
+  )
 
   let inventoryByMonth = normalizeInventoryByMonthFromUnknown(source.inventoryByMonth)
   inventoryByMonth = ensureCurrentYmInBuckets(inventoryState, inventoryByMonth)
@@ -2788,24 +2842,8 @@ function InventoryStatusPage() {
   }, [inventoryReferenceYm, statementCalendarOpen])
 
   const refreshStatementCalendarRecords = useCallback(async () => {
-    const localRecords = readStatementCalendarRecordsFromStorage()
-    setStatementCalendarRecords(localRecords)
-    if (mode !== 'cloud' || !activeCompanyId) {
-      return
-    }
-    try {
-      const remote = await loadCompanyDocument<InventoryStatementPageDocumentLike>(
-        activeCompanyId,
-        COMPANY_DOCUMENT_KEYS.statementPage,
-      )
-      const remoteRecords = normalizeStatementCalendarRecords(remote?.records)
-      if (remoteRecords.length > 0) {
-        setStatementCalendarRecords(remoteRecords)
-        window.localStorage.setItem(STATEMENT_RECORDS_KEY, JSON.stringify(remoteRecords))
-      }
-    } catch {
-      /* local cache fallback */
-    }
+    const records = await loadStatementCalendarRecordsFresh(mode, activeCompanyId)
+    setStatementCalendarRecords(records)
   }, [activeCompanyId, mode])
   const initialRoastingSyncDoneRef = useRef(false)
   const [fullResetDialogOpen, setFullResetDialogOpen] = useState(false)
@@ -2833,6 +2871,8 @@ function InventoryStatusPage() {
   inventoryByMonthRef.current = inventoryByMonth
   const lastCloudPayloadHashesRef = useRef<InventoryCloudPayloadHashes>(createEmptyInventoryCloudPayloadHashes())
   const needsInventoryCloudSplitMigrationRef = useRef(false)
+  /** loadDocument 가 받은 updated_at 시드 — 폴링 첫 실행의 중복 fetch 방지 */
+  const cloudUpdatedAtSeedRef = useRef<Record<string, string | null> | null>(null)
   /** POS 스타일 빠른 입력: 일·품목·구분·kg → 해당 일 셀에 누적 */
   const [quickEntryModalOpen, setQuickEntryModalOpen] = useState(false)
   const [quickEntryDate, setQuickEntryDate] = useState('')
@@ -3165,21 +3205,62 @@ function InventoryStatusPage() {
       if (mode !== 'cloud' || !activeCompanyId) {
         needsInventoryCloudSplitMigrationRef.current = false
         lastCloudPayloadHashesRef.current = createEmptyInventoryCloudPayloadHashes()
+        cloudUpdatedAtSeedRef.current = null
         applyDocument(localDocument, 'local', true)
         return
       }
 
       try {
-        const [remoteLegacy, remoteCore, remoteMonths, remoteTemplate, remoteHistory] = await Promise.all([
-          loadCompanyDocument<InventoryPageDocument>(activeCompanyId, COMPANY_DOCUMENT_KEYS.inventoryPage),
-          loadCompanyDocument<InventoryPageCoreDocument>(activeCompanyId, COMPANY_DOCUMENT_KEYS.inventoryPageCore),
-          loadCompanyDocument<InventoryPageMonthsDocument>(activeCompanyId, COMPANY_DOCUMENT_KEYS.inventoryPageMonths),
-          loadCompanyDocument<InventoryPageTemplateDocument>(
-            activeCompanyId,
-            COMPANY_DOCUMENT_KEYS.inventoryPageTemplate,
-          ),
-          loadCompanyDocument<InventoryPageHistoryDocument>(activeCompanyId, COMPANY_DOCUMENT_KEYS.inventoryPageHistory),
+        // 먼저 가벼운 updated_at 만 조회해, 분리 문서가 있으면 거대한 legacy 문서는 읽지 않는다.
+        const updatedAtMap = await loadCompanyDocumentsUpdatedAt(activeCompanyId, [
+          COMPANY_DOCUMENT_KEYS.inventoryPage,
+          ...INVENTORY_CLOUD_SPLIT_DOC_KEYS,
         ])
+        cloudUpdatedAtSeedRef.current = { ...updatedAtMap }
+        const hasAnySplitDoc = INVENTORY_CLOUD_SPLIT_DOC_KEYS.some((key) => updatedAtMap[key] != null)
+        const hasLegacyDoc = updatedAtMap[COMPANY_DOCUMENT_KEYS.inventoryPage] != null
+
+        let remoteLegacy: InventoryPageDocument | null = null
+        let remoteCore: InventoryPageCoreDocument | null = null
+        let remoteMonths: InventoryPageMonthsDocument | null = null
+        let remoteTemplate: InventoryPageTemplateDocument | null = null
+        let remoteHistory: InventoryPageHistoryDocument | null = null
+
+        if (hasAnySplitDoc) {
+          const [coreRaw, monthsRaw, templateRaw, historyRaw] = await Promise.all([
+            updatedAtMap[COMPANY_DOCUMENT_KEYS.inventoryPageCore] != null
+              ? loadCompanyDocument<InventoryPageCoreDocument>(activeCompanyId, COMPANY_DOCUMENT_KEYS.inventoryPageCore)
+              : Promise.resolve(null),
+            updatedAtMap[COMPANY_DOCUMENT_KEYS.inventoryPageMonths] != null
+              ? loadCompanyDocument<InventoryPageMonthsDocument>(
+                  activeCompanyId,
+                  COMPANY_DOCUMENT_KEYS.inventoryPageMonths,
+                )
+              : Promise.resolve(null),
+            updatedAtMap[COMPANY_DOCUMENT_KEYS.inventoryPageTemplate] != null
+              ? loadCompanyDocument<InventoryPageTemplateDocument>(
+                  activeCompanyId,
+                  COMPANY_DOCUMENT_KEYS.inventoryPageTemplate,
+                )
+              : Promise.resolve(null),
+            updatedAtMap[COMPANY_DOCUMENT_KEYS.inventoryPageHistory] != null
+              ? loadCompanyDocument<InventoryPageHistoryDocument>(
+                  activeCompanyId,
+                  COMPANY_DOCUMENT_KEYS.inventoryPageHistory,
+                )
+              : Promise.resolve(null),
+          ])
+          remoteCore = normalizeInventoryPageCoreDocument(coreRaw)
+          remoteMonths = normalizeInventoryPageMonthsDocument(monthsRaw)
+          remoteTemplate = normalizeInventoryPageTemplateDocument(templateRaw)
+          remoteHistory = normalizeInventoryPageHistoryDocument(historyRaw)
+        } else if (hasLegacyDoc) {
+          remoteLegacy = await loadCompanyDocument<InventoryPageDocument>(
+            activeCompanyId,
+            COMPANY_DOCUMENT_KEYS.inventoryPage,
+          )
+        }
+
         const remoteDocument = composeInventoryCloudDocument({
           legacy: remoteLegacy,
           core: remoteCore,
@@ -3188,11 +3269,9 @@ function InventoryStatusPage() {
           history: remoteHistory,
         })
         if (remoteDocument) {
-          const splitDocCount = [remoteCore, remoteMonths, remoteTemplate, remoteHistory].filter(
-            (doc) => doc != null,
-          ).length
+          const splitDocCount = INVENTORY_CLOUD_SPLIT_DOC_KEYS.filter((key) => updatedAtMap[key] != null).length
           const needsMigration =
-            splitDocCount < INVENTORY_CLOUD_SPLIT_DOC_KEYS.length || (remoteLegacy != null && splitDocCount === 0)
+            splitDocCount < INVENTORY_CLOUD_SPLIT_DOC_KEYS.length || (hasLegacyDoc && splitDocCount === 0)
           needsInventoryCloudSplitMigrationRef.current = needsMigration
           if (remoteLegacy) {
             writeInventoryCloudMigrationBackup(mode, activeCompanyId, normalizeInventoryPageDocument(remoteLegacy))
@@ -3218,6 +3297,7 @@ function InventoryStatusPage() {
         console.error('입출고 현황 클라우드 문서를 읽지 못했습니다.', error)
         needsInventoryCloudSplitMigrationRef.current = false
         lastCloudPayloadHashesRef.current = createEmptyInventoryCloudPayloadHashes()
+        cloudUpdatedAtSeedRef.current = null
         applyDocument(localDocument, 'local', true)
       }
     }
@@ -3471,6 +3551,7 @@ function InventoryStatusPage() {
       return
     }
     let lastUpdatedAtByDoc: Partial<Record<(typeof INVENTORY_CLOUD_SPLIT_DOC_KEYS)[number] | typeof COMPANY_DOCUMENT_KEYS.inventoryPage, string | null>> = {}
+    let seededFromLoad = false
     let remoteParts: {
       legacy: InventoryPageDocument | null
       core: InventoryPageCoreDocument | null
@@ -3490,15 +3571,30 @@ function InventoryStatusPage() {
       if (!shouldRunCloudDocumentPoll()) {
         return
       }
+      // loadDocument 가 이미 받아둔 updated_at 을 1회 시드 → 마운트 직후 같은 문서 재다운로드 방지
+      if (!seededFromLoad && cloudUpdatedAtSeedRef.current) {
+        lastUpdatedAtByDoc = { ...cloudUpdatedAtSeedRef.current }
+        lastHashes = lastCloudPayloadHashesRef.current
+        seededFromLoad = true
+      }
       const pollKeys = [
         COMPANY_DOCUMENT_KEYS.inventoryPage,
         ...INVENTORY_CLOUD_SPLIT_DOC_KEYS,
       ] as const
       const updatedAtMap = await loadCompanyDocumentsUpdatedAt(activeCompanyId, pollKeys)
+      const hasAnySplitDoc = INVENTORY_CLOUD_SPLIT_DOC_KEYS.some((key) => updatedAtMap[key] != null)
       const changedKeys = pollKeys.filter((docKey) => {
+        // 분리 문서가 있으면 거대한 legacy payload 는 받지 않는다(변경 표시만 소비).
+        if (docKey === COMPANY_DOCUMENT_KEYS.inventoryPage && hasAnySplitDoc) {
+          return false
+        }
         const remoteUpdatedAt = updatedAtMap[docKey] ?? null
         return !isCompanyDocumentUpdatedAtUnchanged(remoteUpdatedAt, lastUpdatedAtByDoc[docKey])
       })
+      // legacy 의 updated_at 은 (받지 않더라도) 기록해 다음 폴링에서 다시 감지하지 않게 한다.
+      if (hasAnySplitDoc) {
+        lastUpdatedAtByDoc[COMPANY_DOCUMENT_KEYS.inventoryPage] = updatedAtMap[COMPANY_DOCUMENT_KEYS.inventoryPage] ?? null
+      }
       if (changedKeys.length === 0) {
         return
       }
@@ -3552,7 +3648,7 @@ function InventoryStatusPage() {
         if (!normalizedBucket) {
           continue
         }
-        const restored = restoreMonthBucketAfterCloud(ym, normalizedBucket)
+        const restored = finalizeInventoryStatusState(restoreMonthBucketAfterCloud(ym, normalizedBucket))
         mergedMonths[ym] =
           ym === viewerYm ? mergeKeepViewerReferenceDates(restored, viewerState) : restored
       }
@@ -3603,7 +3699,6 @@ function InventoryStatusPage() {
       intervalMs: CLOUD_DOCUMENT_POLL_INTERVAL_MS,
       companyId: activeCompanyId,
       docKeys: [COMPANY_DOCUMENT_KEYS.inventoryPage, ...INVENTORY_CLOUD_SPLIT_DOC_KEYS],
-      realtimeSelect: ['company_id', 'doc_key', 'updated_at', 'updated_by'],
       currentUserId: user?.id ?? null,
     })
     return () => controller.stop()
@@ -4519,7 +4614,21 @@ function InventoryStatusPage() {
     setQuickEntryDirty(true)
   }
 
-  const applyQuickEntryStatementToOutbound = () => {
+  const applyStatementBeansFromRecordsForDay = (
+    state: InventoryStatusState,
+    dayIndex: number,
+    beans: readonly Pick<QuickEntryDayStatementBean, 'beanIndex' | 'statementQty'>[],
+  ) => {
+    let next = state
+    for (const row of beans) {
+      const qty = String(row.statementQty)
+      next = applyBeanValueUpdate(next, row.beanIndex, 'production', dayIndex, qty)
+      next = applyBeanValueUpdate(next, row.beanIndex, 'outbound', dayIndex, qty)
+    }
+    return next
+  }
+
+  const applyQuickEntryStatementToInventory = () => {
     if (quickEntryDayIndex < 0) {
       setStatusMessage('날짜를 선택해 주세요.')
       return
@@ -4528,11 +4637,13 @@ function InventoryStatusPage() {
       setStatusMessage('이 날짜에 매핑된 명세 품목이 없습니다.')
       return
     }
-    for (const row of quickEntryStatementContext.beans) {
-      updateQuickBatchValue(row.beanIndex, 'outbound', String(row.statementQty))
-    }
+    setQuickEntryDraftState((current) => {
+      const base = current ?? cloneInventoryStatusState(inventoryStateRef.current)
+      return applyStatementBeansFromRecordsForDay(base, quickEntryDayIndex, quickEntryStatementContext.beans)
+    })
+    setQuickEntryDirty(true)
     setStatusMessage(
-      `${quickEntryDate.slice(8, 10)}일 명세 수량을 출고 칸에 반영했습니다. 생산은 필요 시 직접 수정해 주세요.`,
+      `${quickEntryDate.slice(8, 10)}일 명세 ${quickEntryStatementContext.beans.length}품목 · 출고·생산(사용) 반영`,
     )
   }
 
@@ -5032,7 +5143,7 @@ function InventoryStatusPage() {
       const dayCount = parsedState.days.length
       // 엑셀 시트에는 블렌딩 레시피/사이클이 없어, parse 결과만 쓰면 매번 빈(기본) 레시피로 덮어쓴다(디카·라이트 등이 "사라짐"처럼 보임). 임포트 직전 화면의 입출고 state에서 블렌딩만 이어 붙인다(클라우드 `company_documents`는 inventory 전체 JSON을 저장하나, 엑셀 다시 올릴 때 이 덮어쓰기가 먼저 흔한 원인).
       const prev = inventoryStateRef.current
-      const nextState: InventoryStatusState = {
+      const nextState: InventoryStatusState = ensureExpectedBeanRowsPresent({
         ...parsedState,
         skipAutoStockDisplay: true,
         blendingDarkRecipe: cloneBlendingRecipe(prev.blendingDarkRecipe),
@@ -5041,7 +5152,7 @@ function InventoryStatusPage() {
         blendingDarkCycles: resizeBlendingCyclesToDayCount(prev.blendingDarkCycles, dayCount),
         blendingLightCycles: resizeBlendingCyclesToDayCount(prev.blendingLightCycles, dayCount),
         blendingDecaffeineCycles: resizeBlendingCyclesToDayCount(prev.blendingDecaffeineCycles, dayCount),
-      }
+      })
       setInventoryState(nextState)
       setInventoryByMonth((prev) => ({
         ...prev,
@@ -5449,6 +5560,82 @@ function InventoryStatusPage() {
     setStatusMessage('현재 페이지 수정 내용을 새 엑셀 파일로 저장했습니다.')
   }
 
+  const handleReferenceDateChange = useCallback(
+    (nextRef: string) => {
+      if (!nextRef || nextRef.length < 10) {
+        return
+      }
+
+      const oldYm = inventoryState.referenceDate.slice(0, 7)
+      const newYm = nextRef.slice(0, 7)
+      if (oldYm === newYm) {
+        setInventoryState((cur) =>
+          withDerivedPhysicalCountDate({
+            ...cur,
+            skipAutoStockDisplay: false,
+            referenceDate: nextRef,
+          }),
+        )
+        return
+      }
+
+      const closed = cloneInventoryStatusState(inventoryState)
+      const merged: Record<string, InventoryStatusState> = {
+        ...inventoryByMonthRef.current,
+        [oldYm]: closed,
+      }
+      const existingNew = merged[newYm]
+      let nextActive: InventoryStatusState
+      let msg: string
+
+      if (existingNew) {
+        nextActive = withDerivedPhysicalCountDate({
+          ...cloneInventoryStatusState(existingNew),
+          referenceDate: nextRef,
+          skipAutoStockDisplay: false,
+        })
+        if (isInventoryForwardMonthRollover(closed, nextRef)) {
+          const closingStock = computeEndingStockByBeanName(closed)
+          nextActive = patchStartingStockFromPreviousMonth(nextActive, closingStock)
+        }
+        msg = `${newYm}에 저장해 둔 표를 불러왔습니다.`
+      } else if (isInventoryForwardMonthRollover(closed, nextRef)) {
+        nextActive = rolloverInventoryStateToNextCalendarMonth(closed, nextRef)!
+        msg =
+          '새 달 표를 열었습니다. 전월 말 재고만 이달 1일 시작 재고로 이월하고, 일별 입고·생산·출고·로스팅은 비웠습니다. 이전 달 데이터는 그대로 보관됩니다.'
+      } else {
+        nextActive = withDerivedPhysicalCountDate({
+          ...createZeroedInventoryStatusFrom(cloneInventoryStatusState(closed)),
+          referenceDate: nextRef,
+          surveyMarkedDays: [],
+          skipAutoStockDisplay: false,
+        })
+        msg = `${newYm}에 저장된 표가 없어 숫자는 비운 표로 시작했습니다. 품목 구조는 유지됩니다.`
+      }
+
+      nextActive = withDerivedPhysicalCountDate(nextActive)
+
+      setInventoryByMonth({
+        ...merged,
+        [newYm]: cloneInventoryStatusState(nextActive),
+      })
+      setInventoryState(nextActive)
+      setStatusMessage(msg)
+    },
+    [inventoryState],
+  )
+
+  const toggleStatementCalendar = useCallback(() => {
+    setStatementCalendarOpen((open) => {
+      const nextOpen = !open
+      if (nextOpen) {
+        setStatementCalendarViewYm(inventoryState.referenceDate.slice(0, 7))
+        void refreshStatementCalendarRecords()
+      }
+      return nextOpen
+    })
+  }, [inventoryState.referenceDate, refreshStatementCalendarRecords])
+
   return (
     <>
       {isStorageReady ? (
@@ -5456,9 +5643,26 @@ function InventoryStatusPage() {
       <section className="panel inventory-top-controls-panel inventory-top-controls-panel--compact">
         <div className="inventory-top-toolbar no-print">
           <div className="hero-metrics inventory-hero-metrics-inline inventory-page-snapshot-metrics">
-            <div className="metric-card">
-              <span>기준일</span>
-              <strong>{formatReferenceDate(inventoryState.referenceDate)}</strong>
+            <div className="inventory-top-reference-group">
+              <label className="metric-card inventory-reference-date-card">
+                <span>기준일</span>
+                <input
+                  type="date"
+                  className="inventory-reference-date-input"
+                  value={inventoryState.referenceDate}
+                  onChange={(event) => handleReferenceDateChange(event.target.value)}
+                  aria-label="입출고 기준일"
+                />
+              </label>
+              <button
+                type="button"
+                className={`ghost-button small-hit inventory-toolbar-main-btn inventory-reference-calendar-btn${statementCalendarOpen ? ' active' : ''}`}
+                aria-expanded={statementCalendarOpen}
+                title="거래명세 납품 건수·금액 캘린더. 월 이동 후 「기준월」로 입출고 기준월로 복귀"
+                onClick={toggleStatementCalendar}
+              >
+                캘린더 {statementCalendarOpen ? '▲' : '▼'}
+              </button>
             </div>
             <div className="metric-card">
               <span>재고 합</span>
@@ -5468,6 +5672,24 @@ function InventoryStatusPage() {
               <span>생산 합</span>
               <strong>{formatNumber(roastingMetrics.grandTotal)}kg</strong>
             </div>
+            <div className="metric-card">
+              <span>재고 품목</span>
+              <strong>{inventoryMetric.activeBeans}개</strong>
+            </div>
+          </div>
+          <div className="inventory-top-toolbar-status">
+            <p className="page-status-message" role="status" aria-live="polite">
+              {statusMessage}
+            </p>
+            <span
+              className="inventory-info-tooltip-trigger"
+              role="img"
+              aria-label="재고 연쇄·실사 설명"
+              title="같은 달 안에서는 기준일만 바뀌고, 다른 달로 바꾸면 그 달에 마지막으로 저장해 둔 표가 열립니다(없으면 전월 말 재고만 이월한 새 달이거나, 저장 본이 없으면 숫자만 비운 표로 시작). 이전 달 데이터는 브라우저·클라우드에 월별로 남습니다. 입고·생산·출고는 날짜별로 모두 적을 수 있고, 재고는 그에 맞춰 자동으로 이어집니다. 재고를 직접 맞출 수 있는 칸은 월초(1일)와, 일자 헤더에서「실사」를 켠 날입니다. 여러 날에 실사를 켜면 그 사이도 연쇄로 계산됩니다. 일자 옆 ●는 재고를 직접 넣는 칸입니다. 실사 해제는 달력상 가장 늦게 켠 날부터만 가능합니다."
+            >
+              i
+            </span>
+            <PageSaveStatus mode={mode} saveState={saveState} lastSavedAt={lastSavedAt} />
           </div>
           <div className="inventory-top-toolbar-actions">
             <button
@@ -5476,24 +5698,43 @@ function InventoryStatusPage() {
               onClick={openQuickEntryModal}
               title="날짜별 입고·생산·출고를 한 번에 입력"
             >
-              빠른 입력
+              입력
             </button>
-            <button
-              type="button"
-              className={`ghost-button small-hit inventory-toolbar-main-btn${statementCalendarOpen ? ' active' : ''}`}
-              aria-expanded={statementCalendarOpen}
-              title="거래명세 납품 건수·금액 캘린더. 월 이동 후 「기준월」로 입출고 기준월로 복귀"
-              onClick={() => {
-                const nextOpen = !statementCalendarOpen
-                setStatementCalendarOpen(nextOpen)
-                if (nextOpen) {
-                  setStatementCalendarViewYm(inventoryReferenceYm)
-                  void refreshStatementCalendarRecords()
-                }
-              }}
-            >
-              캘린더 {statementCalendarOpen ? '▲' : '▼'}
-            </button>
+            <div className="inventory-file-actions app-file-actions" role="group" aria-label="파일">
+              <button
+                type="button"
+                className="ghost-button small-hit inventory-toolbar-main-btn inventory-upload-trigger"
+                onClick={openUploadUnlockDialog}
+                title="엑셀 파일로 표 가져오기 (비밀번호 필요)"
+              >
+                업로드
+              </button>
+              <input
+                ref={uploadFileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="inventory-upload-file-input"
+                aria-hidden
+                tabIndex={-1}
+                onChange={handleWorkbookUpload}
+              />
+              <button
+                type="button"
+                className="ghost-button small-hit inventory-toolbar-main-btn"
+                onClick={handleExportWorkbook}
+              >
+                저장
+              </button>
+              <button
+                type="button"
+                className="ghost-button small-hit inventory-toolbar-main-btn"
+                onClick={handleResetDefault}
+                disabled={!templateBase64}
+                title={templateBase64 ? '마지막 업로드 엑셀 기준으로 복원' : '엑셀 업로드 후 사용 가능'}
+              >
+                복원
+              </button>
+            </div>
           </div>
         </div>
         {statementCalendarOpen ? (
@@ -5903,11 +6144,12 @@ function InventoryStatusPage() {
                         </button>
                         <button
                           type="button"
-                          className="ghost-button small-hit inventory-quick-statement-apply-btn"
-                          onClick={applyQuickEntryStatementToOutbound}
+                          className="primary-button small-hit inventory-quick-statement-apply-btn"
+                          onClick={applyQuickEntryStatementToInventory}
                           disabled={quickEntryStatementContext.beans.length === 0}
+                          title="선택한 날짜 명세 수량을 출고·생산(사용) 칸에 한 번에 입력"
                         >
-                          출고←명세
+                          출고·생산←명세
                         </button>
                       </div>
                     </div>
@@ -6072,132 +6314,6 @@ function InventoryStatusPage() {
           ),
           document.body,
         ) : null}
-        <div className="meeting-config-row inventory-config-row inventory-config-row--single-line inventory-config-row--compact">
-          <label className="meeting-inline-field">
-            기준일
-            <input
-              type="date"
-              value={inventoryState.referenceDate}
-              onChange={(event) => {
-                const nextRef = event.target.value
-                if (!nextRef || nextRef.length < 10) {
-                  return
-                }
-
-                const oldYm = inventoryState.referenceDate.slice(0, 7)
-                const newYm = nextRef.slice(0, 7)
-                if (oldYm === newYm) {
-                  setInventoryState((cur) =>
-                    withDerivedPhysicalCountDate({
-                      ...cur,
-                      skipAutoStockDisplay: false,
-                      referenceDate: nextRef,
-                    }),
-                  )
-                  return
-                }
-
-                const closed = cloneInventoryStatusState(inventoryState)
-                const merged: Record<string, InventoryStatusState> = {
-                  ...inventoryByMonthRef.current,
-                  [oldYm]: closed,
-                }
-                const existingNew = merged[newYm]
-                let nextActive: InventoryStatusState
-                let msg: string
-
-                if (existingNew) {
-                  nextActive = withDerivedPhysicalCountDate({
-                    ...cloneInventoryStatusState(existingNew),
-                    referenceDate: nextRef,
-                    skipAutoStockDisplay: false,
-                  })
-                  if (isInventoryForwardMonthRollover(closed, nextRef)) {
-                    const closingStock = computeEndingStockByBeanName(closed)
-                    nextActive = patchStartingStockFromPreviousMonth(nextActive, closingStock)
-                  }
-                  msg = `${newYm}에 저장해 둔 표를 불러왔습니다.`
-                } else if (isInventoryForwardMonthRollover(closed, nextRef)) {
-                  nextActive = rolloverInventoryStateToNextCalendarMonth(closed, nextRef)!
-                  msg =
-                    '새 달 표를 열었습니다. 전월 말 재고만 이달 1일 시작 재고로 이월하고, 일별 입고·생산·출고·로스팅은 비웠습니다. 이전 달 데이터는 그대로 보관됩니다.'
-                } else {
-                  nextActive = withDerivedPhysicalCountDate({
-                    ...createZeroedInventoryStatusFrom(cloneInventoryStatusState(closed)),
-                    referenceDate: nextRef,
-                    surveyMarkedDays: [],
-                    skipAutoStockDisplay: false,
-                  })
-                  msg = `${newYm}에 저장된 표가 없어 숫자는 비운 표로 시작했습니다. 품목 구조는 유지됩니다.`
-                }
-
-                nextActive = withDerivedPhysicalCountDate(nextActive)
-
-                setInventoryByMonth({
-                  ...merged,
-                  [newYm]: cloneInventoryStatusState(nextActive),
-                })
-                setInventoryState(nextActive)
-                setStatusMessage(msg)
-              }}
-            />
-          </label>
-          <label className="meeting-inline-field">
-            재고 보유 품목
-            <input value={`${inventoryMetric.activeBeans}개`} readOnly />
-          </label>
-        </div>
-        <div className="inventory-actions inventory-actions--under-config inventory-actions--compact">
-          <button
-            type="button"
-            className="ghost-button small-hit inventory-toolbar-main-btn inventory-upload-trigger"
-            onClick={openUploadUnlockDialog}
-            title="엑셀 파일로 표 가져오기 (비밀번호 필요)"
-          >
-            업로드
-          </button>
-          <input
-            ref={uploadFileInputRef}
-            type="file"
-            accept=".xlsx,.xls"
-            className="inventory-upload-file-input"
-            aria-hidden
-            tabIndex={-1}
-            onChange={handleWorkbookUpload}
-          />
-          <button type="button" className="ghost-button small-hit inventory-toolbar-main-btn" onClick={handleExportWorkbook}>
-            저장
-          </button>
-          <button
-            type="button"
-            className="ghost-button small-hit inventory-toolbar-main-btn"
-            onClick={handleResetDefault}
-            disabled={!templateBase64}
-            title={
-              templateBase64
-                ? '마지막 업로드 엑셀 기준으로 복원'
-                : '엑셀 업로드 후 사용 가능'
-            }
-          >
-            복원
-          </button>
-        </div>
-        <div className="page-status-bar page-status-bar--compact">
-          <div className="page-status-inline inventory-status-inline">
-            <p className="page-status-message" role="status" aria-live="polite">
-              {statusMessage}
-            </p>
-            <span
-              className="inventory-info-tooltip-trigger"
-              role="img"
-              aria-label="재고 연쇄·실사 설명"
-              title="같은 달 안에서는 기준일만 바뀌고, 다른 달로 바꾸면 그 달에 마지막으로 저장해 둔 표가 열립니다(없으면 전월 말 재고만 이월한 새 달이거나, 저장 본이 없으면 숫자만 비운 표로 시작). 이전 달 데이터는 브라우저·클라우드에 월별로 남습니다. 입고·생산·출고는 날짜별로 모두 적을 수 있고, 재고는 그에 맞춰 자동으로 이어집니다. 재고를 직접 맞출 수 있는 칸은 월초(1일)와, 일자 헤더에서「실사」를 켠 날입니다. 여러 날에 실사를 켜면 그 사이도 연쇄로 계산됩니다. 일자 옆 ●는 재고를 직접 넣는 칸입니다. 실사 해제는 달력상 가장 늦게 켠 날부터만 가능합니다."
-            >
-              i
-            </span>
-          </div>
-          <PageSaveStatus mode={mode} saveState={saveState} lastSavedAt={lastSavedAt} />
-        </div>
       </section>
 
       <>
@@ -6218,7 +6334,7 @@ function InventoryStatusPage() {
                 <span className="inventory-filter-summary inventory-filter-summary--compact">
                   {filteredBeanSummaryRows.length}/{beanSummaryRows.length}
                 </span>
-                <div className="inventory-bean-summary-action-buttons">
+                <div className="app-segment-control inventory-bean-summary-action-buttons">
                   <button
                     type="button"
                     className={`ghost-button small-hit inventory-bean-summary-action-btn${
@@ -6442,23 +6558,12 @@ function InventoryStatusPage() {
               </div>
               {beanDetailViewMode === 'daily' ? (
                 <>
-                  {isBlendingDarkBeanRow(selectedBean) ? (
+                  {isBlendingOutboundAdjustsStockRow(selectedBean) ? (
                     <p className="muted tiny inventory-blend-dark-hint">
-                      {BLENDING_DARK_BEAN_NAME}: 입고는 비워 둬도 됩니다(자동 재고에 쓰지 않음). 날짜마다{' '}
+                      {selectedBean.name}: 입고는 비워 둬도 됩니다(자동 재고에 쓰지 않음). 날짜마다{' '}
                       <strong>전일 재고 + 생산(사용) − 출고</strong>로 이어집니다. 실사한 날은 직접 맞춘 재고를
-                      유지합니다.
-                    </p>
-                  ) : null}
-                  {isBlendingLightBeanRow(selectedBean) ? (
-                    <p className="muted tiny inventory-blend-dark-hint">
-                      {BLENDING_LIGHT_BEAN_NAME}도 동일합니다. 입고 없이, 생산이 더해지고 출고가 빠집니다.
-                    </p>
-                  ) : null}
-                  {isBlendingDecaffeineBeanRow(selectedBean) ? (
-                    <p className="muted tiny inventory-blend-dark-hint">
-                      {BLENDING_DECAFFEINE_BEAN_NAME}: 일반 생두와 같이 입고·생산·출고·재고가 이어집니다. 일자별 로스팅
-                      현황에서 <strong>디카페인 블렌딩 레시피·사이클</strong>을 쓰면 구성 원두 사용량이 생산(사용)에
-                      같이 반영됩니다.
+                      유지합니다. 일자별 로스팅 현황의 <strong>블렌딩 레시피·사이클</strong>을 쓰면 구성 원두
+                      사용량이 생산(사용)에 같이 반영됩니다.
                     </p>
                   ) : null}
                   <div ref={beanDailyScrollRef} className="inventory-bean-daily-x-scroll">
@@ -6509,21 +6614,12 @@ function InventoryStatusPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {(
-                          isBlendingDarkBeanRow(selectedBean)
-                            ? [
-                                { label: '입고', values: selectedBean.inbound, key: 'inbound' as const },
-                                { label: '생산(사용)', values: selectedBean.production, key: 'production' as const },
-                                { label: '출고', values: selectedBean.outbound, key: 'outbound' as const },
-                                { label: '재고', values: selectedBean.stock, key: 'stock' as const },
-                              ]
-                            : [
-                                { label: '입고', values: selectedBean.inbound, key: 'inbound' as const },
-                                { label: '생산(사용)', values: selectedBean.production, key: 'production' as const },
-                                { label: '출고', values: selectedBean.outbound, key: 'outbound' as const },
-                                { label: '재고', values: selectedBean.stock, key: 'stock' as const },
-                              ]
-                        ).map((row) => (
+                        {[
+                          { label: '입고', values: selectedBean.inbound, key: 'inbound' as const },
+                          { label: '생산(사용)', values: selectedBean.production, key: 'production' as const },
+                          { label: '출고', values: selectedBean.outbound, key: 'outbound' as const },
+                          { label: '재고', values: selectedBean.stock, key: 'stock' as const },
+                        ].map((row) => (
                           <tr key={row.label}>
                             <td className="inventory-sticky-column inventory-text-left">
                               {row.label}

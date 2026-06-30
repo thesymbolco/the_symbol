@@ -108,7 +108,7 @@ const PAGE_HEADER_META: Record<AppActivePage, { title: string; description: stri
   },
   greenBeanOrder: {
     title: '생두 주문',
-    description: '생두 주문, 가격 비교, 재고 연동 정보를 한곳에서 확인합니다.',
+    description: '',
   },
   beanMarginCalc: {
     title: '원두별 마진 계산',
@@ -181,10 +181,8 @@ const WORKSPACE_SHELL_PAGE_HERO: Record<
   },
   greenBeanOrder: {
     headline: '생두 주문',
-    copyLocal:
-      '생두 주문, 가격 비교, 재고 연동 정보를 한곳에서 확인합니다. 저장 데이터는 이 브라우저에만 보관될 수 있습니다.',
-    copyCloud:
-      '생두 주문, 가격 비교, 재고 연동 정보를 한곳에서 확인합니다. 회사 문서로 동기화되면 주문표를 팀과 함께 관리할 수 있습니다.',
+    copyLocal: '',
+    copyCloud: '',
   },
   beanMarginCalc: {
     headline: '원두별 마진 계산',

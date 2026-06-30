@@ -311,16 +311,21 @@ function BeanSalesAnalysisPage() {
             ),
         inventoryUnchanged
           ? Promise.resolve<[InventoryPageDocumentLike | null, InventoryPageDocumentLike | null]>([null, null])
-          : Promise.all([
-              loadCompanyDocument<InventoryPageDocumentLike>(
+          : (async (): Promise<[InventoryPageDocumentLike | null, InventoryPageDocumentLike | null]> => {
+              // core(가벼움) 우선, core 문서가 아예 없을 때만 legacy(거대) 폴백
+              const core = await loadCompanyDocument<InventoryPageDocumentLike>(
                 activeCompanyId,
                 COMPANY_DOCUMENT_KEYS.inventoryPageCore,
-              ),
-              loadCompanyDocument<InventoryPageDocumentLike>(
+              )
+              if (core || inventoryCoreUpdatedAt != null) {
+                return [core, null]
+              }
+              const legacy = await loadCompanyDocument<InventoryPageDocumentLike>(
                 activeCompanyId,
                 COMPANY_DOCUMENT_KEYS.inventoryPage,
-              ),
-            ]),
+              )
+              return [null, legacy]
+            })(),
         greenOrderUnchanged
           ? Promise.resolve(null)
           : loadCompanyDocument<unknown>(
@@ -395,7 +400,6 @@ function BeanSalesAnalysisPage() {
       intervalMs: CLOUD_DOCUMENT_POLL_INTERVAL_SLOW_MS,
       companyId: activeCompanyId,
       docKeys: pollKeys,
-      realtimeSelect: ['company_id', 'doc_key', 'updated_at', 'updated_by'],
       currentUserId: user?.id ?? null,
     })
     return () => controller.stop()
@@ -461,16 +465,16 @@ function BeanSalesAnalysisPage() {
     const loadInventoryState = async () => {
       if (mode === 'cloud' && activeCompanyId) {
         try {
-          const [remoteCore, remoteLegacy] = await Promise.all([
-            loadCompanyDocument<InventoryPageDocumentLike>(
-              activeCompanyId,
-              COMPANY_DOCUMENT_KEYS.inventoryPageCore,
-            ),
-            loadCompanyDocument<InventoryPageDocumentLike>(
-              activeCompanyId,
-              COMPANY_DOCUMENT_KEYS.inventoryPage,
-            ),
-          ])
+          const remoteCore = await loadCompanyDocument<InventoryPageDocumentLike>(
+            activeCompanyId,
+            COMPANY_DOCUMENT_KEYS.inventoryPageCore,
+          )
+          const remoteLegacy = remoteCore
+            ? null
+            : await loadCompanyDocument<InventoryPageDocumentLike>(
+                activeCompanyId,
+                COMPANY_DOCUMENT_KEYS.inventoryPage,
+              )
           if (cancelled) {
             return
           }
@@ -836,7 +840,7 @@ function BeanSalesAnalysisPage() {
           <h1>원두별 매출 분석</h1>
           <button
             type="button"
-            className="bean-sales-open-link-modal"
+            className="ghost-button small bean-sales-open-link-modal"
             onClick={() => {
               setLinkModalPreferredToLabel(null)
               setLinkModalOpen(true)
@@ -868,14 +872,16 @@ function BeanSalesAnalysisPage() {
           </select>
         </label>
 
-        <div className="view-mode-tabs">
-          <button 
+        <div className="segmented view-mode-tabs">
+          <button
+            type="button"
             className={viewMode === 'revenue' ? 'active' : ''}
             onClick={() => setViewMode('revenue')}
           >
             매출 현황
           </button>
-          <button 
+          <button
+            type="button"
             className={viewMode === 'detailed' ? 'active' : ''}
             onClick={() => setViewMode('detailed')}
           >
@@ -1316,38 +1322,31 @@ function BeanSalesAnalysisPage() {
         }
 
         .bean-sales-open-link-modal {
-          padding: 6px 12px;
-          font-size: 13px;
-          font-weight: 500;
-          border: 1px solid #0d6efd;
-          color: #0d6efd;
-          background: #fff;
-          border-radius: 6px;
-          cursor: pointer;
           white-space: nowrap;
         }
 
-        .bean-sales-open-link-modal:hover { background: #e7f1ff; }
         .bean-sales-row-edit-btn {
-          border: 1px solid #0d6efd;
-          background: #fff;
-          color: #0d6efd;
-          border-radius: 6px;
+          border: none;
+          background: #eef2f6;
+          color: #334155;
+          border-radius: 8px;
           font-size: 12px;
           padding: 4px 9px;
           cursor: pointer;
           white-space: nowrap;
+          font-weight: 600;
         }
-        .bean-sales-row-edit-btn:hover { background: #e7f1ff; }
+        .bean-sales-row-edit-btn:hover { background: #e2e8f0; }
 
         .analysis-controls {
           display: flex;
-          gap: 20px;
+          gap: 16px;
           align-items: center;
-          margin-bottom: 30px;
-          padding: 20px;
-          background: #f8f9fa;
-          border-radius: 8px;
+          margin-bottom: 24px;
+          padding: 14px 16px;
+          background: #f8fafc;
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
           flex-wrap: wrap;
         }
 
@@ -1369,29 +1368,7 @@ function BeanSalesAnalysisPage() {
         }
 
         .view-mode-tabs {
-          display: flex;
-          gap: 2px;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          overflow: hidden;
-        }
-
-        .view-mode-tabs button {
-          padding: 8px 16px;
-          border: none;
-          background: white;
-          cursor: pointer;
-          font-size: 14px;
-          transition: all 0.2s;
-        }
-
-        .view-mode-tabs button:hover {
-          background: #f0f0f0;
-        }
-
-        .view-mode-tabs button.active {
-          background: #007bff;
-          color: white;
+          flex-shrink: 0;
         }
 
         .summary-metrics {

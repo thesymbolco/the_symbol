@@ -1900,7 +1900,7 @@ function ExpensePage() {
           </div>
         </div>
 
-        <div className="inventory-actions">
+        <div className="inventory-actions app-file-actions">
           <label className="upload-button secondary expense-toolbar-btn">
             지출 엑셀 업로드
             <input type="file" accept=".xlsx,.xls" onChange={handleImportWorkbook} />

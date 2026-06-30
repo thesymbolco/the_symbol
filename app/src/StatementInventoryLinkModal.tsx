@@ -311,16 +311,17 @@ function StatementInventoryLinkModal({
             console.error('명세↔입고 모달: 거래명세 클라우드 문서를 읽지 못했습니다.', error)
           }
           try {
-            const [remoteInventoryCore, remoteInventoryLegacy] = await Promise.all([
-              loadCompanyDocument<{ inventoryState?: unknown }>(
-                activeCompanyId,
-                COMPANY_DOCUMENT_KEYS.inventoryPageCore,
-              ),
-              loadCompanyDocument<{ inventoryState?: unknown }>(
-                activeCompanyId,
-                COMPANY_DOCUMENT_KEYS.inventoryPage,
-              ),
-            ])
+            // core(가벼움) 우선, 없을 때만 legacy(거대) 로 폴백
+            const remoteInventoryCore = await loadCompanyDocument<{ inventoryState?: unknown }>(
+              activeCompanyId,
+              COMPANY_DOCUMENT_KEYS.inventoryPageCore,
+            )
+            const remoteInventoryLegacy = remoteInventoryCore
+              ? null
+              : await loadCompanyDocument<{ inventoryState?: unknown }>(
+                  activeCompanyId,
+                  COMPANY_DOCUMENT_KEYS.inventoryPage,
+                )
             const candidate =
               remoteInventoryCore?.inventoryState ??
               remoteInventoryLegacy?.inventoryState ??

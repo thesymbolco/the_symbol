@@ -4333,17 +4333,13 @@ function MonthlyMeetingPage() {
             <div className="meeting-actions meeting-section-actions">
               {renderItemEditToggleButton('summary')}
               <div
-                className="meeting-bean-price-mode"
+                className="segmented meeting-bean-price-mode"
                 role="group"
                 aria-label="생두 단가 기준"
               >
                 <button
                   type="button"
-                  className={
-                    greenOrderPriceMode === 'moving_avg'
-                      ? 'ghost-button meeting-bean-price-mode-btn meeting-bean-price-mode-btn--active'
-                      : 'ghost-button meeting-bean-price-mode-btn'
-                  }
+                  className={greenOrderPriceMode === 'moving_avg' ? 'active' : ''}
                   disabled={activeMonthState.beanSalesMaterialFrozen === true}
                   onClick={() => applyGreenOrderUnitPriceMode('moving_avg')}
                   title="전월 말 입출고 재고(kg)×전월 단가 + 당월 생두 입고를 합산한 이동평균입니다. 4월 주문 잔량이 5월 판매 원가에 반영됩니다."
@@ -4352,11 +4348,7 @@ function MonthlyMeetingPage() {
                 </button>
                 <button
                   type="button"
-                  className={
-                    greenOrderPriceMode === 'monthly_avg'
-                      ? 'ghost-button meeting-bean-price-mode-btn meeting-bean-price-mode-btn--active'
-                      : 'ghost-button meeting-bean-price-mode-btn'
-                  }
+                  className={greenOrderPriceMode === 'monthly_avg' ? 'active' : ''}
                   disabled={activeMonthState.beanSalesMaterialFrozen === true}
                   onClick={() => applyGreenOrderUnitPriceMode('monthly_avg')}
                   title="해당 월 생두 주문 금액÷kg 가중평균으로 재료비(매출·생두)를 계산합니다."
@@ -4365,11 +4357,7 @@ function MonthlyMeetingPage() {
                 </button>
                 <button
                   type="button"
-                  className={
-                    greenOrderPriceMode === 'latest'
-                      ? 'ghost-button meeting-bean-price-mode-btn meeting-bean-price-mode-btn--active'
-                      : 'ghost-button meeting-bean-price-mode-btn'
-                  }
+                  className={greenOrderPriceMode === 'latest' ? 'active' : ''}
                   disabled={activeMonthState.beanSalesMaterialFrozen === true}
                   onClick={() => applyGreenOrderUnitPriceMode('latest')}
                   title="품목별 가장 최근 생두 주문 일자 기록의 원/kg으로 계산합니다."

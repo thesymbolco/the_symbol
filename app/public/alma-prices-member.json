@@ -1,8 +1,8 @@
 {
   "source": "almacielo-member",
   "sourceUrl": "https://www.almacielo.com/content/content.php?cont=my_price",
-  "fetchedAt": "2026-06-22T02:54:52.341Z",
-  "itemCount": 115,
+  "fetchedAt": "2026-06-23T01:12:25.378Z",
+  "itemCount": 116,
   "items": [
     {
       "itemName": "[★썸머세일] 과테말라 SHB 벌크로스터",
@@ -620,6 +620,12 @@
       "itemName": "콜롬비아 카르페 나랑하 워시드",
       "price": 28300,
       "productUrl": "https://www.almacielo.com/shop/detail.php?pno=207F88018F72237565570F8A9E5CA240&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
+      "supplyNote": "마이크로랏"
+    },
+    {
+      "itemName": "콜롬비아 카르페 오렌지블룸 워시드",
+      "price": 31300,
+      "productUrl": "https://www.almacielo.com/shop/detail.php?pno=BE3E9D3F7D70537357C67BB3F4086846&rURL=https%3A%2F%2Fwww.almacielo.com%2Fcontent%2Fcontent.php%3Fcont%3Dmy_price&ctype=1&cno1=",
       "supplyNote": "마이크로랏"
     },
     {

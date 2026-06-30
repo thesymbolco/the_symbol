@@ -56,9 +56,9 @@ export const isBlendingDecaffeineBeanRow = (bean: InventoryBeanRow | undefined) 
 export const isBlendingLineBeanRow = (bean: InventoryBeanRow | undefined) =>
   isBlendingDarkBeanRow(bean) || isBlendingLightBeanRow(bean) || isBlendingDecaffeineBeanRow(bean)
 
-/** 다크·라이트: 자동 재고 = 전일+생산(raw)−출고(입고는 연채에 쓰지 않음). 디카페인 블렌드는 일반 생두와 동일 규칙. */
+/** DARK / LIGHT / DECAFFEINE 블렌드 품목 — 자동 재고 = 전일 + 생산(사용) − 출고 (입고는 연채에 쓰지 않음). */
 export const isBlendingOutboundAdjustsStockRow = (bean: InventoryBeanRow | undefined) =>
-  isBlendingDarkBeanRow(bean) || isBlendingLightBeanRow(bean)
+  isBlendingDarkBeanRow(bean) || isBlendingLightBeanRow(bean) || isBlendingDecaffeineBeanRow(bean)
 
 /** 자동 재고 연쇄에 쓰는 생산(환산) 배열. */
 export const productionForAutoStock = (bean: InventoryBeanRow): number[] => [...bean.production]
