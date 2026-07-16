@@ -232,6 +232,9 @@ export function mapStatementItemToInventoryLabel(
   if (/디카페인.*더치|더치.*디카/i.test(raw) || /디카.*더치|더치.*디카/i.test(forMatch)) {
     return { label: '더치(디카페인) 음료', sortKey: 950_000, matched: true }
   }
+  if (/더치|dutch|cold.?brew|콜드브루/i.test(raw) || /더치|dutch|cold.?brew|콜드브루/i.test(forMatch)) {
+    return { label: '더치·콜드브루 음료', sortKey: 950_000, matched: true }
+  }
 
   /** `브라질(라미랑드)` 등 → strip만 하면 '브라질' = 산지, 입고 `10. Brazil` 코어 `Brazil`와 1:1(매장명 괄호 무시) */
   if (beanRows.length > 0) {
@@ -365,5 +368,24 @@ export function mapStatementItemToInventoryLabel(
 
   // 6) 그대로(미매칭) — 위에서 입출고 행을 정하지 못한 경우(다른 품목·잘못된 키워드) 원문
   return { label: raw, sortKey: 900_000, matched: false }
+}
+
+/**
+ * 거래명세 품목이 입출고 생두 행과 출고 대조·집계 대상인지.
+ * 더치 등 표시용으로만 매칭된 품목(`matched`이지만 생두 행 라벨이 아님)은 false.
+ */
+export function isStatementItemComparableToInventory(
+  itemName: string,
+  beanRows: readonly InventoryBeanRow[],
+  options?: MapStatementItemToInventoryOptions,
+): boolean {
+  const { label, matched } = mapStatementItemToInventoryLabel(itemName, beanRows, options)
+  if (!matched || label === '—') {
+    return false
+  }
+  if (beanRows.length === 0) {
+    return true
+  }
+  return beanRows.some((bean) => formatBeanRowLabel(bean) === label)
 }
 

@@ -20242,9 +20242,23 @@ _**Agent (default)**_
 
 _**User**_
 
-지출표 엑셀 업로드 로직이 어떻게 되어있지 지금?
+생두 입출고현황 달이 바꼈을때 그냥 지난 달 마지막 재고 값만 불러오기 같은거 만들어줄래? 생산 입고 출고 값 제외하고 재고 값만 자꾸 달이 바뀔때 생산 입고 출고 값이 흐트러지네
 
 ---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+사용자가 달이 바뀔 때 재고 현황만 이전 달 마지막 재고로 가져오도록 요청했다. 이전 달의 생산 입고 출고 값은 그대로 두고 재고 값만 연동시키고 싶다.
+
+재고 현황 코드에서 달이 바뀔 때 재고만 연동되고 다른 값은 그대로 유지되도록 수정할 것이다.
+
+pu 커버 가시성과 pu 재고 표시도 함께 수정할 것이다. 재고만 이전 달 마지막 값을 가져오고, pu의 재고 커버 가시성과 재고 표시를 정확히 맞출 것이다.</details></think>
+
+_**Agent (default)**_
+
+생두 입출고현황 달 변경 시 마지막 재고만 이월하고, cover visibility 및 cover visibility 관련 로직을 확인 중입니다.
+
 
 _**Agent (default)**_
 
@@ -20258,7 +20272,8 @@ Parameters:
 ```json
 {
   "explanation": "",
-  "query": "지출표 엑셀 업로드 로직",
+  "includePattern": "/Users/parkcg/The Symbol_Edit/app/src",
+  "query": "How does inventory status handle month change and carry forward opening stock from previous month?",
   "topK": 10
 }
 ```
@@ -20271,187 +20286,3858 @@ Result:
       "codeBlock": {
         "detailedLines": [
           {
-            "isSignature": true,
-            "lineNumber": 1086,
-            "text": "function ExpensePage() {"
+            "lineNumber": 791,
+            "text": "/**"
           },
           {
-            "lineNumber": 1604
+            "lineNumber": 792,
+            "text": " * 기준일이 직전 달의 **바로 다음 달**로 바뀔 때만: 전월 말일 종료 재고를 달의 첫 열(1일) 시작 재고로 이월하고,"
           },
           {
-            "lineNumber": 1605
+            "lineNumber": 793,
+            "text": " * 일별 입고·생산·출고·로스팅·블렌딩 사이클은 새 달용으로 비웁니다."
           },
           {
-            "lineNumber": 1606,
-            "text": "  const handleImportWorkbook = async (event: ChangeEvent\u003cHTMLInputElement\u003e) =\u003e {"
+            "lineNumber": 794,
+            "text": " * 조건이 맞지 않으면 &#96;null&#96; — 호출 측에서 기준일만 갱신합니다."
           },
           {
-            "lineNumber": 1607,
-            "text": "    const file = event.target.files?.[0]"
+            "lineNumber": 795,
+            "text": " */"
           },
           {
-            "lineNumber": 1608,
-            "text": "    if (!file) {"
+            "lineNumber": 796,
+            "text": "const rolloverInventoryStateToNextCalendarMonth = ("
           },
           {
-            "lineNumber": 1609,
-            "text": "      return"
+            "lineNumber": 797,
+            "text": "  current: InventoryStatusState,"
           },
           {
-            "lineNumber": 1610,
-            "text": "    }"
+            "lineNumber": 798,
+            "text": "  nextReferenceDate: string,"
           },
           {
-            "lineNumber": 1611
+            "lineNumber": 799,
+            "text": "): InventoryStatusState | null =\u003e {"
           },
           {
-            "lineNumber": 1612,
-            "text": "    try {"
+            "lineNumber": 800,
+            "text": "  if (!isInventoryForwardMonthRollover(current, nextReferenceDate)) {"
           },
           {
-            "lineNumber": 1613,
-            "text": "      const buffer = await file.arrayBuffer()"
+            "lineNumber": 801,
+            "text": "    return null"
           },
           {
-            "lineNumber": 1614,
-            "text": "      const workbook = XLSX.read(buffer, { type: 'array' })"
-          },
-          {
-            "lineNumber": 1615,
-            "text": "      const { records: importedRecords, layout, warnings } = parseExpenseWorkbook(workbook)"
-          },
-          {
-            "lineNumber": 1616
-          },
-          {
-            "lineNumber": 1617,
-            "text": "      if (importedRecords.length === 0) {"
-          },
-          {
-            "lineNumber": 1618,
-            "text": "        setStatusMessage('불러온 지출 데이터가 없습니다.')"
-          },
-          {
-            "lineNumber": 1619,
-            "text": "        return"
-          },
-          {
-            "lineNumber": 1620,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 1621
-          },
-          {
-            "lineNumber": 1622,
-            "text": "      setPageState((current) =\u003e ({"
-          },
-          {
-            "lineNumber": 1623,
-            "text": "        ...current,"
-          },
-          {
-            "lineNumber": 1624,
-            "text": "        activeMonth: importedRecords[0].expenseDate.slice(0, 7),"
-          },
-          {
-            "lineNumber": 1625,
-            "text": "        records: [...importedRecords, ...current.records],"
-          },
-          {
-            "lineNumber": 1626,
-            "text": "        tableColumns: layout,"
-          },
-          {
-            "lineNumber": 1627,
-            "text": "      }))"
-          },
-          {
-            "lineNumber": 1628,
-            "text": "      const warningText = warnings.length \u003e 0 ? &#96; (참고: ${warnings.join(' / ')})&#96; : ''"
-          },
-          {
-            "lineNumber": 1629,
-            "text": "      setStatusMessage("
-          },
-          {
-            "lineNumber": 1630,
-            "text": "        &#96;${importedRecords.length}건 추가했습니다. 표 열을 시트 원본(${layout.length}열) 그대로 맞췄습니다.${warningText}&#96;,"
-          },
-          {
-            "lineNumber": 1631,
-            "text": "      )"
-          },
-          {
-            "lineNumber": 1632,
-            "text": "    } catch (error) {"
-          },
-          {
-            "lineNumber": 1633,
-            "text": "      console.error('지출 엑셀을 읽지 못했습니다.', error)"
-          },
-          {
-            "lineNumber": 1634,
-            "text": "      setStatusMessage(error instanceof Error ? error.message : '지출 엑셀 업로드에 실패했습니다.')"
-          },
-          {
-            "lineNumber": 1635,
-            "text": "    } finally {"
-          },
-          {
-            "lineNumber": 1636,
-            "text": "      event.target.value = ''"
-          },
-          {
-            "lineNumber": 1637,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 1638,
+            "lineNumber": 802,
             "text": "  }"
           },
           {
-            "lineNumber": 1639
+            "lineNumber": 803,
+            "text": "  const prevYm = current.referenceDate.slice(0, 7)"
           },
           {
-            "lineNumber": 1640,
-            "text": "  const handleExportWorkbook = async () =\u003e"
+            "lineNumber": 804,
+            "text": "  const prevMonthLastDayIso = lastCalendarDayIsoInMonth(prevYm)"
           },
           {
-            "lineNumber": 1675
+            "lineNumber": 805,
+            "text": "  const physIdx = dayIndexForReferenceDate(current.days, current.physicalCountDate)"
+          },
+          {
+            "lineNumber": 806,
+            "text": "  const pins = buildStockPinnedDayIndices("
+          },
+          {
+            "lineNumber": 807,
+            "text": "    current.days,"
+          },
+          {
+            "lineNumber": 808,
+            "text": "    current.surveyMarkedDays,"
+          },
+          {
+            "lineNumber": 809,
+            "text": "    physIdx,"
+          },
+          {
+            "lineNumber": 810,
+            "text": "    current.referenceDate,"
+          },
+          {
+            "lineNumber": 811,
+            "text": "    current.physicalCountDate,"
+          },
+          {
+            "lineNumber": 812,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 813,
+            "text": "  const endIdx = dayIndexForReferenceDate(current.days, prevMonthLastDayIso)"
+          },
+          {
+            "lineNumber": 814
+          },
+          {
+            "lineNumber": 815,
+            "text": "  const n = current.days.length"
+          },
+          {
+            "lineNumber": 816,
+            "text": "  const zeros = () =\u003e Array.from({ length: n }, () =\u003e 0)"
+          },
+          {
+            "lineNumber": 817
+          },
+          {
+            "lineNumber": 818,
+            "text": "  const nextBeanRows = current.beanRows.map((bean) =\u003e {"
+          },
+          {
+            "lineNumber": 819,
+            "text": "    const resynced = current.skipAutoStockDisplay ? [...bean.stock] : resyncAutoStockForBeanRow(bean, pins)"
+          },
+          {
+            "lineNumber": 820,
+            "text": "    const len = resynced.length"
+          },
+          {
+            "lineNumber": 821,
+            "text": "    const capped = len \u003c= 0 ? 0 : Math.min(Math.max(endIdx, 0), len - 1)"
+          },
+          {
+            "lineNumber": 822,
+            "text": "    const closing = resynced[capped] ?? 0"
+          },
+          {
+            "lineNumber": 823,
+            "text": "    const nextStock = zeros()"
+          },
+          {
+            "lineNumber": 824,
+            "text": "    nextStock[0] = closing"
+          },
+          {
+            "lineNumber": 825,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 826,
+            "text": "      ...bean,"
+          },
+          {
+            "lineNumber": 827,
+            "text": "      inbound: zeros(),"
+          },
+          {
+            "lineNumber": 828,
+            "text": "      production: zeros(),"
+          },
+          {
+            "lineNumber": 829,
+            "text": "      outbound: zeros(),"
+          },
+          {
+            "lineNumber": 830,
+            "text": "      stock: nextStock,"
+          },
+          {
+            "lineNumber": 831,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 832,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 833
+          },
+          {
+            "lineNumber": 834,
+            "text": "  const zeroCycles = Array.from({ length: n }, () =\u003e 0)"
+          },
+          {
+            "lineNumber": 835,
+            "text": "  let next: InventoryStatusState = {"
+          },
+          {
+            "lineNumber": 836,
+            "text": "    ...current,"
+          },
+          {
+            "lineNumber": 837,
+            "text": "    skipAutoStockDisplay: false,"
+          },
+          {
+            "lineNumber": 838,
+            "text": "    referenceDate: nextReferenceDate,"
+          },
+          {
+            "lineNumber": 839,
+            "text": "    physicalCountDate: nextReferenceDate,"
+          },
+          {
+            "lineNumber": 840,
+            "text": "    surveyMarkedDays: [],"
+          },
+          {
+            "lineNumber": 841,
+            "text": "    beanRows: nextBeanRows,"
+          },
+          {
+            "lineNumber": 842,
+            "text": "    blendingDarkCycles: zeroCycles,"
+          },
+          {
+            "lineNumber": 843,
+            "text": "    blendingLightCycles: zeroCycles,"
+          },
+          {
+            "lineNumber": 844,
+            "text": "    blendingDecaffeineCycles: zeroCycles,"
+          },
+          {
+            "lineNumber": 845,
+            "text": "    roastingRows: current.roastingRows.map((row) =\u003e ({"
+          },
+          {
+            "lineNumber": 846,
+            "text": "      ...row,"
+          },
+          {
+            "lineNumber": 847,
+            "text": "      values: row.values.map(() =\u003e 0),"
+          },
+          {
+            "lineNumber": 848,
+            "text": "    })),"
+          },
+          {
+            "lineNumber": 849,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 850,
+            "text": "  next = {"
+          },
+          {
+            "lineNumber": 851,
+            "text": "    ...next,"
+          },
+          {
+            "lineNumber": 852,
+            "text": "    roastingRows: syncRoastingRowsFromBeanProduction(next),"
+          },
+          {
+            "lineNumber": 853,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 854,
+            "text": "  return withDerivedPhysicalCountDate(next)"
+          },
+          {
+            "lineNumber": 855,
+            "text": "}"
+          },
+          {
+            "lineNumber": 856
+          },
+          {
+            "lineNumber": 857,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 858,
+            "text": " * 전월 상태에서 품목별 말일 종료 재고(kg)를 구한다."
+          },
+          {
+            "lineNumber": 859,
+            "text": " * &#96;rolloverInventoryStateToNextCalendarMonth&#96;와 동일 로직이지만 Map만 반환."
+          },
+          {
+            "lineNumber": 860,
+            "text": " */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 3,
+            "line": 859
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 788
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.5243592262268066
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3071,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 3078,
+            "text": "const applyDocument = "
+          },
+          {
+            "lineNumber": 3134
+          },
+          {
+            "lineNumber": 3135
+          },
+          {
+            "lineNumber": 3136,
+            "text": "      if (monthChanged) {"
+          },
+          {
+            "lineNumber": 3137,
+            "text": "        const existingToday = buckets[todayYm]"
+          },
+          {
+            "lineNumber": 3138,
+            "text": "        if (existingToday \u0026\u0026 inventoryStateHasFilledCells(existingToday)) {"
+          },
+          {
+            "lineNumber": 3139,
+            "text": "          activeState = patchStartingStockFromPriorMonthBucket("
+          },
+          {
+            "lineNumber": 3140,
+            "text": "            withReferenceDateToday(cloneInventoryStatusState(existingToday)),"
+          },
+          {
+            "lineNumber": 3141,
+            "text": "            buckets,"
+          },
+          {
+            "lineNumber": 3142,
+            "text": "          )"
+          },
+          {
+            "lineNumber": 3143,
+            "text": "          nextByMonth = {"
+          },
+          {
+            "lineNumber": 3144,
+            "text": "            ...buckets,"
+          },
+          {
+            "lineNumber": 3145,
+            "text": "            [originalYm]: originalSnapshot,"
+          },
+          {
+            "lineNumber": 3146,
+            "text": "            [todayYm]: cloneInventoryStatusState(activeState),"
+          },
+          {
+            "lineNumber": 3147,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 3148,
+            "text": "        } else {"
+          },
+          {
+            "lineNumber": 3149,
+            "text": "          const rolled ="
+          },
+          {
+            "lineNumber": 3150,
+            "text": "            todayYm === calendarYmPlusMonths(originalYm, 1)"
+          },
+          {
+            "lineNumber": 3151,
+            "text": "              ? rolloverInventoryStateToNextCalendarMonth(originalSnapshot, next.referenceDate)"
+          },
+          {
+            "lineNumber": 3152,
+            "text": "              : null"
+          },
+          {
+            "lineNumber": 3153,
+            "text": "          if (rolled) {"
+          },
+          {
+            "lineNumber": 3154,
+            "text": "            activeState = rolled"
+          },
+          {
+            "lineNumber": 3155,
+            "text": "            nextByMonth = {"
+          },
+          {
+            "lineNumber": 3156,
+            "text": "              ...buckets,"
+          },
+          {
+            "lineNumber": 3157,
+            "text": "              [originalYm]: cloneInventoryStatusState(originalSnapshot),"
+          },
+          {
+            "lineNumber": 3158,
+            "text": "              [todayYm]: cloneInventoryStatusState(rolled),"
+          },
+          {
+            "lineNumber": 3159,
+            "text": "            }"
+          },
+          {
+            "lineNumber": 3160,
+            "text": "          } else {"
+          },
+          {
+            "lineNumber": 3161,
+            "text": "            activeState = patchStartingStockFromPriorMonthBucket("
+          },
+          {
+            "lineNumber": 3162,
+            "text": "              withDerivedPhysicalCountDate({"
+          },
+          {
+            "lineNumber": 3163,
+            "text": "                ...createZeroedInventoryStatusFrom(cloneInventoryStatusState(next)),"
+          },
+          {
+            "lineNumber": 3164,
+            "text": "                referenceDate: next.referenceDate,"
+          },
+          {
+            "lineNumber": 3165,
+            "text": "                surveyMarkedDays: [],"
+          },
+          {
+            "lineNumber": 3166,
+            "text": "                skipAutoStockDisplay: false,"
+          },
+          {
+            "lineNumber": 3167,
+            "text": "              }),"
+          },
+          {
+            "lineNumber": 3168,
+            "text": "              { ...buckets, [originalYm]: originalSnapshot },"
+          },
+          {
+            "lineNumber": 3169,
+            "text": "            )"
+          },
+          {
+            "lineNumber": 3170,
+            "text": "            nextByMonth = {"
+          },
+          {
+            "lineNumber": 3171,
+            "text": "              ...buckets,"
+          },
+          {
+            "lineNumber": 3172,
+            "text": "              [originalYm]: cloneInventoryStatusState(originalSnapshot),"
+          },
+          {
+            "lineNumber": 3173,
+            "text": "              [todayYm]: cloneInventoryStatusState(activeState),"
+          },
+          {
+            "lineNumber": 3174,
+            "text": "            }"
+          },
+          {
+            "lineNumber": 3175,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 3176,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 3177,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3178
+          },
+          {
+            "lineNumber": 3179,
+            "text": "      setInventoryByMonth(nextByMonth)"
+          },
+          {
+            "lineNumber": 3180,
+            "text": "      setInventoryState(activeState)"
+          },
+          {
+            "lineNumber": 3181,
+            "text": "      setBaselineState(migratedFromManual ? next : nextBaseline)"
+          },
+          {
+            "lineNumber": 3182,
+            "text": "      setTemplateBase64(hydrated.templateBase64)"
+          },
+          {
+            "lineNumber": 3183,
+            "text": "      setTemplateFileName(hydrated.templateFileName)"
+          },
+          {
+            "lineNumber": 3184,
+            "text": "      setHistoryNotes(hydrated.historyNotes)"
+          },
+          {
+            "lineNumber": 3185,
+            "text": "      setQuickEntryStepSettings(hydrated.quickEntryStepSettings ?? { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS })"
+          },
+          {
+            "lineNumber": 3186,
+            "text": "      setQuickEntryStepDraft("
+          },
+          {
+            "lineNumber": 3187,
+            "text": "        quickEntryStepSettingsToDraft"
+          },
+          {
+            "lineNumber": 3188
+          },
+          {
+            "lineNumber": 3201
+          },
+          {
+            "lineNumber": 3309,
+            "text": "  }"
           },
           {
             "isSignature": true,
-            "lineNumber": 2249,
+            "lineNumber": 7362,
             "text": "}"
           }
         ],
         "range": {
           "endPosition": {
             "column": 1,
-            "line": 2248
+            "line": 7361
           },
           "startPosition": {
-            "line": 1085
+            "line": 2716
           }
         },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
         "signatures": {
           "ranges": [
             {
               "endPosition": {
                 "column": 3,
-                "line": 1087
+                "line": 2718
               },
               "startPosition": {
                 "column": 1,
-                "line": 1086
+                "line": 2717
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 3071
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 3071
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 3072
+              },
+              "startPosition": {
+                "column": 13,
+                "line": 3071
+              }
+            },
+            {
+              "endPosition": {
+                "column": 11,
+                "line": 3078
+              },
+              "startPosition": {
+                "column": 5,
+                "line": 3078
+              }
+            },
+            {
+              "endPosition": {
+                "column": 27,
+                "line": 3078
+              },
+              "startPosition": {
+                "column": 11,
+                "line": 3078
               }
             }
           ]
         }
       },
-      "score": 0.4645046591758728
+      "score": 0.513262927532196
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 5563,
+            "text": "const handleReferenceDateChange = "
+          },
+          {
+            "lineNumber": 5564,
+            "text": "(nextRef: string) =\u003e {"
+          },
+          {
+            "lineNumber": 5589
+          },
+          {
+            "lineNumber": 5590
+          },
+          {
+            "lineNumber": 5591,
+            "text": "      if (existingNew) {"
+          },
+          {
+            "lineNumber": 5592,
+            "text": "        nextActive = withDerivedPhysicalCountDate({"
+          },
+          {
+            "lineNumber": 5593,
+            "text": "          ...cloneInventoryStatusState(existingNew),"
+          },
+          {
+            "lineNumber": 5594,
+            "text": "          referenceDate: nextRef,"
+          },
+          {
+            "lineNumber": 5595,
+            "text": "          skipAutoStockDisplay: false,"
+          },
+          {
+            "lineNumber": 5596,
+            "text": "        })"
+          },
+          {
+            "lineNumber": 5597,
+            "text": "        if (isInventoryForwardMonthRollover(closed, nextRef)) {"
+          },
+          {
+            "lineNumber": 5598,
+            "text": "          const closingStock = computeEndingStockByBeanName(closed)"
+          },
+          {
+            "lineNumber": 5599,
+            "text": "          nextActive = patchStartingStockFromPreviousMonth(nextActive, closingStock)"
+          },
+          {
+            "lineNumber": 5600,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 5601,
+            "text": "        msg = &#96;${newYm}에 저장해 둔 표를 불러왔습니다.&#96;"
+          },
+          {
+            "lineNumber": 5602,
+            "text": "      } else if (isInventoryForwardMonthRollover(closed, nextRef)) {"
+          },
+          {
+            "lineNumber": 5603,
+            "text": "        nextActive = rolloverInventoryStateToNextCalendarMonth(closed, nextRef)!"
+          },
+          {
+            "lineNumber": 5604,
+            "text": "        msg ="
+          },
+          {
+            "lineNumber": 5605,
+            "text": "          '새 달 표를 열었습니다. 전월 말 재고만 이달 1일 시작 재고로 이월하고, 일별 입고·생산·출고·로스팅은 비웠습니다. 이전 달 데이터는 그대로 보관됩니다.'"
+          },
+          {
+            "lineNumber": 5606,
+            "text": "      } else {"
+          },
+          {
+            "lineNumber": 5607,
+            "text": "        nextActive = withDerivedPhysicalCountDate({"
+          },
+          {
+            "lineNumber": 5608,
+            "text": "          ...createZeroedInventoryStatusFrom(cloneInventoryStatusState(closed)),"
+          },
+          {
+            "lineNumber": 5609,
+            "text": "          referenceDate: nextRef,"
+          },
+          {
+            "lineNumber": 5610,
+            "text": "          surveyMarkedDays: [],"
+          },
+          {
+            "lineNumber": 5611,
+            "text": "          skipAutoStockDisplay: false,"
+          },
+          {
+            "lineNumber": 5612,
+            "text": "        })"
+          },
+          {
+            "lineNumber": 5613,
+            "text": "        msg = &#96;${newYm}에 저장된 표가 없어 숫자는 비운 표로 시작했습니다. 품목 구조는 유지됩니다.&#96;"
+          },
+          {
+            "lineNumber": 5614,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 5615
+          },
+          {
+            "lineNumber": 5616,
+            "text": "      nextActive = withDerivedPhysicalCountDate(nextActive)"
+          },
+          {
+            "lineNumber": 5617
+          },
+          {
+            "lineNumber": 5618,
+            "text": "      setInventoryByMonth({"
+          },
+          {
+            "lineNumber": 5619,
+            "text": "        ...merged,"
+          },
+          {
+            "lineNumber": 5620,
+            "text": "        [newYm]: cloneInventoryStatusState(nextActive),"
+          },
+          {
+            "lineNumber": 5621,
+            "text": "      })"
+          },
+          {
+            "lineNumber": 5622,
+            "text": "      setInventoryState(nextActive)"
+          },
+          {
+            "lineNumber": 5623,
+            "text": "      setStatusMessage(msg)"
+          },
+          {
+            "lineNumber": 5624,
+            "text": "    },"
+          },
+          {
+            "lineNumber": 5625,
+            "text": "    [inventoryState],"
+          },
+          {
+            "lineNumber": 5626,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 5627
+          },
+          {
+            "lineNumber": 5628,
+            "text": "  const toggleStatementCalendar = useCallback(() =\u003e {"
+          },
+          {
+            "lineNumber": 5629,
+            "text": "    setStatementCalendarOpen((open) =\u003e {"
+          },
+          {
+            "lineNumber": 5630,
+            "text": "      const nextOpen = !open"
+          },
+          {
+            "lineNumber": 5631,
+            "text": "      if (nextOpen) {"
+          },
+          {
+            "lineNumber": 5632,
+            "text": "        setStatementCalendarViewYm(inventoryState.referenceDate.slice(0, 7))"
+          },
+          {
+            "lineNumber": 5633,
+            "text": "        void refreshStatementCalendarRecords()"
+          },
+          {
+            "lineNumber": 5634,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 5635,
+            "text": "      return nextOpen"
+          },
+          {
+            "lineNumber": 5636,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 5637,
+            "text": "  }, [inventoryState.referenceDate, refreshStatementCalendarRecords])"
+          },
+          {
+            "lineNumber": 5638
+          },
+          {
+            "lineNumber": 5639,
+            "text": "  return ("
+          },
+          {
+            "lineNumber": 5640,
+            "text": "    \u003c\u003e"
+          },
+          {
+            "lineNumber": 5641,
+            "text": "      {isStorageReady ?"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 7362,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 7361
+          },
+          "startPosition": {
+            "line": 2716
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2718
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2717
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 5464
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 5464
+              }
+            },
+            {
+              "endPosition": {
+                "column": 38,
+                "line": 5464
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 5464
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 5563
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 5563
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.493651807308197
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 928,
+            "text": "const MONTH_ROLLOVER_STOCK_EPS = 0.0001"
+          },
+          {
+            "lineNumber": 929
+          },
+          {
+            "lineNumber": 930,
+            "text": "/** 전월 &#96;inventoryByMonth&#96; 버킷 말일 재고를 이번 달 1일 시작 재고에 맞춘다 (이미 같으면 그대로). */"
+          },
+          {
+            "lineNumber": 931,
+            "text": "const patchStartingStockFromPriorMonthBucket = ("
+          },
+          {
+            "lineNumber": 932,
+            "text": "  currentMonthState: InventoryStatusState,"
+          },
+          {
+            "lineNumber": 933,
+            "text": "  buckets: Record\u003cstring, InventoryStatusState\u003e,"
+          },
+          {
+            "lineNumber": 934,
+            "text": "): InventoryStatusState =\u003e {"
+          },
+          {
+            "lineNumber": 935,
+            "text": "  const currentYm = currentMonthState.referenceDate.slice(0, 7)"
+          },
+          {
+            "lineNumber": 936,
+            "text": "  if (!/^\\d{4}-\\d{2}$/.test(currentYm)) {"
+          },
+          {
+            "lineNumber": 937,
+            "text": "    return currentMonthState"
+          },
+          {
+            "lineNumber": 938,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 939,
+            "text": "  const prevYm = calendarYmPlusMonths(currentYm, -1)"
+          },
+          {
+            "lineNumber": 940,
+            "text": "  const prevState = buckets[prevYm]"
+          },
+          {
+            "lineNumber": 941,
+            "text": "  if (!prevState || !inventoryStateHasFilledCells(prevState)) {"
+          },
+          {
+            "lineNumber": 942,
+            "text": "    return currentMonthState"
+          },
+          {
+            "lineNumber": 943,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 944,
+            "text": "  if (!isInventoryForwardMonthRollover(prevState, currentMonthState.referenceDate)) {"
+          },
+          {
+            "lineNumber": 945,
+            "text": "    return currentMonthState"
+          },
+          {
+            "lineNumber": 946,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 947,
+            "text": "  return patchStartingStockFromPreviousMonth(currentMonthState, computeEndingStockByBeanName(prevState))"
+          },
+          {
+            "lineNumber": 948,
+            "text": "}"
+          },
+          {
+            "lineNumber": 949
+          },
+          {
+            "lineNumber": 950,
+            "text": "/** 실사 ●가 켜진 날만 재고 칸 직접 편집 가능 (월초는 별도 규칙) */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 92,
+            "line": 949
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 925
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.4925087094306946
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 883,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 884,
+            "text": " * 이미 저장된 다음 달 표의 1일 시작 재고(stock[0])를 전월 말 종료 재고로 갱신한다."
+          },
+          {
+            "lineNumber": 885,
+            "text": " * 입고·생산·출고 등 나머지 값은 건드리지 않아 사용자가 6월에 직접 넣은 데이터를 보존한다."
+          },
+          {
+            "lineNumber": 886,
+            "text": " */"
+          },
+          {
+            "lineNumber": 887,
+            "text": "const patchStartingStockFromPreviousMonth = ("
+          },
+          {
+            "lineNumber": 888,
+            "text": "  nextMonthState: InventoryStatusState,"
+          },
+          {
+            "lineNumber": 889,
+            "text": "  closingStockByName: Map\u003cstring, number\u003e,"
+          },
+          {
+            "lineNumber": 890,
+            "text": "): InventoryStatusState =\u003e {"
+          },
+          {
+            "lineNumber": 891,
+            "text": "  let changed = false"
+          },
+          {
+            "lineNumber": 892,
+            "text": "  const patchedBeanRows = nextMonthState.beanRows.map((bean) =\u003e {"
+          },
+          {
+            "lineNumber": 893,
+            "text": "    const key = normalizeNameKey(bean.name)"
+          },
+          {
+            "lineNumber": 894,
+            "text": "    const closing = closingStockByName.get(key)"
+          },
+          {
+            "lineNumber": 895,
+            "text": "    if (closing == null) {"
+          },
+          {
+            "lineNumber": 896,
+            "text": "      return bean"
+          },
+          {
+            "lineNumber": 897,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 898,
+            "text": "    const currentStartStock = bean.stock[0] ?? 0"
+          },
+          {
+            "lineNumber": 899,
+            "text": "    if (currentStartStock === closing) {"
+          },
+          {
+            "lineNumber": 900,
+            "text": "      return bean"
+          },
+          {
+            "lineNumber": 901,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 902,
+            "text": "    changed = true"
+          },
+          {
+            "lineNumber": 903,
+            "text": "    const nextStock = [...bean.stock]"
+          },
+          {
+            "lineNumber": 904,
+            "text": "    nextStock[0] = closing"
+          },
+          {
+            "lineNumber": 905,
+            "text": "    return { ...bean, stock: nextStock }"
+          },
+          {
+            "lineNumber": 906,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 907,
+            "text": "  if (!changed) {"
+          },
+          {
+            "lineNumber": 908,
+            "text": "    return nextMonthState"
+          },
+          {
+            "lineNumber": 909,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 910,
+            "text": "  const patched: InventoryStatusState = { ...nextMonthState, skipAutoStockDisplay: false, beanRows: patchedBeanRows }"
+          },
+          {
+            "lineNumber": 911,
+            "text": "  const physIdx = dayIndexForReferenceDate(patched.days, patched.physicalCountDate)"
+          },
+          {
+            "lineNumber": 912,
+            "text": "  const pins = buildStockPinnedDayIndices("
+          },
+          {
+            "lineNumber": 913,
+            "text": "    patched.days,"
+          },
+          {
+            "lineNumber": 914,
+            "text": "    patched.surveyMarkedDays,"
+          },
+          {
+            "lineNumber": 915,
+            "text": "    physIdx,"
+          },
+          {
+            "lineNumber": 916,
+            "text": "    patched.referenceDate,"
+          },
+          {
+            "lineNumber": 917,
+            "text": "    patched.physicalCountDate,"
+          },
+          {
+            "lineNumber": 918,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 919,
+            "text": "  return {"
+          },
+          {
+            "lineNumber": 920,
+            "text": "    ...patched,"
+          },
+          {
+            "lineNumber": 921,
+            "text": "    beanRows: patched.beanRows.map((bean) =\u003e ({"
+          },
+          {
+            "lineNumber": 922,
+            "text": "      ...bean,"
+          },
+          {
+            "lineNumber": 923,
+            "text": "      stock: resyncAutoStockForBeanRow(bean, pins),"
+          },
+          {
+            "lineNumber": 924,
+            "text": "    })),"
+          },
+          {
+            "lineNumber": 925,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 926,
+            "text": "}"
+          },
+          {
+            "lineNumber": 927
+          },
+          {
+            "lineNumber": 928,
+            "text": "const MONTH_ROLLOVER_STOCK_EPS = 0.0001"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 39,
+            "line": 927
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 880
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.49222418665885925
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3071,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 3078,
+            "text": "const applyDocument = "
+          },
+          {
+            "lineNumber": 3091
+          },
+          {
+            "lineNumber": 3092
+          },
+          {
+            "lineNumber": 3093,
+            "text": "      if (wasManualStockMode \u0026\u0026 next.surveyMarkedDays.length === 0 \u0026\u0026 next.days.length \u003e 0) {"
+          },
+          {
+            "lineNumber": 3094,
+            "text": "        migratedFromManual = true"
+          },
+          {
+            "lineNumber": 3095,
+            "text": "        next = { ...next, surveyMarkedDays: [...next.days] }"
+          },
+          {
+            "lineNumber": 3096,
+            "text": "        next = withDerivedPhysicalCountDate(next)"
+          },
+          {
+            "lineNumber": 3097,
+            "text": "        const physIdx = dayIndexForReferenceDate(next.days, next.physicalCountDate)"
+          },
+          {
+            "lineNumber": 3098,
+            "text": "        const pins = buildStockPinnedDayIndices("
+          },
+          {
+            "lineNumber": 3099,
+            "text": "          next.days,"
+          },
+          {
+            "lineNumber": 3100,
+            "text": "          next.surveyMarkedDays,"
+          },
+          {
+            "lineNumber": 3101,
+            "text": "          physIdx,"
+          },
+          {
+            "lineNumber": 3102,
+            "text": "          next.referenceDate,"
+          },
+          {
+            "lineNumber": 3103,
+            "text": "          next.physicalCountDate,"
+          },
+          {
+            "lineNumber": 3104,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 3105,
+            "text": "        next = {"
+          },
+          {
+            "lineNumber": 3106,
+            "text": "          ...next,"
+          },
+          {
+            "lineNumber": 3107,
+            "text": "          skipAutoStockDisplay: false,"
+          },
+          {
+            "lineNumber": 3108,
+            "text": "          beanRows: next.beanRows.map((bean) =\u003e ({"
+          },
+          {
+            "lineNumber": 3109,
+            "text": "            ...bean,"
+          },
+          {
+            "lineNumber": 3110,
+            "text": "            stock: resyncAutoStockForBeanRow(bean, pins),"
+          },
+          {
+            "lineNumber": 3111,
+            "text": "          })),"
+          },
+          {
+            "lineNumber": 3112,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 3113,
+            "text": "        nextBaseline = next"
+          },
+          {
+            "lineNumber": 3114,
+            "text": "        window.localStorage.setItem("
+          },
+          {
+            "lineNumber": 3115,
+            "text": "          inventoryPageScopedKey(INVENTORY_AUTO_STOCK_MODE_KEY, mode, activeCompanyId),"
+          },
+          {
+            "lineNumber": 3116,
+            "text": "          'true',"
+          },
+          {
+            "lineNumber": 3117,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 3118,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3119
+          },
+          {
+            "lineNumber": 3120,
+            "text": "      const originalYm = next.referenceDate.slice(0, 7)"
+          },
+          {
+            "lineNumber": 3121,
+            "text": "      const originalSnapshot = cloneInventoryStatusState(buckets[originalYm] ?? next)"
+          },
+          {
+            "lineNumber": 3122,
+            "text": "      next = withReferenceDateToday(next)"
+          },
+          {
+            "lineNumber": 3123,
+            "text": "      nextBaseline = migratedFromManual ? next : withReferenceDateToday(nextBaseline)"
+          },
+          {
+            "lineNumber": 3124
+          },
+          {
+            "lineNumber": 3125,
+            "text": "      if (cancelled) {"
+          },
+          {
+            "lineNumber": 3126,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 3127,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3128
+          },
+          {
+            "lineNumber": 3129,
+            "text": "      const todayYm = next.referenceDate.slice(0, 7)"
+          },
+          {
+            "lineNumber": 3130,
+            "text": "      const monthChanged ="
+          },
+          {
+            "lineNumber": 3131,
+            "text": "        originalYm !== todayYm \u0026\u0026 /^\\d{4}-\\d{2}$/.test(originalYm) \u0026\u0026 /^\\d{4}-\\d{2}$/.test(todayYm)"
+          },
+          {
+            "lineNumber": 3132
+          },
+          {
+            "lineNumber": 3133,
+            "text": "      let activeState = next"
+          },
+          {
+            "lineNumber": 3134,
+            "text": "      let nextByMonth = { ...buckets, [todayYm]: cloneInventoryStatusState(next) }"
+          },
+          {
+            "lineNumber": 3135
+          },
+          {
+            "lineNumber": 3136,
+            "text": "      if (monthChanged) {"
+          },
+          {
+            "lineNumber": 3137,
+            "text": "        const existingToday = buckets[todayYm]"
+          },
+          {
+            "lineNumber": 3201
+          },
+          {
+            "lineNumber": 3309,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 7362,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 7361
+          },
+          "startPosition": {
+            "line": 2716
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2718
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2717
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 3071
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 3071
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 3072
+              },
+              "startPosition": {
+                "column": 13,
+                "line": 3071
+              }
+            },
+            {
+              "endPosition": {
+                "column": 11,
+                "line": 3078
+              },
+              "startPosition": {
+                "column": 5,
+                "line": 3078
+              }
+            },
+            {
+              "endPosition": {
+                "column": 27,
+                "line": 3078
+              },
+              "startPosition": {
+                "column": 11,
+                "line": 3078
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.4232008457183838
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 419,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 420,
+            "text": " * 자동 재고(일반 원두): 핀으로 찍은 열은 직접 입력값 유지. 생산(사용량)은 입력 kg을 그대로 재고에서 차감한다."
+          },
+          {
+            "lineNumber": 421,
+            "text": " * 그 외 일자는 전일재고+입고−생산(연쇄)이며 &#96;production&#96;은 &#96;productionForAutoStock&#96; 결과를 쓴다."
+          },
+          {
+            "lineNumber": 422,
+            "text": " * Blending-Dark/Light/Decaffeine는 &#96;resyncAutoStockForBeanRow&#96;만 사용한다."
+          },
+          {
+            "lineNumber": 423,
+            "text": " */"
+          },
+          {
+            "lineNumber": 424,
+            "text": "const computeAutoStockValues = ("
+          },
+          {
+            "lineNumber": 425,
+            "text": "  inbound: readonly number[],"
+          },
+          {
+            "lineNumber": 426,
+            "text": "  production: readonly number[],"
+          },
+          {
+            "lineNumber": 427,
+            "text": "  _outbound: readonly number[],"
+          },
+          {
+            "lineNumber": 428,
+            "text": "  manualStock: readonly number[],"
+          },
+          {
+            "lineNumber": 429,
+            "text": "  pinnedDayIndices: ReadonlySet\u003cnumber\u003e,"
+          },
+          {
+            "lineNumber": 430,
+            "text": "  rawProduction?: readonly number[] | null,"
+          },
+          {
+            "lineNumber": 431,
+            "text": "  previousRawProduction?: readonly number[] | null,"
+          },
+          {
+            "lineNumber": 432,
+            "text": ") =\u003e {"
+          },
+          {
+            "lineNumber": 433,
+            "text": "  const n = manualStock.length"
+          },
+          {
+            "lineNumber": 434,
+            "text": "  if (n === 0) {"
+          },
+          {
+            "lineNumber": 435,
+            "text": "    return []"
+          },
+          {
+            "lineNumber": 436,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 437
+          },
+          {
+            "lineNumber": 438,
+            "text": "  const adjustPinnedForRawProductionDelta = (dayIndex: number, manualValue: number): number =\u003e {"
+          },
+          {
+            "lineNumber": 439,
+            "text": "    if ("
+          },
+          {
+            "lineNumber": 440,
+            "text": "      rawProduction == null ||"
+          },
+          {
+            "lineNumber": 441,
+            "text": "      previousRawProduction == null ||"
+          },
+          {
+            "lineNumber": 442,
+            "text": "      rawProduction.length !== previousRawProduction.length"
+          },
+          {
+            "lineNumber": 443,
+            "text": "    ) {"
+          },
+          {
+            "lineNumber": 444,
+            "text": "      return manualValue"
+          },
+          {
+            "lineNumber": 445,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 446,
+            "text": "    const delta = (rawProduction[dayIndex] ?? 0) - (previousRawProduction[dayIndex] ?? 0)"
+          },
+          {
+            "lineNumber": 447,
+            "text": "    return manualValue - delta"
+          },
+          {
+            "lineNumber": 448,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 449
+          },
+          {
+            "lineNumber": 450,
+            "text": "  const nextValues: number[] = new Array(n)"
+          },
+          {
+            "lineNumber": 451,
+            "text": "  nextValues[0] = adjustPinnedForRawProductionDelta(0, manualStock[0] ?? 0)"
+          },
+          {
+            "lineNumber": 452,
+            "text": "  for (let i = 1; i \u003c n; i += 1) {"
+          },
+          {
+            "lineNumber": 453,
+            "text": "    if (pinnedDayIndices.has(i)) {"
+          },
+          {
+            "lineNumber": 454,
+            "text": "      nextValues[i] = adjustPinnedForRawProductionDelta(i, manualStock[i] ?? 0)"
+          },
+          {
+            "lineNumber": 455,
+            "text": "    } else {"
+          },
+          {
+            "lineNumber": 456,
+            "text": "      nextValues[i] ="
+          },
+          {
+            "lineNumber": 457,
+            "text": "        (nextValues[i - 1] ?? 0) + (inbound[i] ?? 0) - (production[i] ?? 0)"
+          },
+          {
+            "lineNumber": 458,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 459,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 460,
+            "text": "  return nextValues"
+          },
+          {
+            "lineNumber": 461,
+            "text": "}"
+          },
+          {
+            "lineNumber": 462
+          },
+          {
+            "lineNumber": 463,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 464,
+            "text": " * Blending-Dark/Light/Decaffeine 자동 재고: 핀으로 찍은 열(실사)은 직접 &#96;stock&#96;을 유지."
+          },
+          {
+            "lineNumber": 465,
+            "text": " * 그 밖의 열은 &#96;전일재고 + 생산(raw) − 출고&#96; (입고는 연채에 넣지 않음·비워 둬도 됨)."
+          },
+          {
+            "lineNumber": 466,
+            "text": " */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 3,
+            "line": 465
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 416
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.4070150852203369
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1313,
+            "text": "/** 클라우드 placeholder·빈 top-level state가 월별 bucket 데이터를 덮지 않도록 복원 */"
+          },
+          {
+            "lineNumber": 1314,
+            "text": "const resolveInventoryDocumentForHydrate = (document: InventoryPageDocument): InventoryPageDocument =\u003e {"
+          },
+          {
+            "lineNumber": 1315,
+            "text": "  let inventoryByMonth = { ...document.inventoryByMonth }"
+          },
+          {
+            "lineNumber": 1316,
+            "text": "  let inventoryState = cloneInventoryStatusState(document.inventoryState)"
+          },
+          {
+            "lineNumber": 1317,
+            "text": "  const todayYm = todayLocalIsoDateString().slice(0, 7)"
+          },
+          {
+            "lineNumber": 1318
+          },
+          {
+            "lineNumber": 1319,
+            "text": "  const pickBucketYm = (): string | null =\u003e {"
+          },
+          {
+            "lineNumber": 1320,
+            "text": "    const keys = Object.keys(inventoryByMonth).filter((ym) =\u003e /^\\d{4}-\\d{2}$/.test(ym))"
+          },
+          {
+            "lineNumber": 1321,
+            "text": "    if (inventoryByMonth[todayYm] \u0026\u0026 inventoryStateHasFilledCells(inventoryByMonth[todayYm])) {"
+          },
+          {
+            "lineNumber": 1322,
+            "text": "      return todayYm"
+          },
+          {
+            "lineNumber": 1323,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1324,
+            "text": "    const sorted = keys.sort((a, b) =\u003e b.localeCompare(a))"
+          },
+          {
+            "lineNumber": 1325,
+            "text": "    for (const ym of sorted) {"
+          },
+          {
+            "lineNumber": 1326,
+            "text": "      const bucket = inventoryByMonth[ym]"
+          },
+          {
+            "lineNumber": 1327,
+            "text": "      if (bucket \u0026\u0026 inventoryStateHasFilledCells(bucket)) {"
+          },
+          {
+            "lineNumber": 1328,
+            "text": "        return ym"
+          },
+          {
+            "lineNumber": 1329,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1330,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1331,
+            "text": "    return sorted[0] ?? null"
+          },
+          {
+            "lineNumber": 1332,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1333
+          },
+          {
+            "lineNumber": 1334,
+            "text": "  if (isCloudPlaceholderReferenceDate(inventoryState.referenceDate) || !inventoryStateHasFilledCells(inventoryState)) {"
+          },
+          {
+            "lineNumber": 1335,
+            "text": "    const bucketYm = pickBucketYm()"
+          },
+          {
+            "lineNumber": 1336,
+            "text": "    if (bucketYm \u0026\u0026 inventoryByMonth[bucketYm]) {"
+          },
+          {
+            "lineNumber": 1337,
+            "text": "      inventoryState = cloneInventoryStatusState(inventoryByMonth[bucketYm])"
+          },
+          {
+            "lineNumber": 1338,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1339,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1340
+          },
+          {
+            "lineNumber": 1341,
+            "text": "  inventoryState = withReferenceDateToday(inventoryState)"
+          },
+          {
+            "lineNumber": 1342,
+            "text": "  inventoryState = withDerivedPhysicalCountDate(inventoryState)"
+          },
+          {
+            "lineNumber": 1343,
+            "text": "  const activeYm = inventoryState.referenceDate.slice(0, 7)"
+          },
+          {
+            "lineNumber": 1344,
+            "text": "  inventoryByMonth = ensureCurrentYmInBuckets(inventoryState, inventoryByMonth)"
+          },
+          {
+            "lineNumber": 1345,
+            "text": "  if (/^\\d{4}-\\d{2}$/.test(activeYm)) {"
+          },
+          {
+            "lineNumber": 1346,
+            "text": "    inventoryByMonth = {"
+          },
+          {
+            "lineNumber": 1347,
+            "text": "      ...inventoryByMonth,"
+          },
+          {
+            "lineNumber": 1348,
+            "text": "      [activeYm]: cloneInventoryStatusState(inventoryState),"
+          },
+          {
+            "lineNumber": 1349,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1350,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1351
+          },
+          {
+            "lineNumber": 1352,
+            "text": "  return {"
+          },
+          {
+            "lineNumber": 1353,
+            "text": "    ...document,"
+          },
+          {
+            "lineNumber": 1354,
+            "text": "    inventoryState,"
+          },
+          {
+            "lineNumber": 1355,
+            "text": "    inventoryByMonth,"
+          },
+          {
+            "lineNumber": 1356,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1357,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1358
+          },
+          {
+            "lineNumber": 1359,
+            "text": "const normalizeInventoryByMonthFromUnknown = (raw: unknown)"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 1373
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 1310
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.40664035081863403
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3803,
+            "text": "const monthRolloverCompare = "
+          },
+          {
+            "lineNumber": 3869,
+            "text": ")"
+          },
+          {
+            "lineNumber": 3870
+          },
+          {
+            "lineNumber": 3871,
+            "text": "  const applyPreviousMonthClosingStockToDay1 = useCallback(() =\u003e {"
+          },
+          {
+            "lineNumber": 3872,
+            "text": "    const currentYm = inventoryState.referenceDate.slice(0, 7)"
+          },
+          {
+            "lineNumber": 3873,
+            "text": "    const prevYm = monthRolloverCompare.prevYm"
+          },
+          {
+            "lineNumber": 3874,
+            "text": "    const prevState = inventoryByMonth[prevYm]"
+          },
+          {
+            "lineNumber": 3875,
+            "text": "    if (!prevState || !monthRolloverCompare.canCompare) {"
+          },
+          {
+            "lineNumber": 3876,
+            "text": "      setStatusMessage("
+          },
+          {
+            "lineNumber": 3877,
+            "text": "        prevYm"
+          },
+          {
+            "lineNumber": 3878,
+            "text": "          ? &#96;${prevYm}에 저장된 입출고 표가 없어 전월 말 재고를 가져올 수 없습니다.&#96;"
+          },
+          {
+            "lineNumber": 3879,
+            "text": "          : '전월 말 재고를 비교할 수 없습니다.',"
+          },
+          {
+            "lineNumber": 3880,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3881,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3882,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3883,
+            "text": "    if ("
+          },
+          {
+            "lineNumber": 3884,
+            "text": "      !window.confirm("
+          },
+          {
+            "lineNumber": 3885,
+            "text": "        &#96;${prevYm} 말일 재고를 ${currentYm} 1일 시작 재고에 반영할까요?\\n입고·생산·출고 등 일별 값은 그대로 두고, 1일 재고와 이후 연쇄만 다시 계산합니다.&#96;,"
+          },
+          {
+            "lineNumber": 3886,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3887,
+            "text": "    ) {"
+          },
+          {
+            "lineNumber": 3888,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3889,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3890,
+            "text": "    const patch = (cur: InventoryStatusState) =\u003e patchStartingStockFromPriorMonthBucket(cur, inventoryByMonth)"
+          },
+          {
+            "lineNumber": 3891,
+            "text": "    setInventoryState((cur) =\u003e {"
+          },
+          {
+            "lineNumber": 3892,
+            "text": "      const patched = patch(cur)"
+          },
+          {
+            "lineNumber": 3893,
+            "text": "      if (/^\\d{4}-\\d{2}$/.test(currentYm)) {"
+          },
+          {
+            "lineNumber": 3894,
+            "text": "        setInventoryByMonth((months) =\u003e ({"
+          },
+          {
+            "lineNumber": 3895,
+            "text": "          ...months,"
+          },
+          {
+            "lineNumber": 3896,
+            "text": "          [currentYm]: cloneInventoryStatusState(patched),"
+          },
+          {
+            "lineNumber": 3897,
+            "text": "        }))"
+          },
+          {
+            "lineNumber": 3898,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3899,
+            "text": "      return patched"
+          },
+          {
+            "lineNumber": 3900,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 3901,
+            "text": "    setQuickEntryDraftState((draft) =\u003e (draft ? patch(draft) : null))"
+          },
+          {
+            "lineNumber": 3902,
+            "text": "    setQuickEntryDirty(true)"
+          },
+          {
+            "lineNumber": 3903,
+            "text": "    setStatusMessage(&#96;${prevYm} 말 재고를 ${currentYm} 1일 시작 재고에 반영했습니다.&#96;)"
+          },
+          {
+            "lineNumber": 3904,
+            "text": "    setMonthRolloverPanelOpen(false)"
+          },
+          {
+            "lineNumber": 3905,
+            "text": "  }, [inventoryByMonth, inventoryState.referenceDate, monthRolloverCompare.canCompare, monthRolloverCompare.prevYm])"
+          },
+          {
+            "lineNumber": 3906
+          },
+          {
+            "lineNumber": 3907,
+            "text": "  const filteredBeanNames = useMemo("
+          },
+          {
+            "lineNumber": 3908,
+            "text": "    () =\u003e new Set(filteredBeanSummaryRows.map((bean) =\u003e bean.name)),"
+          },
+          {
+            "lineNumber": 3909,
+            "text": "    [filteredBeanSummaryRows],"
+          },
+          {
+            "lineNumber": 3910,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3911
+          },
+          {
+            "lineNumber": 3912,
+            "text": "  const filteredDisplayedBeanRows = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 3913,
+            "text": "    const rows = displayedBeanRows.filter((bean) =\u003e filteredBeanNames.has(bean.name))"
+          },
+          {
+            "lineNumber": 3914,
+            "text": "    return [...rows].sort((a, b) =\u003e (Number(a.no) || 0) - (Number(b.no) || 0))"
+          },
+          {
+            "lineNumber": 3915,
+            "text": "  }, [displayedBeanRows, filteredBeanNames])"
+          },
+          {
+            "lineNumber": 3916
+          },
+          {
+            "lineNumber": 3917,
+            "text": "  /** 로스팅 열을 화면에서 보여줄 연속 번호 기준으로 정렬 */"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 7362,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 7361
+          },
+          "startPosition": {
+            "line": 2716
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2718
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2717
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3912329077720642
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3549,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 3570,
+            "text": "const poll = async "
+          },
+          {
+            "lineNumber": 3663
+          },
+          {
+            "lineNumber": 3664,
+            "text": "      if ("
+          },
+          {
+            "lineNumber": 3665,
+            "text": "        nextHashes.core !== lastHashes.core ||"
+          },
+          {
+            "lineNumber": 3666,
+            "text": "        nextHashes.months !== lastHashes.months ||"
+          },
+          {
+            "lineNumber": 3667,
+            "text": "        nextHashes.template !== lastHashes.template ||"
+          },
+          {
+            "lineNumber": 3668,
+            "text": "        nextHashes.history !== lastHashes.history"
+          },
+          {
+            "lineNumber": 3669,
+            "text": "      ) {"
+          },
+          {
+            "lineNumber": 3670,
+            "text": "        lastHashes = nextHashes"
+          },
+          {
+            "lineNumber": 3671,
+            "text": "        lastCloudPayloadHashesRef.current = nextHashes"
+          },
+          {
+            "lineNumber": 3672,
+            "text": "        setInventoryByMonth(mergedMonths)"
+          },
+          {
+            "lineNumber": 3673,
+            "text": "        setInventoryState(inventoryForUi)"
+          },
+          {
+            "lineNumber": 3674,
+            "text": "        setBaselineState(baselineForUi)"
+          },
+          {
+            "lineNumber": 3675,
+            "text": "        setTemplateBase64(normalized.templateBase64)"
+          },
+          {
+            "lineNumber": 3676,
+            "text": "        setTemplateFileName(normalized.templateFileName)"
+          },
+          {
+            "lineNumber": 3677,
+            "text": "        setHistoryNotes(normalized.historyNotes)"
+          },
+          {
+            "lineNumber": 3678,
+            "text": "        setQuickEntryStepSettings("
+          },
+          {
+            "lineNumber": 3679,
+            "text": "          normalized.quickEntryStepSettings ?? { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS },"
+          },
+          {
+            "lineNumber": 3680,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 3681,
+            "text": "        setQuickEntryStepDraft("
+          },
+          {
+            "lineNumber": 3682,
+            "text": "          quickEntryStepSettingsToDraft("
+          },
+          {
+            "lineNumber": 3683,
+            "text": "            normalized.quickEntryStepSettings ?? DEFAULT_QUICK_ENTRY_STEP_SETTINGS,"
+          },
+          {
+            "lineNumber": 3684,
+            "text": "          ),"
+          },
+          {
+            "lineNumber": 3685,
+            "text": "        )"
+          },
+          {
+            "lineNumber": 3686,
+            "text": "        if (inventoryForUi.beanRows[0]) {"
+          },
+          {
+            "lineNumber": 3687,
+            "text": "          setSelectedBeanName((prev) =\u003e {"
+          },
+          {
+            "lineNumber": 3688,
+            "text": "            if (inventoryForUi.beanRows.some((b) =\u003e b.name === prev)) {"
+          },
+          {
+            "lineNumber": 3689,
+            "text": "              return prev"
+          },
+          {
+            "lineNumber": 3690,
+            "text": "            }"
+          },
+          {
+            "lineNumber": 3691,
+            "text": "            return inventoryForUi.beanRows[0]?.name ?? ''"
+          },
+          {
+            "lineNumber": 3692,
+            "text": "          })"
+          },
+          {
+            "lineNumber": 3693,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 3694,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3695,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3696
+          },
+          {
+            "lineNumber": 3697,
+            "text": "    const controller = startCloudDocumentSync({"
+          },
+          {
+            "lineNumber": 3698,
+            "text": "      poll,"
+          },
+          {
+            "lineNumber": 3699,
+            "text": "      intervalMs: CLOUD_DOCUMENT_POLL_INTERVAL_MS,"
+          },
+          {
+            "lineNumber": 3700,
+            "text": "      companyId: activeCompanyId,"
+          },
+          {
+            "lineNumber": 3701,
+            "text": "      docKeys: [COMPANY_DOCUMENT_KEYS.inventoryPage, ...INVENTORY_CLOUD_SPLIT_DOC_KEYS],"
+          },
+          {
+            "lineNumber": 3702,
+            "text": "      currentUserId: user?.id ?? null,"
+          },
+          {
+            "lineNumber": 3703,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 3704,
+            "text": "    return () =\u003e controller.stop()"
+          },
+          {
+            "lineNumber": 3705,
+            "text": "  }, [mode, activeCompanyId, user?.id])"
+          },
+          {
+            "lineNumber": 3706
+          },
+          {
+            "lineNumber": 3707,
+            "text": "  const endingStockDayIndex = useMemo("
+          },
+          {
+            "lineNumber": 3708,
+            "text": "    () =\u003e dayIndexForReferenceDate(inventoryState.days, inventoryState.referenceDate),"
+          },
+          {
+            "lineNumber": 3709,
+            "text": "    [inventoryState.days, inventoryState.referenceDate],"
+          },
+          {
+            "lineNumber": 3710,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3711
+          },
+          {
+            "lineNumber": 3712,
+            "text": "  const physicalCountDayIndex = useMemo("
+          },
+          {
+            "lineNumber": 3713,
+            "text": "    () =\u003e dayIndexForReferenceDate(inventoryState.days, inventoryState.physicalCountDate),"
+          },
+          {
+            "lineNumber": 3714,
+            "text": "    [inventoryState.days, inventoryState.physicalCountDate],"
+          },
+          {
+            "lineNumber": 3715,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3716
+          },
+          {
+            "lineNumber": 3717,
+            "text": "  const surveyMarkedDaySet = useMemo"
+          },
+          {
+            "lineNumber": 3720
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 7362,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 7361
+          },
+          "startPosition": {
+            "line": 2716
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2718
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2717
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 3549
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 3549
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 3550
+              },
+              "startPosition": {
+                "column": 13,
+                "line": 3549
+              }
+            },
+            {
+              "endPosition": {
+                "column": 11,
+                "line": 3570
+              },
+              "startPosition": {
+                "column": 5,
+                "line": 3570
+              }
+            },
+            {
+              "endPosition": {
+                "column": 24,
+                "line": 3570
+              },
+              "startPosition": {
+                "column": 11,
+                "line": 3570
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.384165495634079
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 451,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 452,
+            "text": " * 기준일이 클라우드 placeholder(또는 그와 같은 &#96;2000-&#96; 더미)일 때만 로컬 오늘로 맞춥니다."
+          },
+          {
+            "lineNumber": 453,
+            "text": " * 엑셀 업로드·로컬 저장에 들어 있는 실제 월(예: 4월)은 덮어쓰지 않습니다."
+          },
+          {
+            "lineNumber": 454,
+            "text": " */"
+          },
+          {
+            "lineNumber": 455,
+            "text": "export const withReferenceDateToday = (state: InventoryStatusState): InventoryStatusState =\u003e {"
+          },
+          {
+            "lineNumber": 456,
+            "text": "  const ref = state.referenceDate.trim()"
+          },
+          {
+            "lineNumber": 457,
+            "text": "  const today = todayLocalIsoDateString()"
+          },
+          {
+            "lineNumber": 458,
+            "text": "  const todayYm = today.slice(0, 7)"
+          },
+          {
+            "lineNumber": 459,
+            "text": "  const isUnsetOrCloudPlaceholder ="
+          },
+          {
+            "lineNumber": 460,
+            "text": "    ref.length \u003c 10 || ref === CLOUD_REFERENCE_DATE_PLACEHOLDER || ref.startsWith('2000-')"
+          },
+          {
+            "lineNumber": 461,
+            "text": "  if (isUnsetOrCloudPlaceholder) {"
+          },
+          {
+            "lineNumber": 462,
+            "text": "    if (state.referenceDate === today) {"
+          },
+          {
+            "lineNumber": 463,
+            "text": "      return state"
+          },
+          {
+            "lineNumber": 464,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 465,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 466,
+            "text": "      ...state,"
+          },
+          {
+            "lineNumber": 467,
+            "text": "      referenceDate: today,"
+          },
+          {
+            "lineNumber": 468,
+            "text": "      physicalCountDate: defaultPhysicalCountDateFromReference(today),"
+          },
+          {
+            "lineNumber": 469,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 470,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 471,
+            "text": "  /** 클라우드 복원 등으로 이번 달만 1일로 잡힌 경우 — 의도적으로 고른 다른 날은 유지 */"
+          },
+          {
+            "lineNumber": 472,
+            "text": "  if (ref.slice(0, 7) === todayYm \u0026\u0026 ref === &#96;${todayYm}-01&#96;) {"
+          },
+          {
+            "lineNumber": 473,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 474,
+            "text": "      ...state,"
+          },
+          {
+            "lineNumber": 475,
+            "text": "      referenceDate: today,"
+          },
+          {
+            "lineNumber": 476,
+            "text": "      physicalCountDate: defaultPhysicalCountDateFromReference(today),"
+          },
+          {
+            "lineNumber": 477,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 478,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 479,
+            "text": "  return state"
+          },
+          {
+            "lineNumber": 480,
+            "text": "}"
+          },
+          {
+            "lineNumber": 481
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 482,
+            "text": "export function stripReferenceDatesForCloudSync(state: InventoryStatusState): InventoryStatusState {"
+          },
+          {
+            "lineNumber": 483,
+            "text": "  "
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 488,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 487
+          },
+          "startPosition": {
+            "column": 60,
+            "line": 448
+          }
+        },
+        "relativeWorkspacePath": "./app/src/inventoryStatusUtils.ts",
+        "signatures": {}
+      },
+      "score": 0.3707621097564697
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3549,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 3570,
+            "text": "const poll = async "
+          },
+          {
+            "lineNumber": 3636
+          },
+          {
+            "lineNumber": 3637,
+            "text": "      const inventoryForUi = mergeKeepViewerReferenceDates("
+          },
+          {
+            "lineNumber": 3638,
+            "text": "        normalized.inventoryState,"
+          },
+          {
+            "lineNumber": 3639,
+            "text": "        viewerState,"
+          },
+          {
+            "lineNumber": 3640,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3641,
+            "text": "      const baselineForUi = mergeKeepViewerReferenceDates("
+          },
+          {
+            "lineNumber": 3642,
+            "text": "        normalized.baselineState,"
+          },
+          {
+            "lineNumber": 3643,
+            "text": "        baselineStateRef.current,"
+          },
+          {
+            "lineNumber": 3644,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3645,
+            "text": "      const mergedMonths: Record\u003cstring, InventoryStatusState\u003e = { ...inventoryByMonthRef.current }"
+          },
+          {
+            "lineNumber": 3646,
+            "text": "      for (const [ym, bucketState] of Object.entries(normalized.inventoryByMonth)) {"
+          },
+          {
+            "lineNumber": 3647,
+            "text": "        const normalizedBucket = normalizeInventoryStatusState(bucketState)"
+          },
+          {
+            "lineNumber": 3648,
+            "text": "        if (!normalizedBucket) {"
+          },
+          {
+            "lineNumber": 3649,
+            "text": "          continue"
+          },
+          {
+            "lineNumber": 3650,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 3651,
+            "text": "        const restored = finalizeInventoryStatusState(restoreMonthBucketAfterCloud(ym, normalizedBucket))"
+          },
+          {
+            "lineNumber": 3652,
+            "text": "        mergedMonths[ym] ="
+          },
+          {
+            "lineNumber": 3653,
+            "text": "          ym === viewerYm ? mergeKeepViewerReferenceDates(restored, viewerState) : restored"
+          },
+          {
+            "lineNumber": 3654,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3655,
+            "text": "      mergedMonths[viewerYm] = cloneInventoryStatusState(inventoryForUi)"
+          },
+          {
+            "lineNumber": 3656
+          },
+          {
+            "lineNumber": 3657,
+            "text": "      const splitPayloads = buildInventoryPageSplitPayloads(normalized)"
+          },
+          {
+            "lineNumber": 3658,
+            "text": "      const nextHashes: InventoryCloudPayloadHashes = {"
+          },
+          {
+            "lineNumber": 3659,
+            "text": "        core: JSON.stringify(splitPayloads.core),"
+          },
+          {
+            "lineNumber": 3660,
+            "text": "        months: JSON.stringify(splitPayloads.months),"
+          },
+          {
+            "lineNumber": 3661,
+            "text": "        template: JSON.stringify(splitPayloads.template),"
+          },
+          {
+            "lineNumber": 3662,
+            "text": "        history: JSON.stringify(splitPayloads.history),"
+          },
+          {
+            "lineNumber": 3663,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3664,
+            "text": "      if ("
+          },
+          {
+            "lineNumber": 3665,
+            "text": "        nextHashes.core !== lastHashes.core ||"
+          },
+          {
+            "lineNumber": 3695
+          },
+          {
+            "lineNumber": 3705,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 7362,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 7361
+          },
+          "startPosition": {
+            "line": 2716
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2718
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2717
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 3549
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 3549
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 3550
+              },
+              "startPosition": {
+                "column": 13,
+                "line": 3549
+              }
+            },
+            {
+              "endPosition": {
+                "column": 11,
+                "line": 3570
+              },
+              "startPosition": {
+                "column": 5,
+                "line": 3570
+              }
+            },
+            {
+              "endPosition": {
+                "column": 24,
+                "line": 3570
+              },
+              "startPosition": {
+                "column": 11,
+                "line": 3570
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36935341358184814
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3798,
+            "text": "const beanRowByName = "
+          },
+          {
+            "lineNumber": 3799
+          },
+          {
+            "lineNumber": 3800,
+            "text": "    [displayedBeanRows],"
+          },
+          {
+            "lineNumber": 3801,
+            "text": "  )"
+          },
+          {
+            "lineNumber": 3802
+          },
+          {
+            "lineNumber": 3803,
+            "text": "  const monthRolloverCompare = useMemo(() =\u003e {"
+          },
+          {
+            "lineNumber": 3804,
+            "text": "    const compareState = quickEntryModalOpen ? quickEntrySourceState : inventoryState"
+          },
+          {
+            "lineNumber": 3805,
+            "text": "    const currentYm = compareState.referenceDate.slice(0, 7)"
+          },
+          {
+            "lineNumber": 3806,
+            "text": "    if (!/^\\d{4}-\\d{2}$/.test(currentYm)) {"
+          },
+          {
+            "lineNumber": 3807,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 3808,
+            "text": "        canCompare: false,"
+          },
+          {
+            "lineNumber": 3809,
+            "text": "        prevYm: '',"
+          },
+          {
+            "lineNumber": 3810,
+            "text": "        currentYm,"
+          },
+          {
+            "lineNumber": 3811,
+            "text": "        hasPrevBucket: false,"
+          },
+          {
+            "lineNumber": 3812,
+            "text": "        rows: [] as Array\u003c{"
+          },
+          {
+            "lineNumber": 3813,
+            "text": "          no: number"
+          },
+          {
+            "lineNumber": 3814,
+            "text": "          name: string"
+          },
+          {
+            "lineNumber": 3815,
+            "text": "          prevEnd: number"
+          },
+          {
+            "lineNumber": 3816,
+            "text": "          currentStart: number"
+          },
+          {
+            "lineNumber": 3817,
+            "text": "          diff: number"
+          },
+          {
+            "lineNumber": 3818,
+            "text": "          hasDiff: boolean"
+          },
+          {
+            "lineNumber": 3819,
+            "text": "        }\u003e,"
+          },
+          {
+            "lineNumber": 3820,
+            "text": "        mismatchCount: 0,"
+          },
+          {
+            "lineNumber": 3821,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3822,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3823,
+            "text": "    const prevYm = calendarYmPlusMonths(currentYm, -1)"
+          },
+          {
+            "lineNumber": 3824,
+            "text": "    const prevState = inventoryByMonth[prevYm]"
+          },
+          {
+            "lineNumber": 3825,
+            "text": "    const hasPrevBucket = Boolean(prevState \u0026\u0026 inventoryStateHasFilledCells(prevState))"
+          },
+          {
+            "lineNumber": 3826,
+            "text": "    if (!hasPrevBucket || !prevState) {"
+          },
+          {
+            "lineNumber": 3827,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 3828,
+            "text": "        canCompare: false,"
+          },
+          {
+            "lineNumber": 3829,
+            "text": "        prevYm,"
+          },
+          {
+            "lineNumber": 3830,
+            "text": "        currentYm,"
+          },
+          {
+            "lineNumber": 3831,
+            "text": "        hasPrevBucket: false,"
+          },
+          {
+            "lineNumber": 3832,
+            "text": "        rows: [],"
+          },
+          {
+            "lineNumber": 3833,
+            "text": "        mismatchCount: 0,"
+          },
+          {
+            "lineNumber": 3834,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3835,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3836
+          },
+          {
+            "lineNumber": 3837,
+            "text": "    const physIdx = dayIndexForReferenceDate(compareState.days, compareState.physicalCountDate)"
+          },
+          {
+            "lineNumber": 3838,
+            "text": "    const currentPins = buildStockPinnedDayIndices("
+          },
+          {
+            "lineNumber": 3839,
+            "text": "      compareState.days,"
+          },
+          {
+            "lineNumber": 3840,
+            "text": "      compareState.surveyMarkedDays,"
+          },
+          {
+            "lineNumber": 3841,
+            "text": "      physIdx,"
+          },
+          {
+            "lineNumber": 3842,
+            "text": "      compareState.referenceDate,"
+          },
+          {
+            "lineNumber": 3843,
+            "text": "      compareState.physicalCountDate,"
+          },
+          {
+            "lineNumber": 3844,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 3845,
+            "text": "    const closingStock = computeEndingStockByBeanName(prevState)"
+          },
+          {
+            "lineNumber": 3846,
+            "text": "    const rows = compareState.beanRows"
+          },
+          {
+            "lineNumber": 3847,
+            "text": "      .map"
+          },
+          {
+            "lineNumber": 3857
+          },
+          {
+            "lineNumber": 3858
+          },
+          {
+            "lineNumber": 3859
+          },
+          {
+            "lineNumber": 3869,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 7362,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 7361
+          },
+          "startPosition": {
+            "line": 2716
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2718
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2717
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.36501988768577576
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3803,
+            "text": "const monthRolloverCompare = () =\u003e {"
+          },
+          {
+            "lineNumber": 3845
+          },
+          {
+            "lineNumber": 3846,
+            "text": "    const rows = compareState.beanRows"
+          },
+          {
+            "lineNumber": 3847,
+            "text": "      .map((bean) =\u003e {"
+          },
+          {
+            "lineNumber": 3848,
+            "text": "        const key = normalizeNameKey(bean.name)"
+          },
+          {
+            "lineNumber": 3849,
+            "text": "        const prevEnd = closingStock.get(key) ?? 0"
+          },
+          {
+            "lineNumber": 3850,
+            "text": "        const resynced = compareState.skipAutoStockDisplay"
+          },
+          {
+            "lineNumber": 3851,
+            "text": "          ? bean.stock"
+          },
+          {
+            "lineNumber": 3852,
+            "text": "          : resyncAutoStockForBeanRow(bean, currentPins)"
+          },
+          {
+            "lineNumber": 3853,
+            "text": "        const currentStart = resynced[0] ?? 0"
+          },
+          {
+            "lineNumber": 3854,
+            "text": "        const diff = currentStart - prevEnd"
+          },
+          {
+            "lineNumber": 3855,
+            "text": "        const hasDiff = Math.abs(diff) \u003e MONTH_ROLLOVER_STOCK_EPS"
+          },
+          {
+            "lineNumber": 3856,
+            "text": "        return { no: bean.no, name: bean.name, prevEnd, currentStart, diff, hasDiff }"
+          },
+          {
+            "lineNumber": 3857,
+            "text": "      })"
+          },
+          {
+            "lineNumber": 3858,
+            "text": "      .filter((row) =\u003e row.prevEnd \u003e 0 || row.currentStart \u003e 0 || row.hasDiff)"
+          },
+          {
+            "lineNumber": 3859,
+            "text": "      .sort((a, b) =\u003e (Number(a.no) || 0) - (Number(b.no) || 0))"
+          },
+          {
+            "lineNumber": 3860
+          },
+          {
+            "lineNumber": 3861,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 3862,
+            "text": "      canCompare: true,"
+          },
+          {
+            "lineNumber": 3863,
+            "text": "      prevYm,"
+          },
+          {
+            "lineNumber": 3864,
+            "text": "      currentYm,"
+          },
+          {
+            "lineNumber": 3865,
+            "text": "      hasPrevBucket: true,"
+          },
+          {
+            "lineNumber": 3866,
+            "text": "      rows,"
+          },
+          {
+            "lineNumber": 3867,
+            "text": "      mismatchCount: rows.filter((row) =\u003e row.hasDiff).length,"
+          },
+          {
+            "lineNumber": 3868,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3869,
+            "text": "  }, [inventoryByMonth, inventoryState, quickEntryModalOpen, quickEntrySourceState])"
+          },
+          {
+            "lineNumber": 3870
+          },
+          {
+            "lineNumber": 3871,
+            "text": "  const applyPreviousMonthClosingStockToDay1 = useCallback"
+          },
+          {
+            "lineNumber": 3905
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 7362,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 7361
+          },
+          "startPosition": {
+            "line": 2716
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2718
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2717
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 3803
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 3803
+              }
+            },
+            {
+              "endPosition": {
+                "column": 32,
+                "line": 3803
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 3803
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 3804
+              },
+              "startPosition": {
+                "column": 40,
+                "line": 3803
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3579978048801422
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3313
+          },
+          {
+            "lineNumber": 3314
+          },
+          {
+            "lineNumber": 3315,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 3316,
+            "text": "    if (!statementCalendarOpen) {"
+          },
+          {
+            "lineNumber": 3317,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3318,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3319,
+            "text": "    void refreshStatementCalendarRecords()"
+          },
+          {
+            "lineNumber": 3320,
+            "text": "    const onSaved = () =\u003e {"
+          },
+          {
+            "lineNumber": 3321,
+            "text": "      void refreshStatementCalendarRecords()"
+          },
+          {
+            "lineNumber": 3322,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3323,
+            "text": "    window.addEventListener(STATEMENT_RECORDS_SAVED_EVENT, onSaved)"
+          },
+          {
+            "lineNumber": 3324,
+            "text": "    return () =\u003e window.removeEventListener(STATEMENT_RECORDS_SAVED_EVENT, onSaved)"
+          },
+          {
+            "lineNumber": 3325,
+            "text": "  }, [refreshStatementCalendarRecords, statementCalendarOpen])"
+          },
+          {
+            "lineNumber": 3326
+          },
+          {
+            "lineNumber": 3327,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 3328,
+            "text": "    if (!isStorageReady) {"
+          },
+          {
+            "lineNumber": 3329,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3330,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3331
+          },
+          {
+            "lineNumber": 3332,
+            "text": "    window.localStorage.setItem("
+          },
+          {
+            "lineNumber": 3333,
+            "text": "      inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, activeCompanyId),"
+          },
+          {
+            "lineNumber": 3334,
+            "text": "      JSON.stringify({"
+          },
+          {
+            "lineNumber": 3335,
+            "text": "        v: INVENTORY_LOCAL_STORAGE_ENVELOPE_VERSION,"
+          },
+          {
+            "lineNumber": 3336,
+            "text": "        inventoryState,"
+          },
+          {
+            "lineNumber": 3337,
+            "text": "        inventoryByMonth,"
+          },
+          {
+            "lineNumber": 3338,
+            "text": "      }),"
+          },
+          {
+            "lineNumber": 3339,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 3340,
+            "text": "    window.dispatchEvent(new Event(INVENTORY_STATUS_CACHE_EVENT))"
+          },
+          {
+            "lineNumber": 3341,
+            "text": "  }, [activeCompanyId, inventoryByMonth, inventoryState, isStorageReady, mode])"
+          },
+          {
+            "lineNumber": 3342
+          },
+          {
+            "lineNumber": 3343,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 3344,
+            "text": "    if (!isStorageReady) {"
+          },
+          {
+            "lineNumber": 3345,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 3346,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 3347,
+            "text": "    const ym = inventoryState.referenceDate.slice(0, 7)"
+          },
+          {
+            "lineNumber": 3348,
+            "text": "    setInventoryByMonth((prev) =\u003e ({ ...prev, [ym]: cloneInventoryStatusState(inventoryState) }))"
+          },
+          {
+            "lineNumber": 3349,
+            "text": "  }, [inventoryState, isStorageReady])"
+          },
+          {
+            "lineNumber": 3350
+          },
+          {
+            "lineNumber": 3351,
+            "text": "  // 생두전체현황(beanRows)을 마스터로 삼아 로스팅 열을 자동 동기화한다."
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 7362,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 7361
+          },
+          "startPosition": {
+            "line": 2716
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2718
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2717
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3573616147041321
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 775,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 776,
+            "text": " * 기준일이 **바로 다음 달**로 넘어가는 경우(예: 4월 → 5월). 이때만 월 이월 롤오버를 적용한다."
+          },
+          {
+            "lineNumber": 777,
+            "text": " */"
+          },
+          {
+            "lineNumber": 778,
+            "text": "const isInventoryForwardMonthRollover = (current: InventoryStatusState, nextReferenceDate: string): boolean =\u003e {"
+          },
+          {
+            "lineNumber": 779,
+            "text": "  const prevRef = current.referenceDate"
+          },
+          {
+            "lineNumber": 780,
+            "text": "  if (prevRef.length \u003c 10 || nextReferenceDate.length \u003c 10) {"
+          },
+          {
+            "lineNumber": 781,
+            "text": "    return false"
+          },
+          {
+            "lineNumber": 782,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 783,
+            "text": "  const prevYm = prevRef.slice(0, 7)"
+          },
+          {
+            "lineNumber": 784,
+            "text": "  const nextYm = nextReferenceDate.slice(0, 7)"
+          },
+          {
+            "lineNumber": 785,
+            "text": "  if (prevYm === nextYm) {"
+          },
+          {
+            "lineNumber": 786,
+            "text": "    return false"
+          },
+          {
+            "lineNumber": 787,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 788,
+            "text": "  return nextYm === calendarYmPlusMonths(prevYm, 1)"
+          },
+          {
+            "lineNumber": 789,
+            "text": "}"
+          },
+          {
+            "lineNumber": 790
+          },
+          {
+            "lineNumber": 791,
+            "text": "/**"
+          },
+          {
+            "lineNumber": 792,
+            "text": " * 기준일이 직전 달의 **바로 다음 달**로 바뀔 때만: 전월 말일 종료 재고를 달의 첫 열(1일) 시작 재고로 이월하고,"
+          },
+          {
+            "lineNumber": 793,
+            "text": " * 일별 입고·생산·출고·로스팅·블렌딩 사이클은 새 달용으로 비웁니다."
+          },
+          {
+            "lineNumber": 794,
+            "text": " * 조건이 맞지 않으면 &#96;null&#96; — 호출 측에서 기준일만 갱신합니다."
+          },
+          {
+            "lineNumber": 795,
+            "text": " */"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 3,
+            "line": 794
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 772
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.34389808773994446
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 4762,
+            "text": "const syncBeanProductionFromRoastingRows = "
+          },
+          {
+            "lineNumber": 4787,
+            "text": " current.blendingDecaffeineCycles ?? [])"
+          },
+          {
+            "lineNumber": 4788
+          },
+          {
+            "lineNumber": 4789,
+            "text": "    roastingDailyRows.forEach((row) =\u003e {"
+          },
+          {
+            "lineNumber": 4790,
+            "text": "      const dayIndex = current.days.findIndex((d) =\u003e d === row.day)"
+          },
+          {
+            "lineNumber": 4791,
+            "text": "      if (dayIndex \u003c 0) {"
+          },
+          {
+            "lineNumber": 4792,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 4793,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 4794,
+            "text": "      row.values.forEach((roastedValue, colIndex) =\u003e {"
+          },
+          {
+            "lineNumber": 4795,
+            "text": "        const colName = (current.roastingColumns[colIndex] ?? '').trim()"
+          },
+          {
+            "lineNumber": 4796,
+            "text": "        if (!colName) {"
+          },
+          {
+            "lineNumber": 4797,
+            "text": "          return"
+          },
+          {
+            "lineNumber": 4798,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 4799,
+            "text": "        const colKey = normalizeNameKey(colName)"
+          },
+          {
+            "lineNumber": 4800,
+            "text": "        const blendingRaw = blendRawByBeanKey.get(colKey)?.[dayIndex] ?? 0"
+          },
+          {
+            "lineNumber": 4801,
+            "text": "        const rawValue = (roastedValue ?? 0) + blendingRaw"
+          },
+          {
+            "lineNumber": 4802,
+            "text": "        nextBeanRows.forEach((bean) =\u003e {"
+          },
+          {
+            "lineNumber": 4803,
+            "text": "          if (!roastingColumnMatchesBeanRow(colName, bean.name)) {"
+          },
+          {
+            "lineNumber": 4804,
+            "text": "            return"
+          },
+          {
+            "lineNumber": 4805,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 4806,
+            "text": "          if ((bean.production[dayIndex] ?? 0) !== rawValue) {"
+          },
+          {
+            "lineNumber": 4807,
+            "text": "            bean.production[dayIndex] = rawValue"
+          },
+          {
+            "lineNumber": 4808,
+            "text": "            changed = true"
+          },
+          {
+            "lineNumber": 4809,
+            "text": "          }"
+          },
+          {
+            "lineNumber": 4810,
+            "text": "        })"
+          },
+          {
+            "lineNumber": 4811,
+            "text": "      })"
+          },
+          {
+            "lineNumber": 4812,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 4813
+          },
+          {
+            "lineNumber": 4814,
+            "text": "    if (!changed) {"
+          },
+          {
+            "lineNumber": 4815,
+            "text": "      return current"
+          },
+          {
+            "lineNumber": 4816,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 4817
+          },
+          {
+            "lineNumber": 4818,
+            "text": "    const physIdx = dayIndexForReferenceDate(current.days, current.physicalCountDate)"
+          },
+          {
+            "lineNumber": 4819,
+            "text": "    const pins = buildStockPinnedDayIndices("
+          },
+          {
+            "lineNumber": 4820,
+            "text": "      current.days,"
+          },
+          {
+            "lineNumber": 4821,
+            "text": "      current.surveyMarkedDays,"
+          },
+          {
+            "lineNumber": 4822,
+            "text": "      physIdx,"
+          },
+          {
+            "lineNumber": 4823,
+            "text": "      current.referenceDate,"
+          },
+          {
+            "lineNumber": 4824,
+            "text": "      current.physicalCountDate,"
+          },
+          {
+            "lineNumber": 4825,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 4826,
+            "text": "    return {"
+          },
+          {
+            "lineNumber": 4827,
+            "text": "      ...current,"
+          },
+          {
+            "lineNumber": 4828,
+            "text": "      beanRows: nextBeanRows.map((bean, bi) =\u003e ({"
+          },
+          {
+            "lineNumber": 4829,
+            "text": "        ...bean,"
+          },
+          {
+            "lineNumber": 4830,
+            "text": "        stock: resyncAutoStockForBeanRow(bean, pins, {"
+          },
+          {
+            "lineNumber": 4831,
+            "text": "          previousRawProduction: previousRawByRow[bi] ?? null,"
+          },
+          {
+            "lineNumber": 4832,
+            "text": "        }),"
+          },
+          {
+            "lineNumber": 4833,
+            "text": "      })),"
+          },
+          {
+            "lineNumber": 4834,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 4835,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 4836
+          },
+          {
+            "lineNumber": 4837,
+            "text": "  /** 코드 변경 이전에 입력해둔 로스팅값도 1회 자동 반영 */"
+          },
+          {
+            "lineNumber": 4838,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 4839,
+            "text": "    if (!isStorageReady || initialRoastingSyncDoneRef.current) {"
+          },
+          {
+            "lineNumber": 4840,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 4841,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 4842,
+            "text": "    initialRoastingSyncDoneRef.current = true"
+          },
+          {
+            "lineNumber": 4843,
+            "text": "    setInventoryState((current) =\u003e {"
+          },
+          {
+            "lineNumber": 4844,
+            "text": "      const synced = syncBeanProductionFromRoastingRows(current)"
+          },
+          {
+            "lineNumber": 4845,
+            "text": "      if (synced === current) {"
+          },
+          {
+            "lineNumber": 4846,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 4847,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 4848,
+            "text": "      return { ...synced, skipAutoStockDisplay: false }"
+          },
+          {
+            "lineNumber": 4849,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 4850,
+            "text": "  }, [isStorageReady])"
+          },
+          {
+            "lineNumber": 4851
+          },
+          {
+            "lineNumber": 4852,
+            "text": "  const updateRoastingValue = (day: number, valueIndex: number, nextValue: string)"
+          },
+          {
+            "lineNumber": 4927
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 7362,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 7361
+          },
+          "startPosition": {
+            "line": 2716
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2718
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2717
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 4762
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 4762
+              }
+            },
+            {
+              "endPosition": {
+                "column": 46,
+                "line": 4762
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 4762
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3437581956386566
     },
     {
       "codeBlock": {
@@ -20639,5258 +24325,1701 @@ Result:
           ]
         }
       },
-      "score": 0.4087595045566559
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 941,
-            "text": "const parseExpenseWorkbook = "
-          },
-          {
-            "lineNumber": 1020
-          },
-          {
-            "lineNumber": 1021
-          },
-          {
-            "lineNumber": 1022,
-            "text": "  const records = rows"
-          },
-          {
-            "lineNumber": 1023,
-            "text": "    .slice(headerRowIndex + 1)"
-          },
-          {
-            "lineNumber": 1024,
-            "text": "    .flatMap((row) =\u003e {"
-          },
-          {
-            "lineNumber": 1025,
-            "text": "      const expenseDate ="
-          },
-          {
-            "lineNumber": 1026,
-            "text": "        columns.expenseDate === -1 ? today : parseSpreadsheetDate(row[columns.expenseDate]) || today"
-          },
-          {
-            "lineNumber": 1027,
-            "text": "      const dueDate ="
-          },
-          {
-            "lineNumber": 1028,
-            "text": "        columns.dueDate === -1 ? expenseDate : parseSpreadsheetDate(row[columns.dueDate]) || expenseDate"
-          },
-          {
-            "lineNumber": 1029,
-            "text": "      const vendorName ="
-          },
-          {
-            "lineNumber": 1030,
-            "text": "        columns.vendorName === -1 ? '' : normalizeText(row[columns.vendorName])"
-          },
-          {
-            "lineNumber": 1031,
-            "text": "      const purposeRaw = columns.purpose === -1 ? '' : normalizeText(row[columns.purpose])"
-          },
-          {
-            "lineNumber": 1032,
-            "text": "      const categoryCell = columns.category === -1 ? '' : normalizeText(row[columns.category])"
-          },
-          {
-            "lineNumber": 1033,
-            "text": "      const category = mergeImportedExpenseCategory(categoryCell, purposeRaw)"
-          },
-          {
-            "lineNumber": 1034,
-            "text": "      const detail = columns.detail === -1 ? '' : normalizeText(row[columns.detail])"
-          },
-          {
-            "lineNumber": 1035,
-            "text": "      const supplyAmount = columns.supplyAmount === -1 ? 0 : parseNumber(row[columns.supplyAmount])"
-          },
-          {
-            "lineNumber": 1036,
-            "text": "      const taxAmount = columns.taxAmount === -1 ? 0 : parseNumber(row[columns.taxAmount])"
-          },
-          {
-            "lineNumber": 1037,
-            "text": "      const totalFromAmount = columns.totalAmount === -1 ? 0 : parseNumber(row[columns.totalAmount])"
-          },
-          {
-            "lineNumber": 1038,
-            "text": "      const totalAmount = totalFromAmount \u003e 0 ? totalFromAmount : supplyAmount + taxAmount"
-          },
-          {
-            "lineNumber": 1039,
-            "text": "      const taxType ="
-          },
-          {
-            "lineNumber": 1040,
-            "text": "        columns.taxType === -1 ? (taxAmount \u003e 0 ? '과세' : '면세') : parseTaxType(row[columns.taxType])"
-          },
-          {
-            "lineNumber": 1041,
-            "text": "      const extraValues = Object.fromEntries("
-          },
-          {
-            "lineNumber": 1042,
-            "text": "        layout"
-          },
-          {
-            "lineNumber": 1043,
-            "text": "          .filter((col) =\u003e col.kind === 'extra')"
-          },
-          {
-            "lineNumber": 1044,
-            "text": "          .map((col) =\u003e {"
-          },
-          {
-            "lineNumber": 1045,
-            "text": "            const idx = Number(col.id.replace('extra:', ''))"
-          },
-          {
-            "lineNumber": 1046,
-            "text": "            return [col.id, normalizeText(row[idx])]"
-          },
-          {
-            "lineNumber": 1047,
-            "text": "          }),"
-          },
-          {
-            "lineNumber": 1048,
-            "text": "      )"
-          },
-          {
-            "lineNumber": 1049
-          },
-          {
-            "lineNumber": 1050,
-            "text": "      const hasAnyExtraValue = Object.values(extraValues).some((v) =\u003e String(v).trim().length \u003e 0)"
-          },
-          {
-            "lineNumber": 1051,
-            "text": "      if (!vendorName \u0026\u0026 !detail \u0026\u0026 totalAmount \u003c= 0 \u0026\u0026 !hasAnyExtraValue) {"
-          },
-          {
-            "lineNumber": 1052,
-            "text": "        return []"
-          },
-          {
-            "lineNumber": 1053,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 1054
-          },
-          {
-            "lineNumber": 1055,
-            "text": "      return"
-          },
-          {
-            "lineNumber": 1080,
-            "text": "    }"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "line": 1083
-          },
-          "startPosition": {
-            "line": 940
-          }
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 7,
-                "line": 941
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 941
-              }
-            },
-            {
-              "endPosition": {
-                "column": 30,
-                "line": 941
-              },
-              "startPosition": {
-                "column": 7,
-                "line": 941
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.37462469935417175
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 849,
-            "text": "const parseBankTransactionWorkbook = ("
-          },
-          {
-            "lineNumber": 850,
-            "text": "  rows: unknown[][],"
-          },
-          {
-            "lineNumber": 851,
-            "text": "  headerRowIndex: number,"
-          },
-          {
-            "lineNumber": 852,
-            "text": "  columns: BankTransactionColumns,"
-          },
-          {
-            "lineNumber": 853,
-            "text": "): { records: ExpenseRecord[]; layout: ExpenseTableColumn[]; warnings: string[] } =\u003e {"
-          },
-          {
-            "lineNumber": 854,
-            "text": "  const warnings = ['입출금 통장 양식으로 불러왔습니다. 출금 건만 지출로 등록합니다.']"
-          },
-          {
-            "lineNumber": 855,
-            "text": "  let skippedDepositOnly = 0"
-          },
-          {
-            "lineNumber": 856,
-            "text": "  let skippedInvalidDate = 0"
-          },
-          {
-            "lineNumber": 857
-          },
-          {
-            "lineNumber": 858,
-            "text": "  const records = rows"
-          },
-          {
-            "lineNumber": 859,
-            "text": "    .slice(headerRowIndex + 1)"
-          },
-          {
-            "lineNumber": 860,
-            "text": "    .flatMap((row) =\u003e {"
-          },
-          {
-            "lineNumber": 861,
-            "text": "      const withdrawal = parseNumber(row[columns.withdrawalAmount])"
-          },
-          {
-            "lineNumber": 862,
-            "text": "      if (withdrawal \u003c= 0) {"
-          },
-          {
-            "lineNumber": 863,
-            "text": "        skippedDepositOnly += 1"
-          },
-          {
-            "lineNumber": 864,
-            "text": "        return []"
-          },
-          {
-            "lineNumber": 865,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 866,
-            "text": "      const expenseDate = parseBankTransactionDate(row[columns.expenseDate])"
-          },
-          {
-            "lineNumber": 867,
-            "text": "      if (!expenseDate) {"
-          },
-          {
-            "lineNumber": 868,
-            "text": "        skippedInvalidDate += 1"
-          },
-          {
-            "lineNumber": 869,
-            "text": "        return []"
-          },
-          {
-            "lineNumber": 870,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 871,
-            "text": "      const vendorName = normalizeText(row[columns.vendorName])"
-          },
-          {
-            "lineNumber": 872,
-            "text": "      const branchName ="
-          },
-          {
-            "lineNumber": 873,
-            "text": "        columns.branchName \u003e= 0 ? normalizeText(row[columns.branchName]) : ''"
-          },
-          {
-            "lineNumber": 874,
-            "text": "      const categoryMemo ="
-          },
-          {
-            "lineNumber": 875,
-            "text": "        columns.categoryMemo \u003e= 0 ? normalizeText(row[columns.categoryMemo]) : ''"
-          },
-          {
-            "lineNumber": 876,
-            "text": "      const category = mergeImportedExpenseCategory(categoryMemo, '')"
-          },
-          {
-            "lineNumber": 877
-          },
-          {
-            "lineNumber": 878,
-            "text": "      if (!vendorName \u0026\u0026 !branchName) {"
-          },
-          {
-            "lineNumber": 879,
-            "text": "        return []"
-          },
-          {
-            "lineNumber": 880,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 881
-          },
-          {
-            "lineNumber": 882,
-            "text": "      return ["
-          },
-          {
-            "lineNumber": 883,
-            "text": "        {"
-          },
-          {
-            "lineNumber": 884,
-            "text": "          id: crypto.randomUUID(),"
-          },
-          {
-            "lineNumber": 885,
-            "text": "          expenseDate,"
-          },
-          {
-            "lineNumber": 886,
-            "text": "          dueDate: expenseDate,"
-          },
-          {
-            "lineNumber": 887,
-            "text": "          vendorName,"
-          },
-          {
-            "lineNumber": 888,
-            "text": "          category,"
-          },
-          {
-            "lineNumber": 889,
-            "text": "          detail: branchName,"
-          },
-          {
-            "lineNumber": 890,
-            "text": "          totalAmount: withdrawal,"
-          },
-          {
-            "lineNumber": 891,
-            "text": "          taxType: '면세' as TaxType,"
-          },
-          {
-            "lineNumber": 892,
-            "text": "          paymentMethod: '계좌이체' as PaymentMethod,"
-          },
-          {
-            "lineNumber": 893,
-            "text": "          paymentStatus: '지급완료' as PaymentStatus,"
-          },
-          {
-            "lineNumber": 894,
-            "text": "          isRecurring: false,"
-          },
-          {
-            "lineNumber": 895,
-            "text": "          hasReceipt: '',"
-          },
-          {
-            "lineNumber": 896,
-            "text": "          memo: '',"
-          },
-          {
-            "lineNumber": 897,
-            "text": "          purpose: '',"
-          },
-          {
-            "lineNumber": 898,
-            "text": "          extraValues: undefined,"
-          },
-          {
-            "lineNumber": 899,
-            "text": "        },"
-          },
-          {
-            "lineNumber": 900,
-            "text": "      ]"
-          },
-          {
-            "lineNumber": 901,
-            "text": "    })"
-          },
-          {
-            "lineNumber": 902,
-            "text": "    .sort((left, right) =\u003e right.expenseDate.localeCompare(left.expenseDate))"
-          },
-          {
-            "lineNumber": 903
-          },
-          {
-            "lineNumber": 904,
-            "text": "  if (skippedDepositOnly \u003e 0) {"
-          },
-          {
-            "lineNumber": 905,
-            "text": "    warnings.push(&#96;입금만 있는 ${skippedDepositOnly}건은 제외했습니다.&#96;)"
-          },
-          {
-            "lineNumber": 906,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 907,
-            "text": "  if (skippedInvalidDate \u003e 0) {"
-          },
-          {
-            "lineNumber": 908,
-            "text": "    warnings.push"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "line": 911
-          },
-          "startPosition": {
-            "column": 1,
-            "line": 846
-          }
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {}
-      },
-      "score": 0.36785733699798584
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 941,
-            "text": "const parseExpenseWorkbook = ("
-          },
-          {
-            "lineNumber": 942,
-            "text": "  workbook: XLSX.WorkBook,"
-          },
-          {
-            "lineNumber": 943,
-            "text": "): { records: ExpenseRecord[]; layout: ExpenseTableColumn[]; warnings: string[] } =\u003e {"
-          },
-          {
-            "lineNumber": 944,
-            "text": "  const firstSheetName = workbook.SheetNames[0]"
-          },
-          {
-            "lineNumber": 945,
-            "text": "  if (!firstSheetName) {"
-          },
-          {
-            "lineNumber": 946,
-            "text": "    return { records: [], layout: [], warnings: [] }"
-          },
-          {
-            "lineNumber": 947,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 948
-          },
-          {
-            "lineNumber": 949,
-            "text": "  const sheet = workbook.Sheets[firstSheetName]"
-          },
-          {
-            "lineNumber": 950,
-            "text": "  const rows = XLSX.utils.sheet_to_json\u003cunknown[]\u003e(sheet, {"
-          },
-          {
-            "lineNumber": 951,
-            "text": "    header: 1,"
-          },
-          {
-            "lineNumber": 952,
-            "text": "    defval: '',"
-          },
-          {
-            "lineNumber": 953,
-            "text": "    raw: false,"
-          },
-          {
-            "lineNumber": 954,
-            "text": "    dateNF: 'yyyy-mm-dd',"
-          },
-          {
-            "lineNumber": 955,
-            "text": "  })"
-          },
-          {
-            "lineNumber": 956
-          },
-          {
-            "lineNumber": 957,
-            "text": "  const bankHeaderRowIndex = findBankTransactionHeaderRowIndex(rows)"
-          },
-          {
-            "lineNumber": 958,
-            "text": "  if (bankHeaderRowIndex \u003e= 0) {"
-          },
-          {
-            "lineNumber": 959,
-            "text": "    const bankHeaders = (rows[bankHeaderRowIndex] ?? []).map(normalizeHeader)"
-          },
-          {
-            "lineNumber": 960,
-            "text": "    const bankColumns = resolveBankTransactionColumns(bankHeaders)"
-          },
-          {
-            "lineNumber": 961,
-            "text": "    if (bankColumns) {"
-          },
-          {
-            "lineNumber": 962,
-            "text": "      return parseBankTransactionWorkbook(rows, bankHeaderRowIndex, bankColumns)"
-          },
-          {
-            "lineNumber": 963,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 964,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 965
-          },
-          {
-            "lineNumber": 966,
-            "text": "  const strictHeaderRowIndex = rows.findIndex((row) =\u003e {"
-          },
-          {
-            "lineNumber": 967,
-            "text": "    const normalizedCells = row.map(normalizeHeader)"
-          },
-          {
-            "lineNumber": 968,
-            "text": "    return ("
-          },
-          {
-            "lineNumber": 969,
-            "text": "      normalizedCells.some((cell) =\u003e expenseHeaderAliases.expenseDate.map(normalizeHeader).includes(cell)) \u0026\u0026"
-          },
-          {
-            "lineNumber": 970,
-            "text": "      normalizedCells.some((cell) =\u003e expenseHeaderAliases.vendorName.map(normalizeHeader).includes(cell)) \u0026\u0026"
-          },
-          {
-            "lineNumber": 971,
-            "text": "      (normalizedCells.some((cell) =\u003e expenseHeaderAliases.totalAmount.map(normalizeHeader).includes(cell)) ||"
-          },
-          {
-            "lineNumber": 972,
-            "text": "        normalizedCells.some((cell) =\u003e expenseHeaderAliases.supplyAmount.map(normalizeHeader).includes(cell)))"
-          },
-          {
-            "lineNumber": 973,
-            "text": "    )"
-          },
-          {
-            "lineNumber": 974,
-            "text": "  })"
-          },
-          {
-            "lineNumber": 975,
-            "text": "  const fallbackHeaderRowIndex = findBestFallbackHeaderRowIndex(rows)"
-          },
-          {
-            "lineNumber": 976,
-            "text": "  const headerRowIndex ="
-          },
-          {
-            "lineNumber": 977,
-            "text": "    strictHeaderRowIndex \u003e= 0"
-          },
-          {
-            "lineNumber": 978,
-            "text": "      ? strictHeaderRowIndex"
-          },
-          {
-            "lineNumber": 979,
-            "text": "      : fallbackHeaderRowIndex \u003e= 0"
-          },
-          {
-            "lineNumber": 980,
-            "text": "        ? fallbackHeaderRowIndex"
-          },
-          {
-            "lineNumber": 981,
-            "text": "        : findFirstNonEmptyHeaderRowIndex(rows)"
-          },
-          {
-            "lineNumber": 982,
-            "text": "  if (headerRowIndex \u003c 0) {"
-          },
-          {
-            "lineNumber": 983,
-            "text": "    return { records: [], layout: [], warnings: [] }"
-          },
-          {
-            "lineNumber": 984,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 985
-          },
-          {
-            "lineNumber": 986,
-            "text": "  const rawHeaderRow = rows[headerRowIndex]"
-          },
-          {
-            "lineNumber": 987,
-            "text": "  const headers = rawHeaderRow.map(normalizeHeader)"
-          },
-          {
-            "lineNumber": 988,
-            "text": "  const columns: ParsedExpenseColumns = {"
-          },
-          {
-            "lineNumber": 989,
-            "text": "    expenseDate: findHeaderIndex(headers, expenseHeaderAliases.expenseDate)"
-          },
-          {
-            "lineNumber": 1003,
-            "text": ","
-          },
-          {
-            "lineNumber": 1004,
-            "text": "  }"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "line": 1083
-          },
-          "startPosition": {
-            "column": 1,
-            "line": 938
-          }
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {}
-      },
-      "score": 0.36427104473114014
+      "score": 0.34166431427001953
     },
     {
       "codeBlock": {
         "detailedLines": [
           {
             "isSignature": true,
-            "lineNumber": 1995,
-            "text": "export default function GreenBeanOrderPage() {"
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
           },
           {
-            "lineNumber": 2793,
-            "text": "const togglePerItemSeries = "
+            "lineNumber": 3712,
+            "text": "const physicalCountDayIndex = "
           },
           {
-            "lineNumber": 2794,
-            "text": "(prev) =\u003e {"
+            "lineNumber": 3714,
+            "text": " inventoryState.physicalCountDate],"
           },
           {
-            "lineNumber": 2800
+            "lineNumber": 3715,
+            "text": "  )"
           },
           {
-            "lineNumber": 2801,
-            "text": "      return [...prev, key]"
+            "lineNumber": 3716
           },
           {
-            "lineNumber": 2802,
-            "text": "    })"
+            "lineNumber": 3717,
+            "text": "  const surveyMarkedDaySet = useMemo("
           },
           {
-            "lineNumber": 2803,
-            "text": "  }"
+            "lineNumber": 3718,
+            "text": "    () =\u003e new Set(inventoryState.surveyMarkedDays),"
           },
           {
-            "lineNumber": 2804
+            "lineNumber": 3719,
+            "text": "    [inventoryState.surveyMarkedDays],"
           },
           {
-            "lineNumber": 2805,
-            "text": "  const setVisibleRankedItemSeries = (count: number | 'all') =\u003e {"
+            "lineNumber": 3720,
+            "text": "  )"
           },
           {
-            "lineNumber": 2806,
-            "text": "    setVisibleItemKeys("
+            "lineNumber": 3721
           },
           {
-            "lineNumber": 2807,
-            "text": "      count === 'all' ? rankedItemSeries.map((series) =\u003e series.key) : rankedItemSeries.slice(0, count).map((series) =\u003e series.key),"
+            "lineNumber": 3722,
+            "text": "  const stockPinnedDayIndices = useMemo("
           },
           {
-            "lineNumber": 2808,
-            "text": "    )"
+            "lineNumber": 3723,
+            "text": "    () =\u003e"
           },
           {
-            "lineNumber": 2809,
-            "text": "  }"
+            "lineNumber": 3724,
+            "text": "      buildStockPinnedDayIndices("
           },
           {
-            "lineNumber": 2810
+            "lineNumber": 3725,
+            "text": "        inventoryState.days,"
           },
           {
-            "lineNumber": 2811,
-            "text": "  const handleFile = async (event: ChangeEvent\u003cHTMLInputElement\u003e) =\u003e {"
+            "lineNumber": 3726,
+            "text": "        inventoryState.surveyMarkedDays,"
           },
           {
-            "lineNumber": 2812,
-            "text": "    const file = event.target.files?.[0]"
+            "lineNumber": 3727,
+            "text": "        physicalCountDayIndex,"
           },
           {
-            "lineNumber": 2813,
-            "text": "    event.target.value = ''"
+            "lineNumber": 3728,
+            "text": "        inventoryState.referenceDate,"
           },
           {
-            "lineNumber": 2814,
-            "text": "    if (!file) {"
-          },
-          {
-            "lineNumber": 2815,
-            "text": "      return"
-          },
-          {
-            "lineNumber": 2816,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 2817
-          },
-          {
-            "lineNumber": 2818,
-            "text": "    try {"
-          },
-          {
-            "lineNumber": 2819,
-            "text": "      const buffer = await file.arrayBuffer()"
-          },
-          {
-            "lineNumber": 2820,
-            "text": "      const matrix = parseMatrixFromFile(buffer)"
-          },
-          {
-            "lineNumber": 2821,
-            "text": "      const parsed = parseGreenBeanOrderFromMatrix(matrix)"
-          },
-          {
-            "lineNumber": 2822,
-            "text": "      if (!parsed) {"
-          },
-          {
-            "lineNumber": 2823,
-            "text": "        setStatusMessage('시트에서 \"구분\" 행을 찾지 못했습니다. 생두 주문 양식인지 확인해주세요.')"
-          },
-          {
-            "lineNumber": 2824,
-            "text": "        return"
-          },
-          {
-            "lineNumber": 2825,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 2826,
-            "text": "      setPersisted((prev) =\u003e ({"
-          },
-          {
-            "lineNumber": 2827,
-            "text": "        ...parsed,"
-          },
-          {
-            "lineNumber": 2828,
-            "text": "        baseline: prev.baseline,"
-          },
-          {
-            "lineNumber": 2829,
-            "text": "        orderSnapshots: prev.orderSnapshots,"
-          },
-          {
-            "lineNumber": 2830,
-            "text": "      }))"
-          },
-          {
-            "lineNumber": 2831,
-            "text": "      setRecordDate((current) =\u003e {"
-          },
-          {
-            "lineNumber": 2832,
-            "text": "        const mk = guessMonthKeyFromTitle(parsed.title)"
-          },
-          {
-            "lineNumber": 2833,
-            "text": "        if (mk) {"
-          },
-          {
-            "lineNumber": 2834,
-            "text": "          return &#96;${mk}-01&#96;"
-          },
-          {
-            "lineNumber": 2835,
-            "text": "        }"
-          },
-          {
-            "lineNumber": 2836,
-            "text": "        return current"
-          },
-          {
-            "lineNumber": 2837,
-            "text": "      })"
-          },
-          {
-            "lineNumber": 2838,
-            "text": "      setStatusMessage(&#96;불러옴: ${file.name} (${parsed.rows.length}품목)&#96;)"
-          },
-          {
-            "lineNumber": 2839,
-            "text": "    } catch (error) {"
-          },
-          {
-            "lineNumber": 2840,
-            "text": "      console.error(error)"
-          },
-          {
-            "lineNumber": 2841,
-            "text": "      setStatusMessage('파일을 읽지 못했습니다.')"
-          },
-          {
-            "lineNumber": 2842,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 2843,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 2844
-          },
-          {
-            "lineNumber": 2845,
-            "text": "  const handleExport = async () =\u003e {"
-          },
-          {
-            "lineNumber": 2846,
-            "text": "    const { matrix, lineBasisHighlightByRow } = buildGreenBeanOrderExportMatrix(persisted)"
-          },
-          {
-            "lineNumber": 2847,
-            "text": "    const safeName = persisted.title.replace(/[■\\s]/g, '').slice(0, 20) || '생두주문'"
-          },
-          {
-            "lineNumber": 2848,
-            "text": "    await exportStyledGreenBeanOrderExcel(matrix, &#96;${safeName}.xlsx&#96;, { lineBasisHighlightByRow })"
-          },
-          {
-            "lineNumber": 2849,
-            "text": "    setStatusMessage('엑셀 파일을 내려받았습니다.')"
-          },
-          {
-            "lineNumber": 2850,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 2851
-          },
-          {
-            "lineNumber": 2852,
-            "text": "  const handleSetBaseline = () =\u003e {"
-          },
-          {
-            "lineNumber": 2853,
-            "text": "    const snapshot: GreenBeanOrderBaseline = {"
-          },
-          {
-            "lineNumber": 2854,
-            "text": "      "
-          },
-          {
-            "lineNumber": 2861,
-            "text": ","
-          },
-          {
-            "lineNumber": 2862,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 2865
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 4853,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 4852
-          },
-          "startPosition": {
-            "line": 1994
-          }
-        },
-        "relativeWorkspacePath": "./app/src/GreenBeanOrderPage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 16,
-                "line": 1995
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 1995
-              }
-            },
-            {
-              "endPosition": {
-                "column": 3,
-                "line": 1996
-              },
-              "startPosition": {
-                "column": 16,
-                "line": 1995
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.338579386472702
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "isSignature": true,
-            "lineNumber": 1189,
-            "text": "export default function StatementsPage({"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 1190,
-            "text": "  onHeroSummaryChange,"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 1191,
-            "text": "  onStickyHScrollVisibleChange,"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 1192,
-            "text": "  onRestoreActivePage,"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 1193,
-            "text": "}: StatementsPageProps) {"
-          },
-          {
-            "lineNumber": 3728
-          },
-          {
-            "lineNumber": 3729
+            "lineNumber": 3729,
+            "text": "        inventoryState.physicalCountDate,"
           },
           {
             "lineNumber": 3730,
-            "text": "  const handleCalendarShiftMonth = (delta: number) =\u003e {"
+            "text": "      ),"
           },
           {
             "lineNumber": 3731,
-            "text": "    setRecordsScopeYm((current) =\u003e {"
+            "text": "    ["
           },
           {
             "lineNumber": 3732,
-            "text": "      const [year, month] = current.split('-').map(Number)"
+            "text": "      inventoryState.days,"
           },
           {
             "lineNumber": 3733,
-            "text": "      const date = new Date(year, (month || 1) - 1 + delta, 1)"
+            "text": "      inventoryState.surveyMarkedDays,"
           },
           {
             "lineNumber": 3734,
-            "text": "      const nextYear = date.getFullYear()"
+            "text": "      physicalCountDayIndex,"
           },
           {
             "lineNumber": 3735,
-            "text": "      const nextMonth = String(date.getMonth() + 1).padStart(2, '0')"
+            "text": "      inventoryState.referenceDate,"
           },
           {
             "lineNumber": 3736,
-            "text": "      return &#96;${nextYear}-${nextMonth}&#96;"
+            "text": "      inventoryState.physicalCountDate,"
           },
           {
             "lineNumber": 3737,
-            "text": "    })"
+            "text": "    ],"
           },
           {
             "lineNumber": 3738,
-            "text": "  }"
+            "text": "  )"
           },
           {
             "lineNumber": 3739
           },
           {
             "lineNumber": 3740,
-            "text": "  const handleStatementTemplateUpload = async (event: React.ChangeEvent\u003cHTMLInputElement\u003e) =\u003e {"
+            "text": "  /** 입고·생산·출고에 맞춘 연쇄 재고. 엑셀 업로드 직후(&#96;skipAutoStockDisplay&#96;)는 시트 재고 그대로 */"
           },
           {
             "lineNumber": 3741,
-            "text": "    const file = event.target.files?.[0]"
+            "text": "  const displayedBeanRows = useMemo("
           },
           {
             "lineNumber": 3742,
-            "text": "    if (!file) {"
+            "text": "    () =\u003e"
           },
           {
             "lineNumber": 3743,
-            "text": "      return"
+            "text": "      inventoryState.skipAutoStockDisplay"
           },
           {
             "lineNumber": 3744,
-            "text": "    }"
+            "text": "        ? inventoryState.beanRows.map((bean) =\u003e ({ ...bean }))"
           },
           {
-            "lineNumber": 3745
+            "lineNumber": 3745,
+            "text": "        : inventoryState.beanRows.map((bean) =\u003e ({"
           },
           {
             "lineNumber": 3746,
-            "text": "    try {"
+            "text": "            ...bean,"
           },
           {
             "lineNumber": 3747,
-            "text": "      const buffer = await file.arrayBuffer()"
+            "text": "            stock: resyncAutoStockForBeanRow(bean, stockPinnedDayIndices),"
           },
           {
             "lineNumber": 3748,
-            "text": "      const workbook = new ExcelJS.Workbook()"
+            "text": "          })),"
           },
           {
             "lineNumber": 3749,
-            "text": "      await workbook.xlsx.load(buffer)"
+            "text": "    [inventoryState.beanRows, inventoryState.skipAutoStockDisplay, stockPinnedDayIndices],"
           },
           {
             "lineNumber": 3750,
-            "text": "      const worksheet = workbook.getWorksheet('거래명세서양식')"
+            "text": "  )"
           },
           {
             "lineNumber": 3751
           },
           {
             "lineNumber": 3752,
-            "text": "      if (!worksheet) {"
+            "text": "  const beanSummaryRows = useMemo("
           },
           {
             "lineNumber": 3753,
-            "text": "        setStatementTemplateMessage('&#96;거래명세서양식&#96; 시트를 찾지 못했습니다.')"
+            "text": "    () =\u003e"
           },
           {
             "lineNumber": 3754,
-            "text": "        return"
+            "text": "      displayedBeanRows.map((bean) =\u003e {"
           },
           {
             "lineNumber": 3755,
-            "text": "      }"
+            "text": "        const stockLen = bean.stock.length"
           },
           {
-            "lineNumber": 3756
+            "lineNumber": 3756,
+            "text": "        const cappedIdx ="
           },
           {
             "lineNumber": 3757,
-            "text": "      setStatementTemplateBase64(arrayBufferToBase64(buffer))"
+            "text": "          stockLen \u003c= 0 ? 0 : Math.min(Math.max(endingStockDayIndex, 0), stockLen - 1)"
           },
           {
             "lineNumber": 3758,
-            "text": "      setStatementTemplateFileName(file.name)"
+            "text": "        return {"
           },
           {
             "lineNumber": 3759,
-            "text": "      setStatementTemplateUpdatedAt(new Date().toISOString())"
+            "text": "          no: bean.no,"
           },
           {
             "lineNumber": 3760,
-            "text": "      setStatementTemplateMessage(&#96;양식 교체 완료: ${file.name}&#96;)"
+            "text": "          name: bean.name,"
           },
           {
             "lineNumber": 3761,
-            "text": "    } catch (error) {"
+            "text": "          inboundTotal: sumValues(bean.inbound),"
           },
           {
             "lineNumber": 3762,
-            "text": "      setStatementTemplateMessage("
+            "text": "          productionUsageTotal: sumValues(bean.production),"
           },
           {
             "lineNumber": 3763,
-            "text": "        error instanceof Error ? error.message : '거래명세서 양식 파일을 읽지 못했습니다.',"
+            "text": "          outboundTotal: sumValues(bean.outbound),"
           },
           {
             "lineNumber": 3764,
-            "text": "      )"
+            "text": "          endingStock: bean.stock[cappedIdx] ?? 0,"
           },
           {
             "lineNumber": 3765,
-            "text": "    } finally {"
+            "text": "        }"
           },
           {
             "lineNumber": 3766,
-            "text": "      event.target.value = ''"
+            "text": "      }),"
           },
           {
             "lineNumber": 3767,
-            "text": "    }"
+            "text": "    [displayedBeanRows, endingStockDayIndex],"
           },
           {
             "lineNumber": 3768,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 3769
-          },
-          {
-            "lineNumber": 3770,
-            "text": "  const exportSelectedStatementSheetToTemplate = async () =\u003e"
-          },
-          {
-            "lineNumber": 3841
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 6330,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 6329
-          },
-          "startPosition": {
-            "line": 1188
-          }
-        },
-        "relativeWorkspacePath": "./app/src/StatementsPage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 16,
-                "line": 1189
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 1189
-              }
-            },
-            {
-              "endPosition": {
-                "column": 3,
-                "line": 1194
-              },
-              "startPosition": {
-                "column": 16,
-                "line": 1189
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.3368821144104004
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "isSignature": true,
-            "lineNumber": 1086,
-            "text": "function ExpensePage() {"
-          },
-          {
-            "lineNumber": 1899,
-            "text": "\u003c/p\u003e"
-          },
-          {
-            "lineNumber": 1900,
-            "text": "          \u003c/div\u003e"
-          },
-          {
-            "lineNumber": 1901,
-            "text": "        \u003c/div\u003e"
-          },
-          {
-            "lineNumber": 1902
-          },
-          {
-            "lineNumber": 1903,
-            "text": "        \u003cdiv className=\"inventory-actions app-file-actions\"\u003e"
-          },
-          {
-            "lineNumber": 1904,
-            "text": "          \u003clabel className=\"upload-button secondary expense-toolbar-btn\"\u003e"
-          },
-          {
-            "lineNumber": 1905,
-            "text": "            지출 엑셀 업로드"
-          },
-          {
-            "lineNumber": 1906,
-            "text": "            \u003cinput type=\"file\" accept=\".xlsx,.xls\" onChange={handleImportWorkbook} /\u003e"
-          },
-          {
-            "lineNumber": 1907,
-            "text": "          \u003c/label\u003e"
-          },
-          {
-            "lineNumber": 1908,
-            "text": "          \u003cbutton type=\"button\" className=\"ghost-button expense-toolbar-btn\" onClick={handleExportWorkbook}\u003e"
-          },
-          {
-            "lineNumber": 1909,
-            "text": "            현재 월 엑셀 저장"
-          },
-          {
-            "lineNumber": 1910,
-            "text": "          \u003c/button\u003e"
-          },
-          {
-            "lineNumber": 1911,
-            "text": "          {(pageState.tableColumns?.length ?? 0) \u003e 0 ? ("
-          },
-          {
-            "lineNumber": 1912,
-            "text": "            \u003cbutton type=\"button\" className=\"ghost-button expense-toolbar-btn\" onClick={handleResetExpenseColumnLayout}\u003e"
-          },
-          {
-            "lineNumber": 1913,
-            "text": "              표 열 기본으로"
-          },
-          {
-            "lineNumber": 1914,
-            "text": "            \u003c/button\u003e"
-          },
-          {
-            "lineNumber": 1915,
-            "text": "          ) : null}"
-          },
-          {
-            "lineNumber": 1916,
-            "text": "        \u003c/div\u003e"
-          },
-          {
-            "lineNumber": 1917
-          },
-          {
-            "lineNumber": 1918,
-            "text": "        \u003cdiv className=\"page-status-bar\"\u003e"
-          },
-          {
-            "lineNumber": 1919,
-            "text": "          \u003cp className=\"page-status-message\" role=\"status\" aria-live=\"polite\"\u003e"
-          },
-          {
-            "lineNumber": 1920,
-            "text": "            {statusMessage}"
-          },
-          {
-            "lineNumber": 1921,
-            "text": "          \u003c/p\u003e"
-          },
-          {
-            "lineNumber": 1922,
-            "text": "          \u003cPageSaveStatus mode={mode} saveState={saveState} lastSavedAt={lastSavedAt} /\u003e"
-          },
-          {
-            "lineNumber": 1923,
-            "text": "        \u003c/div\u003e"
-          },
-          {
-            "lineNumber": 1924
-          },
-          {
-            "lineNumber": 1925,
-            "text": "        \u003cdiv className=\"meeting-config-row expense-filter-row\"\u003e"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 2249,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 2248
-          },
-          "startPosition": {
-            "line": 1085
-          }
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 3,
-                "line": 1087
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 1086
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.31795716285705566
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 1,
-            "text": "/**"
-          },
-          {
-            "lineNumber": 2,
-            "text": " * 웹앱 「지출 엑셀 업로드」 첫 시트 파싱 규칙에 맞춘 예시 파일을 생성합니다."
-          },
-          {
-            "lineNumber": 3,
-            "text": " * 실행: npm run sample:expense-xlsx (app 디렉터리에서)"
-          },
-          {
-            "lineNumber": 4,
-            "text": " */"
-          },
-          {
-            "lineNumber": 5,
-            "text": "import fs from 'node:fs'"
-          },
-          {
-            "lineNumber": 6,
-            "text": "import path from 'node:path'"
-          },
-          {
-            "lineNumber": 7,
-            "text": "import { fileURLToPath } from 'node:url'"
-          },
-          {
-            "lineNumber": 8,
-            "text": "import XLSX from 'xlsx'"
-          },
-          {
-            "lineNumber": 9
-          },
-          {
-            "lineNumber": 10,
-            "text": "const __dirname = path.dirname(fileURLToPath(import.meta.url))"
-          },
-          {
-            "lineNumber": 11,
-            "text": "const repoRoot = path.resolve(__dirname, '../..')"
-          },
-          {
-            "lineNumber": 12,
-            "text": "const outPath = path.join(repoRoot, 'docs', '지출표_업로드_예시.xlsx')"
-          },
-          {
-            "lineNumber": 13
-          },
-          {
-            "lineNumber": 14,
-            "text": "const header = ["
-          },
-          {
-            "lineNumber": 15,
-            "text": "  '지출일',"
-          },
-          {
-            "lineNumber": 16,
-            "text": "  '거래처',"
-          },
-          {
-            "lineNumber": 17,
-            "text": "  '카테고리',"
-          },
-          {
-            "lineNumber": 18,
-            "text": "  '용도',"
-          },
-          {
-            "lineNumber": 19,
-            "text": "  '세부항목',"
-          },
-          {
-            "lineNumber": 20,
-            "text": "  '결제금액',"
-          },
-          {
-            "lineNumber": 21,
-            "text": "  '과세구분',"
-          },
-          {
-            "lineNumber": 22,
-            "text": "  '지급수단',"
-          },
-          {
-            "lineNumber": 23,
-            "text": "  '상태',"
-          },
-          {
-            "lineNumber": 24,
-            "text": "  '증빙여부',"
-          },
-          {
-            "lineNumber": 25,
-            "text": "  '비고',"
-          },
-          {
-            "lineNumber": 26,
-            "text": "]"
-          },
-          {
-            "lineNumber": 27
-          },
-          {
-            "lineNumber": 28,
-            "text": "/** 날짜·거래처·금액 헤더 매칭 + 용도(기타경비/운영경비) 반영 예시 */"
-          },
-          {
-            "lineNumber": 29,
-            "text": "const rows = ["
-          },
-          {
-            "lineNumber": 30,
-            "text": "  header,"
-          },
-          {
-            "lineNumber": 31,
-            "text": "  ["
-          },
-          {
-            "lineNumber": 32,
-            "text": "    '2026-04-01',"
-          },
-          {
-            "lineNumber": 33,
-            "text": "    '○○생두 무역',"
-          },
-          {
-            "lineNumber": 34,
-            "text": "    '원재료비',"
-          },
-          {
-            "lineNumber": 35,
-            "text": "    '',"
-          },
-          {
-            "lineNumber": 36,
-            "text": "    '에티오피아 Yirgacheffe',"
-          },
-          {
-            "lineNumber": 37,
-            "text": "    350000,"
-          },
-          {
-            "lineNumber": 38,
-            "text": "    '과세',"
-          },
-          {
-            "lineNumber": 39,
-            "text": "    '카드',"
-          },
-          {
-            "lineNumber": 40,
-            "text": "    '지급완료',"
-          },
-          {
-            "lineNumber": 41,
-            "text": "    'Y',"
-          },
-          {
-            "lineNumber": 42,
-            "text": "    '카테고리만 적음 → 월마감 ①재료비 쪽 연동',"
-          },
-          {
-            "lineNumber": 43,
-            "text": "  ],"
-          },
-          {
-            "lineNumber": 44,
-            "text": "  ["
-          },
-          {
-            "lineNumber": 45,
-            "text": "    '2026-04-03',"
-          },
-          {
-            "lineNumber": 46,
-            "text": "    '사무용품샵',"
-          },
-          {
-            "lineNumber": 47,
-            "text": "    '기타운영비',"
-          },
-          {
-            "lineNumber": 48,
-            "text": "    '기타경비',"
-          },
-          {
-            "lineNumber": 49,
-            "text": "    '다이소 소모품',"
-          },
-          {
-            "lineNumber": 50,
-            "text": "    42800,"
-          },
-          {
-            "lineNumber": 51,
-            "text": "    '면세',"
-          },
-          {
-            "lineNumber": 52,
-            "text": "    '카드',"
-          },
-          {
-            "lineNumber": 53,
-            "text": "    '지급완료',"
-          },
-          {
-            "lineNumber": 54,
-            "text": "    '',"
-          },
-          {
-            "lineNumber": 55,
-            "text": "    '레거시 분류 + 용도 기타경비 → 기타경비로 반영',"
-          },
-          {
-            "lineNumber": 56,
-            "text": "  ],"
-          },
-          {
-            "lineNumber": 57,
-            "text": "  ["
-          },
-          {
-            "lineNumber": 58,
-            "text": "    '2026-04-05',"
-          },
-          {
-            "lineNumber": 59,
-            "text": "    '지역세무서',"
-          },
-          {
-            "lineNumber": 60,
-            "text": "    '',"
-          },
-          {
-            "lineNumber": 61,
-            "text": "    '운영경비',"
-          },
-          {
-            "lineNumber": 62,
-            "text": "    '4월 간이 과세 신고 소프트웨어',"
-          },
-          {
-            "lineNumber": 63,
-            "text": "    120000,"
-          },
-          {
-            "lineNumber": 64,
-            "text": "    '과세',"
-          },
-          {
-            "lineNumber": 65,
-            "text": "    '계좌이체',"
-          },
-          {
-            "lineNumber": 66,
-            "text": "    '지급완료',"
-          },
-          {
-            "lineNumber": 67,
-            "text": "    '이체완료',"
-          },
-          {
-            "lineNumber": 68,
-            "text": "    '카테고리 비움 + 용도 운영경비',"
-          },
-          {
-            "lineNumber": 69,
-            "text": "  ],"
-          },
-          {
-            "lineNumber": 70,
-            "text": "  ["
-          },
-          {
-            "lineNumber": 71,
-            "text": "    '2026-04-08',"
-          },
-          {
-            "lineNumber": 72,
-            "text": "    '○○통신판매',"
-          },
-          {
-            "lineNumber": 73,
-            "text": "    '운영경비',"
-          },
-          {
-            "lineNumber": 74,
-            "text": "    '',"
-          },
-          {
-            "lineNumber": 75,
-            "text": "    '포장 테이프·박스',"
-          },
-          {
-            "lineNumber": 76,
-            "text": "    89200,"
-          },
-          {
-            "lineNumber": 77,
-            "text": "    '과세',"
-          },
-          {
-            "lineNumber": 78,
-            "text": "    '카드',"
-          },
-          {
-            "lineNumber": 79,
-            "text": "    '지급완료',"
-          },
-          {
-            "lineNumber": 80,
-            "text": "    'Y',"
-          },
-          {
-            "lineNumber": 81,
-            "text": "    '카테고리에 직접 운영경비',"
-          },
-          {
-            "lineNumber": 82,
-            "text": "  ],"
-          },
-          {
-            "lineNumber": 83,
-            "text": "  ["
-          },
-          {
-            "lineNumber": 84,
-            "text": "    '2026-04-10',"
-          },
-          {
-            "lineNumber": 85,
-            "text": "    '빌딩관리사무소',"
-          },
-          {
-            "lineNumber": 86,
-            "text": "    '임차료',"
-          },
-          {
-            "lineNumber": 87,
-            "text": "    '',"
-          },
-          {
-            "lineNumber": 147,
-            "text": ","
-          },
-          {
-            "lineNumber": 148,
-            "text": "]"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 147
-          },
-          "startPosition": {}
-        },
-        "relativeWorkspacePath": "./app/scripts/generate-expense-upload-sample-xlsx.mjs",
-        "signatures": {}
-      },
-      "score": 0.3123328983783722
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 941,
-            "text": "const parseExpenseWorkbook = "
-          },
-          {
-            "lineNumber": 1022,
-            "text": "const records = "
-          },
-          {
-            "lineNumber": 1024,
-            "text": "(row) =\u003e {"
-          },
-          {
-            "lineNumber": 1051,
-            "text": " {"
-          },
-          {
-            "lineNumber": 1052,
-            "text": "        return []"
-          },
-          {
-            "lineNumber": 1053,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 1054
-          },
-          {
-            "lineNumber": 1055,
-            "text": "      return ["
-          },
-          {
-            "lineNumber": 1056,
-            "text": "        {"
-          },
-          {
-            "lineNumber": 1057,
-            "text": "          id: crypto.randomUUID(),"
-          },
-          {
-            "lineNumber": 1058,
-            "text": "          expenseDate,"
-          },
-          {
-            "lineNumber": 1059,
-            "text": "          dueDate: dueDate || expenseDate,"
-          },
-          {
-            "lineNumber": 1060,
-            "text": "          vendorName,"
-          },
-          {
-            "lineNumber": 1061,
-            "text": "          category,"
-          },
-          {
-            "lineNumber": 1062,
-            "text": "          detail,"
-          },
-          {
-            "lineNumber": 1063,
-            "text": "          totalAmount,"
-          },
-          {
-            "lineNumber": 1064,
-            "text": "          taxType,"
-          },
-          {
-            "lineNumber": 1065,
-            "text": "          paymentMethod:"
-          },
-          {
-            "lineNumber": 1066,
-            "text": "            columns.paymentMethod === -1 ? DEFAULT_PAYMENT_METHOD : parsePaymentMethod(row[columns.paymentMethod]),"
-          },
-          {
-            "lineNumber": 1067,
-            "text": "          paymentStatus:"
-          },
-          {
-            "lineNumber": 1068,
-            "text": "            columns.paymentStatus === -1"
-          },
-          {
-            "lineNumber": 1069,
-            "text": "              ? DEFAULT_PAYMENT_STATUS"
-          },
-          {
-            "lineNumber": 1070,
-            "text": "              : parsePaymentStatus(row[columns.paymentStatus]),"
-          },
-          {
-            "lineNumber": 1071,
-            "text": "          isRecurring:"
-          },
-          {
-            "lineNumber": 1072,
-            "text": "            columns.isRecurring === -1 ? false : parseBooleanCell(row[columns.isRecurring]),"
-          },
-          {
-            "lineNumber": 1073,
-            "text": "          hasReceipt:"
-          },
-          {
-            "lineNumber": 1074,
-            "text": "            columns.hasReceipt === -1 ? '' : normalizeText(row[columns.hasReceipt]),"
-          },
-          {
-            "lineNumber": 1075,
-            "text": "          memo: columns.memo === -1 ? '' : normalizeText(row[columns.memo]),"
-          },
-          {
-            "lineNumber": 1076,
-            "text": "          purpose: purposeRaw,"
-          },
-          {
-            "lineNumber": 1077,
-            "text": "          extraValues,"
-          },
-          {
-            "lineNumber": 1078,
-            "text": "        },"
-          },
-          {
-            "lineNumber": 1079,
-            "text": "      ]"
-          },
-          {
-            "lineNumber": 1080,
-            "text": "    })"
-          },
-          {
-            "lineNumber": 1081,
-            "text": "    .sort((left, right) =\u003e right.expenseDate.localeCompare(left.expenseDate))"
-          },
-          {
-            "lineNumber": 1082
-          },
-          {
-            "lineNumber": 1083,
-            "text": "  return { records, layout, warnings }"
-          },
-          {
-            "lineNumber": 1084,
-            "text": "}"
-          },
-          {
-            "lineNumber": 1085
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 1086,
-            "text": "function ExpensePage() {"
-          },
-          {
-            "lineNumber": 1087,
-            "text": "  const { mode, activeCompanyId, user } = useAppRuntime()"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 2249,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 2248
-          },
-          "startPosition": {
-            "line": 940
-          }
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 7,
-                "line": 941
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 941
-              }
-            },
-            {
-              "endPosition": {
-                "column": 30,
-                "line": 941
-              },
-              "startPosition": {
-                "column": 7,
-                "line": 941
-              }
-            },
-            {
-              "endPosition": {
-                "column": 9,
-                "line": 1022
-              },
-              "startPosition": {
-                "column": 3,
-                "line": 1022
-              }
-            },
-            {
-              "endPosition": {
-                "column": 19,
-                "line": 1022
-              },
-              "startPosition": {
-                "column": 9,
-                "line": 1022
-              }
-            },
-            {
-              "endPosition": {
-                "column": 19,
-                "line": 1022
-              },
-              "startPosition": {
-                "column": 19,
-                "line": 1022
-              }
-            },
-            {
-              "endPosition": {
-                "column": 7,
-                "line": 1025
-              },
-              "startPosition": {
-                "column": 14,
-                "line": 1024
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.3101557493209839
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 740,
-            "text": "export const parseInventoryWorkbook = (workbook: XLSX.WorkBook): InventoryStatusState =\u003e {"
-          },
-          {
-            "lineNumber": 741,
-            "text": "  const beanSheet = workbook.Sheets['생두전체현황']"
-          },
-          {
-            "lineNumber": 742,
-            "text": "  const roastingSheet = workbook.Sheets['로스팅현황']"
-          },
-          {
-            "lineNumber": 743
-          },
-          {
-            "lineNumber": 744,
-            "text": "  if (!beanSheet || !roastingSheet) {"
-          },
-          {
-            "lineNumber": 745,
-            "text": "    throw new Error('엑셀에서 &#96;생두전체현황&#96;, &#96;로스팅현황&#96; 시트를 찾지 못했습니다.')"
-          },
-          {
-            "lineNumber": 746,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 747
-          },
-          {
-            "lineNumber": 748,
-            "text": "  const defaultState = createDefaultInventoryStatusState()"
-          },
-          {
-            "lineNumber": 749,
-            "text": "  const beanRows: InventoryBeanRow[] = []"
-          },
-          {
-            "lineNumber": 750,
-            "text": "  let currentBean: InventoryBeanRow | null = null"
-          },
-          {
-            "lineNumber": 751
-          },
-          {
-            "lineNumber": 752,
-            "text": "  const createValueRow = (targetRowIndex: number) =\u003e"
-          },
-          {
-            "lineNumber": 753,
-            "text": "    Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, (_, offset) =\u003e"
-          },
-          {
-            "lineNumber": 754,
-            "text": "      parseWorkbookCellKg(getSheetCellValue(beanSheet, targetRowIndex, BEAN_DAY_START_COLUMN_INDEX + offset)),"
-          },
-          {
-            "lineNumber": 755,
-            "text": "    )"
-          },
-          {
-            "lineNumber": 756
-          },
-          {
-            "lineNumber": 757,
-            "text": "  for (let rowIndex = 2; rowIndex \u003c= 79; rowIndex += 1) {"
-          },
-          {
-            "lineNumber": 758,
-            "text": "    const no = toNumber(getSheetCellValue(beanSheet, rowIndex, 0))"
-          },
-          {
-            "lineNumber": 759,
-            "text": "    const name = String(getSheetCellValue(beanSheet, rowIndex, 1) ?? '').trim()"
-          },
-          {
-            "lineNumber": 760,
-            "text": "    const label = String(getSheetCellValue(beanSheet, rowIndex, 2) ?? '').trim()"
-          },
-          {
-            "lineNumber": 761
-          },
-          {
-            "lineNumber": 762,
-            "text": "    if (!label) {"
-          },
-          {
-            "lineNumber": 763,
-            "text": "      continue"
-          },
-          {
-            "lineNumber": 764,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 765
-          },
-          {
-            "lineNumber": 766,
-            "text": "    if (name) {"
-          },
-          {
-            "lineNumber": 767,
-            "text": "      currentBean = {"
-          },
-          {
-            "lineNumber": 768,
-            "text": "        no,"
-          },
-          {
-            "lineNumber": 769,
-            "text": "        name: canonicalInventoryBeanName(name),"
-          },
-          {
-            "lineNumber": 770,
-            "text": "        inbound: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () =\u003e 0),"
-          },
-          {
-            "lineNumber": 771,
-            "text": "        production: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () =\u003e 0),"
-          },
-          {
-            "lineNumber": 772,
-            "text": "        outbound: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () =\u003e 0),"
-          },
-          {
-            "lineNumber": 773,
-            "text": "        stock: Array.from({ length: INVENTORY_VALUE_ROW_LENGTH }, () =\u003e 0),"
-          },
-          {
-            "lineNumber": 774,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 775,
-            "text": "      beanRows.push(currentBean)"
-          },
-          {
-            "lineNumber": 776,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 777
-          },
-          {
-            "lineNumber": 778,
-            "text": "    if (!currentBean) {"
-          },
-          {
-            "lineNumber": 779,
-            "text": "      continue"
-          },
-          {
-            "lineNumber": 780,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 781
-          },
-          {
-            "lineNumber": 782,
-            "text": "    const nextValues = createValueRow(rowIndex)"
-          },
-          {
-            "lineNumber": 783
-          },
-          {
-            "lineNumber": 784,
-            "text": "    if (label === '입고') {"
-          },
-          {
-            "lineNumber": 785,
-            "text": "      currentBean.inbound = nextValues"
-          },
-          {
-            "lineNumber": 786,
-            "text": "    } else if (label === '생산') {"
-          },
-          {
-            "lineNumber": 787,
-            "text": "      currentBean.production = nextValues"
-          },
-          {
-            "lineNumber": 788,
-            "text": "    } else if (label === '출고') {"
-          },
-          {
-            "lineNumber": 789,
-            "text": "      currentBean.outbound = nextValues"
-          },
-          {
-            "lineNumber": 790,
-            "text": "    } else if (label === '재고') {"
-          },
-          {
-            "lineNumber": 791,
-            "text": "      currentBean.stock = nextValues"
-          },
-          {
-            "lineNumber": 792,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 793,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 794
-          },
-          {
-            "lineNumber": 795,
-            "text": "  const roastingColumns = Array.from({ length: 26 },"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "line": 845
-          },
-          "startPosition": {
-            "column": 1,
-            "line": 737
-          }
-        },
-        "relativeWorkspacePath": "./app/src/inventoryStatusUtils.ts",
-        "signatures": {}
-      },
-      "score": 0.3096282482147217
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 941,
-            "text": "const parseExpenseWorkbook = "
-          },
-          {
-            "lineNumber": 987
-          },
-          {
-            "lineNumber": 988,
-            "text": "  const columns: ParsedExpenseColumns = {"
-          },
-          {
-            "lineNumber": 989,
-            "text": "    expenseDate: findHeaderIndex(headers, expenseHeaderAliases.expenseDate),"
-          },
-          {
-            "lineNumber": 990,
-            "text": "    dueDate: findHeaderIndex(headers, expenseHeaderAliases.dueDate),"
-          },
-          {
-            "lineNumber": 991,
-            "text": "    vendorName: findHeaderIndex(headers, expenseHeaderAliases.vendorName),"
-          },
-          {
-            "lineNumber": 992,
-            "text": "    category: findHeaderIndex(headers, expenseHeaderAliases.category),"
-          },
-          {
-            "lineNumber": 993,
-            "text": "    purpose: findHeaderIndex(headers, expenseHeaderAliases.purpose),"
-          },
-          {
-            "lineNumber": 994,
-            "text": "    detail: findHeaderIndex(headers, expenseHeaderAliases.detail),"
-          },
-          {
-            "lineNumber": 995,
-            "text": "    totalAmount: findHeaderIndex(headers, expenseHeaderAliases.totalAmount),"
-          },
-          {
-            "lineNumber": 996,
-            "text": "    supplyAmount: findHeaderIndex(headers, expenseHeaderAliases.supplyAmount),"
-          },
-          {
-            "lineNumber": 997,
-            "text": "    taxAmount: findHeaderIndex(headers, expenseHeaderAliases.taxAmount),"
-          },
-          {
-            "lineNumber": 998,
-            "text": "    taxType: findHeaderIndex(headers, expenseHeaderAliases.taxType),"
-          },
-          {
-            "lineNumber": 999,
-            "text": "    paymentMethod: findHeaderIndex(headers, expenseHeaderAliases.paymentMethod),"
-          },
-          {
-            "lineNumber": 1000,
-            "text": "    paymentStatus: findHeaderIndex(headers, expenseHeaderAliases.paymentStatus),"
-          },
-          {
-            "lineNumber": 1001,
-            "text": "    isRecurring: findHeaderIndex(headers, expenseHeaderAliases.isRecurring),"
-          },
-          {
-            "lineNumber": 1002,
-            "text": "    hasReceipt: findHeaderIndex(headers, expenseHeaderAliases.hasReceipt),"
-          },
-          {
-            "lineNumber": 1003,
-            "text": "    memo: findHeaderIndex(headers, expenseHeaderAliases.memo),"
-          },
-          {
-            "lineNumber": 1004,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 1005
-          },
-          {
-            "lineNumber": 1006,
-            "text": "  const warnings: string[] = []"
-          },
-          {
-            "lineNumber": 1007,
-            "text": "  if (strictHeaderRowIndex === -1) {"
-          },
-          {
-            "lineNumber": 1008,
-            "text": "    warnings.push('시트 헤더를 완전히 매칭하지 못해 첫 행을 기준으로 불러왔습니다.')"
-          },
-          {
-            "lineNumber": 1009,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 1010,
-            "text": "  if (columns.expenseDate === -1) {"
-          },
-          {
-            "lineNumber": 1011,
-            "text": "    warnings.push('지출일 컬럼을 찾지 못해 오늘 날짜로 채웠습니다.')"
-          },
-          {
-            "lineNumber": 1012,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 1013,
-            "text": "  if (columns.vendorName === -1) {"
-          },
-          {
-            "lineNumber": 1014,
-            "text": "    warnings.push('거래처 컬럼을 찾지 못해 비어있는 값으로 불러왔습니다.')"
-          },
-          {
-            "lineNumber": 1015,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 1016,
-            "text": "  if (columns.totalAmount === -1 \u0026\u0026 columns.supplyAmount === -1 \u0026\u0026 columns.taxAmount === -1) {"
-          },
-          {
-            "lineNumber": 1017,
-            "text": "    warnings.push('금액 컬럼을 찾지 못해 결제금액을 0원으로 불러왔습니다.')"
-          },
-          {
-            "lineNumber": 1018,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 1019
-          },
-          {
-            "lineNumber": 1020,
-            "text": "  const layout = extractImportLayout(rawHeaderRow, columns)"
-          },
-          {
-            "lineNumber": 1021
-          },
-          {
-            "lineNumber": 1022,
-            "text": "  const records = rows"
-          },
-          {
-            "lineNumber": 1023,
-            "text": "    .slice(headerRowIndex + 1)"
-          },
-          {
-            "lineNumber": 1024,
-            "text": "    .flatMap"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "line": 1083
-          },
-          "startPosition": {
-            "line": 940
-          }
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 7,
-                "line": 941
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 941
-              }
-            },
-            {
-              "endPosition": {
-                "column": 30,
-                "line": 941
-              },
-              "startPosition": {
-                "column": 7,
-                "line": 941
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.3041313886642456
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "isSignature": true,
-            "lineNumber": 2717,
-            "text": "function InventoryStatusPage() {"
-          },
-          {
-            "lineNumber": 5692
-          },
-          {
-            "lineNumber": 5693,
-            "text": "          \u003c/div\u003e"
-          },
-          {
-            "lineNumber": 5694,
-            "text": "          \u003cdiv className=\"inventory-top-toolbar-actions\"\u003e"
-          },
-          {
-            "lineNumber": 5695,
-            "text": "            \u003cbutton"
-          },
-          {
-            "lineNumber": 5696,
-            "text": "              type=\"button\""
-          },
-          {
-            "lineNumber": 5697,
-            "text": "              className=\"primary-button small-hit inventory-toolbar-main-btn\""
-          },
-          {
-            "lineNumber": 5698,
-            "text": "              onClick={openQuickEntryModal}"
-          },
-          {
-            "lineNumber": 5699,
-            "text": "              title=\"날짜별 입고·생산·출고를 한 번에 입력\""
-          },
-          {
-            "lineNumber": 5700,
-            "text": "            \u003e"
-          },
-          {
-            "lineNumber": 5701,
-            "text": "              입력"
-          },
-          {
-            "lineNumber": 5702,
-            "text": "            \u003c/button\u003e"
-          },
-          {
-            "lineNumber": 5703,
-            "text": "            \u003cdiv className=\"inventory-file-actions app-file-actions\" role=\"group\" aria-label=\"파일\"\u003e"
-          },
-          {
-            "lineNumber": 5704,
-            "text": "              \u003cbutton"
-          },
-          {
-            "lineNumber": 5705,
-            "text": "                type=\"button\""
-          },
-          {
-            "lineNumber": 5706,
-            "text": "                className=\"ghost-button small-hit inventory-toolbar-main-btn inventory-upload-trigger\""
-          },
-          {
-            "lineNumber": 5707,
-            "text": "                onClick={openUploadUnlockDialog}"
-          },
-          {
-            "lineNumber": 5708,
-            "text": "                title=\"엑셀 파일로 표 가져오기 (비밀번호 필요)\""
-          },
-          {
-            "lineNumber": 5709,
-            "text": "              \u003e"
-          },
-          {
-            "lineNumber": 5710,
-            "text": "                업로드"
-          },
-          {
-            "lineNumber": 5711,
-            "text": "              \u003c/button\u003e"
-          },
-          {
-            "lineNumber": 5712,
-            "text": "              \u003cinput"
-          },
-          {
-            "lineNumber": 5713,
-            "text": "                ref={uploadFileInputRef}"
-          },
-          {
-            "lineNumber": 5714,
-            "text": "                type=\"file\""
-          },
-          {
-            "lineNumber": 5715,
-            "text": "                accept=\".xlsx,.xls\""
-          },
-          {
-            "lineNumber": 5716,
-            "text": "                className=\"inventory-upload-file-input\""
-          },
-          {
-            "lineNumber": 5717,
-            "text": "                aria-hidden"
-          },
-          {
-            "lineNumber": 5718,
-            "text": "                tabIndex={-1}"
-          },
-          {
-            "lineNumber": 5719,
-            "text": "                onChange={handleWorkbookUpload}"
-          },
-          {
-            "lineNumber": 5720,
-            "text": "              /\u003e"
-          },
-          {
-            "lineNumber": 5721,
-            "text": "              \u003cbutton"
-          },
-          {
-            "lineNumber": 5722,
-            "text": "                type=\"button\""
-          },
-          {
-            "lineNumber": 5723,
-            "text": "                className=\"ghost-button small-hit inventory-toolbar-main-btn\""
-          },
-          {
-            "lineNumber": 5724,
-            "text": "                onClick={handleExportWorkbook}"
-          },
-          {
-            "lineNumber": 5725,
-            "text": "              \u003e"
-          },
-          {
-            "lineNumber": 5726,
-            "text": "                저장"
-          },
-          {
-            "lineNumber": 5727,
-            "text": "              \u003c/button\u003e"
-          },
-          {
-            "lineNumber": 5728,
-            "text": "              \u003cbutton"
-          },
-          {
-            "lineNumber": 5729,
-            "text": "                type=\"button\""
-          },
-          {
-            "lineNumber": 5730,
-            "text": "                className=\"ghost-button small-hit inventory-toolbar-main-btn\""
-          },
-          {
-            "lineNumber": 5731,
-            "text": "                onClick={handleResetDefault}"
-          },
-          {
-            "lineNumber": 5732,
-            "text": "                disabled={!templateBase64}"
-          },
-          {
-            "lineNumber": 5733,
-            "text": "                title={templateBase64 ? '마지막 업로드 엑셀 기준으로 복원' : '엑셀 업로드 후 사용 가능'}"
-          },
-          {
-            "lineNumber": 5734,
-            "text": "              \u003e"
-          },
-          {
-            "lineNumber": 5735,
-            "text": "                복원"
-          },
-          {
-            "lineNumber": 5736,
-            "text": "              \u003c/button\u003e"
-          },
-          {
-            "lineNumber": 5737,
-            "text": "            \u003c/div\u003e"
-          },
-          {
-            "lineNumber": 5738,
-            "text": "          \u003c/div\u003e"
-          },
-          {
-            "lineNumber": 5739,
-            "text": "        \u003c/div\u003e"
-          },
-          {
-            "lineNumber": 5740,
-            "text": "        {statementCalendarOpen ? ("
-          },
-          {
-            "lineNumber": 5741,
-            "text": "          \u003cdiv className=\"inventory-statement-calendar-panel no-print\"\u003e"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 7362,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 7361
-          },
-          "startPosition": {
-            "line": 2716
-          }
-        },
-        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 3,
-                "line": 2718
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 2717
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.29159486293792725
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 630,
-            "text": "const normalizeRecord = (value: unknown): ExpenseRecord | null =\u003e {"
-          },
-          {
-            "lineNumber": 631,
-            "text": "  if (!value || typeof value !== 'object') {"
-          },
-          {
-            "lineNumber": 632,
-            "text": "    return null"
-          },
-          {
-            "lineNumber": 633,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 634
-          },
-          {
-            "lineNumber": 635,
-            "text": "  const source = value as Partial\u003cExpenseRecord\u003e"
-          },
-          {
-            "lineNumber": 636,
-            "text": "  const expenseDate = parseSpreadsheetDate(source.expenseDate)"
-          },
-          {
-            "lineNumber": 637,
-            "text": "  const dueDate = parseSpreadsheetDate(source.dueDate) || expenseDate"
-          },
-          {
-            "lineNumber": 638,
-            "text": "  const vendorName = normalizeText(source.vendorName)"
-          },
-          {
-            "lineNumber": 639,
-            "text": "  const category = normalizeText(source.category) || DEFAULT_CATEGORY"
-          },
-          {
-            "lineNumber": 640,
-            "text": "  const purpose = normalizeText(source.purpose)"
-          },
-          {
-            "lineNumber": 641,
-            "text": "  const totalAmount = Number(source.totalAmount ?? 0)"
-          },
-          {
-            "lineNumber": 642
-          },
-          {
-            "lineNumber": 643,
-            "text": "  return {"
-          },
-          {
-            "lineNumber": 644,
-            "text": "    id: String(source.id ?? crypto.randomUUID()),"
-          },
-          {
-            "lineNumber": 645,
-            "text": "    expenseDate: expenseDate || today,"
-          },
-          {
-            "lineNumber": 646,
-            "text": "    dueDate: dueDate || expenseDate || today,"
-          },
-          {
-            "lineNumber": 647,
-            "text": "    vendorName,"
-          },
-          {
-            "lineNumber": 648,
-            "text": "    category,"
-          },
-          {
-            "lineNumber": 649,
-            "text": "    purpose,"
-          },
-          {
-            "lineNumber": 650,
-            "text": "    detail: normalizeText(source.detail),"
-          },
-          {
-            "lineNumber": 651,
-            "text": "    totalAmount: Number.isFinite(totalAmount) ? totalAmount : 0,"
-          },
-          {
-            "lineNumber": 652,
-            "text": "    taxType: source.taxType === '면세' ? '면세' : '과세',"
-          },
-          {
-            "lineNumber": 653,
-            "text": "    paymentMethod: parsePaymentMethod(source.paymentMethod),"
-          },
-          {
-            "lineNumber": 654,
-            "text": "    paymentStatus: parsePaymentStatus(source.paymentStatus),"
-          },
-          {
-            "lineNumber": 655,
-            "text": "    isRecurring: source.isRecurring === true,"
-          },
-          {
-            "lineNumber": 656,
-            "text": "    hasReceipt:"
-          },
-          {
-            "lineNumber": 657,
-            "text": "      typeof source.hasReceipt === 'string'"
-          },
-          {
-            "lineNumber": 658,
-            "text": "        ? normalizeText(source.hasReceipt)"
-          },
-          {
-            "lineNumber": 659,
-            "text": "        : source.hasReceipt === true"
-          },
-          {
-            "lineNumber": 660,
-            "text": "          ? 'Y'"
-          },
-          {
-            "lineNumber": 661,
-            "text": "          : source.hasReceipt === false"
-          },
-          {
-            "lineNumber": 662,
-            "text": "            ? ''"
-          },
-          {
-            "lineNumber": 663,
-            "text": "            : '',"
-          },
-          {
-            "lineNumber": 664,
-            "text": "    memo: normalizeText(source.memo),"
-          },
-          {
-            "lineNumber": 665,
-            "text": "    extraValues:"
-          },
-          {
-            "lineNumber": 666,
-            "text": "      source.extraValues \u0026\u0026 typeof source.extraValues === 'object'"
-          },
-          {
-            "lineNumber": 667,
-            "text": "        ? Object.fromEntries("
-          },
-          {
-            "lineNumber": 668,
-            "text": "            Object.entries(source.extraValues as Record\u003cstring, unknown\u003e)"
-          },
-          {
-            "lineNumber": 669,
-            "text": "              .filter(([k, v]) =\u003e k \u0026\u0026 typeof v === 'string')"
-          },
-          {
-            "lineNumber": 670,
-            "text": "              .map(([k, v]) =\u003e [k, String(v)]),"
-          },
-          {
-            "lineNumber": 671,
-            "text": "          )"
-          },
-          {
-            "lineNumber": 672,
-            "text": "        : undefined,"
-          },
-          {
-            "lineNumber": 673,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 674,
-            "text": "}"
-          },
-          {
-            "lineNumber": 675
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 676,
-            "text": "export function normalizeExpensePageState(value: unknown): ExpensePageState {"
-          },
-          {
-            "lineNumber": 677,
-            "text": "  if (!value || typeof value !== 'object') {"
-          },
-          {
-            "lineNumber": 678,
-            "text": "    return createDefaultState()"
-          },
-          {
-            "lineNumber": 679,
-            "text": "  }"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 707,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 706
-          },
-          "startPosition": {
-            "column": 1,
-            "line": 627
-          }
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {}
-      },
-      "score": 0.2891398072242737
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "isSignature": true,
-            "lineNumber": 1086,
-            "text": "function ExpensePage() {"
-          },
-          {
-            "lineNumber": 1113,
-            "text": "const syncLastCloudRefFromState = "
-          },
-          {
-            "lineNumber": 1117,
-            "text": ")"
-          },
-          {
-            "lineNumber": 1118
-          },
-          {
-            "lineNumber": 1119,
-            "text": "  useEffect(() =\u003e {"
-          },
-          {
-            "lineNumber": 1120,
-            "text": "    let cancelled = false"
-          },
-          {
-            "lineNumber": 1121,
-            "text": "    resetDocumentSaveUi()"
-          },
-          {
-            "lineNumber": 1122
-          },
-          {
-            "lineNumber": 1123,
-            "text": "    const loadLocal = (markAsCloudSynced: boolean) =\u003e {"
-          },
-          {
-            "lineNumber": 1124,
-            "text": "      const localState = readExpensePageStateFromStorage()"
-          },
-          {
-            "lineNumber": 1125,
-            "text": "      if (cancelled) {"
-          },
-          {
-            "lineNumber": 1126,
-            "text": "        return"
-          },
-          {
-            "lineNumber": 1127,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 1128,
-            "text": "      const normalized = normalizeExpensePageState(localState)"
-          },
-          {
-            "lineNumber": 1129,
-            "text": "      if (markAsCloudSynced) {"
-          },
-          {
-            "lineNumber": 1130,
-            "text": "        syncLastCloudRefFromState(normalized)"
-          },
-          {
-            "lineNumber": 1131,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 1132,
-            "text": "      setPageState(normalized)"
-          },
-          {
-            "lineNumber": 1133,
-            "text": "      setStatusMessage("
-          },
-          {
-            "lineNumber": 1134,
-            "text": "        normalized.records.length \u003e 0 ? '이전에 편집한 지출표를 불러왔습니다.' : '브라우저에 자동 저장됩니다.',"
-          },
-          {
-            "lineNumber": 1135,
-            "text": "      )"
-          },
-          {
-            "lineNumber": 1136,
-            "text": "      setIsStorageReady(true)"
-          },
-          {
-            "lineNumber": 1137,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 1138
-          },
-          {
-            "lineNumber": 1139,
-            "text": "    const loadRemote = async () =\u003e {"
-          },
-          {
-            "lineNumber": 1140,
-            "text": "      if (mode !== 'cloud' || !activeCompanyId) {"
-          },
-          {
-            "lineNumber": 1141,
-            "text": "        loadLocal(true)"
-          },
-          {
-            "lineNumber": 1142,
-            "text": "        return"
-          },
-          {
-            "lineNumber": 1143,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 1144
-          },
-          {
-            "lineNumber": 1145,
-            "text": "      try {"
-          },
-          {
-            "lineNumber": 1146,
-            "text": "        const remoteState = await loadCompanyDocument\u003cExpensePageState\u003e("
-          },
-          {
-            "lineNumber": 1147,
-            "text": "          activeCompanyId,"
-          },
-          {
-            "lineNumber": 1148,
-            "text": "          COMPANY_DOCUMENT_KEYS.expensePage,"
-          },
-          {
-            "lineNumber": 1149,
-            "text": "        )"
-          },
-          {
-            "lineNumber": 1150,
-            "text": "        if (cancelled) {"
-          },
-          {
-            "lineNumber": 1151,
-            "text": "          return"
-          },
-          {
-            "lineNumber": 1152,
-            "text": "        }"
-          },
-          {
-            "lineNumber": 1153,
-            "text": "        if (remoteState) {"
-          },
-          {
-            "lineNumber": 1154,
-            "text": "          const normalized = normalizeExpensePageState(remoteState)"
-          },
-          {
-            "lineNumber": 1155,
-            "text": "          syncLastCloudRefFromState(normalized)"
-          },
-          {
-            "lineNumber": 1156,
-            "text": "          setPageState(normalized)"
-          },
-          {
-            "lineNumber": 1157,
-            "text": "          setStatusMessage('클라우드에서 지출표를 불러왔습니다.')"
-          },
-          {
-            "lineNumber": 1158,
-            "text": "        } else {"
-          },
-          {
-            "lineNumber": 1159,
-            "text": "          const localState = readExpensePageStateFromStorage()"
-          },
-          {
-            "lineNumber": 1160,
-            "text": "          const normalized = normalizeExpensePageState(localState)"
-          },
-          {
-            "lineNumber": 1161,
-            "text": "          setPageState(normalized)"
-          },
-          {
-            "lineNumber": 1162,
-            "text": "          setStatusMessage("
-          },
-          {
-            "lineNumber": 1163,
-            "text": "            localState.records.length \u003e 0"
-          },
-          {
-            "lineNumber": 1164,
-            "text": "              ? '브라우저 지출표를 불러왔습니다. 아직 클라우드 문서가 없어 저장 버튼으로 업로드해 주세요.'"
-          },
-          {
-            "lineNumber": 1165,
-            "text": "              : '클라우드 지출표가 없어 새 문서로 시작합니다.',"
-          },
-          {
-            "lineNumber": 1166,
-            "text": "          )"
-          },
-          {
-            "lineNumber": 1167,
-            "text": "        }"
-          },
-          {
-            "lineNumber": 1168,
-            "text": "      } catch (error) {"
-          },
-          {
-            "lineNumber": 1169,
-            "text": "        console.error('지출표 클라우드 문서를 읽지 못했습니다.', error)"
-          },
-          {
-            "lineNumber": 1170,
-            "text": "        // 클라우드 읽기 실패 시 로컬은 보여주되, \"동기화 완료\"로 간주하지는 않음"
-          },
-          {
-            "lineNumber": 1175
-          },
-          {
-            "lineNumber": 1181,
-            "text": "  }"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 2249,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 2248
-          },
-          "startPosition": {
-            "line": 1085
-          }
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 3,
-                "line": 1087
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 1086
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.2871420979499817
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "isSignature": true,
-            "lineNumber": 1189,
-            "text": "export default function StatementsPage({"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 1190,
-            "text": "  onHeroSummaryChange,"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 1191,
-            "text": "  onStickyHScrollVisibleChange,"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 1192,
-            "text": "  onRestoreActivePage,"
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 1193,
-            "text": "}: StatementsPageProps) {"
-          },
-          {
-            "lineNumber": 3768
-          },
-          {
-            "lineNumber": 3769
-          },
-          {
-            "lineNumber": 3770,
-            "text": "  const exportSelectedStatementSheetToTemplate = async () =\u003e {"
-          },
-          {
-            "lineNumber": 3771,
-            "text": "    if (!selectedSheet) {"
-          },
-          {
-            "lineNumber": 3772,
-            "text": "      setStatementTemplateMessage('채울 거래명세표가 없습니다.')"
-          },
-          {
-            "lineNumber": 3773,
-            "text": "      return"
-          },
-          {
-            "lineNumber": 3774,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 3775
-          },
-          {
-            "lineNumber": 3776,
-            "text": "    if (!statementTemplateBase64) {"
-          },
-          {
-            "lineNumber": 3777,
-            "text": "      setStatementTemplateMessage('먼저 거래명세서 양식 엑셀을 업로드해주세요.')"
-          },
-          {
-            "lineNumber": 3778,
-            "text": "      return"
-          },
-          {
-            "lineNumber": 3779,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 3780
-          },
-          {
-            "lineNumber": 3781,
-            "text": "    try {"
-          },
-          {
-            "lineNumber": 3782,
-            "text": "      const workbook = new ExcelJS.Workbook()"
-          },
-          {
-            "lineNumber": 3783,
-            "text": "      await workbook.xlsx.load(toArrayBuffer(base64ToUint8Array(statementTemplateBase64)))"
-          },
-          {
-            "lineNumber": 3784,
-            "text": "      workbook.calcProperties.fullCalcOnLoad = true"
-          },
-          {
-            "lineNumber": 3785,
-            "text": "      const worksheet = workbook.getWorksheet('거래명세서양식')"
-          },
-          {
-            "lineNumber": 3786
-          },
-          {
-            "lineNumber": 3787,
-            "text": "      if (!worksheet) {"
-          },
-          {
-            "lineNumber": 3788,
-            "text": "        setStatementTemplateMessage('업로드한 양식에서 &#96;거래명세서양식&#96; 시트를 찾지 못했습니다.')"
-          },
-          {
-            "lineNumber": 3789,
-            "text": "        return"
-          },
-          {
-            "lineNumber": 3790,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 3791,
-            "text": "      const layoutSnapshot = captureWorksheetLayout(worksheet)"
-          },
-          {
-            "lineNumber": 3792
-          },
-          {
-            "lineNumber": 3793,
-            "text": "      const safeClientName = selectedSheet.clientName.replace(/[\\\\/:*?\"\u003c\u003e|]/g, '_')"
-          },
-          {
-            "lineNumber": 3794,
-            "text": "      const pageSize = 15"
-          },
-          {
-            "lineNumber": 3795,
-            "text": "      const pageCount = Math.max(1, Math.ceil(selectedSheet.records.length / pageSize))"
-          },
-          {
-            "lineNumber": 3796
-          },
-          {
-            "lineNumber": 3797,
-            "text": "      const sheetsToExport: ExcelJS.Worksheet[] = []"
-          },
-          {
-            "lineNumber": 3798
-          },
-          {
-            "lineNumber": 3799,
-            "text": "      worksheet.name = pageCount === 1 ? &#96;${safeClientName}&#96; : &#96;${safeClientName}_1&#96;"
-          },
-          {
-            "lineNumber": 3800,
-            "text": "      fillStatementTemplateWorksheet(worksheet, selectedSheet, statementTemplateSettings, 0, pageSize)"
-          },
-          {
-            "lineNumber": 3801,
-            "text": "      applyWorksheetLayout(worksheet, layoutSnapshot)"
-          },
-          {
-            "lineNumber": 3802,
-            "text": "      sheetsToExport.push(worksheet)"
-          },
-          {
-            "lineNumber": 3803
-          },
-          {
-            "lineNumber": 3804,
-            "text": "      for (let pageIndex = 1; pageIndex \u003c pageCount; pageIndex += 1) {"
-          },
-          {
-            "lineNumber": 3805,
-            "text": "        const copiedSheet = createWorksheetCopy(workbook, worksheet, &#96;${safeClientName}_${pageIndex + 1}&#96;)"
-          },
-          {
-            "lineNumber": 3806,
-            "text": "        fillStatementTemplateWorksheet("
-          },
-          {
-            "lineNumber": 3807,
-            "text": "          copiedSheet,"
-          },
-          {
-            "lineNumber": 3808,
-            "text": "          selectedSheet,"
-          },
-          {
-            "lineNumber": 3809,
-            "text": "          statementTemplateSettings,"
-          },
-          {
-            "lineNumber": 3810,
-            "text": "          pageIndex * pageSize,"
-          },
-          {
-            "lineNumber": 3811,
-            "text": "          pageSize,"
-          },
-          {
-            "lineNumber": 3812,
-            "text": "        )"
-          },
-          {
-            "lineNumber": 3813,
-            "text": "        applyWorksheetLayout(copiedSheet, layoutSnapshot)"
-          },
-          {
-            "lineNumber": 3814,
-            "text": "        sheetsToExport.push(copiedSheet)"
-          },
-          {
-            "lineNumber": 3815,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 3816
-          },
-          {
-            "lineNumber": 3817,
-            "text": "      const keepIds = new Set(sheetsToExport.map((s) =\u003e s.id))"
-          },
-          {
-            "lineNumber": 3818,
-            "text": "      const removeIds: number[] = []"
-          },
-          {
-            "lineNumber": 3819,
-            "text": "      workbook.eachSheet((sheet) =\u003e {"
-          },
-          {
-            "lineNumber": 3820,
-            "text": "        if (!keepIds.has(sheet.id)) {"
-          },
-          {
-            "lineNumber": 3821,
-            "text": "          removeIds.push(sheet.id)"
-          },
-          {
-            "lineNumber": 3822,
-            "text": "        }"
-          },
-          {
-            "lineNumber": 3823,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 3841
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 6330,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 6329
-          },
-          "startPosition": {
-            "line": 1188
-          }
-        },
-        "relativeWorkspacePath": "./app/src/StatementsPage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 16,
-                "line": 1189
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 1189
-              }
-            },
-            {
-              "endPosition": {
-                "column": 3,
-                "line": 1194
-              },
-              "startPosition": {
-                "column": 16,
-                "line": 1189
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.2805471420288086
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 257,
-            "text": "const parseSpreadsheetDate = (value: unknown) =\u003e {"
-          },
-          {
-            "lineNumber": 258,
-            "text": "  if (value === null || value === undefined || value === '') {"
-          },
-          {
-            "lineNumber": 259,
-            "text": "    return ''"
-          },
-          {
-            "lineNumber": 260,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 261
-          },
-          {
-            "lineNumber": 262,
-            "text": "  if (typeof value === 'number') {"
-          },
-          {
-            "lineNumber": 263,
-            "text": "    const parsed = XLSX.SSF.parse_date_code(value)"
-          },
-          {
-            "lineNumber": 264,
-            "text": "    if (parsed) {"
-          },
-          {
-            "lineNumber": 265,
-            "text": "      return formatIsoDate(parsed.y, parsed.m, parsed.d)"
-          },
-          {
-            "lineNumber": 266,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 267,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 268
-          },
-          {
-            "lineNumber": 269,
-            "text": "  if (value instanceof Date \u0026\u0026 !Number.isNaN(value.getTime())) {"
-          },
-          {
-            "lineNumber": 270,
-            "text": "    return formatLocalDate(value)"
-          },
-          {
-            "lineNumber": 271,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 272
-          },
-          {
-            "lineNumber": 273,
-            "text": "  const text = String(value).trim()"
-          },
-          {
-            "lineNumber": 274,
-            "text": "  if (!text) {"
-          },
-          {
-            "lineNumber": 275,
-            "text": "    return ''"
-          },
-          {
-            "lineNumber": 276,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 277
-          },
-          {
-            "lineNumber": 278,
-            "text": "  if (text.toUpperCase() === '=TODAY()') {"
-          },
-          {
-            "lineNumber": 279,
-            "text": "    return today"
-          },
-          {
-            "lineNumber": 280,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 281
-          },
-          {
-            "lineNumber": 282,
-            "text": "  const normalized = text"
-          },
-          {
-            "lineNumber": 283,
-            "text": "    .replace(/[년.]/g, '-')"
-          },
-          {
-            "lineNumber": 284,
-            "text": "    .replace(/[월/]/g, '-')"
-          },
-          {
-            "lineNumber": 285,
-            "text": "    .replace(/일/g, '')"
-          },
-          {
-            "lineNumber": 286,
-            "text": "    .replace(/\\s+/g, ' ')"
-          },
-          {
-            "lineNumber": 287,
-            "text": "    .trim()"
-          },
-          {
-            "lineNumber": 288
-          },
-          {
-            "lineNumber": 289,
-            "text": "  const directMatch = normalized.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})(?:\\D.*)?$/)"
-          },
-          {
-            "lineNumber": 290,
-            "text": "  if (directMatch) {"
-          },
-          {
-            "lineNumber": 291,
-            "text": "    return formatIsoDate(Number(directMatch[1]), Number(directMatch[2]), Number(directMatch[3]))"
-          },
-          {
-            "lineNumber": 292,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 293
-          },
-          {
-            "lineNumber": 294,
-            "text": "  const monthFirstMatch = normalized.match(/^(\\d{1,2})-(\\d{1,2})-(\\d{2,4})(?:\\D.*)?$/)"
-          },
-          {
-            "lineNumber": 295,
-            "text": "  if (monthFirstMatch) {"
-          },
-          {
-            "lineNumber": 296,
-            "text": "    const year ="
-          },
-          {
-            "lineNumber": 297,
-            "text": "      monthFirstMatch[3].length === 2 ? 2000 + Number(monthFirstMatch[3]) : Number(monthFirstMatch[3])"
-          },
-          {
-            "lineNumber": 298,
-            "text": "    return formatIsoDate(year, Number(monthFirstMatch[1]), Number(monthFirstMatch[2]))"
-          },
-          {
-            "lineNumber": 299,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 300
-          },
-          {
-            "lineNumber": 301,
-            "text": "  const parsedTimestamp = Date.parse(text)"
-          },
-          {
-            "lineNumber": 302,
-            "text": "  if (!Number.isNaN(parsedTimestamp)) {"
-          },
-          {
-            "lineNumber": 303,
-            "text": "    return formatLocalDate(new Date(parsedTimestamp))"
-          },
-          {
-            "lineNumber": 304,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 305
-          },
-          {
-            "lineNumber": 306,
-            "text": "  return ''"
-          },
-          {
-            "lineNumber": 307,
-            "text": "}"
-          },
-          {
-            "lineNumber": 308
-          },
-          {
-            "lineNumber": 309,
-            "text": "const parseTaxType = (value: unknown): TaxType =\u003e"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "line": 314
-          },
-          "startPosition": {
-            "column": 89,
-            "line": 254
-          }
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {}
-      },
-      "score": 0.2677600383758545
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "isSignature": true,
-            "lineNumber": 2717,
-            "text": "function InventoryStatusPage() {"
-          },
-          {
-            "lineNumber": 5133,
-            "text": "const handleWorkbookUpload = async "
-          },
-          {
-            "lineNumber": 5164,
-            "text": "(nextState.beanRows[0]?.name ?? '')"
-          },
-          {
-            "lineNumber": 5165,
-            "text": "      setStatusMessage("
-          },
-          {
-            "lineNumber": 5166,
-            "text": "        &#96;엑셀 반영: ${file.name} (kg 소수 둘째 자리, 재고·수치는 시트 그대로) · 다크/라이트/디카 블렌딩 레시피·사이클은 엑셀에 없어 이전 설정을 유지했습니다. · 복원 기준 저장&#96;,"
-          },
-          {
-            "lineNumber": 5167,
-            "text": "      )"
-          },
-          {
-            "lineNumber": 5168,
-            "text": "    } catch (error) {"
-          },
-          {
-            "lineNumber": 5169,
-            "text": "      const message = error instanceof Error ? error.message : '엑셀 파일을 읽는 중 오류가 발생했습니다.'"
-          },
-          {
-            "lineNumber": 5170,
-            "text": "      setStatusMessage(message)"
-          },
-          {
-            "lineNumber": 5171,
-            "text": "    } finally {"
-          },
-          {
-            "lineNumber": 5172,
-            "text": "      event.target.value = ''"
-          },
-          {
-            "lineNumber": 5173,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 5174,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 5175
-          },
-          {
-            "lineNumber": 5176,
-            "text": "  const handleResetDefault = () =\u003e {"
-          },
-          {
-            "lineNumber": 5177,
-            "text": "    if (!templateBase64) {"
-          },
-          {
-            "lineNumber": 5178,
-            "text": "      setStatusMessage('엑셀 자료를 업로드한 뒤에만 기본값 복원을 사용할 수 있습니다.')"
-          },
-          {
-            "lineNumber": 5179,
-            "text": "      return"
-          },
-          {
-            "lineNumber": 5180,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 5181,
-            "text": "    setRestoreUnlockError('')"
-          },
-          {
-            "lineNumber": 5182,
-            "text": "    setRestoreUnlockPin('')"
-          },
-          {
-            "lineNumber": 5183,
-            "text": "    setRestoreUnlockDialogOpen(true)"
-          },
-          {
-            "lineNumber": 5184,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 5185
-          },
-          {
-            "lineNumber": 5186,
-            "text": "  const applyResetDefault = () =\u003e {"
-          },
-          {
-            "lineNumber": 5187,
-            "text": "    setInventoryState(baselineState)"
-          },
-          {
-            "lineNumber": 5188,
-            "text": "    setInventoryByMonth((prev) =\u003e ({"
-          },
-          {
-            "lineNumber": 5189,
-            "text": "      ...prev,"
-          },
-          {
-            "lineNumber": 5190,
-            "text": "      [baselineState.referenceDate.slice(0, 7)]: cloneInventoryStatusState(baselineState),"
-          },
-          {
-            "lineNumber": 5191,
-            "text": "    }))"
-          },
-          {
-            "lineNumber": 5192,
-            "text": "    setSelectedBeanName(baselineState.beanRows[0]?.name ?? '')"
-          },
-          {
-            "lineNumber": 5193,
-            "text": "    setStatusMessage('업로드한 엑셀 기준 상태로 되돌렸습니다.')"
-          },
-          {
-            "lineNumber": 5194,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 5195
-          },
-          {
-            "lineNumber": 5196,
-            "text": "  const closeFullResetDialog = useCallback(() =\u003e {"
-          },
-          {
-            "lineNumber": 5197,
-            "text": "    setFullResetDialogOpen(false)"
-          },
-          {
-            "lineNumber": 5198,
-            "text": "    setFullResetPin('')"
-          },
-          {
-            "lineNumber": 5199,
-            "text": "    setFullResetDialogError('')"
-          },
-          {
-            "lineNumber": 5200,
-            "text": "    setFullResetOptions({ ...DEFAULT_FULL_RESET_OPTIONS })"
-          },
-          {
-            "lineNumber": 5201,
-            "text": "  }, [])"
-          },
-          {
-            "lineNumber": 5202
-          },
-          {
-            "lineNumber": 5203,
-            "text": "  const openFullResetDialog = () =\u003e {"
-          },
-          {
-            "lineNumber": 5204,
-            "text": "    setFullResetDialogError('')"
-          },
-          {
-            "lineNumber": 5205,
-            "text": "    setFullResetPin('')"
-          },
-          {
-            "lineNumber": 5206,
-            "text": "    setFullResetOptions({ ...DEFAULT_FULL_RESET_OPTIONS })"
-          },
-          {
-            "lineNumber": 5207,
-            "text": "    setFullResetDialogOpen(true)"
-          },
-          {
-            "lineNumber": 5208,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 5209
-          },
-          {
-            "lineNumber": 5210,
-            "text": "  const confirmFullInventoryReset = () =\u003e"
-          },
-          {
-            "lineNumber": 5301
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 7362,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 7361
-          },
-          "startPosition": {
-            "line": 2716
-          }
-        },
-        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 3,
-                "line": 2718
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 2717
-              }
-            },
-            {
-              "endPosition": {
-                "column": 9,
-                "line": 5133
-              },
-              "startPosition": {
-                "column": 3,
-                "line": 5133
-              }
-            },
-            {
-              "endPosition": {
-                "column": 38,
-                "line": 5133
-              },
-              "startPosition": {
-                "column": 9,
-                "line": 5133
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.2660903036594391
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "isSignature": true,
-            "lineNumber": 2717,
-            "text": "function InventoryStatusPage() {"
-          },
-          {
-            "lineNumber": 5451
-          },
-          {
-            "lineNumber": 5452
-          },
-          {
-            "lineNumber": 5453,
-            "text": "  useEffect(() =\u003e {"
-          },
-          {
-            "lineNumber": 5454,
-            "text": "    if (!restoreUnlockDialogOpen) {"
-          },
-          {
-            "lineNumber": 5455,
-            "text": "      return"
-          },
-          {
-            "lineNumber": 5456,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 5457,
-            "text": "    const id = window.requestAnimationFrame(() =\u003e {"
-          },
-          {
-            "lineNumber": 5458,
-            "text": "      restoreUnlockPinInputRef.current?.focus()"
-          },
-          {
-            "lineNumber": 5459,
-            "text": "      restoreUnlockPinInputRef.current?.select()"
-          },
-          {
-            "lineNumber": 5460,
-            "text": "    })"
-          },
-          {
-            "lineNumber": 5461,
-            "text": "    return () =\u003e window.cancelAnimationFrame(id)"
-          },
-          {
-            "lineNumber": 5462,
-            "text": "  }, [restoreUnlockDialogOpen])"
-          },
-          {
-            "lineNumber": 5463
-          },
-          {
-            "lineNumber": 5464,
-            "text": "  const handleExportWorkbook = async () =\u003e {"
-          },
-          {
-            "lineNumber": 5465,
-            "text": "    /** 업로드한 원본 파일명(&#96;templateFileName&#96;)은 UI·서식 복원용만 쓰고, 저장 파일명은 항상 현재 기준일로 맞춤 */"
-          },
-          {
-            "lineNumber": 5466,
-            "text": "    const exportFileName = &#96;입출고현황_${formatFileDate(inventoryState.referenceDate)}.xlsx&#96;"
-          },
-          {
-            "lineNumber": 5467,
-            "text": "    const dayCount = inventoryState.days.length"
-          },
-          {
-            "lineNumber": 5468,
-            "text": "    const roastingColumnCount = inventoryState.roastingColumns.length"
-          },
-          {
-            "lineNumber": 5469,
-            "text": "    const exportState = {"
-          },
-          {
-            "lineNumber": 5470,
-            "text": "      ...inventoryState,"
-          },
-          {
-            "lineNumber": 5471,
-            "text": "      beanRows: displayedBeanRows,"
-          },
-          {
-            "lineNumber": 5472,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 5473
-          },
-          {
-            "lineNumber": 5474,
-            "text": "    if (templateBase64) {"
-          },
-          {
-            "lineNumber": 5475,
-            "text": "      try {"
-          },
-          {
-            "lineNumber": 5476,
-            "text": "        const workbook = new ExcelJS.Workbook()"
-          },
-          {
-            "lineNumber": 5477,
-            "text": "        await workbook.xlsx.load(toArrayBuffer(base64ToUint8Array(templateBase64)))"
-          },
-          {
-            "lineNumber": 5478,
-            "text": "        const applied = applyStateToTemplateWorkbook(workbook, exportState)"
-          },
-          {
-            "lineNumber": 5479
-          },
-          {
-            "lineNumber": 5480,
-            "text": "        if (applied) {"
-          },
-          {
-            "lineNumber": 5481,
-            "text": "          const buffer = await workbook.xlsx.writeBuffer()"
-          },
-          {
-            "lineNumber": 5482,
-            "text": "          downloadBufferAsFile(buffer as ArrayBuffer, exportFileName)"
-          },
-          {
-            "lineNumber": 5483,
-            "text": "          setStatusMessage('업로드한 원본 엑셀 서식을 유지한 채 수정값을 저장했습니다.')"
-          },
-          {
-            "lineNumber": 5484,
-            "text": "          return"
-          },
-          {
-            "lineNumber": 5485,
-            "text": "        }"
-          },
-          {
-            "lineNumber": 5486,
-            "text": "      } catch {"
-          },
-          {
-            "lineNumber": 5487,
-            "text": "        setStatusMessage('원본 서식 유지 저장에 실패해 새 엑셀 파일 형식으로 저장합니다.')"
-          },
-          {
-            "lineNumber": 5488,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 5489,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 5490
-          },
-          {
-            "lineNumber": 5491,
-            "text": "    const workbook = XLSX.utils.book_new()"
-          },
-          {
-            "lineNumber": 5492
-          },
-          {
-            "lineNumber": 5493,
-            "text": "    const beanSheetRows: Array\u003cArray\u003cstring | number\u003e\u003e = ["
-          },
-          {
-            "lineNumber": 5494,
-            "text": "      ['■ 원두별 전체현황', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '기준일 :', '', '', inventoryState.referenceDate],"
-          },
-          {
-            "lineNumber": 5495,
-            "text": "      ['NO', '생두명', '구분', ...inventoryState.days, '계'],"
-          },
-          {
-            "lineNumber": 5496,
-            "text": "    ]"
-          },
-          {
-            "lineNumber": 5497
-          },
-          {
-            "lineNumber": 5498,
-            "text": "    displayedBeanRows.forEach((bean) =\u003e {"
-          },
-          {
-            "lineNumber": 5499,
-            "text": "      const rows = ["
-          },
-          {
-            "lineNumber": 5504,
-            "text": " as const"
-          },
-          {
-            "lineNumber": 5515,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 5561
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 7362,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 7361
-          },
-          "startPosition": {
-            "line": 2716
-          }
-        },
-        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 3,
-                "line": 2718
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 2717
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.26286453008651733
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "isSignature": true,
-            "lineNumber": 1086,
-            "text": "function ExpensePage() {"
-          },
-          {
-            "lineNumber": 1638
-          },
-          {
-            "lineNumber": 1639
-          },
-          {
-            "lineNumber": 1640,
-            "text": "  const handleExportWorkbook = async () =\u003e {"
-          },
-          {
-            "lineNumber": 1641,
-            "text": "    try {"
-          },
-          {
-            "lineNumber": 1642,
-            "text": "      const exportColumns = mergeVisibleExpenseColumns(pageState.tableColumns)"
-          },
-          {
-            "lineNumber": 1643,
-            "text": "      const headerCells = exportColumns.map((col) =\u003e col.label)"
-          },
-          {
-            "lineNumber": 1644
-          },
-          {
-            "lineNumber": 1645,
-            "text": "      const detailRows: Array\u003cArray\u003cstring | number\u003e\u003e = ["
-          },
-          {
-            "lineNumber": 1646,
-            "text": "        headerCells,"
-          },
-          {
-            "lineNumber": 1647,
-            "text": "        ...monthRecords.map((record) =\u003e buildExpenseExportRow(record, exportColumns)),"
-          },
-          {
-            "lineNumber": 1648,
-            "text": "      ]"
-          },
-          {
-            "lineNumber": 1649
-          },
-          {
-            "lineNumber": 1650,
-            "text": "      const categoryExportRows = summarizeExpenseByCategory(monthRecords, availableCategoryOptions)"
-          },
-          {
-            "lineNumber": 1651,
-            "text": "      const paymentExportRows = summarizeExpenseByPaymentMethod(monthRecords)"
-          },
-          {
-            "lineNumber": 1652
-          },
-          {
-            "lineNumber": 1653,
-            "text": "      const categoryRows: Array\u003cArray\u003cstring | number\u003e\u003e = ["
-          },
-          {
-            "lineNumber": 1654,
-            "text": "        ['카테고리', '건수', '총액'],"
-          },
-          {
-            "lineNumber": 1655,
-            "text": "        ...categoryExportRows.map((row) =\u003e [row.category, row.count, row.totalAmount]),"
-          },
-          {
-            "lineNumber": 1656,
-            "text": "      ]"
-          },
-          {
-            "lineNumber": 1657
-          },
-          {
-            "lineNumber": 1658,
-            "text": "      const paymentRows: Array\u003cArray\u003cstring | number\u003e\u003e = ["
-          },
-          {
-            "lineNumber": 1659,
-            "text": "        ['지급수단', '총액'],"
-          },
-          {
-            "lineNumber": 1660,
-            "text": "        ...paymentExportRows.map((row) =\u003e [row.paymentMethod, row.totalAmount]),"
-          },
-          {
-            "lineNumber": 1661,
-            "text": "      ]"
-          },
-          {
-            "lineNumber": 1662
-          },
-          {
-            "lineNumber": 1663,
-            "text": "      await exportStyledExpenseWorkbook({"
-          },
-          {
-            "lineNumber": 1664,
-            "text": "        downloadFileName: &#96;지출표_${pageState.activeMonth}.xlsx&#96;,"
-          },
-          {
-            "lineNumber": 1665,
-            "text": "        monthLabel: formatMonthLabel(pageState.activeMonth),"
-          },
-          {
-            "lineNumber": 1666,
-            "text": "        detailRows,"
-          },
-          {
-            "lineNumber": 1667,
-            "text": "        categoryRows,"
-          },
-          {
-            "lineNumber": 1668,
-            "text": "        paymentRows,"
-          },
-          {
-            "lineNumber": 1669,
-            "text": "      })"
-          },
-          {
-            "lineNumber": 1670,
-            "text": "      setStatusMessage(&#96;${formatMonthLabel(pageState.activeMonth)} 지출표를 저장했습니다.&#96;)"
-          },
-          {
-            "lineNumber": 1671,
-            "text": "    } catch (error) {"
-          },
-          {
-            "lineNumber": 1672,
-            "text": "      console.error(error)"
-          },
-          {
-            "lineNumber": 1673,
-            "text": "      setStatusMessage(error instanceof Error ? error.message : '지출 엑셀 저장에 실패했습니다.')"
-          },
-          {
-            "lineNumber": 1674,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 1675,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 1676
-          },
-          {
-            "lineNumber": 1677,
-            "text": "  const handleResetExpenseColumnLayout = () =\u003e {"
-          },
-          {
-            "lineNumber": 1678,
-            "text": "    if (!window.confirm('표 열을 기본(전체 열)로 되돌릴까요? 현재 엑셀 양식 맞춤 보기는 해제됩니다.')) {"
-          },
-          {
-            "lineNumber": 1679,
-            "text": "      return"
-          },
-          {
-            "lineNumber": 1680,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 1681,
-            "text": "    setPageState((current) =\u003e {"
-          },
-          {
-            "lineNumber": 1682,
-            "text": "      const { tableColumns: _removedLayout, ...rest } = current"
-          },
-          {
-            "lineNumber": 1683,
-            "text": "      return rest"
-          },
-          {
-            "lineNumber": 1684,
-            "text": "    })"
-          },
-          {
-            "lineNumber": 1685,
-            "text": "    setStatusMessage('표 열을 기본(전체 열)로 되돌렸습니다.')"
-          },
-          {
-            "lineNumber": 1686,
-            "text": "  }"
-          },
-          {
-            "lineNumber": 1687
-          },
-          {
-            "lineNumber": 1688,
-            "text": "  const updateExtraCell = (recordId: string, columnId: string, value: string)"
-          },
-          {
-            "lineNumber": 1704
-          },
-          {
-            "isSignature": true,
-            "lineNumber": 2249,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 2248
-          },
-          "startPosition": {
-            "line": 1085
-          }
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {
-          "ranges": [
-            {
-              "endPosition": {
-                "column": 3,
-                "line": 1087
-              },
-              "startPosition": {
-                "column": 1,
-                "line": 1086
-              }
-            }
-          ]
-        }
-      },
-      "score": 0.262800008058548
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 1,
-            "text": "import {"
-          },
-          {
-            "lineNumber": 2,
-            "text": "  useCallback,"
-          },
-          {
-            "lineNumber": 3,
-            "text": "  useEffect,"
-          },
-          {
-            "lineNumber": 4,
-            "text": "  useMemo,"
-          },
-          {
-            "lineNumber": 5,
-            "text": "  useRef,"
-          },
-          {
-            "lineNumber": 6,
-            "text": "  useState,"
-          },
-          {
-            "lineNumber": 7,
-            "text": "  type ChangeEvent,"
-          },
-          {
-            "lineNumber": 8,
-            "text": "  type KeyboardEvent,"
-          },
-          {
-            "lineNumber": 9,
-            "text": "  type ReactNode,"
-          },
-          {
-            "lineNumber": 10,
-            "text": "} from 'react'"
-          },
-          {
-            "lineNumber": 11,
-            "text": "import PageSaveStatus from './components/PageSaveStatus'"
-          },
-          {
-            "lineNumber": 12,
-            "text": "import * as XLSX from 'xlsx'"
-          },
-          {
-            "lineNumber": 13,
-            "text": "import { exportStyledExpenseWorkbook } from './expenseExcelStyledExport'"
-          },
-          {
-            "lineNumber": 14,
-            "text": "import {"
-          },
-          {
-            "lineNumber": 15,
-            "text": "  COMPANY_DOCUMENT_KEYS,"
-          },
-          {
-            "lineNumber": 16,
-            "text": "  isCompanyDocumentUpdatedAtUnchanged,"
-          },
-          {
-            "lineNumber": 17,
-            "text": "  loadCompanyDocument,"
-          },
-          {
-            "lineNumber": 18,
-            "text": "  loadCompanyDocumentUpdatedAt,"
-          },
-          {
-            "lineNumber": 19,
-            "text": "  saveCompanyDocument,"
-          },
-          {
-            "lineNumber": 20,
-            "text": "} from './lib/companyDocuments'"
-          },
-          {
-            "lineNumber": 21,
-            "text": "import {"
-          },
-          {
-            "lineNumber": 22,
-            "text": "  CLOUD_DOCUMENT_POLL_INTERVAL_MS,"
-          },
-          {
-            "lineNumber": 23,
-            "text": "  shouldRunCloudDocumentPoll,"
-          },
-          {
-            "lineNumber": 24,
-            "text": "  startCloudDocumentSync,"
-          },
-          {
-            "lineNumber": 25,
-            "text": "} from './lib/cloudDocumentPolling'"
-          },
-          {
-            "lineNumber": 26,
-            "text": "import { useDocumentSaveUi } from './lib/documentSaveUi'"
-          },
-          {
-            "lineNumber": 27,
-            "text": "import { useAppRuntime } from './providers/AppRuntimeProvider'"
-          },
-          {
-            "lineNumber": 28
-          },
-          {
-            "lineNumber": 29,
-            "text": "export const EXPENSE_PAGE_STORAGE_KEY = 'expense-page-data-v1'"
-          },
-          {
-            "lineNumber": 30,
-            "text": "/** 월 마감 회의 등에서 지출 저장 후 동기화할 때 */"
-          },
-          {
-            "lineNumber": 31,
-            "text": "export const EXPENSE_PAGE_SAVED_EVENT = 'expense-page-saved'"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 60,
-            "line": 30
-          },
-          "startPosition": {}
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {}
-      },
-      "score": 0.25323033332824707
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 122,
-            "text": "/** 지출내역·요약 3시트, 생두 주문과 맞춘 녹색 제목·헤더·테두리·틀 고정 */"
-          },
-          {
-            "lineNumber": 123,
-            "text": "export const exportStyledExpenseWorkbook = async (input: StyledExpenseWorkbookInput): Promise\u003cvoid\u003e =\u003e {"
-          },
-          {
-            "lineNumber": 124,
-            "text": "  const { downloadFileName, monthLabel, detailRows, categoryRows, paymentRows } = input"
-          },
-          {
-            "lineNumber": 125
-          },
-          {
-            "lineNumber": 126,
-            "text": "  const workbook = new ExcelJS.Workbook()"
-          },
-          {
-            "lineNumber": 127,
-            "text": "  workbook.creator = '더심볼 지출'"
-          },
-          {
-            "lineNumber": 128
-          },
-          {
-            "lineNumber": 129,
-            "text": "  const detailMatrix = [padTitleRow(&#96;■ 지출 내역 · ${monthLabel}&#96;, maxColCount(detailRows)), ...detailRows]"
-          },
-          {
-            "lineNumber": 130,
-            "text": "  const wsDetail = workbook.addWorksheet(safeSheetName('지출내역'), {"
-          },
-          {
-            "lineNumber": 131,
-            "text": "    properties: { defaultRowHeight: 20 },"
-          },
-          {
-            "lineNumber": 132,
-            "text": "  })"
-          },
-          {
-            "lineNumber": 133,
-            "text": "  fillStyledMatrix(wsDetail, detailMatrix)"
-          },
-          {
-            "lineNumber": 134
-          },
-          {
-            "lineNumber": 135,
-            "text": "  const catMatrix = [padTitleRow(&#96;■ 카테고리 요약 · ${monthLabel}&#96;, maxColCount(categoryRows)), ...categoryRows]"
-          },
-          {
-            "lineNumber": 136,
-            "text": "  const wsCat = workbook.addWorksheet(safeSheetName('카테고리요약'), {"
-          },
-          {
-            "lineNumber": 137,
-            "text": "    properties: { defaultRowHeight: 20 },"
-          },
-          {
-            "lineNumber": 138,
-            "text": "  })"
-          },
-          {
-            "lineNumber": 139,
-            "text": "  fillStyledMatrix(wsCat, catMatrix)"
-          },
-          {
-            "lineNumber": 140
-          },
-          {
-            "lineNumber": 141,
-            "text": "  const payMatrix = [padTitleRow(&#96;■ 지급수단 요약 · ${monthLabel}&#96;, maxColCount(paymentRows)), ...paymentRows]"
-          },
-          {
-            "lineNumber": 142,
-            "text": "  const wsPay = workbook.addWorksheet(safeSheetName('지급수단요약'), {"
-          },
-          {
-            "lineNumber": 143,
-            "text": "    properties: { defaultRowHeight: 20 },"
-          },
-          {
-            "lineNumber": 144,
-            "text": "  })"
-          },
-          {
-            "lineNumber": 145,
-            "text": "  fillStyledMatrix(wsPay, payMatrix)"
-          },
-          {
-            "lineNumber": 146
-          },
-          {
-            "lineNumber": 147,
-            "text": "  const buffer = await workbook.xlsx.writeBuffer()"
-          },
-          {
-            "lineNumber": 148,
-            "text": "  downloadBufferAsFile(buffer as ArrayBuffer, downloadFileName)"
-          },
-          {
-            "lineNumber": 149,
-            "text": "}"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "column": 1,
-            "line": 148
-          },
-          "startPosition": {
-            "column": 1,
-            "line": 119
-          }
-        },
-        "relativeWorkspacePath": "./app/src/expenseExcelStyledExport.ts",
-        "signatures": {}
-      },
-      "score": 0.24985343217849731
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "isSignature": true,
-            "lineNumber": 1086,
-            "text": "function ExpensePage() {"
-          },
-          {
-            "lineNumber": 1119,
-            "text": "() =\u003e {"
-          },
-          {
-            "lineNumber": 1139,
-            "text": "const loadRemote = async "
-          },
-          {
-            "lineNumber": 1168,
-            "text": " {"
-          },
-          {
-            "lineNumber": 1169,
-            "text": "        console.error('지출표 클라우드 문서를 읽지 못했습니다.', error)"
-          },
-          {
-            "lineNumber": 1170,
-            "text": "        // 클라우드 읽기 실패 시 로컬은 보여주되, \"동기화 완료\"로 간주하지는 않음"
-          },
-          {
-            "lineNumber": 1171,
-            "text": "        loadLocal(false)"
-          },
-          {
-            "lineNumber": 1172,
-            "text": "        return"
-          },
-          {
-            "lineNumber": 1173,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 1174,
-            "text": "      setIsStorageReady(true)"
-          },
-          {
-            "lineNumber": 1175,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 1176
-          },
-          {
-            "lineNumber": 1177,
-            "text": "    void loadRemote()"
-          },
-          {
-            "lineNumber": 1178,
-            "text": "    return () =\u003e {"
-          },
-          {
-            "lineNumber": 1179,
-            "text": "      cancelled = true"
-          },
-          {
-            "lineNumber": 1180,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 1181,
-            "text": "  }, [activeCompanyId, mode, resetDocumentSaveUi, syncLastCloudRefFromState])"
-          },
-          {
-            "lineNumber": 1182
-          },
-          {
-            "lineNumber": 1183,
-            "text": "  useEffect(() =\u003e {"
-          },
-          {
-            "lineNumber": 1184,
-            "text": "    if (!isStorageReady) {"
-          },
-          {
-            "lineNumber": 1185,
-            "text": "      return"
-          },
-          {
-            "lineNumber": 1186,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 1187,
-            "text": "    window.localStorage.setItem(EXPENSE_PAGE_STORAGE_KEY, JSON.stringify(pageState))"
-          },
-          {
-            "lineNumber": 1188,
-            "text": "    window.dispatchEvent(new Event(EXPENSE_PAGE_SAVED_EVENT))"
-          },
-          {
-            "lineNumber": 1189,
-            "text": "  }, [isStorageReady, pageState])"
-          },
-          {
-            "lineNumber": 1190
-          },
-          {
-            "lineNumber": 1191,
-            "text": "  /** 클라우드: 수동 저장 전까지 '저장 필요' — 자동 클라우드 동기화는 하지 않음(입력 중 덮어쓰기 방지) */"
-          },
-          {
-            "lineNumber": 1192,
-            "text": "  useEffect(() =\u003e {"
-          },
-          {
-            "lineNumber": 1193,
-            "text": "    if (!isStorageReady || mode !== 'cloud') {"
-          },
-          {
-            "lineNumber": 1194,
-            "text": "      return"
-          },
-          {
-            "lineNumber": 1195,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 1196,
-            "text": "    if (JSON.stringify(pageState) !== lastCloudSyncedJsonRef.current) {"
-          },
-          {
-            "lineNumber": 1197,
-            "text": "      markDocumentDirty()"
-          },
-          {
-            "lineNumber": 1198,
-            "text": "    } else {"
-          },
-          {
-            "lineNumber": 1199,
-            "text": "      markDocumentSaved()"
-          },
-          {
-            "lineNumber": 1200,
-            "text": "    }"
-          },
-          {
-            "lineNumber": 1201,
-            "text": "  }, [pageState, isStorageReady, mode, markDocumentDirty, markDocumentSaved])"
-          },
-          {
-            "lineNumber": 1202
-          },
-          {
-            "lineNumber": 1203,
-            "text": "  const commitExpenseStateToCloud = useCallback("
-          },
-          {
-            "lineNumber": 1204,
-            "text": "    async (state: ExpensePageState) =\u003e {"
-          },
-          {
-            "lineNumber": 1205,
-            "text": "      if (mode !== 'cloud' || !activeCompanyId) {"
-          },
-          {
-            "lineNumber": 1206,
-            "text": "        return"
-          },
-          {
-            "lineNumber": 1207,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 1208,
-            "text": "      markDocumentSaving()"
-          },
-          {
-            "lineNumber": 1209,
-            "text": "      try {"
-          },
-          {
-            "lineNumber": 1210,
-            "text": "        await saveCompanyDocument(activeCompanyId, COMPANY_DOCUMENT_KEYS.expensePage, state, user?.id)"
-          },
-          {
-            "lineNumber": 1211,
-            "text": "        syncLastCloudRefFromState(state)"
-          },
-          {
-            "lineNumber": 1212,
-            "text": "        markDocumentSaved()"
-          },
-          {
-            "lineNumber": 1213,
-            "text": "      } catch (error) {"
-          },
-          {
-            "lineNumber": 1214,
-            "text": "        console.error('지출표 클라우드 저장에 실패했습니다.', error)"
-          },
-          {
-            "lineNumber": 1215,
-            "text": "        markDocumentError()"
-          },
-          {
-            "lineNumber": 1216,
-            "text": "        throw error"
-          },
-          {
-            "lineNumber": 1217,
-            "text": "      }"
-          },
-          {
-            "lineNumber": 1218,
-            "text": "    },"
-          },
-          {
-            "lineNumber": 1219,
-            "text": "    [activeCompanyId, mode, markDocumentError, markDocumentSaved, markDocumentSaving, syncLastCloudRefFromState, user?.id],"
-          },
-          {
-            "lineNumber": 1220,
             "text": "  )"
           },
           {
-            "lineNumber": 1221
+            "lineNumber": 3769
           },
           {
-            "lineNumber": 1222,
-            "text": "  const handleSaveToCloud = useCallback"
+            "lineNumber": 3770,
+            "text": "  const filteredBeanSummaryRows = useMemo"
           },
           {
-            "lineNumber": 1232
+            "lineNumber": 3782
           },
           {
             "isSignature": true,
-            "lineNumber": 2249,
+            "lineNumber": 7362,
             "text": "}"
           }
         ],
         "range": {
           "endPosition": {
             "column": 1,
-            "line": 2248
+            "line": 7361
           },
           "startPosition": {
-            "line": 1085
+            "line": 2716
           }
         },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
         "signatures": {
           "ranges": [
             {
               "endPosition": {
                 "column": 3,
-                "line": 1087
+                "line": 2718
               },
               "startPosition": {
                 "column": 1,
-                "line": 1086
-              }
-            },
-            {
-              "endPosition": {
-                "column": 3,
-                "line": 1119
-              },
-              "startPosition": {
-                "column": 3,
-                "line": 1119
-              }
-            },
-            {
-              "endPosition": {
-                "column": 5,
-                "line": 1120
-              },
-              "startPosition": {
-                "column": 13,
-                "line": 1119
-              }
-            },
-            {
-              "endPosition": {
-                "column": 11,
-                "line": 1139
-              },
-              "startPosition": {
-                "column": 5,
-                "line": 1139
-              }
-            },
-            {
-              "endPosition": {
-                "column": 30,
-                "line": 1139
-              },
-              "startPosition": {
-                "column": 11,
-                "line": 1139
+                "line": 2717
               }
             }
           ]
         }
       },
-      "score": 0.24968959391117096
+      "score": 0.3400314450263977
     },
     {
       "codeBlock": {
         "detailedLines": [
           {
-            "lineNumber": 1791,
-            "text": "const applyStateToTemplateWorkbook = (workbook: ExcelJS.Workbook, inventoryState: InventoryStatusState) =\u003e {"
+            "lineNumber": 1483,
+            "text": "const readInventoryPageLocalDocument = "
           },
           {
-            "lineNumber": 1792,
-            "text": "  const beanSheet = workbook.getWorksheet('생두전체현황')"
+            "lineNumber": 1506
           },
           {
-            "lineNumber": 1793,
-            "text": "  const roastingSheet = workbook.getWorksheet('로스팅현황')"
+            "lineNumber": 1507,
+            "text": "  if (saved) {"
           },
           {
-            "lineNumber": 1794,
-            "text": "  const beanNameSheet = workbook.getWorksheet('원두명')"
+            "lineNumber": 1508,
+            "text": "    try {"
           },
           {
-            "lineNumber": 1795
+            "lineNumber": 1509,
+            "text": "      const raw = JSON.parse(saved) as unknown"
           },
           {
-            "lineNumber": 1796,
-            "text": "  if (!beanSheet || !roastingSheet) {"
+            "lineNumber": 1510,
+            "text": "      if (raw \u0026\u0026 typeof raw === 'object' \u0026\u0026 (raw as { v?: number }).v === INVENTORY_LOCAL_STORAGE_ENVELOPE_VERSION) {"
           },
           {
-            "lineNumber": 1797,
-            "text": "    return false"
+            "lineNumber": 1511,
+            "text": "        const wrap = raw as { inventoryByMonth?: unknown }"
           },
           {
-            "lineNumber": 1798,
-            "text": "  }"
+            "lineNumber": 1512,
+            "text": "        const inv = parseInventoryStatusStateFromLocalStorageJson(raw)"
           },
           {
-            "lineNumber": 1799
+            "lineNumber": 1513,
+            "text": "        if (inv) {"
           },
           {
-            "lineNumber": 1800,
-            "text": "  const dayCount = inventoryState.days.length"
+            "lineNumber": 1514,
+            "text": "          inventoryState = inv"
           },
           {
-            "lineNumber": 1801,
-            "text": "  const dailyTotalColumnIndex = dayCount + 4"
+            "lineNumber": 1515,
+            "text": "        }"
           },
           {
-            "lineNumber": 1802
+            "lineNumber": 1516,
+            "text": "        inventoryByMonth = normalizeInventoryByMonthFromUnknown(wrap.inventoryByMonth)"
           },
           {
-            "lineNumber": 1803,
-            "text": "  findReferenceDateCell(beanSheet).value = parseDateString(inventoryState.referenceDate)"
+            "lineNumber": 1517,
+            "text": "        const parsedBaseline = savedBaseline"
           },
           {
-            "lineNumber": 1804
+            "lineNumber": 1518,
+            "text": "          ? parseInventoryStatusStateFromLocalStorageJson(JSON.parse(savedBaseline))"
           },
           {
-            "lineNumber": 1805,
-            "text": "  /** 시트 행 순서 ≠ 앱 beanRows 순서(NO 정렬 등)일 때 인덱스로 쓰면 값이 엉켜 깨짐 → 품목명으로 매칭 */"
+            "lineNumber": 1519,
+            "text": "          : null"
           },
           {
-            "lineNumber": 1806,
-            "text": "  const beanByNameKey = new Map\u003cstring, InventoryBeanRow\u003e()"
+            "lineNumber": 1520,
+            "text": "        baselineState = parsedBaseline ?? inventoryState"
           },
           {
-            "lineNumber": 1807,
-            "text": "  for (const bean of inventoryState.beanRows) {"
+            "lineNumber": 1521,
+            "text": "      } else {"
           },
           {
-            "lineNumber": 1808,
-            "text": "    const key = normalizeNameKey(bean.name)"
+            "lineNumber": 1522,
+            "text": "        const parsed = parseInventoryStatusStateFromLocalStorageJson(raw)"
           },
           {
-            "lineNumber": 1809,
-            "text": "    if (key) {"
+            "lineNumber": 1523,
+            "text": "        const parsedBaseline = savedBaseline"
           },
           {
-            "lineNumber": 1810,
-            "text": "      beanByNameKey.set(key, bean)"
+            "lineNumber": 1524,
+            "text": "          ? parseInventoryStatusStateFromLocalStorageJson(JSON.parse(savedBaseline))"
           },
           {
-            "lineNumber": 1811,
+            "lineNumber": 1525,
+            "text": "          : null"
+          },
+          {
+            "lineNumber": 1526,
+            "text": "        if (parsed) {"
+          },
+          {
+            "lineNumber": 1527,
+            "text": "          inventoryState = parsed"
+          },
+          {
+            "lineNumber": 1528,
+            "text": "          baselineState = parsedBaseline ?? parsed"
+          },
+          {
+            "lineNumber": 1529,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 1530,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 1531,
+            "text": "    } catch (error) {"
+          },
+          {
+            "lineNumber": 1532,
+            "text": "      console.error('저장된 입출고 현황을 읽지 못했습니다.', error)"
+          },
+          {
+            "lineNumber": 1533,
             "text": "    }"
           },
           {
-            "lineNumber": 1812,
+            "lineNumber": 1534,
             "text": "  }"
           },
           {
-            "lineNumber": 1813
+            "lineNumber": 1535
           },
           {
-            "lineNumber": 1814,
-            "text": "  let currentBean: InventoryBeanRow | null = null"
+            "lineNumber": 1536,
+            "text": "  inventoryByMonth = ensureCurrentYmInBuckets(inventoryState, inventoryByMonth)"
           },
           {
-            "lineNumber": 1815,
-            "text": "  for (let rowNumber = 3; rowNumber \u003c= beanSheet.rowCount; rowNumber += 1) {"
+            "lineNumber": 1537
           },
           {
-            "lineNumber": 1816,
-            "text": "    const row = beanSheet.getRow(rowNumber)"
+            "lineNumber": 1538,
+            "text": "  let historyNotes: InventoryHistoryNote[] = []"
           },
           {
-            "lineNumber": 1860,
+            "lineNumber": 1539,
+            "text": "  if (savedNotes) {"
+          },
+          {
+            "lineNumber": 1540,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 1541,
+            "text": "      historyNotes = normalizeInventoryHistoryNotes(JSON.parse(savedNotes))"
+          },
+          {
+            "lineNumber": 1542,
+            "text": "    } catch {"
+          },
+          {
+            "lineNumber": 1543,
+            "text": "      historyNotes = []"
+          },
+          {
+            "lineNumber": 1544,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1545,
             "text": "  }"
+          },
+          {
+            "lineNumber": 1546
+          },
+          {
+            "lineNumber": 1547,
+            "text": "  let quickEntryStepSettings = { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS }"
+          },
+          {
+            "lineNumber": 1548,
+            "text": "  if (savedQuickEntrySteps) {"
+          },
+          {
+            "lineNumber": 1549,
+            "text": "    try {"
+          },
+          {
+            "lineNumber": 1550,
+            "text": "      quickEntryStepSettings = normalizeQuickEntryStepSettings(JSON.parse(savedQuickEntrySteps))"
+          },
+          {
+            "lineNumber": 1551,
+            "text": "    } catch {"
+          },
+          {
+            "lineNumber": 1552,
+            "text": "      quickEntryStepSettings = { ...DEFAULT_QUICK_ENTRY_STEP_SETTINGS }"
+          },
+          {
+            "lineNumber": 1553,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 1554,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1555
+          },
+          {
+            "lineNumber": 1556,
+            "text": "  return resolveInventoryDocumentForHydrate({"
+          },
+          {
+            "lineNumber": 1557,
+            "text": "    inventoryState,"
+          },
+          {
+            "lineNumber": 1558,
+            "text": "    inventoryByMonth,"
+          },
+          {
+            "lineNumber": 1559,
+            "text": "    baselineState,"
+          },
+          {
+            "lineNumber": 1560,
+            "text": "    templateBase64: savedTemplate,"
+          },
+          {
+            "lineNumber": 1561,
+            "text": "    templateFileName: savedTemplateName ?? '',"
+          },
+          {
+            "lineNumber": 1562,
+            "text": "    historyNotes,"
+          },
+          {
+            "lineNumber": 1563,
+            "text": "    quickEntryStepSettings,"
+          },
+          {
+            "lineNumber": 1564,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 1565,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1566
+          },
+          {
+            "lineNumber": 1567,
+            "text": "const normalizeInventoryPageDocument = (value: unknown)"
           }
         ],
         "range": {
           "endPosition": {
-            "line": 1900
+            "line": 1609
+          },
+          "startPosition": {
+            "line": 1482
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 7,
+                "line": 1483
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 1483
+              }
+            },
+            {
+              "endPosition": {
+                "column": 40,
+                "line": 1483
+              },
+              "startPosition": {
+                "column": 7,
+                "line": 1483
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.33994483947753906
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 399,
+            "text": "function readInventoryStockFromStorage("
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 400,
+            "text": "  normalizeKey: (value: string) =\u003e string,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 401,
+            "text": "  aliases: ReadonlyArray\u003creadonly [string, string]\u003e,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 402,
+            "text": "  mode: 'local' | 'cloud',"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 403,
+            "text": "  companyId: string | null,"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 404,
+            "text": "): ReadInventoryStockLinkResult {"
+          },
+          {
+            "lineNumber": 405,
+            "text": "  const empty = (): ReadInventoryStockLinkResult =\u003e ({"
+          },
+          {
+            "lineNumber": 406,
+            "text": "    byItemKey: new Map(),"
+          },
+          {
+            "lineNumber": 407,
+            "text": "    byInventoryLinkKey: new Map(),"
+          },
+          {
+            "lineNumber": 408,
+            "text": "    referenceDateLabel: null,"
+          },
+          {
+            "lineNumber": 409,
+            "text": "    loadError: false,"
+          },
+          {
+            "lineNumber": 410,
+            "text": "    hasStoredPayload: false,"
+          },
+          {
+            "lineNumber": 411,
+            "text": "    inventoryBeanRowCount: 0,"
+          },
+          {
+            "lineNumber": 412,
+            "text": "  })"
+          },
+          {
+            "lineNumber": 413,
+            "text": "  try {"
+          },
+          {
+            "lineNumber": 414,
+            "text": "    // 입출고 페이지가 회사·모드별로 스코핑된 키에 저장하므로 동일 키에서 읽어야 같은 데이터를 본다."
+          },
+          {
+            "lineNumber": 415,
+            "text": "    const scopedKey = inventoryPageScopedKey(INVENTORY_STATUS_STORAGE_KEY, mode, companyId)"
+          },
+          {
+            "lineNumber": 416,
+            "text": "    const raw ="
+          },
+          {
+            "lineNumber": 417,
+            "text": "      window.localStorage.getItem(scopedKey) ??"
+          },
+          {
+            "lineNumber": 418,
+            "text": "      (scopedKey !== INVENTORY_STATUS_STORAGE_KEY"
+          },
+          {
+            "lineNumber": 419,
+            "text": "        ? window.localStorage.getItem(INVENTORY_STATUS_STORAGE_KEY)"
+          },
+          {
+            "lineNumber": 420,
+            "text": "        : null)"
+          },
+          {
+            "lineNumber": 421,
+            "text": "    if (!raw) {"
+          },
+          {
+            "lineNumber": 422,
+            "text": "      return empty()"
+          },
+          {
+            "lineNumber": 423,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 424,
+            "text": "    const parsed = parseInventoryStatusStateFromLocalStorageJson(JSON.parse(raw))"
+          },
+          {
+            "lineNumber": 425,
+            "text": "    if (!parsed) {"
+          },
+          {
+            "lineNumber": 426,
+            "text": "      return { ...empty(), hasStoredPayload: true, loadError: true }"
+          },
+          {
+            "lineNumber": 427,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 428,
+            "text": "    const inventoryBeanRowCount = parsed.beanRows.length"
+          },
+          {
+            "lineNumber": 429,
+            "text": "    const dayIdx = dayIndexForReferenceDate(parsed.days, parsed.referenceDate)"
+          },
+          {
+            "lineNumber": 430,
+            "text": "    // 입출고 페이지의 화면 표시 로직과 동일하게 자동 재고를 연쇄 계산해서 두 페이지가 같은 값을 보이게 한다."
+          },
+          {
+            "lineNumber": 431,
+            "text": "    const physicalCountIdx = dayIndexForReferenceDate(parsed.days, parsed.physicalCountDate)"
+          },
+          {
+            "lineNumber": 432,
+            "text": "    const pinnedDayIndices = buildStockPinnedDayIndices("
+          },
+          {
+            "lineNumber": 433,
+            "text": "      parsed.days,"
+          },
+          {
+            "lineNumber": 434,
+            "text": "      parsed.surveyMarkedDays,"
+          },
+          {
+            "lineNumber": 435,
+            "text": "      physicalCountIdx,"
+          },
+          {
+            "lineNumber": 436,
+            "text": "      parsed.referenceDate,"
+          },
+          {
+            "lineNumber": 437,
+            "text": "      parsed.physicalCountDate,"
+          },
+          {
+            "lineNumber": 438,
+            "text": "    )"
+          },
+          {
+            "lineNumber": 439,
+            "text": "    const map = new Map\u003cstring, GreenBeanInventoryStockMatch\u003e()"
+          },
+          {
+            "lineNumber": 440,
+            "text": "    const byInventoryLinkKey = new Map\u003cstring, GreenBeanInventoryStockMatch\u003e()"
+          },
+          {
+            "lineNumber": 441,
+            "text": "    for (const bean of parsed.beanRows) {"
+          },
+          {
+            "lineNumber": 442,
+            "text": "      const k = normalizeKey(bean.name)"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 475,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 474
           },
           "startPosition": {
             "column": 1,
-            "line": 1788
+            "line": 396
+          }
+        },
+        "relativeWorkspacePath": "./app/src/GreenBeanOrderPage.tsx",
+        "signatures": {}
+      },
+      "score": 0.33964264392852783
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 3549,
+            "text": "() =\u003e {"
+          },
+          {
+            "lineNumber": 3570,
+            "text": "const poll = async "
+          },
+          {
+            "lineNumber": 3593
+          },
+          {
+            "lineNumber": 3594,
+            "text": "      // legacy 의 updated_at 은 (받지 않더라도) 기록해 다음 폴링에서 다시 감지하지 않게 한다."
+          },
+          {
+            "lineNumber": 3595,
+            "text": "      if (hasAnySplitDoc) {"
+          },
+          {
+            "lineNumber": 3596,
+            "text": "        lastUpdatedAtByDoc[COMPANY_DOCUMENT_KEYS.inventoryPage] = updatedAtMap[COMPANY_DOCUMENT_KEYS.inventoryPage] ?? null"
+          },
+          {
+            "lineNumber": 3597,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3598,
+            "text": "      if (changedKeys.length === 0) {"
+          },
+          {
+            "lineNumber": 3599,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 3600,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3601,
+            "text": "      const fetchedEntries = await Promise.all("
+          },
+          {
+            "lineNumber": 3602,
+            "text": "        changedKeys.map(async (docKey) =\u003e {"
+          },
+          {
+            "lineNumber": 3603,
+            "text": "          const payload = await loadCompanyDocument\u003cunknown\u003e(activeCompanyId, docKey)"
+          },
+          {
+            "lineNumber": 3604,
+            "text": "          return [docKey, payload] as const"
+          },
+          {
+            "lineNumber": 3605,
+            "text": "        }),"
+          },
+          {
+            "lineNumber": 3606,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3607,
+            "text": "      for (const docKey of changedKeys) {"
+          },
+          {
+            "lineNumber": 3608,
+            "text": "        lastUpdatedAtByDoc[docKey] = updatedAtMap[docKey] ?? null"
+          },
+          {
+            "lineNumber": 3609,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3610,
+            "text": "      for (const [docKey, payload] of fetchedEntries) {"
+          },
+          {
+            "lineNumber": 3611,
+            "text": "        if (docKey === COMPANY_DOCUMENT_KEYS.inventoryPage) {"
+          },
+          {
+            "lineNumber": 3612,
+            "text": "          remoteParts.legacy = payload ? normalizeInventoryPageDocument(payload) : null"
+          },
+          {
+            "lineNumber": 3613,
+            "text": "        } else if (docKey === COMPANY_DOCUMENT_KEYS.inventoryPageCore) {"
+          },
+          {
+            "lineNumber": 3614,
+            "text": "          remoteParts.core = normalizeInventoryPageCoreDocument(payload)"
+          },
+          {
+            "lineNumber": 3615,
+            "text": "        } else if (docKey === COMPANY_DOCUMENT_KEYS.inventoryPageMonths) {"
+          },
+          {
+            "lineNumber": 3616,
+            "text": "          remoteParts.months = normalizeInventoryPageMonthsDocument(payload)"
+          },
+          {
+            "lineNumber": 3617,
+            "text": "        } else if (docKey === COMPANY_DOCUMENT_KEYS.inventoryPageTemplate) {"
+          },
+          {
+            "lineNumber": 3618,
+            "text": "          remoteParts.template = normalizeInventoryPageTemplateDocument(payload)"
+          },
+          {
+            "lineNumber": 3619,
+            "text": "        } else if (docKey === COMPANY_DOCUMENT_KEYS.inventoryPageHistory) {"
+          },
+          {
+            "lineNumber": 3620,
+            "text": "          remoteParts.history = normalizeInventoryPageHistoryDocument(payload)"
+          },
+          {
+            "lineNumber": 3621,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 3622,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3623
+          },
+          {
+            "lineNumber": 3624,
+            "text": "      const remote = composeInventoryCloudDocument({"
+          },
+          {
+            "lineNumber": 3625,
+            "text": "        legacy: remoteParts.legacy,"
+          },
+          {
+            "lineNumber": 3626,
+            "text": "        core: remoteParts.core,"
+          },
+          {
+            "lineNumber": 3627,
+            "text": "        months: remoteParts.months,"
+          },
+          {
+            "lineNumber": 3628,
+            "text": "        template: remoteParts.template,"
+          },
+          {
+            "lineNumber": 3629,
+            "text": "        history: remoteParts.history,"
+          },
+          {
+            "lineNumber": 3630,
+            "text": "      })"
+          },
+          {
+            "lineNumber": 3631,
+            "text": "      if (!remote) {"
+          },
+          {
+            "lineNumber": 3632,
+            "text": "        return"
+          },
+          {
+            "lineNumber": 3633,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 3634,
+            "text": "      const normalized = remote"
+          },
+          {
+            "lineNumber": 3635,
+            "text": "      const viewerState = inventoryStateRef.current"
+          },
+          {
+            "lineNumber": 3636,
+            "text": "      const viewerYm = viewerState.referenceDate.slice(0, 7)"
+          },
+          {
+            "lineNumber": 3637,
+            "text": "      const inventoryForUi = mergeKeepViewerReferenceDates("
+          },
+          {
+            "lineNumber": 3638,
+            "text": "        normalized.inventoryState,"
+          },
+          {
+            "lineNumber": 3639,
+            "text": "        viewerState,"
+          },
+          {
+            "lineNumber": 3640,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 3695
+          },
+          {
+            "lineNumber": 3705,
+            "text": "  }"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 7362,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 7361
+          },
+          "startPosition": {
+            "line": 2716
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2718
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2717
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 3549
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 3549
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 3550
+              },
+              "startPosition": {
+                "column": 13,
+                "line": 3549
+              }
+            },
+            {
+              "endPosition": {
+                "column": 11,
+                "line": 3570
+              },
+              "startPosition": {
+                "column": 5,
+                "line": 3570
+              }
+            },
+            {
+              "endPosition": {
+                "column": 24,
+                "line": 3570
+              },
+              "startPosition": {
+                "column": 11,
+                "line": 3570
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.337888240814209
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2717,
+            "text": "function InventoryStatusPage() {"
+          },
+          {
+            "lineNumber": 4852,
+            "text": "const updateRoastingValue = "
+          },
+          {
+            "lineNumber": 4854,
+            "text": "(current) =\u003e {"
+          },
+          {
+            "lineNumber": 4871,
+            "text": "const computeBlendingRaw = "
+          },
+          {
+            "lineNumber": 4877,
+            "text": "(sum, b) =\u003e {"
+          },
+          {
+            "lineNumber": 4883
+          },
+          {
+            "lineNumber": 4884,
+            "text": "        }, 0)"
+          },
+          {
+            "lineNumber": 4885,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 4886
+          },
+          {
+            "lineNumber": 4887,
+            "text": "      const nextBeanRows = current.beanRows.map((bean) =\u003e {"
+          },
+          {
+            "lineNumber": 4888,
+            "text": "        const beanKey = normalizeNameKey(bean.name)"
+          },
+          {
+            "lineNumber": 4889,
+            "text": "        if (!targetColumnName || !roastingColumnMatchesBeanRow(targetColRaw, bean.name)) {"
+          },
+          {
+            "lineNumber": 4890,
+            "text": "          return bean"
+          },
+          {
+            "lineNumber": 4891,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 4892,
+            "text": "        const nextProduction = [...bean.production]"
+          },
+          {
+            "lineNumber": 4893,
+            "text": "        const blendingRaw = computeBlendingRaw(beanKey)"
+          },
+          {
+            "lineNumber": 4894,
+            "text": "        nextProduction[dayIndex] = nextRaw + blendingRaw"
+          },
+          {
+            "lineNumber": 4895,
+            "text": "        return { ...bean, production: nextProduction }"
+          },
+          {
+            "lineNumber": 4896,
+            "text": "      })"
+          },
+          {
+            "lineNumber": 4897
+          },
+          {
+            "lineNumber": 4898,
+            "text": "      const nextRoastingRows = current.roastingRows.map((row) =\u003e {"
+          },
+          {
+            "lineNumber": 4899,
+            "text": "        if (row.day !== day) {"
+          },
+          {
+            "lineNumber": 4900,
+            "text": "          return row"
+          },
+          {
+            "lineNumber": 4901,
+            "text": "        }"
+          },
+          {
+            "lineNumber": 4902,
+            "text": "        const nextValues = [...row.values]"
+          },
+          {
+            "lineNumber": 4903,
+            "text": "        nextValues[valueIndex] = parsedRoasted"
+          },
+          {
+            "lineNumber": 4904,
+            "text": "        return { ...row, values: nextValues }"
+          },
+          {
+            "lineNumber": 4905,
+            "text": "      })"
+          },
+          {
+            "lineNumber": 4906
+          },
+          {
+            "lineNumber": 4907,
+            "text": "      const physIdx = dayIndexForReferenceDate(current.days, current.physicalCountDate)"
+          },
+          {
+            "lineNumber": 4908,
+            "text": "      const pins = buildStockPinnedDayIndices("
+          },
+          {
+            "lineNumber": 4909,
+            "text": "        current.days,"
+          },
+          {
+            "lineNumber": 4910,
+            "text": "        current.surveyMarkedDays,"
+          },
+          {
+            "lineNumber": 4911,
+            "text": "        physIdx,"
+          },
+          {
+            "lineNumber": 4912,
+            "text": "        current.referenceDate,"
+          },
+          {
+            "lineNumber": 4913,
+            "text": "        current.physicalCountDate,"
+          },
+          {
+            "lineNumber": 4914,
+            "text": "      )"
+          },
+          {
+            "lineNumber": 4915,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 4916,
+            "text": "        ...current,"
+          },
+          {
+            "lineNumber": 4917,
+            "text": "        skipAutoStockDisplay: false,"
+          },
+          {
+            "lineNumber": 4918,
+            "text": "        beanRows: nextBeanRows.map((bean, bi) =\u003e ({"
+          },
+          {
+            "lineNumber": 4919,
+            "text": "          ...bean,"
+          },
+          {
+            "lineNumber": 4920,
+            "text": "          stock: resyncAutoStockForBeanRow(bean, pins, {"
+          },
+          {
+            "lineNumber": 4921,
+            "text": "            previousRawProduction: previousRawByRow[bi] ?? null,"
+          },
+          {
+            "lineNumber": 4922,
+            "text": "          }),"
+          },
+          {
+            "lineNumber": 4923,
+            "text": "        })),"
+          },
+          {
+            "lineNumber": 4924,
+            "text": "        roastingRows: nextRoastingRows,"
+          },
+          {
+            "lineNumber": 4925,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 4926,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 4927,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 4928
+          },
+          {
+            "lineNumber": 4929,
+            "text": "  /**"
+          },
+          {
+            "lineNumber": 4930,
+            "text": "   * Blending(-Dark|-Light) 로스팅 사이클을 하루 단위로 설정한다."
+          },
+          {
+            "lineNumber": 4931,
+            "text": "   * - 증감분(Δ)만 구성 원두의 production(raw)에 반영한다."
+          },
+          {
+            "lineNumber": 4932,
+            "text": "   * - 블렌딩 행의 production은 &#96;사이클 × 레시피 raw합&#96;으로 갱신한다."
+          },
+          {
+            "lineNumber": 4933,
+            "text": "   * - 로스팅 현황/재고 자동 연쇄까지 한 번에 재동기화한다."
+          },
+          {
+            "lineNumber": 4934,
+            "text": "   */"
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 7362,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 7361
+          },
+          "startPosition": {
+            "line": 2716
+          }
+        },
+        "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2718
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2717
+              }
+            },
+            {
+              "endPosition": {
+                "column": 9,
+                "line": 4852
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 4852
+              }
+            },
+            {
+              "endPosition": {
+                "column": 31,
+                "line": 4852
+              },
+              "startPosition": {
+                "column": 9,
+                "line": 4852
+              }
+            },
+            {
+              "endPosition": {
+                "column": 5,
+                "line": 4854
+              },
+              "startPosition": {
+                "column": 5,
+                "line": 4854
+              }
+            },
+            {
+              "endPosition": {
+                "column": 7,
+                "line": 4855
+              },
+              "startPosition": {
+                "column": 23,
+                "line": 4854
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.3364565968513489
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "isSignature": true,
+            "lineNumber": 2157,
+            "text": "function MonthlyMeetingPage() {"
+          },
+          {
+            "lineNumber": 2484
+          },
+          {
+            "lineNumber": 2485,
+            "text": "  useEffect(() =\u003e {"
+          },
+          {
+            "lineNumber": 2486,
+            "text": "    if (!isStorageReady) {"
+          },
+          {
+            "lineNumber": 2487,
+            "text": "      return"
+          },
+          {
+            "lineNumber": 2488,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2489,
+            "text": "    const summaryEditMode = sectionEditModes.summary"
+          },
+          {
+            "lineNumber": 2490,
+            "text": "    const records = expenseRecordsForMeetingLink"
+          },
+          {
+            "lineNumber": 2491,
+            "text": "    const stmtAll = parseMeetingStatementDeliveryRecords()"
+          },
+          {
+            "lineNumber": 2492,
+            "text": "    const invEnvelope = readMeetingInventoryEnvelopeForBeanMaterial(mode, activeCompanyId)"
+          },
+          {
+            "lineNumber": 2493,
+            "text": "    const inv = invEnvelope.inventoryState"
+          },
+          {
+            "lineNumber": 2494,
+            "text": "    const mapOpts = { mode, companyId: activeCompanyId, greenOrderPriceMode, inventoryEnvelope: invEnvelope } as const"
+          },
+          {
+            "lineNumber": 2495
+          },
+          {
+            "lineNumber": 2496,
+            "text": "    setPageState((current) =\u003e {"
+          },
+          {
+            "lineNumber": 2497,
+            "text": "      const fallbackStates = createMonthStates(current.data)"
+          },
+          {
+            "lineNumber": 2498,
+            "text": "      const monthLabel = current.activeMonth"
+          },
+          {
+            "lineNumber": 2499,
+            "text": "      if (!current.data.months.includes(monthLabel)) {"
+          },
+          {
+            "lineNumber": 2500,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2501,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2502,
+            "text": "      const ym = meetingMonthLabelToExpenseYm(monthLabel, records)"
+          },
+          {
+            "lineNumber": 2503,
+            "text": "      if (!ym) {"
+          },
+          {
+            "lineNumber": 2504,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2505,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2506
+          },
+          {
+            "lineNumber": 2507,
+            "text": "      const nextMonthStates = { ...current.monthStatesByMonth }"
+          },
+          {
+            "lineNumber": 2508,
+            "text": "      const base = nextMonthStates[monthLabel] ?? fallbackStates[monthLabel]!"
+          },
+          {
+            "lineNumber": 2509,
+            "text": "      const built = buildMeetingCostsFromExpenses(records, ym, base.currentMonthCosts)"
+          },
+          {
+            "lineNumber": 2510,
+            "text": "      const stmMonth = filterStatementsByYmDelivery(stmtAll, ym)"
+          },
+          {
+            "lineNumber": 2511,
+            "text": "      const beanResult ="
+          },
+          {
+            "lineNumber": 2512,
+            "text": "        base.beanSalesMaterialFrozen === true"
+          },
+          {
+            "lineNumber": 2513,
+            "text": "          ? null"
+          },
+          {
+            "lineNumber": 2514,
+            "text": "          : computeBeanSalesMaterialCostForYm(ym, stmMonth, inv, mapOpts)"
+          },
+          {
+            "lineNumber": 2515,
+            "text": "      const nextCosts = computeCurrentMonthCosts(mergeBeanSalesMaterialCostIntoMeetingRows(built, ym, beanResult))"
+          },
+          {
+            "lineNumber": 2516,
+            "text": "      const salesPatchMap = aggregateExpenseSalesPatches(records, ym)"
+          },
+          {
+            "lineNumber": 2517,
+            "text": "      const nextSalesRaw = summaryEditMode"
+          },
+          {
+            "lineNumber": 2518,
+            "text": "        ? base.currentMonthSales"
+          },
+          {
+            "lineNumber": 2519,
+            "text": "        : applySalesPatchesFromMap(base.currentMonthSales, salesPatchMap)"
+          },
+          {
+            "lineNumber": 2520
+          },
+          {
+            "lineNumber": 2521,
+            "text": "      const costsUnchanged ="
+          },
+          {
+            "lineNumber": 2522,
+            "text": "        meetingValueRowsSignature(nextCosts) === meetingValueRowsSignature(computeCurrentMonthCosts(base.currentMonthCosts))"
+          },
+          {
+            "lineNumber": 2523,
+            "text": "      const salesUnchanged = meetingValueRowsSignature(nextSalesRaw) === meetingValueRowsSignature(base.currentMonthSales)"
+          },
+          {
+            "lineNumber": 2524
+          },
+          {
+            "lineNumber": 2525,
+            "text": "      if (costsUnchanged \u0026\u0026 salesUnchanged) {"
+          },
+          {
+            "lineNumber": 2526,
+            "text": "        return current"
+          },
+          {
+            "lineNumber": 2527,
+            "text": "      }"
+          },
+          {
+            "lineNumber": 2528
+          },
+          {
+            "lineNumber": 2529,
+            "text": "      return {"
+          },
+          {
+            "lineNumber": 2530,
+            "text": "        ...current,"
+          },
+          {
+            "lineNumber": 2531,
+            "text": "        monthStatesByMonth:"
+          },
+          {
+            "lineNumber": 2540,
+            "text": "    }"
+          },
+          {
+            "lineNumber": 2541,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 2554
+          },
+          {
+            "isSignature": true,
+            "lineNumber": 5428,
+            "text": "}"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "column": 1,
+            "line": 5427
+          },
+          "startPosition": {
+            "line": 2156
+          }
+        },
+        "relativeWorkspacePath": "./app/src/MonthlyMeetingPage.tsx",
+        "signatures": {
+          "ranges": [
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2158
+              },
+              "startPosition": {
+                "column": 1,
+                "line": 2157
+              }
+            },
+            {
+              "endPosition": {
+                "column": 3,
+                "line": 2485
+              },
+              "startPosition": {
+                "column": 3,
+                "line": 2485
+              }
+            }
+          ]
+        }
+      },
+      "score": 0.33592700958251953
+    },
+    {
+      "codeBlock": {
+        "detailedLines": [
+          {
+            "lineNumber": 1272,
+            "text": "const restoreMonthBucketAfterCloud = (ym: string, state: InventoryStatusState): InventoryStatusState =\u003e {"
+          },
+          {
+            "lineNumber": 1273,
+            "text": "  const ref = state.referenceDate.trim()"
+          },
+          {
+            "lineNumber": 1274,
+            "text": "  if (ref === CLOUD_REFERENCE_DATE_PLACEHOLDER || ref.startsWith('2000-')) {"
+          },
+          {
+            "lineNumber": 1275,
+            "text": "    const nextRef = referenceDateForInventoryMonthYm(ym)"
+          },
+          {
+            "lineNumber": 1276,
+            "text": "    return withDerivedPhysicalCountDate({"
+          },
+          {
+            "lineNumber": 1277,
+            "text": "      ...state,"
+          },
+          {
+            "lineNumber": 1278,
+            "text": "      referenceDate: nextRef,"
+          },
+          {
+            "lineNumber": 1279,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 1280,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1281,
+            "text": "  if (ref.length \u003e= 10 \u0026\u0026 !ref.startsWith(ym)) {"
+          },
+          {
+            "lineNumber": 1282,
+            "text": "    const nextRef = referenceDateForInventoryMonthYm(ym)"
+          },
+          {
+            "lineNumber": 1283,
+            "text": "    return withDerivedPhysicalCountDate({"
+          },
+          {
+            "lineNumber": 1284,
+            "text": "      ...state,"
+          },
+          {
+            "lineNumber": 1285,
+            "text": "      referenceDate: nextRef,"
+          },
+          {
+            "lineNumber": 1286,
+            "text": "    })"
+          },
+          {
+            "lineNumber": 1287,
+            "text": "  }"
+          },
+          {
+            "lineNumber": 1288,
+            "text": "  return withDerivedPhysicalCountDate(state)"
+          },
+          {
+            "lineNumber": 1289,
+            "text": "}"
+          },
+          {
+            "lineNumber": 1290
+          },
+          {
+            "lineNumber": 1291,
+            "text": "const isCloudPlaceholderReferenceDate = (referenceDate: string) =\u003e"
+          }
+        ],
+        "range": {
+          "endPosition": {
+            "line": 1293
+          },
+          "startPosition": {
+            "column": 1,
+            "line": 1269
           }
         },
         "relativeWorkspacePath": "./app/src/InventoryStatusPage.tsx",
         "signatures": {}
       },
-      "score": 0.2496798038482666
-    },
-    {
-      "codeBlock": {
-        "detailedLines": [
-          {
-            "lineNumber": 117,
-            "text": "const EXPENSE_COLUMN_KEYS: ExpenseColumnKey[] = ["
-          },
-          {
-            "lineNumber": 118,
-            "text": "  'expenseDate',"
-          },
-          {
-            "lineNumber": 119,
-            "text": "  'dueDate',"
-          },
-          {
-            "lineNumber": 120,
-            "text": "  'vendorName',"
-          },
-          {
-            "lineNumber": 121,
-            "text": "  'category',"
-          },
-          {
-            "lineNumber": 122,
-            "text": "  'purpose',"
-          },
-          {
-            "lineNumber": 123,
-            "text": "  'detail',"
-          },
-          {
-            "lineNumber": 124,
-            "text": "  'taxType',"
-          },
-          {
-            "lineNumber": 125,
-            "text": "  'totalAmount',"
-          },
-          {
-            "lineNumber": 126,
-            "text": "  'supplyAmount',"
-          },
-          {
-            "lineNumber": 127,
-            "text": "  'taxAmount',"
-          },
-          {
-            "lineNumber": 128,
-            "text": "  'paymentMethod',"
-          },
-          {
-            "lineNumber": 129,
-            "text": "  'paymentStatus',"
-          },
-          {
-            "lineNumber": 130,
-            "text": "  'isRecurring',"
-          },
-          {
-            "lineNumber": 131,
-            "text": "  'hasReceipt',"
-          },
-          {
-            "lineNumber": 132,
-            "text": "  'memo',"
-          },
-          {
-            "lineNumber": 133,
-            "text": "]"
-          },
-          {
-            "lineNumber": 134
-          },
-          {
-            "lineNumber": 135,
-            "text": "const DEFAULT_EXPENSE_COLUMN_ORDER: ExpenseColumnKey[] = [...EXPENSE_COLUMN_KEYS]"
-          },
-          {
-            "lineNumber": 136
-          },
-          {
-            "lineNumber": 137,
-            "text": "const DEFAULT_EXPENSE_COLUMN_LABELS: Record\u003cExpenseColumnKey, string\u003e = {"
-          },
-          {
-            "lineNumber": 138,
-            "text": "  expenseDate: '지출일',"
-          },
-          {
-            "lineNumber": 139,
-            "text": "  dueDate: '지급예정일',"
-          },
-          {
-            "lineNumber": 140,
-            "text": "  vendorName: '거래처',"
-          },
-          {
-            "lineNumber": 141,
-            "text": "  category: '카테고리',"
-          },
-          {
-            "lineNumber": 142,
-            "text": "  purpose: '용도',"
-          },
-          {
-            "lineNumber": 143,
-            "text": "  detail: '세부항목',"
-          },
-          {
-            "lineNumber": 144,
-            "text": "  taxType: '과세구분',"
-          },
-          {
-            "lineNumber": 145,
-            "text": "  totalAmount: '결제금액',"
-          },
-          {
-            "lineNumber": 146,
-            "text": "  supplyAmount: '공급가액',"
-          },
-          {
-            "lineNumber": 147,
-            "text": "  taxAmount: '부가세',"
-          },
-          {
-            "lineNumber": 148,
-            "text": "  paymentMethod: '지급수단',"
-          },
-          {
-            "lineNumber": 149,
-            "text": "  paymentStatus: '상태',"
-          },
-          {
-            "lineNumber": 150,
-            "text": "  isRecurring: '반복',"
-          },
-          {
-            "lineNumber": 151,
-            "text": "  hasReceipt: '증빙',"
-          },
-          {
-            "lineNumber": 152,
-            "text": "  memo: '메모',"
-          },
-          {
-            "lineNumber": 153,
-            "text": "}"
-          },
-          {
-            "lineNumber": 154
-          },
-          {
-            "lineNumber": 155,
-            "text": "const DEFAULT_EXPENSE_TABLE_COLUMNS: ExpenseTableColumn[] = DEFAULT_EXPENSE_COLUMN_ORDER.map((key) =\u003e ({"
-          },
-          {
-            "lineNumber": 156,
-            "text": "  id: &#96;mapped:${key}&#96;,"
-          },
-          {
-            "lineNumber": 157,
-            "text": "  label: DEFAULT_EXPENSE_COLUMN_LABELS[key],"
-          },
-          {
-            "lineNumber": 158,
-            "text": "  kind: 'mapped',"
-          },
-          {
-            "lineNumber": 159,
-            "text": "  mappedKey: key,"
-          },
-          {
-            "lineNumber": 160,
-            "text": "}))"
-          },
-          {
-            "lineNumber": 161
-          },
-          {
-            "lineNumber": 162,
-            "text": "/**"
-          },
-          {
-            "lineNumber": 163,
-            "text": " * 엑셀 업로드로 &#96;tableColumns&#96;가 짧을 때(시트에 지급수단 열이 없을 때) 입력란이 빠지는 것을 막기 위해"
-          },
-          {
-            "lineNumber": 164,
-            "text": " * 화면·내보내기에 반드시 넣는 매핑 열. 기본 열 순서에 맞춰 끼워 넣음."
-          },
-          {
-            "lineNumber": 165,
-            "text": " */"
-          },
-          {
-            "lineNumber": 166,
-            "text": "const GRID_REQUIRED_MAPPED_KEYS: ExpenseColumnKey[] = ['paymentMethod']"
-          },
-          {
-            "lineNumber": 167
-          },
-          {
-            "lineNumber": 168,
-            "text": "const defaultColumnOrder = (key: ExpenseColumnKey) =\u003e DEFAULT_EXPENSE_COLUMN_ORDER.indexOf(key)"
-          },
-          {
-            "lineNumber": 169
-          },
-          {
-            "lineNumber": 170,
-            "text": "const columnSortOrder = (c: ExpenseTableColumn) =\u003e"
-          }
-        ],
-        "range": {
-          "endPosition": {
-            "line": 174
-          },
-          "startPosition": {
-            "column": 1,
-            "line": 114
-          }
-        },
-        "relativeWorkspacePath": "./app/src/ExpensePage.tsx",
-        "signatures": {}
-      },
-      "score": 0.2472597360610962
+      "score": 0.33530735969543457
     }
   ]
 }
@@ -25917,9 +26046,10 @@ Parameters:
 
 ```json
 {
-  "caseInsensitive": true,
-  "glob": "*.{ts,tsx,js,jsx}",
-  "pattern": "지출표|expense.*upload|expense.*excel|지출.*엑셀|지출.*upload"
+  "caseInsensitive": false,
+  "glob": "*Inventory*",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "cover visibility|coverVisibility|cover visibility|cover visibility"
 }
 ```
 Additional data:
@@ -25928,51 +26058,150 @@ Additional data:
 {
   "isPruned": true,
   "outputMode": "content",
-  "pattern": "지출표|expense.*upload|expense.*excel|지출.*엑셀|지출.*upload",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "cover visibility|coverVisibility|cover visibility|cover visibility",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*Inventory*",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+달 변경 시 재고만 불러오는 기존 로직을 살펴보고 있다. 사용자가 원하는 것은 달이 바뀔 때 재고 값만 이전 달 마지막 재고로 고정시키는 것이다. 현재 코드에서 handleReferenceDateChange와 UI의 달 변경 동작을 확인하며, 재고 외에 생산 입고·출고 값이 흐트러지는 원인을 파악 중이다.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "handleReferenceDateChange|inventoryByMonth|rolloverInventory|patchStartingStock"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "handleReferenceDateChange|inventoryByMonth|rolloverInventory|patchStartingStock",
+  "topFiles": [
+    {
+      "matchCount": 55,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 55
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "isInventoryForwardMonthRollover|createZeroedInventoryStatusFrom"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "isInventoryForwardMonthRollover|createZeroedInventoryStatusFrom",
   "topFiles": [
     {
       "matchCount": 1,
-      "uri": "app/src/StaffPayrollPage.tsx"
+      "uri": "app/src/inventoryStatusUtils.ts"
     },
     {
-      "matchCount": 1,
-      "uri": "app/src/memoLinkedSources.ts"
-    },
-    {
-      "matchCount": 1,
-      "uri": "app/src/lib/statementAmounts.ts"
-    },
-    {
-      "matchCount": 1,
-      "uri": "app/src/MemoPage.tsx"
-    },
-    {
-      "matchCount": 4,
-      "uri": "app/src/App.tsx"
-    },
-    {
-      "matchCount": 1,
-      "uri": "app/src/monthlyMeetingData.ts"
-    },
-    {
-      "matchCount": 20,
-      "uri": "app/src/MonthlyMeetingPage.tsx"
-    },
-    {
-      "matchCount": 15,
-      "uri": "app/src/ExpensePage.tsx"
-    },
-    {
-      "matchCount": 1,
-      "uri": "app/src/statementExcelStyledExport.ts"
-    },
-    {
-      "matchCount": 1,
-      "uri": "app/src/lib/cloudDocumentPolling.ts"
+      "matchCount": 9,
+      "uri": "app/src/InventoryStatusPage.tsx"
     }
   ],
-  "totalFiles": 10,
-  "totalMatches": 46
+  "totalFiles": 2,
+  "totalMatches": 10
 }
 ```
 Status: **completed**
@@ -25989,7 +26218,7 @@ Status: **completed**
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
 
 </details>
 </tool-use>
@@ -26002,7 +26231,7 @@ _**Agent (default)**_
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
 
 </details>
 </tool-use>
@@ -26015,7 +26244,153 @@ _**Agent (default)**_
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+`rolloverInventoryStateToNextCalendarMonth` 함수가 이미 존재한다. 다음 달로 넘어갈 때 저장된 데이터가 없으면 마감 재고를 이월시키고, 생산·입고·출고는 0으로 초기화한다.
+
+`patchStartingStockFromPreviousMonth`는 재고[0]만 이월시키고 입·출·생산은 그대로 둔다. 사용자는 달이 바뀔 때 이월 로직이 잘못되어 재고 외의 값이 꼬인다고 한다. monthRolloverPanel에서 기존 데이터가 있을 때와 없을 때의 동작을 살펴보고 있다.
+
+createZeroedInventoryStatusFrom이 기존 값을 유지하는지 확인 중이다. 기존 데이터가 있으면 재고만 이월시키지 않고 전체를 그대로 불러온다. resyncAutoStockForBeanRow가 패치 후 재계산하면서 재고 외 값이 꼬일 수 있다.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "monthRollover|전월 말|applyPreviousMonthClosingStock"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "monthRollover|전월 말|applyPreviousMonthClosingStock",
+  "topFiles": [
+    {
+      "matchCount": 19,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 19
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/inventoryStatusUtils.ts</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+사용자가 기존 기능을 모르는 것 같다. 불일치 패널은 mismatchCount가 0보다 클 때만 보인다.
+
+달이 바뀔 때 기존 버킷이 있으면 재고와 함께 이전 달의 생산·입고·출고 데이터도 함께 불러와서 값이 흐트러진다. 사용자는 재고 값만 불러오고, 이전 달 마지막 재고를 기준으로 다음 달을 시작하는 방식이 필요하다.
+
+달이 바뀔 때 재고만 이전 달 마지막 재고로 가져오고, 생산·입고·출고는 초기화한다. 기존 버킷이 있더라도 잘못된 데이터를 덮어쓰지 않도록 한다. 이 기능은 항상 보이는 '전월 말 재고 불러오기' 버튼으로 추가하면 된다.
+
+`closed` 상태에서 이전 달 마지막 재고를 가져오는 것은 정상이다. 다만 클라우드 동기화로 인해 잘못된 데이터가 채워진 기존 버킷이 있을 경우, 해당 버킷을 그대로 불러와서 이전 달의 잘못된 값이 그대로 유지된다.
+
+재고 체인이 재계산되면서 기존 버킷의 잘못된 생산·입고·출고 값이 2일 이후에도 연쇄적으로 흘러간다. 달이 바뀔 때는 재고만 이전 달 마지막 재고로 가져오고, 나머지는 0으로 초기화해야 한다.
+
+기존 `applyPreviousMonthClosingStockToDay1`은 불일치 패널에서만 노출되어 사용자가 모른다. 달이 바뀔 때 기존 버킷을 그대로 불러오지 않고, 재고 구조만 유지한 뒤 재고[0]만 이전 달 마지막 재고로 설정하고, 나머지는 0으로 초기화하는 방식이 더 적절해 보인다.
+
+구체적인 수정 방안을 세 가지로 비교하고 있다. 기존 버킷을 무조건 덮어쓰는 건 다음 달 데이터를 지울 위험이 있고, 재고만 고치고 나머지는 0으로 초기화하는 건 너무 강하다. 더 나은 방법은 명시적 '저장된 데이터 불러오기' 없이 달이 바뀔 때 기존 버킷을 무시하고, 이전 달의 닫힌 상태에서 순수하게 재고만 이월시키는 것이다.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "buildStockPinnedDayIndices|resyncAutoStockForBeanRow"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "buildStockPinnedDayIndices|resyncAutoStockForBeanRow",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/GreenBeanOrderPage.tsx"
+    },
+    {
+      "matchCount": 36,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 2,
+  "totalMatches": 42
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
 
 </details>
 </tool-use>
@@ -26028,7 +26403,7 @@ _**Agent (default)**_
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
 
 </details>
 </tool-use>
@@ -26041,7 +26416,84 @@ _**Agent (default)**_
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+달이 바뀔 때 재고 값만 불러와야 한다는 문제를 파악했습니다.
+
+기존 데이터가 있으면 재고만 이전 달로 패치하고, 나머지는 기존 값을 유지한다. 수동으로 날짜를 변경하면 저장된 월 전체를 불러오되 재고만 이전 달로 보정한다.
+
+재고만 이전 달로 가져오되, 생산·입고·출고 값은 그대로 두거나 0으로 초기화해야 한다. 달이 바뀔 때 이전 값들이 덮어써지면서 재고가 깨지는 게 원인이다.
+
+재고만 갱신되어야 하는데도 불구하고 생산·입고·출고 값이 흐트러지는 구체적인 원인을 찾고 있다. 이전 달 재고 패치 시점에 생성·초기화 함수나 동기화 로직이 실행되면서 값이 덮어써지는 것 같다.
+
+구체적인 원인을 추적 중이다. 재고 패치 시점의 재계산 함수가 adjustPinnedForRawProductionDelta를 통해 생산량 변화를 감지하면서, 이전 달 재고만 가져와도 핀드 재고가 함께 조정되어 나머지 값이 흐트러지는 것 같다.
+
+재고 패치 자체는 재고 배열만 바꾼다. 달이 바뀔 때 전체 월 데이터를 불러오거나 롤오버가 실행되면 사용자가 입력한 생산·입고·출고 값이 지워진다.
+
+사용자가 원하는 건 신규 월에는 그대로 두고 재고만 이전 달로 가져오는 것이다.
+
+handleReferenceDateChange에서 월 전환 시 전체 롤오버 대신 패치 방식을 선호해야 한다.这样就不会覆盖用户已输入的生产、入库和出库数据。</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "syncRoastingRowsFromBeanProduction|finalizeInventoryStatusState"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "syncRoastingRowsFromBeanProduction|finalizeInventoryStatusState",
+  "topFiles": [
+    {
+      "matchCount": 13,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 13
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
 
 </details>
 </tool-use>
@@ -26054,7 +26506,7 @@ _**Agent (default)**_
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/ExpensePage.tsx</summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
 
 </details>
 </tool-use>
@@ -26067,13 +26519,635 @@ _**Agent (default)**_
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2">
-<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/scripts/generate-expense-upload-sample-xlsx.mjs</summary>
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
 
 </details>
 </tool-use>
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
 <summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+사용자가 달이 바뀌어도 이전 달 마지막 재고만 불러오는 기능을 원하는 것으로 이해했다. 재고 값만 가져오면 생두 입고·출고 값이 흐트러지는 문제를 해결할 수 있을 것이다.
+
+자동으로 달을 넘길 때 `rolloverInventoryStateToNextCalendarMonth`가 입고·출고를 0으로 초기화한다. 이전 달 재고만 가져오도록 수정해야 한다.
+
+기존 데이터를 불러올 때도 재고 동기화로 인해 값이 꼬일 수 있다. 사용자는 새 달로 넘어갈 때 재고만 이전 달 마지막 값으로 채우고, 입고·출고는 비워두길 원한다. 전월 버킷이 있으면 항상 보이는 '전월 말 재고' 버튼을 추가할 것이다. 앞쪽 달 넘김 시 `handleReferenceDateChange`도 함께 고칠 예정이다.
+
+`existingNew` 경로에서 `closed` 버킷이 현재 메모리 상태를 기준으로 하면 저장되지 않은 데이터가 반영될 수 있다. '전월 말 재고 반영' 후 `resyncAutoStockForBeanRow`가 재고를 재계산하면서 1일 이후 날짜의 입고·출고 값이 밀려나는 게 문제의 원인으로 보인다.
+
+재계산 로직 자체는 1일 재고를 고정하고 1일 이후는 입고·출고로 다시 계산하므로, 이 부분은 문제가 아니다. 실제 원인은 달을 넘길 때 저장되지 않은 새 달 데이터를 지우면서 입고·출고 값이 사라지는 것이다.
+
+달을 뒤로 가며 다시 올 때 기존 버킷을 불러오면 메모리상의 이전 달 데이터가 재고를 덮어쓸 수 있다. 이전 달 재고만 적용하는 함수를 불필요한 확인 없이 한 번에 실행되게 할 것이다.
+
+`handleReferenceDateChange`에서 다음 달로 넘어갈 때 기존 버킷이 있더라도 이전 달 재고만 적용하고, 입고·출고는 새로 초기화하는 방식으로 바꿔야 한다. 사용자가 원하는 것은 첫 달 전환 시에도 이전 달 상태를 그대로 가져오되, 재고만 복원하고 입고·출고는 비우는 것이다.
+
+`loadPreviousMonthClosingStockOnly`라는 명확한 함수명을 새로 정했다. 이 함수는 이전 달 마지막 재고만 1일에 적용하고, 1일 이후 재고는 재계산하지만 입고·출고는 건드리지 않는다. `patchStartingStockFromPreviousMonth`가 모든 날짜를 재계산하지만, 사용자가 수동으로 입력한 재고는 그대로 유지된다.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "contextAfter": 15,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "inventoryStateHasFilledCells"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "inventoryStateHasFilledCells",
+  "topFiles": [
+    {
+      "matchCount": 93,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 7
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+전월 말 재고를 1일에 한 번 적용하는 버튼을 추가할 예정입니다. 전월 데이터가 있을 때만 노출되며, 달이 넘어갈 때 재고 값만 정상적으로 유지되도록 관련 로직도 개선할 계획입니다.
+
+달이 넘어갈 때 기존 저장 데이터가 있으면 해당 데이터를 유지하고, 재고 값만 전월 말 재고로 덮어쓰도록 처리할 예정입니다.
+
+달이 넘어갈 때 기존 데이터가 재고만 있고 다른 항목이 비어 있으면 전월 말 재고로 자동 이전하도록 처리할 예정입니다.
+
+재고가 누락되는 것이 아니라, 달이 넘어갈 때 patchStartingStock이 재고를 다시 계산하면서 1일 이후 날짜의 재고가 사용자가 입력한 값과 달라 보이는 것 같습니다. 재고만 별도로 적용하는 방식은 2일 이후 재계산이 필요하므로 적절하지 않습니다.
+
+`patchStartingStockFromPreviousMonth`는 재고[0]만 갱신하고 나머지는 건드리지 않도록 수정할 예정입니다.
+
+입력된 날짜 활동이 있는지 확인하는 새 헬퍼를 추가합니다. 재고[0]을 제외한 입고·생산·출고·로스팅 값이 모두 0이면 전월 말 재고로 자동 이전하고, 그렇지 않으면 기존 데이터를 유지합니다.
+
+툴바에 직접 재고를 불러오는 버튼을 추가합니다. 메인 페이지에도 비교 가능 시 배너를 표시할 예정입니다.
+
+기존 데이터에 날짜 활동이 없지만 재고[0]이 잘못되어 있으면 기존 버킷을 무시하고 전월 말 재고로 이전합니다. 재고[0]만 정확히 맞춰야 하므로 기존 버킷의 재고 값을 그대로 쓰지 않습니다.
+
+사용자가 이미 입력한 재고[0]을 지우지 않도록 기존 버킷을 그대로 유지해야 합니다. 달이 넘어갈 때 자동으로 기존 데이터를 초기화하거나 rollover를 실행하면 안 됩니다. 기존 버킷에 날짜 활동이 있으면 기존 데이터를 그대로 두고, 재고[0]만 전월 말 재고로 덮어쓰는 방식이 맞습니다. 기존 데이터를 불러올 때 finalizeInventoryStatusState가 실행되어 재고가 재계산되는지 확인 중입니다.
+
+달이 넘어갈 때 기존 버킷을 불러오면 finalize가 실행되지 않아 재고 값이 최신 상태가 아닐 수 있습니다. 기존 데이터를 유지하되 재고[0]만 전월 말 재고로 덮어쓰는 방식이 맞습니다. 툴바에는 입력 버튼 옆에 바로 재고를 불러오는 버튼을 추가할 예정입니다.
+
+메인 페이지에서도 재고 불러오기 버튼을 노출할 예정입니다. 기존 버킷이 존재하면 재확인 없이 바로 적용하거나 가벼운 확인만 남깁니다.
+
+`inventoryStateHasDayActivity` 헬퍼를 구현 중입니다. 1일(재고[0])을 제외한 입고·생산·출고 값 중에서 실제 날짜 데이터가 있는지 확인합니다.
+
+`inventoryStateHasDayActivity` 헬퍼를 완성했습니다. 로스팅·블렌딩 사이클 값 중 실제 날짜 데이터가 있는지 확인합니다.
+
+`handleReferenceDateChange` 로직을 수정했습니다. 기존 버킷에 날짜 활동이 있으면 `patchStartingStockFromPreviousMonth`로 재고[0]만 전월 말 재고로 덮어쓰고, 나머지는 그대로 유지합니다.
+
+달이 넘어갈 때 기존 버킷을 불러오면 finalize가 실행되지 않아 재고 값이 최신 상태가 아닐 수 있습니다. 기존 데이터를 유지하되 재고[0]만 전월 말 재고로 덮어쓰는 방식이 맞습니다. 툴바에는 입력 버튼 옆에 바로 재고를 불러오는 버튼을 추가할 예정입니다.
+
+메인 페이지에서도 재고 불러오기 버튼을 노출할 예정입니다. 기존 버킷이 존재하면 재확인 없이 바로 적용하거나 가벼운 확인만 남깁니다.
+
+`inventoryStateHasDayActivity` 헬퍼를 구현 중입니다. 1일(재고[0])을 제외한 입고·생산·출고 값 중에서 실제 날짜 데이터가 있는지 확인합니다.
+
+`inventoryStateHasDayActivity` 헬퍼를
+
+툴바 버튼은 이전 월 데이터가 존재할 때만 노출합니다. 재확인 대화상자를 제거하여 더 부드러운 사용자 경험을 제공할 예정입니다.</details></think>
+
+_**Agent (default)**_
+
+달 변경 시 입고·생산·출고는 유지하고 전월 말 재고만 반영하도록 로직을 수정하고, 툴바에 ‘전월 말 재고’ 버튼을 추가합니다.
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "inventory-month-rollover|inventory-quick-rollover"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/App.css",
+  "pattern": "inventory-month-rollover|inventory-quick-rollover",
+  "topFiles": [
+    {
+      "matchCount": 30,
+      "uri": "app/src/App.css"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 30
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "inventory-month-rollover-panel"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx",
+  "pattern": "inventory-month-rollover-panel",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+달이 바뀌었을 때 기존 데이터에 재고만 있고 당일 활동이 없으면 롤오버 처리를 고려 중이다. 패치만으로는 부족할 수 있다.</details></think>
+
+_**Agent (default)**_
+
+앱 로드 시 달이 바뀌는 경우에도 같은 규칙을 적용합니다.
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+hydrate 경로를 수정 중입니다. 기존 데이터가 존재하고 재고 상태에 채워진 셀이 있을 때, 해당 날짜의 활동 여부를 확인하는 로직을 업데이트하고 있습니다.</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/parkcg/The Symbol_Edit/app/src/InventoryStatusPage.tsx</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc -b --noEmit 2>&1 | head -20</summary>
+
+```bash
+cd "/Users/parkcg/The Symbol_Edit/app" && npx tsc -b --noEmit 2>&1 | head -20
+```
+
+```
+npm notice
+npm notice New minor version of npm available! 11.5.1 -&gt; 11.18.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.18.0
+npm notice To update run: npm install -g npm@11.18.0
+npm notice
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+달이 바뀔 때 **재고만** 이월하고, 입고·생산·출고는 건드리지 않도록 정리했습니다.
+
+### 1. 상단 **「전월 말 재고」** 버튼
+전월 데이터가 있으면 툴바에 버튼이 보입니다. 한 번 누르면:
+- **전월 말일 종료 재고** → **이번 달 1일 시작 재고**만 반영
+- **입고·생산·출고·로스팅**은 그대로 유지
+- 이후 날짜 재고는 기존처럼 연쇄 계산만 다시 맞춤
+
+불일치 품목이 있으면 `(3)`처럼 개수도 표시됩니다.
+
+### 2. 달 바꿀 때 자동 동작 개선
+기준일로 **다음 달**로 넘어갈 때:
+
+| 상황 | 동작 |
+|------|------|
+| 새 달에 **입고·생산·출고가 아직 없음** | 전월 말 재고만 1일에 넣고, 나머지 칸은 **비움** |
+| 새 달에 **이미 입력한 값이 있음** | 저장된 입고·생산·출고는 **유지**, 1일 재고만 전월 말 값으로 맞춤 |
+
+이전에는 저장된 빈 달 표를 그대로 불러오면서 재고만>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+달이 바뀔 때 **재고만** 이월하고, 입고·생산·출고는 건드리지 않도록 정리했습니다.
+
+### 달 변경 {진 점}
+
+**1. 상단 `전월 말 재고` 버튼**
+- 전월 데이터가 있으면 툴바에 항상 표시됩니다.
+- 한 번 누르면 **전월 말일 종료 재고 → 이번 달 1일 시작 재고**만 반영합니다.
+- 입고·생산·출고·로스팅 값은 그대로 둡니다.
+- 1일 재고와 불일치가 있으면 `(숫자)`로 표시됩니다.
+
+**2. 기준일로 달을 바꿀 때 (자동)**
+- **다음 달로 넘어가고, 그 달에 아직 입고·생산·출고 입력이 없으면**  
+  → 전월 말 재고만 1일에 넣고, 나머지 칸은 비웁니다.
+- **이미 입고·생산·출고를 입력해 둔 달이면**  
+  → 그 값은 유지하고, **1일 재고만** 전월 말 기준으로 맞춥니다.
+
+**3. 입력 모달**
+- 전월 말 ↔ 1일 비교 줄을 불일치가 없어도 항상 보여 줍니다.
+- `전월 말 재고` 버튼으로 같은 동작을 할 수 있습니다.
+
+### 사용 방법
+
+1. 기준일을 이번 달로 맞춘 뒤  
+2. **`전월 말 재고`** 클릭  
+3. 필요하면 입고·생산·출고 입력 후 **저장**
+
+이제 달이 바뀔 때마다 입고·생산·출고가 덮어씌워지지 않고, 재고만 전월 말 기준으로 이어집니다.
+
+---
+
+_**User**_
+
+입출고현황에서 캘린더에 더치와 같이 매칭이 필요없는 항목이 있을때는 명세와 출고값이 차이난다고 경고하는게 없어지게해줘
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+입출고현황 캘린더에서 매칭이 불필요한 항목은 명세와 출고값 차이 경고를 제거해야 한다.
+
+경고 표시 위치와 명세 매핑 로직을 확인하고 있다.</details></think>
+
+_**Agent (default)**_
+
+명세-출고 불일치 경고가 어디서 뜨는지, 매핑 불필요 항목(더치 등)이 어떻게 처리되는지 확인 중입니다.
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*Inventory*",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "명세.*출고|출고.*명세|unmapped|매핑"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "명세.*출고|출고.*명세|unmapped|매핑",
+  "topFiles": [
+    {
+      "matchCount": 34,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    }
+  ],
+  "totalFiles": 2,
+  "totalMatches": 35
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": true,
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "더치|dutch|mapStatementItemToInventory"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/parkcg/The Symbol_Edit/app/src",
+  "pattern": "더치|dutch|mapStatementItemToInventory",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "app/src/beanBlendWonOverrides.ts"
+    },
+    {
+      "matchCount": 4,
+      "uri": "app/src/BeanSalesAnalysisPage.tsx"
+    },
+    {
+      "matchCount": 7,
+      "uri": "app/src/StatementsPage.tsx"
+    },
+    {
+      "matchCount": 3,
+      "uri": "app/src/InventoryStatusPage.tsx"
+    },
+    {
+      "matchCount": 5,
+      "uri": "app/src/StatementInventoryLinkModal.tsx"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/beanNamePublic.ts"
+    },
+    {
+      "matchCount": 6,
+      "uri": "app/src/beanSalesStatementMapping.ts"
+    },
+    {
+      "matchCount": 3,
+      "uri": "app/src/beanSalesMeetingMaterialCost.ts"
+    },
+    {
+      "matchCount": 12,
+      "uri": "app/src/beanSalesGreenOrderUnitPrice.ts"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/beanNameResolve.ts"
+    },
+    {
+      "matchCount": 1,
+      "uri": "app/src/MonthlyMeetingPage.tsx"
+    },
+    {
+      "matchCount": 2,
+      "uri": "app/src/BeanMarginCalcPage.tsx"
+    }
+  ],
+  "totalFiles": 12,
+  "totalMatches": 51
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
 
 </details></tool-use>
 
@@ -26091,5 +27165,31 @@ Status: **loading**
 
 <tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
 <summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: </summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
 
 </details></tool-use>

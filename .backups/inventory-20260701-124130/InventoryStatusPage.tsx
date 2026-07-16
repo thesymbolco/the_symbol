@@ -67,7 +67,7 @@ import {
   mergeKeepViewerReferenceDates,
 } from './inventoryEnvReferenceDates'
 import { useAppRuntime } from './providers/AppRuntimeProvider'
-import { formatBeanRowLabel, isStatementItemComparableToInventory, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
+import { formatBeanRowLabel, mapStatementItemToInventoryLabel } from './beanSalesStatementMapping'
 
 const STATEMENT_OUTBOUND_COMPARE_EPS = 0.0001
 
@@ -1078,14 +1078,12 @@ const buildQuickEntryDayStatementContext = (
   for (const record of lines) {
     const qty = Number.isFinite(record.quantity) ? record.quantity : 0
     const mapped = mapStatementItemToInventoryLabel(record.itemName, inventory.beanRows, mapOpts)
-    if (!isStatementItemComparableToInventory(record.itemName, inventory.beanRows, mapOpts)) {
-      if (!mapped.matched || mapped.label === '—') {
-        unmapped.push({
-          itemName: record.itemName,
-          quantity: qty,
-          clientName: record.clientName,
-        })
-      }
+    if (!mapped.matched || mapped.label === '—') {
+      unmapped.push({
+        itemName: record.itemName,
+        quantity: qty,
+        clientName: record.clientName,
+      })
       continue
     }
     const beanIndex = findBeanIndexByMappedLabel(mapped.label, inventory.beanRows)
@@ -1169,10 +1167,8 @@ const buildStatementOutboundCompare = (
       }
       const qty = Number.isFinite(record.quantity) ? record.quantity : 0
       const mapped = mapStatementItemToInventoryLabel(record.itemName, inventory.beanRows, mapOpts)
-      if (!isStatementItemComparableToInventory(record.itemName, inventory.beanRows, mapOpts)) {
-        if (!mapped.matched || mapped.label === '—') {
-          unmapped.push({ date: record.deliveryDate, itemName: record.itemName, quantity: qty })
-        }
+      if (!mapped.matched || mapped.label === '—') {
+        unmapped.push({ date: record.deliveryDate, itemName: record.itemName, quantity: qty })
         continue
       }
       const key = `${record.deliveryDate}\0${mapped.label}`
@@ -1308,36 +1304,6 @@ const inventoryStateHasFilledCells = (state: InventoryStatusState): boolean => {
   }
   for (const row of state.roastingRows) {
     if (row.values.some((v) => Number(v) !== 0)) {
-      return true
-    }
-  }
-  return false
-}
-
-/** 입고·생산·출고·로스팅·블렌딩 사이클에 0이 아닌 값이 하나라도 있으면 true (재고 제외) */
-const inventoryStateHasDayActivity = (state: InventoryStatusState): boolean => {
-  for (const bean of state.beanRows) {
-    if (bean.inbound.some((v) => Number(v) !== 0)) {
-      return true
-    }
-    if (bean.production.some((v) => Number(v) !== 0)) {
-      return true
-    }
-    if (bean.outbound.some((v) => Number(v) !== 0)) {
-      return true
-    }
-  }
-  for (const row of state.roastingRows) {
-    if (row.values.some((v) => Number(v) !== 0)) {
-      return true
-    }
-  }
-  for (const cycles of [
-    state.blendingDarkCycles,
-    state.blendingLightCycles,
-    state.blendingDecaffeineCycles,
-  ]) {
-    if (cycles?.some((v) => Number(v) !== 0)) {
       return true
     }
   }
@@ -3170,17 +3136,10 @@ function InventoryStatusPage() {
       if (monthChanged) {
         const existingToday = buckets[todayYm]
         if (existingToday && inventoryStateHasFilledCells(existingToday)) {
-          const rolled =
-            !inventoryStateHasDayActivity(existingToday) &&
-            todayYm === calendarYmPlusMonths(originalYm, 1)
-              ? rolloverInventoryStateToNextCalendarMonth(originalSnapshot, next.referenceDate)
-              : null
-          activeState =
-            rolled ??
-            patchStartingStockFromPriorMonthBucket(
-              withReferenceDateToday(cloneInventoryStatusState(existingToday)),
-              buckets,
-            )
+          activeState = patchStartingStockFromPriorMonthBucket(
+            withReferenceDateToday(cloneInventoryStatusState(existingToday)),
+            buckets,
+          )
           nextByMonth = {
             ...buckets,
             [originalYm]: originalSnapshot,
@@ -3921,6 +3880,13 @@ function InventoryStatusPage() {
       )
       return
     }
+    if (
+      !window.confirm(
+        `${prevYm} 말일 재고를 ${currentYm} 1일 시작 재고에 반영할까요?\n입고·생산·출고 등 일별 값은 그대로 두고, 1일 재고와 이후 연쇄만 다시 계산합니다.`,
+      )
+    ) {
+      return
+    }
     const patch = (cur: InventoryStatusState) => patchStartingStockFromPriorMonthBucket(cur, inventoryByMonth)
     setInventoryState((cur) => {
       const patched = patch(cur)
@@ -3934,9 +3900,7 @@ function InventoryStatusPage() {
     })
     setQuickEntryDraftState((draft) => (draft ? patch(draft) : null))
     setQuickEntryDirty(true)
-    setStatusMessage(
-      `${prevYm} 말 재고만 ${currentYm} 1일 시작 재고에 반영했습니다. 입고·생산·출고는 그대로입니다.`,
-    )
+    setStatusMessage(`${prevYm} 말 재고를 ${currentYm} 1일 시작 재고에 반영했습니다.`)
     setMonthRolloverPanelOpen(false)
   }, [inventoryByMonth, inventoryState.referenceDate, monthRolloverCompare.canCompare, monthRolloverCompare.prevYm])
 
@@ -5624,29 +5588,16 @@ function InventoryStatusPage() {
       let nextActive: InventoryStatusState
       let msg: string
 
-      if (existingNew && isInventoryForwardMonthRollover(closed, nextRef)) {
-        const closingStock = computeEndingStockByBeanName(closed)
-        if (inventoryStateHasDayActivity(existingNew)) {
-          nextActive = patchStartingStockFromPreviousMonth(
-            withDerivedPhysicalCountDate({
-              ...cloneInventoryStatusState(existingNew),
-              referenceDate: nextRef,
-              skipAutoStockDisplay: false,
-            }),
-            closingStock,
-          )
-          msg = `${newYm} 표를 불러왔습니다. 전월 말 재고만 1일에 맞췄고, 입고·생산·출고는 그대로입니다.`
-        } else {
-          nextActive = rolloverInventoryStateToNextCalendarMonth(closed, nextRef)!
-          msg =
-            '전월 말 재고만 이달 1일 시작 재고로 이월했습니다. 입고·생산·출고·로스팅은 비워 두었습니다.'
-        }
-      } else if (existingNew) {
+      if (existingNew) {
         nextActive = withDerivedPhysicalCountDate({
           ...cloneInventoryStatusState(existingNew),
           referenceDate: nextRef,
           skipAutoStockDisplay: false,
         })
+        if (isInventoryForwardMonthRollover(closed, nextRef)) {
+          const closingStock = computeEndingStockByBeanName(closed)
+          nextActive = patchStartingStockFromPreviousMonth(nextActive, closingStock)
+        }
         msg = `${newYm}에 저장해 둔 표를 불러왔습니다.`
       } else if (isInventoryForwardMonthRollover(closed, nextRef)) {
         nextActive = rolloverInventoryStateToNextCalendarMonth(closed, nextRef)!
@@ -5749,19 +5700,6 @@ function InventoryStatusPage() {
             >
               입력
             </button>
-            {monthRolloverCompare.canCompare ? (
-              <button
-                type="button"
-                className="ghost-button small-hit inventory-toolbar-main-btn inventory-month-rollover-apply"
-                onClick={applyPreviousMonthClosingStockToDay1}
-                title={`${monthRolloverCompare.prevYm} 말일 종료 재고를 이번 달 1일 시작 재고에만 반영합니다. 입고·생산·출고는 건드리지 않습니다.`}
-              >
-                전월 말 재고
-                {monthRolloverCompare.mismatchCount > 0
-                  ? ` (${monthRolloverCompare.mismatchCount})`
-                  : ''}
-              </button>
-            ) : null}
             <div className="inventory-file-actions app-file-actions" role="group" aria-label="파일">
               <button
                 type="button"
@@ -6129,14 +6067,11 @@ function InventoryStatusPage() {
                     </div>
                   </div>
                 </details>
-                {monthRolloverCompare.canCompare ? (
+                {monthRolloverCompare.canCompare && monthRolloverCompare.mismatchCount > 0 ? (
                   <div className="inventory-quick-rollover-strip">
                     <div className="inventory-quick-rollover-strip-row">
                       <span className="inventory-quick-rollover-strip-label">
-                        {monthRolloverCompare.prevYm}말 → 1일 시작 재고
-                        {monthRolloverCompare.mismatchCount > 0
-                          ? ` · 불일치 ${monthRolloverCompare.mismatchCount}`
-                          : ' · 일치'}
+                        {monthRolloverCompare.prevYm}말 ↔ 1일 · 불일치 {monthRolloverCompare.mismatchCount}
                       </span>
                       <div className="inventory-quick-rollover-strip-actions">
                       <button
@@ -6152,7 +6087,7 @@ function InventoryStatusPage() {
                         className="ghost-button small-hit inventory-month-rollover-apply"
                         onClick={applyPreviousMonthClosingStockToDay1}
                       >
-                        전월 말 재고
+                        1일 반영
                       </button>
                       </div>
                     </div>
